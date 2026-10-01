@@ -1,0 +1,41 @@
+============================= test session starts ==============================
+platform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0 -- /tmp/aiohttp-venv/bin/python
+codspeed: 5.0.3 (disabled, mode: walltime, callgraph: not supported, timer_resolution: 1.0ns)
+rootdir: /tmp/review/exec2/A/aiohttp-readuntil/tree
+configfile: pytest.ini
+plugins: cov-7.1.0, xdist-3.8.0, codspeed-5.0.3, timeout-2.4.0, asyncio-1.4.0, platformdirs-4.12.1, mock-3.15.1
+timeout: 120.0s
+timeout method: signal
+timeout func_only: False
+asyncio: mode=auto, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 160 items / 136 deselected / 24 selected
+
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[\r\n-0] PASSED [  4%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[\r\n-1] PASSED [  8%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[\r\n-2] PASSED [ 12%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[\r\n\r\n-0] PASSED [ 16%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[\r\n\r\n-1] PASSED [ 20%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[\r\n\r\n-2] PASSED [ 25%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[\r\n\r\n-3] PASSED [ 29%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[\r\n\r\n-4] PASSED [ 33%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[--xyz-0] PASSED [ 37%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[--xyz-1] PASSED [ 41%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[--xyz-2] PASSED [ 45%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[--xyz-3] PASSED [ 50%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[--xyz-4] PASSED [ 54%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[--xyz-5] PASSED [ 58%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_one_byte_per_chunk[\r\n\r\n] PASSED [ 62%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_one_byte_per_chunk[--xyz] PASSED [ 66%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_partial_overlap[chunks0-xaab] PASSED [ 70%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_partial_overlap[chunks1-xaaab] PASSED [ 75%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_partial_overlap[chunks2-xaaab] PASSED [ 79%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_with_false_start PASSED [ 83%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_eof PASSED [ 87%]
+tests/test_streams.py::TestStreamReader::test_readuntil_partial_separator_eof PASSED [ 91%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_max_size PASSED [ 95%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_line_too_long PASSED [100%]
+
+============================= slowest 10 durations =============================
+
+(10 durations < 0.005s hidden.  Use -vv to show these durations.)
+====================== 24 passed, 136 deselected in 0.11s ======================

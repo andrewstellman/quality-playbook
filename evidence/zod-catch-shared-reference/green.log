@@ -1,0 +1,81 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.11 [39m[90m/tmp/zodfix/BUG-022/packages/zod[39m
+
+ [32m✓[39m src/v4/classic/tests/catch.test.ts [2m([22m[2m32 tests[22m[2m)[22m[32m 73[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m32 passed[39m[22m[90m (32)[39m
+[2m   Start at [22m 16:53:55
+[2m   Duration [22m 901ms[2m (transform 618ms, setup 0ms, import 735ms, tests 73ms, environment 0ms)[22m
+
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.11 [39m[90m/tmp/zodfix/BUG-022/packages/zod[39m
+
+ [32m✓[39m src/v4/classic/tests/default.test.ts [2m([22m[2m23 tests[22m[2m)[22m[32m 27[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m23 passed[39m[22m[90m (23)[39m
+[2m   Start at [22m 16:53:56
+[2m   Duration [22m 783ms[2m (transform 564ms, setup 0ms, import 667ms, tests 27ms, environment 0ms)[22m
+
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.11 [39m[90m/tmp/zodfix/BUG-022/packages/zod[39m
+
+ [32m✓[39m src/v4/core/tests/compile.test.ts [2m([22m[2m170 tests[22m[2m)[22m[32m 107[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m170 passed[39m[22m[90m (170)[39m
+[2m   Start at [22m 16:53:57
+[2m   Duration [22m 1.22s[2m (transform 795ms, setup 0ms, import 941ms, tests 107ms, environment 0ms)[22m
+
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.11 [39m[90m/tmp/zodfix/BUG-022/packages/zod[39m
+
+ [32m✓[39m src/v4/core/tests/compile-differential.test.ts [2m([22m[2m81 tests[22m[2m)[22m[33m 380[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m81 passed[39m[22m[90m (81)[39m
+[2m   Start at [22m 16:53:59
+[2m   Duration [22m 1.47s[2m (transform 847ms, setup 0ms, import 1.00s, tests 380ms, environment 0ms)[22m
+
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.11 [39m[90m/tmp/zodfix/BUG-022/packages/zod[39m
+
+ [32m✓[39m src/v4/core/tests/compile-generative.test.ts [2m([22m[2m1 test[22m[2m)[22m[33m 320[2mms[22m[39m
+   [33m[2m✓[22m[39m random schemas parse identically through the interpreter and the compiler [33m 319[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m   Start at [22m 16:54:00
+[2m   Duration [22m 1.50s[2m (transform 944ms, setup 0ms, import 1.10s, tests 320ms, environment 0ms)[22m
+
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.11 [39m[90m/tmp/zodfix/BUG-022/packages/zod[39m
+
+ [32m✓[39m src/v4/core/tests/compile-global.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m7 passed[39m[22m[90m (7)[39m
+[2m   Start at [22m 16:54:02
+[2m   Duration [22m 1.10s[2m (transform 848ms, setup 0ms, import 998ms, tests 11ms, environment 0ms)[22m
+
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.11 [39m[90m/tmp/zodfix/BUG-022/packages/zod[39m
+
+ [32m✓[39m src/v4/core/tests/compile-off-by-default.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m2 passed[39m[22m[90m (2)[39m
+[2m   Start at [22m 16:54:03
+[2m   Duration [22m 756ms[2m (transform 557ms, setup 0ms, import 667ms, tests 4ms, environment 0ms)[22m
+
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.11 [39m[90m/tmp/zodfix/BUG-022/packages/zod[39m
+
+ [32m✓[39m src/v4/core/tests/compile-stats.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 1[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m   Start at [22m 16:54:05
+[2m   Duration [22m 803ms[2m (transform 542ms, setup 0ms, import 643ms, tests 1ms, environment 0ms)[22m
+

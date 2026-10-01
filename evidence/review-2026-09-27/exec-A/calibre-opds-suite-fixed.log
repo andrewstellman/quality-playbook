@@ -1,0 +1,11 @@
+Same result for fixed tree (same import barrier, only opds.py changed).
+  File "<string>", line 1, in <module>
+    import sys; sys.path.insert(0,'fixed/src'); import calibre
+                                                ^^^^^^^^^^^^^^
+  File "/tmp/review/exec/A/calibre-opds/fixed/src/calibre/__init__.py", line 22, in <module>
+    from calibre.constants import (
+    ...<13 lines>...
+    )
+  File "/tmp/review/exec/A/calibre-opds/fixed/src/calibre/constants.py", line 180, in <module>
+    plugins_loc = getattr(sys, 'extensions_location')
+AttributeError: module 'sys' has no attribute 'extensions_location'

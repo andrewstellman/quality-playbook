@@ -1,0 +1,63 @@
+From 6becf9c4f77afa27e69a1c884aa6ba7ce625fd29 Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <andrew@stellman.com>
+Date: Wed, 30 Sep 2026 23:27:47 -0400
+Subject: [PATCH] Fix route_from when only the base URI has a query
+
+With equal paths, route_from returned an empty reference whenever the
+target had no query, but an empty reference inherits the base's query
+(RFC 3986 section 5.2.2). Return the last path segment (or "./") instead.
+---
+ lib/addressable/uri.rb       |  4 ++++
+ spec/addressable/uri_spec.rb | 14 ++++++++++++++
+ 2 files changed, 18 insertions(+)
+
+diff --git a/lib/addressable/uri.rb b/lib/addressable/uri.rb
+index 07c9aeb..8d64448 100644
+--- a/lib/addressable/uri.rb
++++ b/lib/addressable/uri.rb
+@@ -2106,6 +2106,10 @@ module Addressable
+             components[:path] = nil
+             if normalized_self.query == uri.query
+               components[:query] = nil
++            elsif normalized_self.query == nil
++              # An empty path would inherit the base's query (RFC 3986 5.2.2)
++              components[:path] = normalized_self.path[/[^\/]*\z/]
++              components[:path] = "./" if components[:path].empty?
+             end
+           else
+             if uri.path != SLASH and components[:path]
+diff --git a/spec/addressable/uri_spec.rb b/spec/addressable/uri_spec.rb
+index 0cb76fc..58dfbda 100644
+--- a/spec/addressable/uri_spec.rb
++++ b/spec/addressable/uri_spec.rb
+@@ -3360,6 +3360,13 @@ describe Addressable::URI, "when parsed from " +
+     )
+   end
+ 
++  it "should have a route of './' from " +
++      "'http://example.com/path/to/resource/?query=x'" do
++    expect(
++      @uri.route_from("http://example.com/path/to/resource/?query=x").to_s
++    ).to eq("./")
++  end
++
+   it "should correctly convert to a hash" do
+     expect(@uri.to_hash).to eq({
+       :scheme => "http",
+@@ -3564,6 +3571,13 @@ describe Addressable::URI, "when parsed from " +
+   it "should have no fragment" do
+     expect(@uri.fragment).to eq(nil)
+   end
++
++  it "should have a route of 'file.txt' from " +
++      "'http://example.com/file.txt?x=1'" do
++    expect(@uri.route_from("http://example.com/file.txt?x=1")).to eq(
++      Addressable::URI.parse("file.txt")
++    )
++  end
+ end
+ 
+ describe Addressable::URI, "when parsed from " +
+-- 
+2.34.1
+

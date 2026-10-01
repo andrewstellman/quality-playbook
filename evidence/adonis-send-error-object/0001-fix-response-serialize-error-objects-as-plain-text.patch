@@ -1,0 +1,54 @@
+From f935c392a4485f988655816f6860418f6ed32593 Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <andrew@stellman.com>
+Date: Wed, 30 Sep 2026 13:33:07 -0400
+Subject: [PATCH] fix(response): serialize error objects as plain text
+
+Sending an Error fell through to the JSON serializer, and since its
+own properties are non-enumerable the client received "{}". Errors now
+go through toString() with text/plain, like regular expressions.
+---
+ src/response.ts        |  2 +-
+ tests/response.spec.ts | 14 ++++++++++++++
+ 2 files changed, 15 insertions(+), 1 deletion(-)
+
+diff --git a/src/response.ts b/src/response.ts
+index 70fa144..886eb6e 100644
+--- a/src/response.ts
++++ b/src/response.ts
+@@ -304,7 +304,7 @@ export class HttpResponse extends Macroable {
+       contentType = content.trimStart().startsWith('<') ? CONTENT_TYPES.html : CONTENT_TYPES.text
+     } else if (content instanceof Uint8Array) {
+       contentType = CONTENT_TYPES.script
+-    } else if (content instanceof RegExp) {
++    } else if (content instanceof RegExp || content instanceof Error) {
+       content = String(content)
+       contentType = CONTENT_TYPES.text
+     } else if (content instanceof Date) {
+diff --git a/tests/response.spec.ts b/tests/response.spec.ts
+index 745c2a7..d66f787 100644
+--- a/tests/response.spec.ts
++++ b/tests/response.spec.ts
+@@ -315,6 +315,20 @@ test.group('Response', (group) => {
+     assert.equal(text, '/foo/')
+   })
+ 
++  test('get error in response', async ({ assert }) => {
++    const { url } = await httpServer.create((req, res) => {
++      const response = new HttpResponseFactory().merge({ req, res, encryption, router }).create()
++
++      response.send(new Error('boom'))
++      response.finish()
++    })
++
++    const { text } = await supertest(url)
++      .get('/')
++      .expect('content-type', 'text/plain; charset=utf-8')
++    assert.equal(text, 'Error: boom')
++  })
++
+   test('parse array and set correct response type', async ({ assert }) => {
+     const { url } = await httpServer.create((req, res) => {
+       const response = new HttpResponseFactory().merge({ req, res, encryption, router }).create()
+-- 
+2.34.1
+

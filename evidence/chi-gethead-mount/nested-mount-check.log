@@ -1,0 +1,16 @@
+### branch master (3d1777a) -- scratch test, not part of the patch
+=== RUN   TestZZNestedGetHead
+    zz_nested_test.go:25: HEAD /api/acme/x -> 200 X-H="get"
+    zz_nested_test.go:25: HEAD /api/acme/y -> 200 X-H="get-y:acme"
+    zz_nested_test.go:25: HEAD /api/acme/nope -> 404 X-H=""
+--- PASS: TestZZNestedGetHead (0.00s)
+PASS
+ok  	github.com/go-chi/chi/v5/middleware	0.004s
+### branch fix-gethead-mount (2ff7bfb) -- scratch test, not part of the patch
+=== RUN   TestZZNestedGetHead
+    zz_nested_test.go:25: HEAD /api/acme/x -> 200 X-H="head:acme"
+    zz_nested_test.go:25: HEAD /api/acme/y -> 200 X-H="get-y:acme"
+    zz_nested_test.go:25: HEAD /api/acme/nope -> 404 X-H=""
+--- PASS: TestZZNestedGetHead (0.00s)
+PASS
+ok  	github.com/go-chi/chi/v5/middleware	0.004s

@@ -1,0 +1,24 @@
+# Attempt to run calibre's own test runner from the source checkout (no compiled build available)
+$ /tmp/venv314/bin/python setup.py test find_tests
+  File "/tmp/calibre/src/calibre/__init__.py", line 39, in <module>
+    initialize_calibre()
+    ~~~~~~~~~~~~~~~~~~^^
+  File "/tmp/calibre/src/calibre/startup.py", line 206, in initialize_calibre
+    from calibre.utils.localization import getlangcode_from_envvars, set_translators
+  File "/tmp/calibre/src/calibre/utils/localization.py", line 10, in <module>
+    from calibre_extensions.translator import Translator
+ModuleNotFoundError: No module named 'calibre_extensions.translator'
+
+# Existing srv tests do not cover OPDS: src/calibre/srv/tests/ajax.py:374 says
+src/calibre/srv/tests/ajax.py:374:            # Not going test legacy and opds as they are too painful
+src/calibre/srv/tests/loop.py:122:            self.ae(info.text, b'\npath=/opds')
+
+# Lint on the patched file (ruff from pyproject, per repo config)
+## opds-navcatalog-bad-hex
+All checks passed!
+1 file already formatted
+py_compile-ok
+## opds-all-three
+All checks passed!
+1 file already formatted
+py_compile-ok

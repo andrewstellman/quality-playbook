@@ -1,0 +1,8 @@
+$ ruff --version
+ruff 0.12.8
+$ ruff check <10 changed files>
+All checks passed!
+exit 0
+$ ruff format --check <10 changed files>
+10 files already formatted
+exit 0

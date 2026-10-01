@@ -1,0 +1,35 @@
+From 813a49667534d07fad0bb914c8377a1bad787478 Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <andrew@stellman.com>
+Date: Sun, 27 Sep 2026 16:36:47 -0400
+Subject: [PATCH] Content server: return 404 instead of 500 for malformed
+ /opds/navcatalog ids
+
+---
+ src/calibre/srv/opds.py | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/calibre/srv/opds.py b/src/calibre/srv/opds.py
+index 4ba72c1..f400aa4 100644
+--- a/src/calibre/srv/opds.py
++++ b/src/calibre/srv/opds.py
+@@ -657,11 +657,16 @@ def opds_navcatalog(ctx: Context, rd: RequestData, which: str) -> etree.Element:
+         offset = int(rd.query.get('offset', 0))
+     except Exception:
+         raise HTTPNotFound('Not found')
++    if not which:
++        raise HTTPNotFound('Not found')
+     rc = RequestContext(ctx, rd)
+ 
+     page_url = rc.url_for('/opds/navcatalog', which=which)
+     up_url = rc.url_for('/opds')
+-    which = from_hex_unicode(which)
++    try:
++        which = from_hex_unicode(which)
++    except ValueError:
++        raise HTTPNotFound('Not found')
+     type_ = which[0]
+     which = which[1:]
+     if type_ == 'O':
+-- 
+2.34.1
+

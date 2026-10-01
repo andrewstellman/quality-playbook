@@ -1,0 +1,5 @@
+/tmp/review/exec/A/bionemo-amplify/.venv/lib/python3.11/site-packages/torch/_subclasses/functional_tensor.py:368: UserWarning: Failed to initialize NumPy: No module named 'numpy' (Triggered internally at /__w/pytorch/pytorch/torch/csrc/utils/tensor_numpy.cpp:84.)
+  cpu = _conversion_method_template(device=torch.device("cpu"))
+source dtype=torch.bfloat16 device=cpu -> out dtype=torch.bfloat16 device=cpu shape=(12, 4)
+dtype match: True device match: True shape match: True
+RESULT: GREEN

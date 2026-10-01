@@ -1,0 +1,86 @@
+== tests/test_types_typeddict.py
+50 passed, 31 skipped in 0.23s
+== full suite: tests/ (includes tests/pydantic_core)
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+FAILED tests/pydantic_core/test_docstrings.py::test_docstrings[pydantic-core/python/pydantic_core/core_schema.py:803-810]
+FAILED tests/pydantic_core/test_docstrings.py::test_docstrings[pydantic-core/python/pydantic_core/core_schema.py:871-878]
+FAILED tests/pydantic_core/test_docstrings.py::test_docstrings[pydantic-core/python/pydantic_core/core_schema.py:1110-1117]
+FAILED tests/pydantic_core/test_docstrings.py::test_docstrings[pydantic-core/python/pydantic_core/core_schema.py:1176-1183]
+FAILED tests/pydantic_core/test_docstrings.py::test_docstrings[pydantic-core/python/pydantic_core/core_schema.py:1248-1256]
+FAILED tests/pydantic_core/test_docstrings.py::test_docstrings[pydantic-core/python/pydantic_core/core_schema.py:1320-1327]
+FAILED tests/pydantic_core/test_docstrings.py::test_docstrings[pydantic-core/python/pydantic_core/core_schema.py:1445-1457]
+FAILED tests/pydantic_core/test_docstrings.py::test_docstrings[pydantic-core/python/pydantic_core/core_schema.py:1573-1582]
+FAILED tests/pydantic_core/test_docstrings.py::test_docstrings[pydantic-core/python/pydantic_core/core_schema.py:1616-1628]
+FAILED tests/pydantic_core/test_docstrings.py::test_docstrings[pydantic-core/python/pydantic_core/core_schema.py:2123-2133]
+FAILED tests/pydantic_core/test_docstrings.py::test_docstrings[pydantic-core/python/pydantic_core/core_schema.py:2486-2499]
+FAILED tests/pydantic_core/test_docstrings.py::test_docstrings[pydantic-core/python/pydantic_core/core_schema.py:2563-2578]
+FAILED tests/pydantic_core/test_docstrings.py::test_docstrings[pydantic-core/python/pydantic_core/core_schema.py:2623-2634]
+FAILED tests/pydantic_core/test_docstrings.py::test_docstrings[pydantic-core/python/pydantic_core/core_schema.py:2695-2710]
+FAILED tests/pydantic_core/test_docstrings.py::test_docstrings[pydantic-core/python/pydantic_core/core_schema.py:2788-2802]
+FAILED tests/pydantic_core/test_docstrings.py::test_docstrings[pydantic-core/python/pydantic_core/core_schema.py:2867-2882]
+FAILED tests/pydantic_core/test_docstrings.py::test_docstrings[pydantic-core/python/pydantic_core/core_schema.py:2931-2941]
+FAILED tests/pydantic_core/test_docstrings.py::test_docstrings[pydantic-core/python/pydantic_core/core_schema.py:2999-3009]
+FAILED tests/pydantic_core/test_docstrings.py::test_docstrings[pydantic-core/python/pydantic_core/core_schema.py:3327-3340]
+FAILED tests/pydantic_core/test_docstrings.py::test_docstrings[pydantic-core/python/pydantic_core/core_schema.py:3373-3394]
+FAILED tests/pydantic_core/test_docstrings.py::test_docstrings[pydantic-core/python/pydantic_core/core_schema.py:3558-3571]
+FAILED tests/pydantic_core/test_docstrings.py::test_docstrings[pydantic-core/python/pydantic_core/core_schema.py:3770-3791]
+FAILED tests/pydantic_core/test_docstrings.py::test_docstrings[pydantic-core/python/pydantic_core/core_schema.py:4104-4122]
+FAILED tests/pydantic_core/test_docstrings.py::test_docstrings[pydantic-core/python/pydantic_core/core_schema.py:4395-4413]
+FAILED tests/pydantic_core/test_docstrings.py::test_docstrings[pydantic-core/python/pydantic_core/core_schema.py:4511-4536]
+FAILED tests/pydantic_core/validators/test_allow_partial.py::test_set_frozenset[set_schema]
+FAILED tests/test_generics.py::test_generic_model_pickle_different_module - I...
+27 failed, 12034 passed, 1193 skipped, 32 xfailed in 27.47s
+baseline (source reverted) failures:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+FAILED tests/pydantic_core/validators/test_allow_partial.py::test_set_frozenset[set_schema]
+FAILED tests/test_generics.py::test_generic_model_pickle_different_module - I...
+FAILED tests/test_types_typeddict.py::test_typeddict_with_config_decorator_serialization
+28 failed, 12033 passed, 1193 skipped, 32 xfailed in 26.28s

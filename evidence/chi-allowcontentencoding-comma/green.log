@@ -1,0 +1,44 @@
+$ go test -count=1 -v -run 'TestContentEncodingMiddleware' ./middleware/
+=== RUN   TestContentEncodingMiddleware
+=== PAUSE TestContentEncodingMiddleware
+=== CONT  TestContentEncodingMiddleware
+=== RUN   TestContentEncodingMiddleware/Support_no_encoding
+=== PAUSE TestContentEncodingMiddleware/Support_no_encoding
+=== RUN   TestContentEncodingMiddleware/Support_gzip_encoding
+=== PAUSE TestContentEncodingMiddleware/Support_gzip_encoding
+=== RUN   TestContentEncodingMiddleware/No_support_for_br_encoding
+=== PAUSE TestContentEncodingMiddleware/No_support_for_br_encoding
+=== RUN   TestContentEncodingMiddleware/Support_for_gzip_and_deflate_encoding
+=== PAUSE TestContentEncodingMiddleware/Support_for_gzip_and_deflate_encoding
+=== RUN   TestContentEncodingMiddleware/Support_for_deflate_and_gzip_encoding
+=== PAUSE TestContentEncodingMiddleware/Support_for_deflate_and_gzip_encoding
+=== RUN   TestContentEncodingMiddleware/No_support_for_deflate_and_br_encoding
+=== PAUSE TestContentEncodingMiddleware/No_support_for_deflate_and_br_encoding
+=== RUN   TestContentEncodingMiddleware/Support_for_gzip_and_deflate_encoding_in_one_header
+=== PAUSE TestContentEncodingMiddleware/Support_for_gzip_and_deflate_encoding_in_one_header
+=== RUN   TestContentEncodingMiddleware/Support_for_deflate_and_gzip_encoding_in_one_header
+=== PAUSE TestContentEncodingMiddleware/Support_for_deflate_and_gzip_encoding_in_one_header
+=== RUN   TestContentEncodingMiddleware/No_support_for_deflate_and_br_encoding_in_one_header
+=== PAUSE TestContentEncodingMiddleware/No_support_for_deflate_and_br_encoding_in_one_header
+=== CONT  TestContentEncodingMiddleware/Support_no_encoding
+=== CONT  TestContentEncodingMiddleware/Support_for_deflate_and_gzip_encoding
+=== CONT  TestContentEncodingMiddleware/No_support_for_deflate_and_br_encoding
+=== CONT  TestContentEncodingMiddleware/Support_for_gzip_and_deflate_encoding
+=== CONT  TestContentEncodingMiddleware/No_support_for_deflate_and_br_encoding_in_one_header
+=== CONT  TestContentEncodingMiddleware/No_support_for_br_encoding
+=== CONT  TestContentEncodingMiddleware/Support_gzip_encoding
+=== CONT  TestContentEncodingMiddleware/Support_for_gzip_and_deflate_encoding_in_one_header
+=== CONT  TestContentEncodingMiddleware/Support_for_deflate_and_gzip_encoding_in_one_header
+--- PASS: TestContentEncodingMiddleware (0.00s)
+    --- PASS: TestContentEncodingMiddleware/Support_no_encoding (0.00s)
+    --- PASS: TestContentEncodingMiddleware/Support_for_deflate_and_gzip_encoding (0.00s)
+    --- PASS: TestContentEncodingMiddleware/No_support_for_deflate_and_br_encoding (0.00s)
+    --- PASS: TestContentEncodingMiddleware/Support_for_gzip_and_deflate_encoding (0.00s)
+    --- PASS: TestContentEncodingMiddleware/No_support_for_deflate_and_br_encoding_in_one_header (0.00s)
+    --- PASS: TestContentEncodingMiddleware/No_support_for_br_encoding (0.00s)
+    --- PASS: TestContentEncodingMiddleware/Support_gzip_encoding (0.00s)
+    --- PASS: TestContentEncodingMiddleware/Support_for_gzip_and_deflate_encoding_in_one_header (0.00s)
+    --- PASS: TestContentEncodingMiddleware/Support_for_deflate_and_gzip_encoding_in_one_header (0.00s)
+PASS
+ok  	github.com/go-chi/chi/v5/middleware	0.003s
+exit=0

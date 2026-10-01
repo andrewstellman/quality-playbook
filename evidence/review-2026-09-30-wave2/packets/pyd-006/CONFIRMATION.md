@@ -1,0 +1,4 @@
+Confirmer: CONFIRMED (inf/NaN). Annotated[float, Field(multiple_of=0.5)] accepts inf, -inf, nan, JSON Infinity/NaN; 0.3 rejected; allow_inf_nan=False rejects inf (finite_number). pydantic's own Python fallback multiple_of_validator (pydantic/_internal/_validators.py:300-306) rejects inf.
+Spec: JSON Schema validation (cite/json-schema-spec_jsonschema-validation.md:177) "A numeric instance is valid only if division by this keyword's value results in an integer."; docs_api_standard_library_types.md:238 "The value must be a multiple of this number"; :239 documents allow_inf_nan separately.
+Duplicates: none filed. Closed unmerged PR #13473's body says native multiple_of accepts nan/inf and that rejecting them "may well be worth doing ... it probably belongs in pydantic-core".
+Fixer notes: tiny-divisor tolerance (1e-9 absolute) deliberately untouched. ruff check flags one FURB157 on an untouched line.

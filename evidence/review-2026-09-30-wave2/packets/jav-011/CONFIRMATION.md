@@ -1,0 +1,4 @@
+Confirmer (javalin 7.2.4-SNAPSHOT at pin): CONFIRMED. precompressMaxSize=0 -> precompress cache stays empty for both handlers (control 10 MB -> cache 1). The BUGS.md "chunked, no Content-Length" symptom did NOT reproduce with a 216 KB file (gzipped 587 bytes got a Content-Length); core defect = cache unused, recompressed every request.
+Doc: cite/javalin.io_docs.md:1566 `staticFiles.precompressMaxSize = 0; // max size for pre-compression in bytes (-1 to disable, 0 for all sizes)` (live javalin.io page identical). Source comment StaticFileConfig.kt:52 "-1 means disabled, otherwise set the max size" (silent on 0). No project test uses 0.
+Duplicates: none. Pushback risk: maintainer may fix the docs instead.
+Fixer notes: values below -1 still disable; StaticFileConfig comments not updated. Module suite: 1014 run, 1 error = TestJavalinVueBrowser SessionNotCreated (no WebDriver; expected per repo's copilot-instructions).

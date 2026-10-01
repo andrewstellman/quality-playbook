@@ -1,0 +1,5 @@
+- Restore PR template checklist: done (ticked: title, unit tests; unticked: CI not run, docs (no doc covers multiple_of with inf/nan), ready-to-review/"please review" comment is Andrew's).
+- Cite closed PR #13473 ("probably belongs in pydantic-core"): done, under "Related issue number"; quote checked against the GitHub API body.
+- Say inf/nan now rejected even with allow_inf_nan=True: done, one line.
+- Pydantic AI policy certification (S8, cross-cutting): not done by design; placeholder `<<ANDREW: understanding statement>>` left for Andrew.
+- No code change, no rebuild, no rebase (text only; disk). Commit and patch unchanged; red/green/revert logs are the earlier ones.

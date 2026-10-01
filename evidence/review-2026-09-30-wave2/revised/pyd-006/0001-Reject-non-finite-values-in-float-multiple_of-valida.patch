@@ -1,0 +1,45 @@
+From 0b5e6ee6296f79fbc9a9b94033c90835236501d8 Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <andrew@stellman.com>
+Date: Wed, 30 Sep 2026 23:30:56 -0400
+Subject: [PATCH] Reject non-finite values in float `multiple_of` validation
+
+For `inf`, `-inf` and `nan` the remainder computed by the constrained
+float validator is NaN, which never compares greater than the tolerance,
+so these values passed any `multiple_of` constraint.
+---
+ pydantic-core/src/validators/float.rs        | 3 ++-
+ pydantic-core/tests/validators/test_float.py | 4 ++++
+ 2 files changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/pydantic-core/src/validators/float.rs b/pydantic-core/src/validators/float.rs
+index e1383235e..ae94bddb7 100644
+--- a/pydantic-core/src/validators/float.rs
++++ b/pydantic-core/src/validators/float.rs
+@@ -114,7 +114,8 @@ impl Validator for ConstrainedFloatValidator {
+             let tolerance = 1e-9;
+             let rounded_div = (float / multiple_of).round();
+             let diff = (float - (rounded_div * multiple_of)).abs();
+-            if diff > tolerance {
++            // `diff` is NaN for non-finite values, which never compares greater than the tolerance
++            if !float.is_finite() || diff > tolerance {
+                 return Err(ValError::new(
+                     ErrorType::MultipleOf {
+                         multiple_of: multiple_of.into(),
+diff --git a/pydantic-core/tests/validators/test_float.py b/pydantic-core/tests/validators/test_float.py
+index 782da1d4c..b86ae1ed3 100644
+--- a/pydantic-core/tests/validators/test_float.py
++++ b/pydantic-core/tests/validators/test_float.py
+@@ -148,6 +148,10 @@ def test_float_kwargs(py_and_json: PyAndJson, kwargs: dict[str, Any], input_valu
+         (0.1, -0.00001, Err('Input should be a multiple of 0.1')),
+         (0.01, 0.00001, Err('Input should be a multiple of 0.01')),
+         (0.01, -0.00001, Err('Input should be a multiple of 0.01')),
++        # Test cases for non-finite values
++        (0.5, float('inf'), Err('Input should be a multiple of 0.5')),
++        (0.5, float('-inf'), Err('Input should be a multiple of 0.5')),
++        (0.5, float('nan'), Err('Input should be a multiple of 0.5')),
+     ],
+     ids=repr,
+ )
+-- 
+2.34.1
+

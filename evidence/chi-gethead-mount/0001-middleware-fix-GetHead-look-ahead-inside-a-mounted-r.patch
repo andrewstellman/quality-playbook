@@ -1,0 +1,88 @@
+From 2ff7bfb18be3e5ccc9a7956d5326e5f4cefcb0cd Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <andrew@stellman.com>
+Date: Sun, 27 Sep 2026 15:52:21 -0400
+Subject: [PATCH] middleware: fix GetHead look-ahead inside a mounted router
+
+---
+ middleware/get_head.go      | 14 +++++++++++++-
+ middleware/get_head_test.go | 36 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 49 insertions(+), 1 deletion(-)
+
+diff --git a/middleware/get_head.go b/middleware/get_head.go
+index d4606d8..1ea12a4 100644
+--- a/middleware/get_head.go
++++ b/middleware/get_head.go
+@@ -20,13 +20,25 @@ func GetHead(next http.Handler) http.Handler {
+ 				}
+ 			}
+ 
++			// rctx.Routes is always the top-level router. Inside a mounted
++			// sub-router, routePath has already been shifted past the mount
++			// point, so look ahead with the full request path instead.
++			lookupPath := routePath
++			if len(rctx.RoutePatterns) > 0 {
++				if r.URL.RawPath != "" {
++					lookupPath = r.URL.RawPath
++				} else {
++					lookupPath = r.URL.Path
++				}
++			}
++
+ 			// Temporary routing context to look-ahead before routing the request
+ 			tctx := chi.NewRouteContext()
+ 
+ 			// Attempt to find a HEAD handler for the routing path, if not found, traverse
+ 			// the router as through its a GET route, but proceed with the request
+ 			// with the HEAD method.
+-			if !rctx.Routes.Match(tctx, "HEAD", routePath) {
++			if !rctx.Routes.Match(tctx, "HEAD", lookupPath) {
+ 				rctx.RouteMethod = "GET"
+ 				rctx.RoutePath = routePath
+ 				next.ServeHTTP(w, r)
+diff --git a/middleware/get_head_test.go b/middleware/get_head_test.go
+index c1fde1f..64f6c36 100644
+--- a/middleware/get_head_test.go
++++ b/middleware/get_head_test.go
+@@ -64,3 +64,39 @@ func TestGetHead(t *testing.T) {
+ 		t.Fatalf("expecting X-User header '-' but got '%s'", req.Header.Get("X-User"))
+ 	}
+ }
++
++func TestGetHeadInMountedRouter(t *testing.T) {
++	sub := chi.NewRouter()
++	sub.Use(GetHead)
++	sub.Head("/hi", func(w http.ResponseWriter, r *http.Request) {
++		w.Header().Set("X-Handler", "head")
++	})
++	sub.Get("/hi", func(w http.ResponseWriter, r *http.Request) {
++		w.Header().Set("X-Handler", "get")
++		w.Write([]byte("bye"))
++	})
++	sub.Get("/only-get", func(w http.ResponseWriter, r *http.Request) {
++		w.Header().Set("X-Handler", "get")
++		w.Write([]byte("bye"))
++	})
++
++	r := chi.NewRouter()
++	r.Head("/only-get", func(w http.ResponseWriter, r *http.Request) {
++		w.Header().Set("X-Handler", "root-head")
++	})
++	r.Mount("/api", sub)
++
++	ts := httptest.NewServer(r)
++	defer ts.Close()
++
++	// The sub-router's own HEAD handler must be used.
++	if res, _ := testRequest(t, ts, "HEAD", "/api/hi", nil); res.Header.Get("X-Handler") != "head" {
++		t.Errorf("HEAD /api/hi: expected X-Handler 'head', got %q (status %d)", res.Header.Get("X-Handler"), res.StatusCode)
++	}
++
++	// A HEAD route on the parent router at the same relative path must not
++	// stop the fallback to the sub-router's GET handler.
++	if res, _ := testRequest(t, ts, "HEAD", "/api/only-get", nil); res.StatusCode != 200 || res.Header.Get("X-Handler") != "get" {
++		t.Errorf("HEAD /api/only-get: expected 200 with X-Handler 'get', got %q (status %d)", res.Header.Get("X-Handler"), res.StatusCode)
++	}
++}
+-- 
+2.34.1
+

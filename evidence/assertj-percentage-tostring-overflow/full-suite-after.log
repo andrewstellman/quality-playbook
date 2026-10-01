@@ -1,0 +1,6 @@
+# Filtered from full Maven output: grep -E 'Tests run:.*Fail|BUILD|Total time' | grep -v ' in '
+# Command (patched): same as full-suite-before.log
+[INFO] Tests run: 14441, Failures: 0, Errors: 0, Skipped: 21
+[INFO] Tests run: 6340, Failures: 0, Errors: 0, Skipped: 7
+[INFO] BUILD SUCCESS
+[INFO] Total time:  36.271 s

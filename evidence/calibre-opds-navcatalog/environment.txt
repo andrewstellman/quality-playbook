@@ -1,0 +1,7 @@
+Sandbox: Linux aarch64, 2026-09-27T20:39Z
+System python: Python 3.10.12 (cannot parse calibre master: routes.py uses PEP 695 syntax, content.py uses PEP 758 syntax; pyproject requires-python >=3.14)
+Harness python: Python 3.14.7 (uv-managed CPython 3.14.7 in /tmp, venv with lxml + ruff; lxml not actually needed by the harness)
+ruff: ruff 0.16.9
+Clone: git clone --depth 1 https://github.com/kovidgoyal/calibre
+Pinned: 7691f4f1a155d799afdfec99e2cdc2716c178402, committed 2026-09-27 11:40:02 +0530 (subject: "...")
+No calibre build (no calibre_extensions C modules, no Qt, no ICU). calibre's test runner cannot import without them (see tests-and-lint.log).

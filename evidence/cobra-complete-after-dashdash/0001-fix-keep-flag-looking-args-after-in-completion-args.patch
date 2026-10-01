@@ -1,0 +1,118 @@
+From bce55d53cf6f3f2529674f1a34a9fdc5907a8f2b Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <andrew@stellman.com>
+Date: Wed, 30 Sep 2026 23:23:03 -0400
+Subject: [PATCH] fix: keep flag-looking args after -- in completion args
+
+When flag parsing has stopped (after "--" or with interspersed flags
+disabled), a word naming a value-taking flag is a positional argument,
+but getCompletions trimmed it as if completing that flag's value, so
+ValidArgsFunction did not receive it. Detect that flag parsing has
+stopped from the "--" probe and restore the args in that case.
+---
+ completions.go      | 30 ++++++++++++++++++++----------
+ completions_test.go | 34 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 54 insertions(+), 10 deletions(-)
+
+diff --git a/completions.go b/completions.go
+index 9a8259f..921971f 100644
+--- a/completions.go
++++ b/completions.go
+@@ -358,6 +358,12 @@ func (c *Command) getCompletions(args []string) (*Command, []Completion, ShellCo
+ 		finalCmd.InitDefaultVersionFlag()
+ 	}
+ 
++	// Keep the args in case flag parsing turns out to have stopped (see below).
++	// Copy them: checkIfFlagCompletion may return finalArgs shortened by one word,
++	// and the probe's append(finalArgs, "--") would then overwrite that word.
++	argsBeforeFlagCheck := append([]string(nil), finalArgs...)
++	toCompleteBeforeFlagCheck := toComplete
++
+ 	// Check if we are doing flag value completion before parsing the flags.
+ 	// This is important because if we are completing a flag value, we need to also
+ 	// remove the flag name argument from the list of finalArgs or else the parsing
+@@ -365,23 +371,27 @@ func (c *Command) getCompletions(args []string) (*Command, []Completion, ShellCo
+ 	flag, finalArgs, toComplete, flagErr := checkIfFlagCompletion(finalCmd, finalArgs, toComplete)
+ 
+ 	// Check if interspersed is false or -- was set on a previous arg.
+-	// This works by counting the arguments. Normally -- is not counted as arg but
+-	// if -- was already set or interspersed is false and there is already one arg then
+-	// the extra added -- is counted as arg.
++	// This works by checking the last argument. Normally the extra added -- ends
++	// flag parsing and is not kept as arg, but if -- was already set or interspersed
++	// is false and there is already one arg then it is kept as the last arg.
+ 	flagCompletion := true
+ 	_ = finalCmd.ParseFlags(append(finalArgs, "--"))
+-	newArgCount := finalCmd.Flags().NArg()
++	if probeArgs := finalCmd.Flags().Args(); len(probeArgs) > 0 && probeArgs[len(probeArgs)-1] == "--" {
++		// don't do flag completion (see above)
++		flagCompletion = false
++		if flag != nil {
++			// What looked like a flag is an argument: restore it so the
++			// completion function gets the same args as Run.
++			flag = nil
++			finalArgs = argsBeforeFlagCheck
++			toComplete = toCompleteBeforeFlagCheck
++		}
++	}
+ 
+ 	// Parse the flags early so we can check if required flags are set
+ 	if err = finalCmd.ParseFlags(finalArgs); err != nil {
+ 		return finalCmd, []Completion{}, ShellCompDirectiveDefault, fmt.Errorf("Error while parsing flags from args %v: %s", finalArgs, err.Error())
+ 	}
+-
+-	realArgCount := finalCmd.Flags().NArg()
+-	if newArgCount > realArgCount {
+-		// don't do flag completion (see above)
+-		flagCompletion = false
+-	}
+ 	// Error while attempting to parse flags
+ 	if flagErr != nil {
+ 		// If error type is flagCompError and we don't want flagCompletion we should ignore the error
+diff --git a/completions_test.go b/completions_test.go
+index d8c1464..f02f2b3 100644
+--- a/completions_test.go
++++ b/completions_test.go
+@@ -2039,6 +2039,40 @@ func TestFlagCompletionWithNotInterspersedArgs(t *testing.T) {
+ 	if output != expected {
+ 		t.Errorf("expected: %q, got: %q", expected, output)
+ 	}
++
++	// Check that a defined flag name after -- is added to args for the ValidArgsFunction
++	childCmd.ValidArgsFunction = func(cmd *Command, args []string, toComplete string) ([]string, ShellCompDirective) {
++		return args, ShellCompDirectiveDefault
++	}
++	output, err = executeCommand(rootCmd, ShellCompRequestCmd, "child", "--", "--string", "")
++	if err != nil {
++		t.Errorf("Unexpected error: %v", err)
++	}
++
++	expected = strings.Join([]string{
++		"--string",
++		":0",
++		"Completion ended with directive: ShellCompDirectiveDefault", ""}, "\n")
++
++	if output != expected {
++		t.Errorf("expected: %q, got: %q", expected, output)
++	}
++
++	// Check that a defined flag name after an arg is added to args for the ValidArgsFunction
++	output, err = executeCommand(rootCmd, ShellCompRequestCmd, "child", "arg", "--string", "")
++	if err != nil {
++		t.Errorf("Unexpected error: %v", err)
++	}
++
++	expected = strings.Join([]string{
++		"arg",
++		"--string",
++		":0",
++		"Completion ended with directive: ShellCompDirectiveDefault", ""}, "\n")
++
++	if output != expected {
++		t.Errorf("expected: %q, got: %q", expected, output)
++	}
+ }
+ 
+ func TestFlagCompletionWorksRootCommandAddedAfterFlags(t *testing.T) {
+-- 
+2.34.1
+

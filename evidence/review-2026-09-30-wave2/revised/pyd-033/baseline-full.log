@@ -1,0 +1,29 @@
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+FAILED tests/pydantic_core/validators/test_allow_partial.py::test_set_frozenset[set_schema]
+FAILED tests/test_generics.py::test_generic_model_pickle_different_module - I...
+FAILED tests/test_types_typeddict.py::test_typeddict_with_config_decorator_serialization
+28 failed, 12033 passed, 1193 skipped, 32 xfailed in 26.28s

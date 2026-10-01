@@ -1,0 +1,95 @@
+From a6f83b9f957427e8807d36efcd0aa47fc29b87f1 Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <andrew@stellman.com>
+Date: Sun, 27 Sep 2026 16:15:15 -0400
+Subject: [PATCH] Handle bracketed IPv6 hosts in
+ ForwardedHostAddressAndPortExtractor
+
+Assisted-by: Claude Opus 5.5
+---
+ .../ForwardedHostAddressAndPortExtractor.java     | 14 ++++++++++++++
+ .../ForwardedHostAddressAndPortExtractorTest.java | 10 ++++++++++
+ .../http/HttpServerAttributesExtractorTest.java   | 15 +++++++++++++++
+ 3 files changed, 39 insertions(+)
+
+diff --git a/instrumentation-api/src/main/java/io/opentelemetry/instrumentation/api/semconv/http/ForwardedHostAddressAndPortExtractor.java b/instrumentation-api/src/main/java/io/opentelemetry/instrumentation/api/semconv/http/ForwardedHostAddressAndPortExtractor.java
+index f4c7b592..3537761f 100644
+--- a/instrumentation-api/src/main/java/io/opentelemetry/instrumentation/api/semconv/http/ForwardedHostAddressAndPortExtractor.java
++++ b/instrumentation-api/src/main/java/io/opentelemetry/instrumentation/api/semconv/http/ForwardedHostAddressAndPortExtractor.java
+@@ -84,6 +84,20 @@ final class ForwardedHostAddressAndPortExtractor<REQUEST>
+       return extractHost(sink, host, start + 1, quoteEnd);
+     }
+ 
++    // ipv6 address enclosed in square brackets case
++    if (host.charAt(start) == '[') {
++      int ipv6End = host.indexOf(']', start + 1);
++      if (notFound(ipv6End, end)) {
++        // malformed header value
++        return false;
++      }
++      sink.setAddress(host.substring(start + 1, ipv6End));
++      if (ipv6End + 1 < end && host.charAt(ipv6End + 1) == ':') {
++        setPort(sink, host, ipv6End + 2, end);
++      }
++      return true;
++    }
++
+     int hostHeaderSeparator = host.indexOf(':', start);
+     if (notFound(hostHeaderSeparator, end)) {
+       sink.setAddress(host.substring(start, end));
+diff --git a/instrumentation-api/src/test/java/io/opentelemetry/instrumentation/api/semconv/http/ForwardedHostAddressAndPortExtractorTest.java b/instrumentation-api/src/test/java/io/opentelemetry/instrumentation/api/semconv/http/ForwardedHostAddressAndPortExtractorTest.java
+index 73326ce5..11ea221e 100644
+--- a/instrumentation-api/src/test/java/io/opentelemetry/instrumentation/api/semconv/http/ForwardedHostAddressAndPortExtractorTest.java
++++ b/instrumentation-api/src/test/java/io/opentelemetry/instrumentation/api/semconv/http/ForwardedHostAddressAndPortExtractorTest.java
+@@ -67,6 +67,10 @@ class ForwardedHostAddressAndPortExtractorTest {
+         arguments(singletonList("host=\"example.com:42\""), "example.com", 42),
+         arguments(singletonList("host=example.com:42; test=abc:1234"), "example.com", 42),
+         arguments(singletonList("host=\"example.com:42\"; test=abc:1234"), "example.com", 42),
++        arguments(singletonList("host=\"[::1]\""), "::1", null),
++        arguments(singletonList("host=\"[::1]:42\""), "::1", 42),
++        arguments(singletonList("host=\"[2001:db8::1]:42\"; test=abc:1234"), "2001:db8::1", 42),
++        arguments(singletonList("host=\"[::1\""), null, null),
+ 
+         // multiple headers
+         arguments(
+@@ -135,6 +139,12 @@ class ForwardedHostAddressAndPortExtractorTest {
+         arguments(singletonList("\"example.com\""), "example.com", null),
+         arguments(singletonList("\"example.com:port\""), "example.com", null),
+         arguments(singletonList("\"example.com:42\""), "example.com", 42),
++        arguments(singletonList("[::1]"), "::1", null),
++        arguments(singletonList("[::1]:42"), "::1", 42),
++        arguments(singletonList("[2001:db8::1]:42"), "2001:db8::1", 42),
++        arguments(singletonList("\"[::1]:42\""), "::1", 42),
++        arguments(singletonList("[::1]:port"), "::1", null),
++        arguments(singletonList("[::1"), null, null),
+ 
+         // multiple headers
+         arguments(asList("example.com", "github.com:1234"), "example.com", null));
+diff --git a/instrumentation-api/src/test/java/io/opentelemetry/instrumentation/api/semconv/http/HttpServerAttributesExtractorTest.java b/instrumentation-api/src/test/java/io/opentelemetry/instrumentation/api/semconv/http/HttpServerAttributesExtractorTest.java
+index 63c18574..db4d3d80 100644
+--- a/instrumentation-api/src/test/java/io/opentelemetry/instrumentation/api/semconv/http/HttpServerAttributesExtractorTest.java
++++ b/instrumentation-api/src/test/java/io/opentelemetry/instrumentation/api/semconv/http/HttpServerAttributesExtractorTest.java
+@@ -507,6 +507,21 @@ class HttpServerAttributesExtractorTest {
+     assertThat(endAttributes.build()).containsOnly(entry(HTTP_RESPONSE_STATUS_CODE, 200L));
+   }
+ 
++  @Test
++  void shouldExtractIpv6ServerAddressAndPortFromHostHeader() {
++    Map<String, String> request = new HashMap<>();
++    request.put("header.host", "[2001:db8::1]:8080");
++
++    AttributesExtractor<Map<String, String>, Map<String, String>> extractor =
++        HttpServerAttributesExtractor.create(new TestHttpServerAttributesGetter());
++
++    AttributesBuilder startAttributes = Attributes.builder();
++    extractor.onStart(startAttributes, Context.root(), request);
++
++    assertThat(startAttributes.build())
++        .containsOnly(entry(SERVER_ADDRESS, "2001:db8::1"), entry(SERVER_PORT, 8080L));
++  }
++
+   @Test
+   void shouldExtractPeerAddressEvenIfItDuplicatesClientAddress() {
+     Map<String, String> request = new HashMap<>();
+-- 
+2.34.1
+

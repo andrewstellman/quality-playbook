@@ -1,0 +1,87 @@
+From 00e11d955a69f474738335308f701f6903e21c7f Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <andrew@stellman.com>
+Date: Wed, 30 Sep 2026 23:27:47 -0400
+Subject: [PATCH] Fix route_from when only the base URI has a query
+
+With equal paths, route_from returned an empty reference whenever only
+the base had a query, but an empty reference inherits the base's query
+(RFC 3986 section 5.2.2). Return the last path segment instead, prefixed
+with "./" when it is empty or contains ":" (RFC 3986 section 4.2).
+---
+ lib/addressable/uri.rb       | 13 ++++++++++++-
+ spec/addressable/uri_spec.rb | 26 ++++++++++++++++++++++++++
+ 2 files changed, 38 insertions(+), 1 deletion(-)
+
+diff --git a/lib/addressable/uri.rb b/lib/addressable/uri.rb
+index 07c9aeb..de78be7 100644
+--- a/lib/addressable/uri.rb
++++ b/lib/addressable/uri.rb
+@@ -2103,9 +2103,20 @@ module Addressable
+           components[:host] = nil
+           components[:port] = nil
+           if normalized_self.path == uri.path
+-            components[:path] = nil
+             if normalized_self.query == uri.query
++              components[:path] = nil
+               components[:query] = nil
++            elsif normalized_self.query == nil
++              # An empty path would inherit the base's query (RFC 3986 5.2.2);
++              # "./" stands in for an empty segment and keeps one with ":"
++              # from reading as a scheme (RFC 3986 4.2)
++              segment = normalized_self.path.rpartition(SLASH).last
++              if segment.empty? || segment.include?(":")
++                segment = "./" + segment
++              end
++              components[:path] = segment
++            else
++              components[:path] = nil
+             end
+           else
+             if uri.path != SLASH and components[:path]
+diff --git a/spec/addressable/uri_spec.rb b/spec/addressable/uri_spec.rb
+index 0cb76fc..c7abe7e 100644
+--- a/spec/addressable/uri_spec.rb
++++ b/spec/addressable/uri_spec.rb
+@@ -3360,6 +3360,13 @@ describe Addressable::URI, "when parsed from " +
+     )
+   end
+ 
++  it "should have a route of './' from " +
++      "'http://example.com/path/to/resource/?query=x'" do
++    expect(
++      @uri.route_from("http://example.com/path/to/resource/?query=x").to_s
++    ).to eq("./")
++  end
++
+   it "should correctly convert to a hash" do
+     expect(@uri.to_hash).to eq({
+       :scheme => "http",
+@@ -3564,6 +3571,25 @@ describe Addressable::URI, "when parsed from " +
+   it "should have no fragment" do
+     expect(@uri.fragment).to eq(nil)
+   end
++
++  it "should have a route of 'file.txt' from " +
++      "'http://example.com/file.txt?x=1'" do
++    expect(@uri.route_from("http://example.com/file.txt?x=1")).to eq(
++      Addressable::URI.parse("file.txt")
++    )
++  end
++end
++
++describe Addressable::URI, "when parsed from " +
++    "'http://example.com/a:b'" do
++  before do
++    @uri = Addressable::URI.parse("http://example.com/a:b")
++  end
++
++  it "should have a route of './a:b' from " +
++      "'http://example.com/a:b?x=1'" do
++    expect(@uri.route_from("http://example.com/a:b?x=1").to_s).to eq("./a:b")
++  end
+ end
+ 
+ describe Addressable::URI, "when parsed from " +
+-- 
+2.34.1
+

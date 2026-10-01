@@ -1,0 +1,83 @@
+From 49ca853ca290a0494fac38a61ddc64d151657b58 Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <andrew@stellman.com>
+Date: Sun, 27 Sep 2026 15:54:05 -0400
+Subject: [PATCH] middleware: detect Upgrade in Connection token lists in
+ Recoverer
+
+---
+ middleware/recoverer.go      | 16 +++++++++++++++-
+ middleware/recoverer_test.go | 27 +++++++++++++++++++++++++++
+ 2 files changed, 42 insertions(+), 1 deletion(-)
+
+diff --git a/middleware/recoverer.go b/middleware/recoverer.go
+index e82de6b..4d45ead 100644
+--- a/middleware/recoverer.go
++++ b/middleware/recoverer.go
+@@ -36,7 +36,7 @@ func Recoverer(next http.Handler) http.Handler {
+ 					PrintPrettyStack(rvr)
+ 				}
+ 
+-				if r.Header.Get("Connection") != "Upgrade" {
++				if !isUpgradeRequest(r) {
+ 					w.WriteHeader(http.StatusInternalServerError)
+ 				}
+ 			}
+@@ -48,6 +48,20 @@ func Recoverer(next http.Handler) http.Handler {
+ 	return http.HandlerFunc(fn)
+ }
+ 
++// isUpgradeRequest reports whether the Connection header contains the
++// "upgrade" option. The header is a comma-separated list of
++// case-insensitive tokens, e.g. "keep-alive, Upgrade".
++func isUpgradeRequest(r *http.Request) bool {
++	for _, value := range r.Header.Values("Connection") {
++		for _, token := range strings.Split(value, ",") {
++			if strings.EqualFold(strings.TrimSpace(token), "upgrade") {
++				return true
++			}
++		}
++	}
++	return false
++}
++
+ // for ability to test the PrintPrettyStack function
+ var recovererErrorWriter io.Writer = os.Stderr
+ 
+diff --git a/middleware/recoverer_test.go b/middleware/recoverer_test.go
+index 29eda1f..a218934 100644
+--- a/middleware/recoverer_test.go
++++ b/middleware/recoverer_test.go
+@@ -99,3 +99,30 @@ func TestRecovererAbortHandler(t *testing.T) {
+ 
+ 	r.ServeHTTP(w, req)
+ }
++
++func TestRecovererUpgradeConnection(t *testing.T) {
++	oldRecovererErrorWriter := recovererErrorWriter
++	defer func() { recovererErrorWriter = oldRecovererErrorWriter }()
++	recovererErrorWriter = &bytes.Buffer{}
++
++	r := chi.NewRouter()
++	r.Use(Recoverer)
++	r.Get("/", panickingHandler)
++
++	// The Connection header is a comma-separated, case-insensitive list of
++	// options; browsers such as Firefox send "keep-alive, Upgrade".
++	for _, connection := range []string{"Upgrade", "upgrade", "keep-alive, Upgrade", "Upgrade, keep-alive"} {
++		t.Run(connection, func(t *testing.T) {
++			req := httptest.NewRequest("GET", "/", nil)
++			req.Header.Set("Connection", connection)
++			req.Header.Set("Upgrade", "websocket")
++			w := httptest.NewRecorder()
++
++			r.ServeHTTP(w, req)
++
++			if w.Code == http.StatusInternalServerError {
++				t.Errorf("Connection %q: status header should not be written on an upgrade request", connection)
++			}
++		})
++	}
++}
+-- 
+2.34.1
+

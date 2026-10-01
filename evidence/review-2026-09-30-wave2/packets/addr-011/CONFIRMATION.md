@@ -1,0 +1,4 @@
+Confirmer: CONFIRMED. URI.parse('http://a/p').route_from('http://a/p?x=1') -> ""; base.join("") -> http://a/p?x=1 (round trip fails). join("p") gives http://a/p.
+RFC 3986 §5.2.2, cite/rfc3986-uri.txt:1753-1759: if (R.path == "") then T.path = Base.path; if defined(R.query) then T.query = R.query; else T.query = Base.query. Maintainer (sporkmonger) in #126: "Addressable::URI.join(a, Addressable::URI.route_from(a, b)).should == b for all sane values ... If it does not, that is a bug."
+Duplicates: none. Open PRs apply cleanly on top.
+Fixer notes: returns last segment or "./"; the "./" test compares to_s because URI#== normalizes "./" to "" (separate BUG-038). If the last segment contains ":" route_from now raises InvalidURIError ("ambiguous path") instead of returning "" — same as the other branch (BUG-012), not fixed here.

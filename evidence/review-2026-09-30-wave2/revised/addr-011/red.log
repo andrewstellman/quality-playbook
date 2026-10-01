@@ -1,0 +1,74 @@
+...................................................................................................................................................................................................................................................................................................................................................................................................*................................................................................................................................................**..............................................F.........................................FF......................................................................................................................................................................................................................................*.....................................................................................................................................................................................................*.............<internal:ractor>:267: warning: Ractor is experimental, and the behavior may change in future versions of Ruby! Also there are many implementation issues.
+.....
+
+Pending: (Failures listed here are expected and do not affect your suite's status)
+
+  1) Addressable::URI when assigning IPv6 address should not allow to set bare IPv6 address as host
+     # not checked
+     # ./spec/addressable/uri_spec.rb:2179
+
+  2) Addressable::URI when parsed from 'http://example.com/%2E/' should be considered to be in normal form
+     # path segment normalization should happen before percent escaping normalization
+     # ./spec/addressable/uri_spec.rb:3058
+
+  3) Addressable::URI when parsed from 'http://example.com/%2E/' should normalize to 'http://example.com/%2E/'
+     # path segment normalization should happen before percent escaping normalization
+     # ./spec/addressable/uri_spec.rb:3066
+
+  4) Addressable::URI when parsed from '?one=two&one=three' should have correct hash query values
+     # This is probably more desirable behavior.
+     # ./spec/addressable/uri_spec.rb:5129
+
+  5) Addressable::URI when assigning query values when a hash with mixed types is assigned to query_values should not raise an error
+     # Issue #94
+     # ./spec/addressable/uri_spec.rb:6728
+
+Failures:
+
+  1) Addressable::URI when parsed from 'http://example.com/path/to/resource/' should have a route of './' from 'http://example.com/path/to/resource/?query=x'
+     Failure/Error:
+       expect(
+         @uri.route_from("http://example.com/path/to/resource/?query=x").to_s
+       ).to eq("./")
+
+       expected: "./"
+            got: ""
+
+       (compared using ==)
+     # ./spec/addressable/uri_spec.rb:3365:in `block (2 levels) in <top (required)>'
+
+  2) Addressable::URI when parsed from 'http://example.com/file.txt' should have a route of 'file.txt' from 'http://example.com/file.txt?x=1'
+     Failure/Error:
+       expect(@uri.route_from("http://example.com/file.txt?x=1")).to eq(
+         Addressable::URI.parse("file.txt")
+       )
+
+       expected: #<Addressable::URI:0x17ac URI:file.txt>
+            got: #<Addressable::URI:0x17c0 URI:>
+
+       (compared using ==)
+
+       Diff:
+       @@ -1 +1 @@
+       -#<Addressable::URI:0x17ac URI:file.txt>
+       +#<Addressable::URI:0x17c0 URI:>
+     # ./spec/addressable/uri_spec.rb:3577:in `block (2 levels) in <top (required)>'
+
+  3) Addressable::URI when parsed from 'http://example.com/a:b' should have a route of './a:b' from 'http://example.com/a:b?x=1'
+     Failure/Error: expect(@uri.route_from("http://example.com/a:b?x=1").to_s).to eq("./a:b")
+
+       expected: "./a:b"
+            got: ""
+
+       (compared using ==)
+     # ./spec/addressable/uri_spec.rb:3591:in `block (2 levels) in <top (required)>'
+
+Finished in 0.17121 seconds (files took 0.15553 seconds to load)
+1071 examples, 3 failures, 5 pending
+
+Failed examples:
+
+rspec ./spec/addressable/uri_spec.rb:3363 # Addressable::URI when parsed from 'http://example.com/path/to/resource/' should have a route of './' from 'http://example.com/path/to/resource/?query=x'
+rspec ./spec/addressable/uri_spec.rb:3575 # Addressable::URI when parsed from 'http://example.com/file.txt' should have a route of 'file.txt' from 'http://example.com/file.txt?x=1'
+rspec ./spec/addressable/uri_spec.rb:3589 # Addressable::URI when parsed from 'http://example.com/a:b' should have a route of './a:b' from 'http://example.com/a:b?x=1'
+

@@ -1,0 +1,52 @@
+From c8811ef89c92937b1c137e36d5a2e734c95287c3 Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <andrew@stellman.com>
+Date: Tue, 29 Sep 2026 16:54:35 -0400
+Subject: [PATCH] fix: file symbol path keys under properties in treeifyError
+
+treeifyError sent every non-string path segment to `items`, so an issue
+under a symbol key landed on an array as `items[sym]` and
+`tree.properties` stayed undefined. Send every non-number segment to
+`properties`, which is what $ZodErrorTree declares and what flattenError
+and formatError already do for symbol keys.
+---
+ packages/zod/src/v4/classic/tests/error-utils.test.ts | 10 ++++++++++
+ packages/zod/src/v4/core/errors.ts                    |  2 +-
+ 2 files changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/packages/zod/src/v4/classic/tests/error-utils.test.ts b/packages/zod/src/v4/classic/tests/error-utils.test.ts
+index fc3cca1c..55bcf7eb 100644
+--- a/packages/zod/src/v4/classic/tests/error-utils.test.ts
++++ b/packages/zod/src/v4/classic/tests/error-utils.test.ts
+@@ -447,6 +447,16 @@ test("z.treeifyError 2", () => {
+   `);
+ });
+ 
++test("z.treeifyError symbol key", () => {
++  const k = Symbol("k");
++  const schema = z.object({ [k]: z.string() });
++  const result = schema.safeParse({ [k]: 1 });
++  const tree: any = z.treeifyError(result.error!);
++
++  expect(tree.items).toBeUndefined();
++  expect(tree.properties[k].errors).toEqual(["Invalid input: expected string, received number"]);
++});
++
+ test("z.prettifyError", () => {
+   expect(z.prettifyError(result.error!)).toMatchInlineSnapshot(`
+     "✖ Unrecognized key: "extra"
+diff --git a/packages/zod/src/v4/core/errors.ts b/packages/zod/src/v4/core/errors.ts
+index 16787cf6..a7d39d4b 100644
+--- a/packages/zod/src/v4/core/errors.ts
++++ b/packages/zod/src/v4/core/errors.ts
+@@ -444,7 +444,7 @@ export function treeifyError<T, U>(error: $ZodError<T>, mapper = (issue: $ZodIss
+           const el = fullpath[i]!;
+ 
+           const terminal = i === fullpath.length - 1;
+-          if (typeof el === "string") {
++          if (typeof el !== "number") {
+             curr.properties ??= {};
+             // el may collide with an inherited property name ("__proto__",
+             // "constructor", ...); ??= reads the prototype so the node is never
+-- 
+2.34.1
+

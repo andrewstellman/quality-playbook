@@ -1,0 +1,3 @@
+Confirmer (cobra campaign, LEDGER.md): CONFIRMED, no upstream duplicate. Repro /tmp/cobrav/BUG-016/ (prints BUG PRESENT on pin, "no bug" on fixed tree).
+Doc: site/content/completions/_index.md:238 — Cobra calls ValidArgsFunction "after having parsed all flags and arguments provided in the command-line ... as it would have done when calling the RunE function."
+Fixer notes: snapshot copy of args is required (aliasing with the "--" probe); flags are now parsed a third time in the restore branch (slice flags already get duplicate values from the existing second parse); QPB's full-slice-expression change omitted, matching maintainers' choice in PR #2356. golangci-lint not available; gofmt + go vet clean.

@@ -1,0 +1,177 @@
+# green (full): c2b51edad0e4577b49467e86b6e233b58844d57e = fix + tests
+# tree: HEAD=c2b51edad0e4577b49467e86b6e233b58844d57e; working-tree changes vs HEAD:
+#   ?? out/
+########## suite: api
+== harness: repo=/tmp/review/exec2/B/otel-forwarded/repo suite=api HEAD=c2b51edad0e4577b49467e86b6e233b58844d57e dirty=1
+== javac: javac 25.0.4.1
+/tmp/review/exec2/B/otel-forwarded/repo/instrumentation-api/src/main/java/io/opentelemetry/instrumentation/api/internal/SupportabilityMetrics.java:114: warning: [removal] getSecurityManager() in System has been deprecated and marked for removal
+    if (System.getSecurityManager() == null) {
+              ^
+/tmp/review/exec2/B/otel-forwarded/repo/instrumentation-api/src/main/java/io/opentelemetry/instrumentation/api/internal/SupportabilityMetrics.java:117: warning: [removal] AccessController in java.security has been deprecated and marked for removal
+    return java.security.AccessController.doPrivileged(action);
+                        ^
+2 warnings
+== junit selection: --select-class io.opentelemetry.instrumentation.api.semconv.http.ForwardedHostAddressAndPortExtractorTest --select-class io.opentelemetry.instrumentation.api.semconv.http.HttpServerAttributesExtractorTest
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by net.bytebuddy.dynamic.loading.ClassInjector$UsingUnsafe$Dispatcher$CreationAction (file:/tmp/deps/byte-buddy-1.18.14.jar)
+WARNING: Please consider reporting this to the maintainers of class net.bytebuddy.dynamic.loading.ClassInjector$UsingUnsafe$Dispatcher$CreationAction
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+╷
+├─ JUnit Platform Suite ✔
+├─ JUnit Jupiter ✔
+│  ├─ ForwardedHostAddressAndPortExtractorTest ✔
+│  │  ├─ shouldParsePseudoAuthority(List, String, Integer) ✔
+│  │  │  ├─ [1] [], null, null ✔
+│  │  │  ├─ [2] ["], null, null ✔
+│  │  │  ├─ [3] [""], null, null ✔
+│  │  │  ├─ [4] [example.com], example.com, null ✔
+│  │  │  ├─ [5] [example.com:port], example.com, null ✔
+│  │  │  ├─ [6] [example.com:42], example.com, 42 ✔
+│  │  │  ├─ [7] ["example.com"], example.com, null ✔
+│  │  │  ├─ [8] ["example.com:port"], example.com, null ✔
+│  │  │  ├─ [9] ["example.com:42"], example.com, 42 ✔
+│  │  │  ├─ [10] [[::1]], ::1, null ✔
+│  │  │  ├─ [11] [[::1]:42], ::1, 42 ✔
+│  │  │  ├─ [12] [[2001:db8::1]:42], 2001:db8::1, 42 ✔
+│  │  │  ├─ [13] ["[::1]:42"], ::1, 42 ✔
+│  │  │  ├─ [14] [[::1]:port], ::1, null ✔
+│  │  │  ├─ [15] [[::1], null, null ✔
+│  │  │  └─ [16] [example.com, github.com:1234], example.com, null ✔
+│  │  ├─ shouldParseForwarded(List, String, Integer) ✔
+│  │  │  ├─ [1] [], null, null ✔
+│  │  │  ├─ [2] [host=], null, null ✔
+│  │  │  ├─ [3] [host=;], null, null ✔
+│  │  │  ├─ [4] [host="], null, null ✔
+│  │  │  ├─ [5] [host=""], null, null ✔
+│  │  │  ├─ [6] [host="example.com], null, null ✔
+│  │  │  ├─ [7] [by=1.2.3.4, test=abc], null, null ✔
+│  │  │  ├─ [8] [host=example.com], example.com, null ✔
+│  │  │  ├─ [9] [host="example.com"], example.com, null ✔
+│  │  │  ├─ [10] [host=example.com; test=abc:1234], example.com, null ✔
+│  │  │  ├─ [11] [host="example.com"; test=abc:1234], example.com, null ✔
+│  │  │  ├─ [12] [host=example.com:port], example.com, null ✔
+│  │  │  ├─ [13] [host="example.com:port"], example.com, null ✔
+│  │  │  ├─ [14] [host=example.com:42], example.com, 42 ✔
+│  │  │  ├─ [15] [host="example.com:42"], example.com, 42 ✔
+│  │  │  ├─ [16] [host=example.com:42; test=abc:1234], example.com, 42 ✔
+│  │  │  ├─ [17] [host="example.com:42"; test=abc:1234], example.com, 42 ✔
+│  │  │  ├─ [18] [host="[::1]"], ::1, null ✔
+│  │  │  ├─ [19] [host="[::1]:42"], ::1, 42 ✔
+│  │  │  ├─ [20] [host="[2001:db8::1]:42"; test=abc:1234], 2001:db8::1, 42 ✔
+│  │  │  ├─ [21] [host="[::1"], null, null ✔
+│  │  │  └─ [22] [proto=https, host=example.com, host=github.com:1234], example.com, null ✔
+│  │  ├─ shouldParseForwardedHost(List, String, Integer) ✔
+│  │  │  ├─ [1] [], null, null ✔
+│  │  │  ├─ [2] ["], null, null ✔
+│  │  │  ├─ [3] [""], null, null ✔
+│  │  │  ├─ [4] [example.com], example.com, null ✔
+│  │  │  ├─ [5] [example.com:port], example.com, null ✔
+│  │  │  ├─ [6] [example.com:42], example.com, 42 ✔
+│  │  │  ├─ [7] ["example.com"], example.com, null ✔
+│  │  │  ├─ [8] ["example.com:port"], example.com, null ✔
+│  │  │  ├─ [9] ["example.com:42"], example.com, 42 ✔
+│  │  │  ├─ [10] [[::1]], ::1, null ✔
+│  │  │  ├─ [11] [[::1]:42], ::1, 42 ✔
+│  │  │  ├─ [12] [[2001:db8::1]:42], 2001:db8::1, 42 ✔
+│  │  │  ├─ [13] ["[::1]:42"], ::1, 42 ✔
+│  │  │  ├─ [14] [[::1]:port], ::1, null ✔
+│  │  │  ├─ [15] [[::1], null, null ✔
+│  │  │  └─ [16] [example.com, github.com:1234], example.com, null ✔
+│  │  └─ shouldParseHost(List, String, Integer) ✔
+│  │     ├─ [1] [], null, null ✔
+│  │     ├─ [2] ["], null, null ✔
+│  │     ├─ [3] [""], null, null ✔
+│  │     ├─ [4] [example.com], example.com, null ✔
+│  │     ├─ [5] [example.com:port], example.com, null ✔
+│  │     ├─ [6] [example.com:42], example.com, 42 ✔
+│  │     ├─ [7] ["example.com"], example.com, null ✔
+│  │     ├─ [8] ["example.com:port"], example.com, null ✔
+│  │     ├─ [9] ["example.com:42"], example.com, 42 ✔
+│  │     ├─ [10] [[::1]], ::1, null ✔
+│  │     ├─ [11] [[::1]:42], ::1, 42 ✔
+│  │     ├─ [12] [[2001:db8::1]:42], 2001:db8::1, 42 ✔
+│  │     ├─ [13] ["[::1]:42"], ::1, 42 ✔
+│  │     ├─ [14] [[::1]:port], ::1, null ✔
+│  │     ├─ [15] [[::1], null, null ✔
+│  │     └─ [16] [example.com, github.com:1234], example.com, null ✔
+│  └─ HttpServerAttributesExtractorTest ✔
+│     ├─ shouldUseOtherForUnknownMethods(String) ✔
+│     │  ├─ [1] PURGE ✔
+│     │  └─ [2] not a method really ✔
+│     ├─ shouldExtractKnownMethods(String) ✔
+│     │  ├─ [1] TRACE ✔
+│     │  ├─ [2] HEAD ✔
+│     │  ├─ [3] DELETE ✔
+│     │  ├─ [4] POST ✔
+│     │  ├─ [5] GET ✔
+│     │  ├─ [6] CONNECT ✔
+│     │  ├─ [7] OPTIONS ✔
+│     │  ├─ [8] PATCH ✔
+│     │  └─ [9] PUT ✔
+│     ├─ shouldExtractKnownMethods_override(String) ✔
+│     │  ├─ [1] only ✔
+│     │  ├─ [2] custom ✔
+│     │  ├─ [3] methods ✔
+│     │  └─ [4] allowed ✔
+│     ├─ shouldExtractErrorType_httpStatusCode() ✔
+│     ├─ shouldRedactQueryParameters(String, String) ✔
+│     │  ├─ [1] paramA=valA&paramB=valB, paramA=valA&paramB=valB ✔
+│     │  ├─ [2] AWSAccessKeyId=AKIAIOSFODNN7, AWSAccessKeyId=REDACTED ✔
+│     │  ├─ [3] Signature=39Up9jzHkxhuIhFE9594DJxe7w6cIRCg0V6ICGS0%3A377, Signature=REDACTED ✔
+│     │  ├─ [4] X-Amz-Signature=39Up9jzHkxhuIhFE9594DJxe7w6cIRCg0V6ICGS0, X-Amz-Signature=RE... ✔
+│     │  ├─ [5] X-Amz-Credential=AKIAIOSFODNN7%2F20260101%2Fus-east-1%2Fs3%2Faws4_request, X... ✔
+│     │  ├─ [6] X-Amz-Security-Token=FwoGZXIvYXdzEBYaDG, X-Amz-Security-Token=REDACTED ✔
+│     │  ├─ [7] sig=39Up9jzHkxhuIhFE9594DJxe7w6cIRCg0V6ICGS0, sig=REDACTED ✔
+│     │  ├─ [8] X-Goog-Signature=39Up9jzHkxhuIhFE9594DJxe7w6cIRCg0V6ICGS0, X-Goog-Signature=... ✔
+│     │  ├─ [9] paramA=valA&AWSAccessKeyId=AKIAIOSFODNN7&paramB=valB, paramA=valA&AWSAccessK... ✔
+│     │  ├─ [10] AWSAccessKeyId=AKIAIOSFODNN7&paramA=valA, AWSAccessKeyId=REDACTED&paramA=va... ✔
+│     │  ├─ [11] paramA=valA&AWSAccessKeyId=AKIAIOSFODNN7, paramA=valA&AWSAccessKeyId=REDACT... ✔
+│     │  ├─ [12] AWSAccessKeyId=AKIAIOSFODNN7&AWSAccessKeyId=ZGIAIOSFODNN7, AWSAccessKeyId=R... ✔
+│     │  ├─ [13] AWSAccessKeyId=AKIAIOSFODNN7#ref, AWSAccessKeyId=REDACTED#ref ✔
+│     │  ├─ [14] AWSAccessKeyId=AKIAIOSFODNN7&aa&bb, AWSAccessKeyId=REDACTED&aa&bb ✔
+│     │  ├─ [15] aa&bb&AWSAccessKeyId=AKIAIOSFODNN7, aa&bb&AWSAccessKeyId=REDACTED ✔
+│     │  ├─ [16] AWSAccessKeyId=AKIAIOSFODNN7&&, AWSAccessKeyId=REDACTED&& ✔
+│     │  ├─ [17] &&AWSAccessKeyId=AKIAIOSFODNN7, &&AWSAccessKeyId=REDACTED ✔
+│     │  └─ [18] AWSAccessKeyId=AKIAIOSFODNN7&a&b#fragment, AWSAccessKeyId=REDACTED&a&b#frag... ✔
+│     ├─ normal() ✔
+│     ├─ shouldExtractServerAddressAndPortFromForwardedHostHeader() ✔
+│     ├─ shouldExtractIpv6ServerAddressAndPortFromHostHeader() ✔
+│     ├─ shouldExtractErrorType_exceptionClassName() ✔
+│     ├─ shouldPreferUrlSchemeFromForwardedHeader() ✔
+│     ├─ shouldExtractServerAddressAndPortFromAuthorityPseudoHeader() ✔
+│     ├─ shouldTreatMethodsAsCaseSensitive(String) ✔
+│     │  ├─ [1] get ✔
+│     │  └─ [2] Get ✔
+│     ├─ shouldExtractServerAddressAndPortFromForwardedHeader() ✔
+│     ├─ shouldExtractPeerAddressEvenIfItDuplicatesClientAddress() ✔
+│     ├─ shouldExtractServerAddressAndPortFromHostHeader() ✔
+│     ├─ shouldUseOtherForUnknownMethods_override(String) ✔
+│     │  ├─ [1] TRACE ✔
+│     │  ├─ [2] HEAD ✔
+│     │  ├─ [3] DELETE ✔
+│     │  ├─ [4] POST ✔
+│     │  ├─ [5] GET ✔
+│     │  ├─ [6] CONNECT ✔
+│     │  ├─ [7] OPTIONS ✔
+│     │  ├─ [8] PATCH ✔
+│     │  └─ [9] PUT ✔
+│     ├─ shouldExtractProtocolNameDifferentFromHttp() ✔
+│     ├─ shouldExtractErrorType_other() ✔
+│     └─ shouldExtractErrorType_getter() ✔
+└─ JUnit Vintage ✔
+
+Test run finished after 493 ms
+[        15 containers found      ]
+[         0 containers skipped    ]
+[        15 containers started    ]
+[         0 containers aborted    ]
+[        15 containers successful ]
+[         0 containers failed     ]
+[       127 tests found           ]
+[         0 tests skipped         ]
+[       127 tests started         ]
+[         0 tests aborted         ]
+[       127 tests successful      ]
+[         0 tests failed          ]
+
+== junit exit code: 0

@@ -1,0 +1,38 @@
+Collected 0 items to run in parallel
+..sss.sss.s.s.s.s.s.s.sss..sss.sss.s.sss..........s.s.s.s.s.s......F     [ 83%]tests/test_types_typeddict.py:921 test_typeddict_with_config_decorator_serialization. [ 85%]
+............                                                             [100%]
+=================================== FAILURES ===================================
+______________ test_typeddict_with_config_decorator_serialization ______________
+
+    def test_typeddict_with_config_decorator_serialization() -> None:
+        @with_config(ConfigDict(ser_json_bytes='base64'))
+        class TD(TypedDict):
+            b: bytes
+    
+        class NoConfigTD(TypedDict):
+            b: bytes
+    
+        class Model(BaseModel):
+            model_config = ConfigDict(ser_json_bytes='hex')
+    
+            own: TD
+            inherited: NoConfigTD
+    
+>       assert TypeAdapter(TD).dump_json({'b': b'hi'}) == b'{"b":"aGk="}'
+E       assert b'{"b":"hi"}' == b'{"b":"aGk="}'
+E         
+E         At index 6 diff: b'h' != b'a'
+E         Use -v to get more diff
+
+tests/test_types_typeddict.py:936: AssertionError
+                              Summary of Failures                               
+┏━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓
+┃               ┃               ┃  Function     ┃              ┃               ┃
+┃  File         ┃  Function     ┃  Line         ┃  Error Line  ┃  Error        ┃
+┡━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩
+│  tests/test…  │  test_typed…  │  922          │  936         │  AssertionE…  │
+└───────────────┴───────────────┴───────────────┴──────────────┴───────────────┘
+Results (0.22s):
+         1 failed
+        49 passed
+        31 skipped

@@ -1,0 +1,25 @@
+# GREEN: full patch (HEAD)
+# aiohttp base: e11d2836203a21bec59095498e578d37801027e7 (copied tree, local git: base=aace596)
+# worktree: /tmp/fix/aiohttp  HEAD=a284956 Fix readuntil() missing a separator split across chunks
+# uncommitted changes vs HEAD:
+# date: 2026-09-28T05:13:46Z  python: Python 3.10.12
+$ cd /tmp/fix/aiohttp && AIOHTTP_NO_EXTENSIONS=1 PYTHONPATH=. /tmp/aiohttp-venv/bin/python -m pytest -p no:cacheprovider -n0 --no-cov tests/test_streams.py -k readuntil_separator_split\ or\ readuntil_partial_separator
+============================= test session starts ==============================
+platform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0
+codspeed: 5.0.3 (disabled, mode: walltime, callgraph: not supported, timer_resolution: 1.0ns)
+rootdir: /tmp/fix/aiohttp
+configfile: pytest.ini
+plugins: cov-7.1.0, xdist-3.8.0, codspeed-5.0.3, timeout-2.4.0, asyncio-1.4.0, platformdirs-4.12.1, mock-3.15.1
+timeout: 120.0s
+timeout method: signal
+timeout func_only: False
+asyncio: mode=auto, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 160 items / 136 deselected / 24 selected
+
+tests/test_streams.py ........................                           [100%]
+
+============================= slowest 10 durations =============================
+
+(10 durations < 0.005s hidden.  Use -vv to show these durations.)
+====================== 24 passed, 136 deselected in 0.12s ======================
+# exit status: 0

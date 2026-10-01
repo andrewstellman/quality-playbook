@@ -1,0 +1,275 @@
+source tree: /tmp/bio_base
+  HEAD 11701476b005ca7bc489df924a398b8f12453f0b
+  git status --short: clean
+test tree: /tmp/bio3
+  HEAD 0a4eda16aabaadb7bc2dc3de9490648e0e6fe8b2
+  git status --short: clean
+
+== extracted from models/esm2/collator.py (source tree)
+  _find_seq_dim: lines 733-756 sha256=e3e58d51f4324eae
+  _process_tensor_thd: lines 759-808 sha256=1cd6d78375fa31b7
+  _process_tensor_bshd: lines 811-868 sha256=b56bb1c26327f2fc
+  _split_batch_by_cp_rank: lines 930-996 sha256=acf1d21ad2b60358
+
+== extracted from models/esm2/tests/test_collator_context_parallel.py (test tree)
+  get_dummy_data_bshd_single_sequence: lines 535-555 sha256=a13bcd11a694ac22
+  get_dummy_data_bshd_multiple_sequences: lines 558-587 sha256=33cbe0d51515406a
+  test_split_batch_by_cp_rank_bshd_single_sequence: lines 590-635 sha256=4214f2a073cdb24f
+  test_split_batch_by_cp_rank_bshd_multiple_sequences: lines 638-689 sha256=6b2f7720d5e1d937
+  test_split_batch_by_cp_rank_bshd_cp4: lines 692-747 sha256=47c06c225d9f12b3
+  test_split_batch_by_cp_rank_bshd_3d_tensor: lines 750-801 sha256=d0ea35f05ee582ff
+  test_split_batch_by_cp_rank_thd_non_divisible: lines 804-817 sha256=dad012901b1f43b4
+
+== extracted source function(s), exactly as written into the stand-in module
+  | import torch
+  | 
+  | import nvtx  # STUB module, see nvtx.py
+  | 
+  | 
+  | def _find_seq_dim(tensor: torch.Tensor, seq_len: int) -> int:
+  |     """Find which dimension of tensor matches the expected sequence length.
+  | 
+  |     Args:
+  |         tensor: The tensor to inspect.
+  |         seq_len: The expected sequence length to match against tensor dimensions.
+  | 
+  |     Returns:
+  |         The dimension index that matches the sequence length.
+  | 
+  |     Raises:
+  |         ValueError: If no dimension matches the expected sequence length.
+  |     """
+  |     if tensor.ndim == 1:
+  |         if tensor.shape[0] == seq_len:
+  |             return 0
+  |         raise ValueError(f"1D tensor shape {tensor.shape} doesn't match sequence length {seq_len}")
+  |     elif tensor.ndim >= 2:
+  |         if tensor.shape[1] == seq_len:
+  |             return 1
+  |         elif tensor.shape[0] == seq_len:
+  |             return 0
+  |         raise ValueError(f"Tensor shape {tensor.shape} doesn't match sequence length {seq_len} in dim 0 or 1")
+  |     raise ValueError(f"Unexpected tensor ndim={tensor.ndim}")
+  | 
+  | 
+  | def _process_tensor_thd(
+  |     val: torch.Tensor | None,
+  |     seq_len: int,
+  |     slice_sizes: torch.Tensor,
+  |     cu_seqlens_padded: torch.Tensor,
+  |     cp_rank: int,
+  |     total_slices: int,
+  | ) -> torch.Tensor | None:
+  |     """Extract the THD context-parallel shard for a single tensor.
+  | 
+  |     For each sequence in the batch, selects two slices (one from the beginning and one from the end)
+  |     corresponding to the given CP rank, following the zigzag CP sharding pattern.
+  | 
+  |     Args:
+  |         val: The tensor to shard, or None (returned as-is).
+  |         seq_len: Total sequence length (from cu_seqlens_padded[-1]).
+  |         slice_sizes: Per-sequence slice sizes, computed as sequence_lengths // total_slices.
+  |         cu_seqlens_padded: Cumulative sequence lengths including padding.
+  |         cp_rank: The context parallelism rank index.
+  |         total_slices: Total number of slices per sequence (2 * cp_world_size).
+  | 
+  |     Returns:
+  |         The sharded tensor for the given CP rank, or None if val is None.
+  |     """
+  |     if val is None:
+  |         return val
+  | 
+  |     seq_dim = _find_seq_dim(val, seq_len)
+  | 
+  |     cp_rank_slices = []
+  |     for slice_size, seq_start in zip(slice_sizes, cu_seqlens_padded[:-1]):
+  |         # 1st segment
+  |         cp_rank_slices.append(
+  |             torch.arange(
+  |                 seq_start + (cp_rank * slice_size),
+  |                 seq_start + ((cp_rank + 1) * slice_size),
+  |                 device=val.device,
+  |             )
+  |         )
+  | 
+  |         # 2nd segment
+  |         cp_rank_slices.append(
+  |             torch.arange(
+  |                 seq_start + ((total_slices - cp_rank - 1) * slice_size),
+  |                 seq_start + ((total_slices - cp_rank) * slice_size),
+  |                 device=val.device,
+  |             )
+  |         )
+  | 
+  |     return val.index_select(seq_dim, torch.cat(cp_rank_slices))
+  | 
+  | 
+  | def _process_tensor_bshd(
+  |     val: torch.Tensor | None,
+  |     cp_rank: int,
+  |     cp_world_size: int,
+  | ) -> torch.Tensor | None:
+  |     """Extract the BSHD context-parallel shard for a single tensor.
+  | 
+  |     Splits a BSHD-format tensor along the sequence dimension (dim=1) into 2*cp_world_size chunks,
+  |     then selects the two chunks corresponding to the given CP rank (zigzag pattern).
+  | 
+  |     Args:
+  |         val: The tensor to shard, or None (returned as-is).
+  |         cp_rank: The context parallelism rank index.
+  |         cp_world_size: Total number of context parallelism ranks.
+  | 
+  |     Returns:
+  |         The sharded tensor for the given CP rank, or None if val is None.
+  | 
+  |     Raises:
+  |         ValueError: If the tensor has fewer than 2 dimensions or its sequence length
+  |             is not divisible by 2 * cp_world_size.
+  |     """
+  |     if val is None:
+  |         return val
+  | 
+  |     if val.ndim < 2:
+  |         raise ValueError(f"BSHD format requires at least 2D tensors, got {val.ndim}D")
+  | 
+  |     seq_len = val.shape[1]
+  | 
+  |     # Calculate chunk size
+  |     total_chunks = 2 * cp_world_size
+  |     chunk_size = seq_len // total_chunks
+  | 
+  |     if seq_len % total_chunks != 0:
+  |         raise ValueError(
+  |             f"Sequence length {seq_len} must be divisible by {total_chunks} "
+  |             f"(2 * cp_world_size) for BSHD context parallelism"
+  |         )
+  | 
+  |     # Determine which chunks this rank should get
+  |     # Rank 0 gets chunks [0, total_chunks-1]
+  |     # Rank 1 gets chunks [1, total_chunks-2]
+  |     # Rank k gets chunks [k, total_chunks-k-1]
+  |     chunk_indices = [cp_rank, total_chunks - cp_rank - 1]
+  | 
+  |     # Collect slices for this rank
+  |     rank_slices = []
+  |     for chunk_idx in chunk_indices:
+  |         start_idx = chunk_idx * chunk_size
+  |         end_idx = start_idx + chunk_size
+  |         rank_slices.append(torch.arange(start_idx, end_idx, device=val.device))
+  | 
+  |     # Concatenate indices for all chunks this rank should get
+  |     indices = torch.cat(rank_slices)
+  | 
+  |     # Select along sequence dimension (dim=1)
+  |     return val.index_select(1, indices)
+  | 
+  | 
+  | @nvtx.annotate("collator._split_batch_by_cp_rank", color="green")
+  | def _split_batch_by_cp_rank(
+  |     cu_seqlens_padded: torch.Tensor | None,
+  |     input_ids_padded: torch.Tensor,
+  |     labels_padded: torch.Tensor,
+  |     cp_group: torch.distributed.ProcessGroup | None = None,
+  |     qvk_format: str = "thd",
+  |     cp_rank: int | None = None,
+  |     cp_world_size: int | None = None,
+  | ):
+  |     """Slice batch input along sequence dimension into multiple chunks for THD or BSHD format.
+  | 
+  |     This function is intended for use in self attention. It will not work for cross attention because
+  |     it does not handle the case where the sequence length of the query and key are different.
+  |     Which are parallelized across GPUs in a context parallel group.
+  |     This version works with variable-length sequences using cumulative sequence lengths for THD format,
+  |     and with padded sequences for BSHD format.
+  | 
+  |     Args:
+  |         cu_seqlens_padded: Cumulative sequence length. Required for THD format, optional for BSHD format.
+  |         input_ids_padded: Input IDs.
+  |         labels_padded: Labels.
+  |         cp_group: Context parallel group.
+  |         qvk_format: Format of the input data ("thd" or "bshd").
+  |         cp_world_size: The size of the context parallelism group. If provided, the function will use this value to determine the rank.
+  |         cp_rank: Optional manual CP rank index. When provided, the function shards tensors as if it
+  |             were executing on that rank without querying `torch.distributed.get_rank`.
+  |     """
+  |     if qvk_format not in ["thd", "bshd", "sbhd"]:
+  |         raise ValueError(f"Unsupported qvk_format: {qvk_format}!")
+  | 
+  |     if cp_world_size is None or cp_world_size <= 1:
+  |         # No splitting needed
+  |         return input_ids_padded, labels_padded
+  | 
+  |     if cp_rank is None:
+  |         cp_rank = torch.distributed.get_rank(group=cp_group)
+  |     elif not (0 <= cp_rank < cp_world_size):
+  |         raise ValueError(f"cp_rank must be in [0, {cp_world_size}), but received {cp_rank}.")
+  | 
+  |     if qvk_format == "thd":
+  |         if cu_seqlens_padded is None:
+  |             raise ValueError("cu_seqlens_padded is required for THD format")
+  | 
+  |         # Calculate the chunk sizes for each sequence
+  |         total_slices_of_any_sequence = 2 * cp_world_size
+  |         slice_sizes = (cu_seqlens_padded[1:] - cu_seqlens_padded[:-1]) // total_slices_of_any_sequence
+  | 
+  |         # Ensure cu_seqlens_padded[-1] is a Python int, not a 0-dim tensor
+  |         last_elem = cu_seqlens_padded[-1]
+  |         seq_len_val = last_elem.item() if isinstance(last_elem, torch.Tensor) else last_elem
+  | 
+  |         input_ids_padded = _process_tensor_thd(
+  |             input_ids_padded, seq_len_val, slice_sizes, cu_seqlens_padded, cp_rank, total_slices_of_any_sequence
+  |         )
+  |         labels_padded = _process_tensor_thd(
+  |             labels_padded, seq_len_val, slice_sizes, cu_seqlens_padded, cp_rank, total_slices_of_any_sequence
+  |         )
+  | 
+  |     elif qvk_format == "bshd":
+  |         input_ids_padded = _process_tensor_bshd(input_ids_padded, cp_rank, cp_world_size)
+  |         labels_padded = _process_tensor_bshd(labels_padded, cp_rank, cp_world_size)
+  | 
+  |     else:
+  |         raise ValueError(f"Support not implemented yet for qvk_format: {qvk_format}!")
+  | 
+  |     return input_ids_padded, labels_padded
+/tmp/venv/lib/python3.10/site-packages/torch/_subclasses/functional_tensor.py:368: UserWarning: Failed to initialize NumPy: No module named 'numpy' (Triggered internally at /__w/pytorch/pytorch/torch/csrc/utils/tensor_numpy.cpp:84.)
+  cpu = _conversion_method_template(device=torch.device("cpu"))
+
+== torch 2.14.0+cpu, cuda available: False
+
+============================= test session starts ==============================
+platform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0 -- /tmp/venv/bin/python
+rootdir: /tmp/fix/harness-thd-1_yvv15p
+collecting ... collected 5 items
+
+test_extracted_thd.py::test_split_batch_by_cp_rank_bshd_single_sequence PASSED [ 20%]
+test_extracted_thd.py::test_split_batch_by_cp_rank_bshd_multiple_sequences PASSED [ 40%]
+test_extracted_thd.py::test_split_batch_by_cp_rank_bshd_cp4 PASSED       [ 60%]
+test_extracted_thd.py::test_split_batch_by_cp_rank_bshd_3d_tensor PASSED [ 80%]
+test_extracted_thd.py::test_split_batch_by_cp_rank_thd_non_divisible FAILED [100%]
+
+=================================== FAILURES ===================================
+________________ test_split_batch_by_cp_rank_thd_non_divisible _________________
+
+    def test_split_batch_by_cp_rank_thd_non_divisible():
+        """THD splitting raises when a padded sequence length is not divisible by 2 * cp_world_size."""
+        cu_seqlens_padded = torch.tensor([0, 8, 18], dtype=torch.int32)  # lengths 8 and 10; 10 % 4 != 0
+        input_ids = torch.arange(18, dtype=torch.int64).unsqueeze(0)
+    
+>       with pytest.raises(ValueError, match=r"\[10\] must be divisible by 4"):
+E       Failed: DID NOT RAISE ValueError
+
+test_extracted_thd.py:281: Failed
+=============================== warnings summary ===============================
+../../venv/lib/python3.10/site-packages/torch/_subclasses/functional_tensor.py:368
+  /tmp/venv/lib/python3.10/site-packages/torch/_subclasses/functional_tensor.py:368: UserWarning: Failed to initialize NumPy: No module named 'numpy' (Triggered internally at /__w/pytorch/pytorch/torch/csrc/utils/tensor_numpy.cpp:84.)
+    cpu = _conversion_method_template(device=torch.device("cpu"))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+==================== 1 failed, 4 passed, 1 warning in 0.97s ====================
+
+pytest exit code: 1
+
+== harness demo: cu_seqlens_padded=[0, 8, 18] (lengths 8, 10), cp_world_size=2
+  no exception; token positions assigned to no CP rank: [16, 17]
+== harness demo: 7 packed sequences of length 6, cp_world_size=2
+  no exception; token positions assigned to no CP rank: [4, 5, 10, 11, 16, 17, 22, 23, 28, 29, 34, 35, 40, 41]

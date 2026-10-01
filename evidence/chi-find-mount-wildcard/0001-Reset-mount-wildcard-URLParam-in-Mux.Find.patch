@@ -1,0 +1,65 @@
+From b494ad05cac343a2050d376df436c16c313949d1 Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <andrew@stellman.com>
+Date: Sun, 27 Sep 2026 15:55:01 -0400
+Subject: [PATCH] Reset mount wildcard URLParam in Mux.Find
+
+---
+ mux.go      |  7 +++++++
+ mux_test.go | 26 ++++++++++++++++++++++++++
+ 2 files changed, 33 insertions(+)
+
+diff --git a/mux.go b/mux.go
+index 7cfc614..70cf2a6 100644
+--- a/mux.go
++++ b/mux.go
+@@ -395,6 +395,13 @@ func (mx *Mux) Find(rctx *Context, method, path string) string {
+ 		}
+ 
+ 		rctx.RoutePath = mx.nextRoutePath(rctx)
++
++		// reset the wildcard URLParam which connects the subrouter, as Mount does
++		n := len(rctx.URLParams.Keys) - 1
++		if n >= 0 && rctx.URLParams.Keys[n] == "*" && len(rctx.URLParams.Values) > n {
++			rctx.URLParams.Values[n] = ""
++		}
++
+ 		subPattern := node.subroutes.Find(rctx, method, rctx.RoutePath)
+ 		if subPattern == "" {
+ 			return ""
+diff --git a/mux_test.go b/mux_test.go
+index 9d0e7cc..f005d04 100644
+--- a/mux_test.go
++++ b/mux_test.go
+@@ -2159,3 +2159,29 @@ func BenchmarkMux(b *testing.B) {
+ 		})
+ 	}
+ }
++
++func TestMuxFindMountResetsWildcardParam(t *testing.T) {
++	sub := NewRouter()
++	sub.Get("/ping", func(w http.ResponseWriter, r *http.Request) {})
++
++	r := NewRouter()
++	r.Mount("/admin", sub)
++
++	// Live request: the Mount bridge resets the "*" param before the sub-router.
++	var live string
++	sub2 := NewRouter()
++	sub2.Get("/ping", func(w http.ResponseWriter, r *http.Request) {
++		live = URLParam(r, "*")
++	})
++	r2 := NewRouter()
++	r2.Mount("/admin", sub2)
++	r2.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest("GET", "/admin/ping", nil))
++
++	rctx := NewRouteContext()
++	if p := r.Find(rctx, "GET", "/admin/ping"); p != "/admin/ping" {
++		t.Fatalf("unexpected pattern %q", p)
++	}
++	if got := rctx.URLParam("*"); got != live {
++		t.Fatalf("Find left URLParam(\"*\") = %q, live request saw %q", got, live)
++	}
++}
+-- 
+2.34.1
+

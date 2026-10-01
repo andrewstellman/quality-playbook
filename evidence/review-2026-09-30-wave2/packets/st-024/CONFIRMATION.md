@@ -1,0 +1,4 @@
+Confirmer (setuptools 84.0.0, pin = current main for these files): CONFIRMED. include data/**/*.txt -> ['data/x/b.txt'] only; graft data + exclude data/**/*.txt removes all depths.
+Doc: docs/userguide/miscellaneous.rst:113-114 "Setuptools also has support for ``**`` matching zero or more characters including forward slash, backslash, and colon." egg_info.py: include uses glob(pattern) (recursive=False); recursive_include passes recursive=True; exclude uses translate_pattern (test_manifest.py:88-91 pins foo/**/bar matching foo/bing/bang/bar and foo/bar).
+Duplicates: none. #5313 (docs pitfalls) is adjacent. Likely pushback: matching more files changes existing sdists.
+Fixer notes: with recursive=True, data/**/*.txt also matches data/a.txt (zero dirs). Suite: setuptools/tests minus integration/, test_virtualenv, test_editable_install, test_distutils_adoption (disk/network); pkg_resources and _distutils suites not run; mypy not run.

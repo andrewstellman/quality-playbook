@@ -1,0 +1,151 @@
+
+Router | add (tests/router/router.spec.ts)
+  ✔ add routes (5.53ms)
+  ✔ raise error when route name is duplicate (1.39ms)
+  ✔ create nested groups (1.04ms)
+  ✔ apply middleware in nested groups (0.83ms)
+  ✔ apply domain in nested groups (0.85ms)
+  ✔ apply route matchers on nested groups (0.74ms)
+  ✔ apply route matchers using shorthand methods (0.69ms)
+  ✔ test empty string param against the matcher (0.95ms)
+  ✔ apply route names in group (1.1ms)
+  ✔ define global matcher as a string (0.56ms)
+  ✔ define global matcher as a regex (0.39ms)
+  ✔ define global matcher as an object (0.43ms)
+
+Router | commit (tests/router/router.spec.ts)
+  ✔ commit routes to the store (0.51ms)
+  ✔ commit routes group to the store (1.32ms)
+  ✔ define resource inside a group (1.19ms)
+  ✔ define resource inside nested groups (0.5ms)
+  ✔ define shallow resource (1.7ms)
+  ✔ define nested resource (1.66ms)
+  ✔ do not commit route when deleted flag is set to true (0.31ms)
+
+Router | match (tests/router/router.spec.ts)
+  ✔ do not match "/users" against "/users/:id" (0.95ms)
+  ✔ match "/users" route registered after "/users/:id" (0.63ms)
+  ✔ do not match "/posts" against "/posts/:slug?.json" (0.36ms)
+  ✔ do not let a malformed repeated-separator route shadow the root route (0.37ms)
+  ✔ normalize an empty route pattern to root without matching an empty request path (0.74ms)
+  ✔ match routes using specificity precedence (0.54ms)
+  ✔ match route using URL (0.77ms)
+  ✔ apply uuid matcher when matching route (0.56ms)
+  ✔ match route for a specific domain (0.48ms)
+
+Brisk route (tests/router/router.spec.ts)
+  ✔ define brisk route (0.42ms)
+  ✔ define brisk route inside a group (0.31ms)
+  ✔ register brisk route to store (0.28ms)
+
+Router | Make url (tests/router/router.spec.ts)
+  ✔ make url to a given route (0.44ms)
+  ✔ make url to a given route by it's name (0.41ms)
+  ✔ make url to a given route by it's controller method (0.34ms)
+  ✔ make url for a specific domain (0.71ms)
+  ✔ prefix url (0.97ms)
+  ✔ disable routes lookup (0.99ms)
+
+Make signed url (tests/router/router.spec.ts)
+  ✔ make signed url to a given route (2.53ms)
+  ✔ make signed url to a given route by it's name (0.9ms)
+  ✔ make signed url to a given route by it's controller method (0.62ms)
+  ✔ make url for a specific domain (0.46ms)
+  ✔ make signed url with expiry (1.24ms)
+  ✔ make signed url with custom query string (0.83ms)
+  ✔ prefix url (0.5ms)
+  ✔ disable route lookup (0.48ms)
+
+Regression (tests/router/router.spec.ts)
+  ✔ route where matchers should win over group matchers (0.5ms)
+  ✔ apply prefixes in the correct order (0.42ms)
+  ✔ route domain should win over group domain (0.5ms)
+  ✔ apply route names in the right order (0.39ms)
+
+Named middleware (tests/router/router.spec.ts)
+  ✔ create a collection of named middleware factories (1ms)
+
+Router | handler (tests/router/router.spec.ts)
+  ✔ define route handler as a lazy loaded controller (1.44ms)
+  ✔ define route handler as controller reference (1.52ms)
+
+Router | parse route pattern (tests/router/router.spec.ts)
+  ✔ parse static route pattern (0.87ms)
+  ✔ parse route pattern with params (0.56ms)
+  ✔ parse route pattern with optional params (0.59ms)
+  ✔ parse route pattern with wildcard params (0.43ms)
+
+Router | toJSON (tests/router/router.spec.ts)
+  ✔ convert routes with different style of handlers to JSON (0.5ms)
+  ✔ convert routes with global middleware to JSON (0.43ms)
+  ✔ convert routes with inline and middleware (0.73ms)
+
+Router | find (tests/router/router.spec.ts)
+  ✔ find a route by route pattern (0.28ms)
+  ✔ find a route by route name (0.26ms)
+  ✔ find a route by route controller name (0.31ms)
+  ✔ return null when unable to find route (0.2ms)
+  ✔ do not match route handler name when it is defined as function (0.23ms)
+  ✔ find a route across domains (0.31ms)
+  ✔ limit search to a specific domain (0.33ms)
+  ✔ limit search to a specific method (2.48ms)
+
+Lookup store | findByOrFail (tests/router/router.spec.ts)
+  ✔ find a route by route pattern (0.35ms)
+  ✔ find a route by route name (0.25ms)
+  ✔ find a route by route controller name (0.34ms)
+  ✔ raise error when unable to lookup route (0.38ms)
+  ✖ raise E_CANNOT_LOOKUP_ROUTE exception when unable to lookup route (0.86ms)
+
+Lookup store | has (tests/router/router.spec.ts)
+  ✔ check if a route exists (0.4ms)
+
+Router | generateTypes (tests/router/router.spec.ts)
+  ✔ generate url builder types (1.48ms)
+  ✔ generate url builder types across domains (0.93ms)
+  ✔ do not prefix domain to the route identifier when routes are not duplicate across domains (2.29ms)
+
+Router | macroable (tests/router/router.spec.ts)
+  ✔ add macro to router (0.48ms)
+  ✔ add getter to router (0.34ms)
+ ERRORS 
+
+❯ Lookup store | findByOrFail / raise E_CANNOT_LOOKUP_ROUTE exception when unable to lookup route
+
+- Expected  - 1
++ Received  + 1
+
+- Exception
++ Error: Cannot lookup route "posts.show"
+
+[31mℹ AssertionError: expected [Function] to throw 'Exception' but 'Error: Cannot lookup route "posts.sho…' was thrown[39m
+
+ ⁃ at Assert.throws [33m(/tmp/adonw/node_modules/@japa/assert/build/index.js:311:19)[39m
+ ⁃ at Object.executor [33m(tests/router/router.spec.ts:1635:12)[39m
+
+   [2m1630[22m [2m┃[22m    [35mtest[0m([32m'raise E_CANNOT_LOOKUP_ROUTE exception when unable to lookup route'[0m[34m,[0m ({ assert }) [31m=>[0m {
+   [2m1631[22m [2m┃[22m      [31mconst[0m router [34m=[0m [31mnew[0m [33mRouterFactory[0m()[34m.[0m[35mcreate[0m()
+   [2m1632[22m [2m┃[22m      router[34m.[0m[31mget[0m([32m'/users/:id'[0m[34m,[0m () [31m=>[0m {})[34m.[0m[31mas[0m([32m'users.show'[0m)
+   [2m1633[22m [2m┃[22m      router[34m.[0m[35mcommit[0m()
+   [2m1634[22m [2m┃[22m  
+ [41m❯ 1635 ┃      assert.throws([49m
+   [2m1636[22m [2m┃[22m        () [31m=>[0m router[34m.[0m[35mfindOrFail[0m([32m'posts.show'[0m)[34m,[0m
+   [2m1637[22m [2m┃[22m        errors[34m.[0m[33mE_CANNOT_LOOKUP_ROUTE[0m[34m,[0m
+   [2m1638[22m [2m┃[22m        [32m'Cannot lookup route "posts.show"'[0m
+   [2m1639[22m [2m┃[22m      )
+   [2m1640[22m [2m┃[22m      assert[34m.[0m[31mthrows[0m(
+
+ ⁃ at #runTest [33m(/tmp/adonw/node_modules/@japa/core/build/index.js:634:121)[39m
+ ⁃ at #wrapRegressionTest [33m(/tmp/adonw/node_modules/@japa/core/build/index.js:670:118)[39m
+ ⁃ at #wrapTestInTimeout [33m(/tmp/adonw/node_modules/@japa/core/build/index.js:680:102)[39m
+ ⁃ at #wrapTestInRetries [33m(/tmp/adonw/node_modules/@japa/core/build/index.js:686:66)[39m
+ ⁃ at TestRunner.run [33m(/tmp/adonw/node_modules/@japa/core/build/index.js:710:33)[39m
+ ⁃ at async Test$1.exec [33m(/tmp/adonw/node_modules/@japa/core/build/index.js:918:3)[39m
+ ⁃ at async GroupRunner.run [33m(/tmp/adonw/node_modules/@japa/core/build/index.js:259:4)[39m
+ ⁃ at async Group$1.exec [33m(/tmp/adonw/node_modules/@japa/core/build/index.js:354:3)[39m
+[1/1]─
+
+ FAILED 
+
+Tests  77 passed, 1 failed (78)
+ Time  72ms

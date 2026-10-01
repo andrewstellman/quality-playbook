@@ -1,0 +1,41 @@
+# probe: examples cited in PR-DRAFT.md, run against UrlParser.java (both copies) at base and at the v2 fix. javac + java, JDK 25, no JUnit.
+# Probe.java:
+#   public class Probe {
+#     public static void main(String[] a) {
+#       String[] urls = {"http://[::1]:8080/", "https://[2001:db8::1]:8443/path", "http://[::1/path]", "http://[x/p?token=abc]", "https://[::1"};
+#       for (String u : urls) {
+#         System.out.println("incubator " + u + " -> host=" + io.opentelemetry.instrumentation.api.incubator.semconv.net.internal.UrlParser.getHost(u) + " port=" + io.opentelemetry.instrumentation.api.incubator.semconv.net.internal.UrlParser.getPort(u));
+#       }
+#       for (String u : urls) {
+#         System.out.println("reactor   " + u + " -> host=" + io.opentelemetry.javaagent.instrumentation.reactornetty.v1_0.ProbeAccess.host(u) + " port=" + io.opentelemetry.javaagent.instrumentation.reactornetty.v1_0.ProbeAccess.port(u));
+#       }
+#     }
+#   }
+# ProbeAccess.java (same package as the package-private reactor-netty UrlParser):
+#   package io.opentelemetry.javaagent.instrumentation.reactornetty.v1_0;
+#   public class ProbeAccess {
+#     public static String host(String u) { return UrlParser.getHost(u); }
+#     public static Integer port(String u) { return UrlParser.getPort(u); }
+#   }
+## fix~1 = 78d71b585a77d7f2312c1b8751ff6c95a72722d7
+incubator http://[::1]:8080/ -> host=[ port=null
+incubator https://[2001:db8::1]:8443/path -> host=[2001 port=null
+incubator http://[::1/path] -> host=[ port=null
+incubator http://[x/p?token=abc] -> host=[x port=null
+incubator https://[::1 -> host=[ port=null
+reactor   http://[::1]:8080/ -> host=[ port=null
+reactor   https://[2001:db8::1]:8443/path -> host=[2001 port=null
+reactor   http://[::1/path] -> host=[ port=null
+reactor   http://[x/p?token=abc] -> host=[x port=null
+reactor   https://[::1 -> host=[ port=null
+## fix = 591e094b5f0a77e0576107edb9ff6801b500101d
+incubator http://[::1]:8080/ -> host=::1 port=8080
+incubator https://[2001:db8::1]:8443/path -> host=2001:db8::1 port=8443
+incubator http://[::1/path] -> host=null port=null
+incubator http://[x/p?token=abc] -> host=null port=null
+incubator https://[::1 -> host=null port=null
+reactor   http://[::1]:8080/ -> host=::1 port=8080
+reactor   https://[2001:db8::1]:8443/path -> host=2001:db8::1 port=8443
+reactor   http://[::1/path] -> host=null port=null
+reactor   http://[x/p?token=abc] -> host=null port=null
+reactor   https://[::1 -> host=null port=null

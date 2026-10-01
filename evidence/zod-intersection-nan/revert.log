@@ -1,0 +1,49 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.11 [39m[90m/tmp/zodfix/BUG-003/packages/zod[39m
+
+ [31m❯[39m src/v4/classic/tests/intersection.test.ts [2m([22m[2m20 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 68[2mms[22m[39m
+   [32m✓[39m object intersection[32m 9[2mms[22m[39m
+   [32m✓[39m object intersection: loose[32m 2[2mms[22m[39m
+   [32m✓[39m object intersection: strict + strip[32m 1[2mms[22m[39m
+   [32m✓[39m object intersection: strict + strict[32m 10[2mms[22m[39m
+   [32m✓[39m object intersection strips __proto__ from pass-through operands[32m 7[2mms[22m[39m
+   [32m✓[39m deep intersection[32m 3[2mms[22m[39m
+   [32m✓[39m deep intersection of arrays[32m 5[2mms[22m[39m
+   [32m✓[39m invalid intersection types[32m 3[2mms[22m[39m
+   [32m✓[39m invalid array merge (incompatible lengths)[32m 1[2mms[22m[39m
+   [32m✓[39m invalid array merge (incompatible elements)[32m 1[2mms[22m[39m
+[31m   [31m×[31m identical NaN merges[39m[32m 11[2mms[22m[39m
+   [32m✓[39m invalid object merge[32m 2[2mms[22m[39m
+   [32m✓[39m invalid deep merge of object and array combination[32m 2[2mms[22m[39m
+   [32m✓[39m a record's key schema governs only its own keys inside an intersection[32m 3[2mms[22m[39m
+   [32m✓[39m partialRecord reports an out-of-set key as unrecognized, not invalid[32m 0[2mms[22m[39m
+   [32m✓[39m intersection operands run their own checks, refinements and transforms[32m 1[2mms[22m[39m
+   [32m✓[39m intersection operands apply defaults, including through a nested intersection[32m 1[2mms[22m[39m
+   [32m✓[39m a record operand runs its own refinements inside an intersection[32m 0[2mms[22m[39m
+   [32m✓[39m a strict object nested under an operand keeps its strictness[32m 0[2mms[22m[39m
+   [32m✓[39m a strict object composes with a refined object[32m 2[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 1 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/v4/classic/tests/intersection.test.ts[2m > [22midentical NaN merges
+[31m[1mError[22m: Unmergable intersection. Error path: [][39m
+[36m [2m❯[22m handleIntersectionResults src/v4/core/schemas.ts:[2m2933:11[22m[39m
+    [90m2931|[39m   if (!merged.valid) {
+    [90m2932|[39m     if (util.aborted(result)) return result;
+    [90m2933|[39m     throw new Error(`Unmergable intersection. Error path: ` + `${JSON.…
+    [90m   |[39m           [31m^[39m
+    [90m2934|[39m   }
+    [90m2935|[39m
+[90m [2m❯[22m Internals.inst._zod.parse src/v4/core/schemas.ts:[2m2821:14[22m[39m
+[90m [2m❯[22m Module.<anonymous> src/v4/core/parse.ts:[2m73:30[22m[39m
+[90m [2m❯[22m _.safeParse src/v4/classic/schemas.ts:[2m304:20[22m[39m
+[90m [2m❯[22m src/v4/classic/tests/intersection.test.ts:[2m178:31[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m19 passed[39m[22m[90m (20)[39m
+[2m   Start at [22m 16:54:20
+[2m   Duration [22m 1.09s[2m (transform 775ms, setup 0ms, import 902ms, tests 68ms, environment 0ms)[22m
+

@@ -1,0 +1,2 @@
+[buggy]  total tokens=18, union of tokens assigned to any rank=16, missing=[16, 17]
+[buggy]  RED confirmed: tokens [16, 17] are dropped by every CP rank (silent data loss)

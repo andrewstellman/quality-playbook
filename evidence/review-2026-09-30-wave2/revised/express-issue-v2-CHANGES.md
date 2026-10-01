@@ -1,0 +1,9 @@
+- Added a `**Title:**` line (same title as submit-express-issue.sh).
+- Negative maxAge: "`maxAge: 0` and negative values would still send `Max-Age=0`" -> "Values of 0 or below ... are unchanged" (negatives send e.g. `Max-Age=-1`; measured).
+- Expires: dropped "still set half a second in the future"; now says Expires has one-second resolution and lands up to 0.5 s either side of the response (measured on 9a34acf, Node 22.23.2: -259 to +325 ms for maxAge 500); header example changed to `<now + 500 ms, truncated to the whole second>`.
+- Docs quote now verbatim from expressjs.com/en/5x/api/response, keeping the quotation marks around “expires”.
+- "the same result as `res.clearCookie`" -> "the same effect as `res.clearCookie`".
+- "(`npm test` passes)" -> "(the full test suite passes)": verified here by applying the evidence patch to a scratch copy of 9a34acf and running the `npm test` mocha command directly (1263 passing; npm itself could not run because its log dir was on a full disk).
+- Added one sentence of real-world motivation (maxAge computed from remaining session time).
+- Added that the rounding is in Express (lib/response.js line 769), not in the `cookie` package.
+- Replaced the closing attribution (with URL) by the standard line.

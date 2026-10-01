@@ -1,0 +1,3 @@
+2a6f290bc requests/status_codes.py (Nate Prewitt 2022-04-29 13:16:58 -0600 29)     122: ("uri_too_long", "request_uri_too_long"),
+e45b42896 (Michiel W. Beijen 2024-04-08 21:47:12 +0200 68)     413: ("request_entity_too_large", "content_too_large"),
+e45b42896 (Michiel W. Beijen 2024-04-08 21:47:12 +0200 69)     414: ("request_uri_too_large", "uri_too_long"),

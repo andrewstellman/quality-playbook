@@ -1,0 +1,59 @@
+From c48b32d4c5028b21f103de222bd55f22864b454a Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <andrew@stellman.com>
+Date: Wed, 30 Sep 2026 13:33:49 -0400
+Subject: [PATCH] fix(response): fall back to octet-stream for unknown content
+ types
+
+response.type() passed the result of mime.contentType() straight to the
+header, so unknown or missing extensions produced "Content-Type: false"
+(e.g. response.download() of LICENSE). Fall back to
+application/octet-stream when the type cannot be resolved.
+---
+ src/response.ts        |  2 +-
+ tests/response.spec.ts | 17 +++++++++++++++++
+ 2 files changed, 18 insertions(+), 1 deletion(-)
+
+diff --git a/src/response.ts b/src/response.ts
+index 70fa144..03e32f1 100644
+--- a/src/response.ts
++++ b/src/response.ts
+@@ -765,7 +765,7 @@ export class HttpResponse extends Macroable {
+    */
+   type(type: string, charset?: string): this {
+     type = charset ? `${type}; charset=${charset}` : type
+-    this.header('Content-Type', mime.contentType(type))
++    this.header('Content-Type', mime.contentType(type) || 'application/octet-stream')
+ 
+     return this
+   }
+diff --git a/tests/response.spec.ts b/tests/response.spec.ts
+index 745c2a7..bf6bf91 100644
+--- a/tests/response.spec.ts
++++ b/tests/response.spec.ts
+@@ -706,6 +706,23 @@ test.group('Response', (group) => {
+     assert.equal(text, '<p> hello world </p>')
+   })
+ 
++  test('download file with unknown extension as octet-stream', async ({ assert }) => {
++    await fsExtra.outputFile(join(BASE_PATH, 'LICENSE'), 'hello world')
++
++    const { url } = await httpServer.create((req, res) => {
++      const response = new HttpResponseFactory().merge({ req, res, encryption, router }).create()
++      response.download(join(BASE_PATH, 'LICENSE'))
++      response.finish()
++    })
++
++    const { body } = await supertest(url)
++      .get('/')
++      .expect('content-type', 'application/octet-stream')
++      .expect('content-length', '11')
++
++    assert.equal(body.toString(), 'hello world')
++  })
++
+   test('write errors as response when downloading folder', async ({ assert }) => {
+     await fsExtra.ensureDir(BASE_PATH)
+ 
+-- 
+2.34.1
+

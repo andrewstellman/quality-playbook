@@ -1,0 +1,5 @@
+# fuzz_readuntil.py: 20000 random (separator, data, segmentation, buffered-vs-delayed) cases compared with bytes.find on the joined stream
+## with fix (HEAD e4c6e605c)
+20000 random cases OK (seed 1234)
+## unpatched aiohttp/streams.py from e11d2836 (stops at first mismatch)
+AssertionError: (b'aa', [b'ba', b'a', b'ca', b'a', b'abacacbb', b'a', b'bbc'], False, [b'baacaaabacacbbabbc'], [b'baa', b'caa', b'abacacbbabbc'])

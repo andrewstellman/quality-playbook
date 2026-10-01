@@ -1,0 +1,71 @@
+$ python run_extracted.py amplify --src-tree /tmp/fix/revert-amplify --test-tree /tmp/fix/revert-amplify   # REVERT: patched commit with the source change reversed (git apply -R), tests kept
+source tree: /tmp/fix/revert-amplify
+  HEAD bbaf2bd93e1ee1ba67285adeeffe8f9dea632a42
+  git status --short: [' M models/amplify/src/amplify/state_dict_convert.py']
+test tree: /tmp/fix/revert-amplify
+  HEAD bbaf2bd93e1ee1ba67285adeeffe8f9dea632a42
+  git status --short: [' M models/amplify/src/amplify/state_dict_convert.py']
+
+== extracted from models/amplify/src/amplify/state_dict_convert.py (source tree)
+  _pad_weights: lines 85-91 sha256=0b10bbad0fd68534
+
+== extracted from models/amplify/tests/test_amplify_model.py (test tree)
+  test_pad_weights_dtype_device: lines 173-191 sha256=687fa3aedefe3bcf
+
+== extracted source function(s), exactly as written into the stand-in module
+  | import types
+  | 
+  | import torch
+  | 
+  | io = types.SimpleNamespace(TransformCTX=object)  # STUB
+  | 
+  | 
+  | def _pad_weights(ctx: io.TransformCTX, source_embed):
+  |     """Pad the embedding layer to the new input dimension."""
+  |     target_embedding_dimension = ctx.target.config.padded_vocab_size
+  |     hf_embedding_dimension = source_embed.size(0)
+  |     num_padding_rows = target_embedding_dimension - hf_embedding_dimension
+  |     padding_rows = torch.zeros(num_padding_rows, source_embed.size(1))
+  |     return torch.cat((source_embed, padding_rows), dim=0)
+
+== torch 2.14.0+cpu, cuda available: False
+
+============================= test session starts ==============================
+platform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0 -- /tmp/fix/venv/bin/python
+rootdir: /tmp/fix/harness-amplify-3w7fhiwr
+collecting ... collected 2 items
+
+test_extracted_amplify.py::test_pad_weights_dtype_device[cpu] FAILED     [ 50%]
+test_extracted_amplify.py::test_pad_weights_dtype_device[cuda] SKIPPED   [100%]
+
+=================================== FAILURES ===================================
+______________________ test_pad_weights_dtype_device[cpu] ______________________
+
+device = 'cpu'
+
+    @pytest.mark.parametrize(
+        "device",
+        ["cpu", pytest.param("cuda", marks=pytest.mark.skipif(not torch.cuda.is_available(), reason="requires CUDA"))],
+    )
+    def test_pad_weights_dtype_device(device):
+        """_pad_weights pads with zeros in the source embedding's dtype and on its device."""
+        from amplify.state_dict_convert import _pad_weights
+    
+        ctx_mock = MagicMock()
+        ctx_mock.target.config.padded_vocab_size = 12
+        source_embed = torch.randn(10, 4, dtype=torch.bfloat16, device=device)
+    
+        padded = _pad_weights(ctx_mock, source_embed)
+    
+        assert padded.shape == (12, 4)
+>       assert padded.dtype == torch.bfloat16
+E       assert torch.float32 == torch.bfloat16
+E        +  where torch.float32 = tensor([[-1.2188,  2.3438,  0.9336,  0.9336],\n        [-0.7734,  1.3203,  0.9766, -1.1328],\n        [ 0.1758, -0.3105, -0.8867,  0.7539],\n        [ 0.0879,  1.2109,  0.4941,  0.9297],\n        [ 0.8945, -0.4863,  0.2314,  1.3203],\n        [ 1.0000, -0.6328, -1.7578, -0.6836],\n        [-1.3203,  0.6484,  1.3750, -0.6289],\n        [ 0.4219,  2.0469,  0.9062,  0.0334],\n        [ 1.1719, -0.6445, -0.5156, -0.7695],\n        [ 0.6484,  0.2295,  0.5000, -1.3750],\n        [ 0.0000,  0.0000,  0.0000,  0.0000],\n        [ 0.0000,  0.0000,  0.0000,  0.0000]]).dtype
+E        +  and   torch.bfloat16 = torch.bfloat16
+
+test_extracted_amplify.py:22: AssertionError
+=========================== short test summary info ============================
+SKIPPED [1] test_extracted_amplify.py:7: requires CUDA
+========================= 1 failed, 1 skipped in 0.86s =========================
+
+pytest exit code: 1

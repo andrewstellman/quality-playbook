@@ -1,0 +1,1 @@
+Confirmed: calibre package cannot be imported without compiled extensions (sys.extensions_location missing). No project test suite runnable in this sandbox.

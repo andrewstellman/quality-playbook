@@ -1,0 +1,51 @@
+From e803eb66f0d7570efab20db408c547f2f937b346 Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <andrew@stellman.com>
+Date: Sun, 27 Sep 2026 16:40:03 -0400
+Subject: [PATCH] Fix Percentage.toString() for integral values larger than
+ Integer.MAX_VALUE
+
+---
+ .../src/main/java/org/assertj/core/data/Percentage.java       | 4 +++-
+ .../java/org/assertj/tests/core/data/Percentage_Test.java     | 4 +++-
+ 2 files changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/assertj-core/src/main/java/org/assertj/core/data/Percentage.java b/assertj-core/src/main/java/org/assertj/core/data/Percentage.java
+index 18f3c5d..d7a1734 100644
+--- a/assertj-core/src/main/java/org/assertj/core/data/Percentage.java
++++ b/assertj-core/src/main/java/org/assertj/core/data/Percentage.java
+@@ -17,6 +17,8 @@ package org.assertj.core.data;
+ 
+ import static org.assertj.core.util.Preconditions.checkArgument;
+ 
++import java.math.BigDecimal;
++
+ /**
+  * A positive percentage value.
+  *
+@@ -59,7 +61,7 @@ public final class Percentage {
+ 
+   @Override
+   public String toString() {
+-    return noFractionalPart() ? "%s%%".formatted((int) value) : "%s%%".formatted(value);
++    return noFractionalPart() ? "%s%%".formatted(new BigDecimal(value).toPlainString()) : "%s%%".formatted(value);
+   }
+ 
+   private boolean noFractionalPart() {
+diff --git a/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/data/Percentage_Test.java b/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/data/Percentage_Test.java
+index efa9585..de629e1 100644
+--- a/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/data/Percentage_Test.java
++++ b/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/data/Percentage_Test.java
+@@ -67,7 +67,9 @@ class Percentage_Test {
+       "10,    10%",
+       "10.0,  10%",
+       "0.1,   0.1%",
+-      "0.103, 0.103%"
++      "0.103, 0.103%",
++      "3000000000, 3000000000%",
++      "1e20, 100000000000000000000%"
+   })
+   void toString_should_display_fractional_part_when_present(double value, String expected) {
+     // GIVEN
+-- 
+2.34.1
+

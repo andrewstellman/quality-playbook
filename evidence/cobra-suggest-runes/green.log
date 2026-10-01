@@ -1,0 +1,23 @@
+=== RUN   TestLevenshteinDistance
+=== RUN   TestLevenshteinDistance/Equal_strings_(case-sensitive)
+=== RUN   TestLevenshteinDistance/Equal_strings_(case-insensitive)
+=== RUN   TestLevenshteinDistance/Different_strings_(case-sensitive)
+=== RUN   TestLevenshteinDistance/Different_strings_(case-insensitive)
+=== RUN   TestLevenshteinDistance/Empty_strings
+=== RUN   TestLevenshteinDistance/One_empty_string
+=== RUN   TestLevenshteinDistance/Both_empty_strings
+=== RUN   TestLevenshteinDistance/Non-ASCII_characters
+--- PASS: TestLevenshteinDistance (0.00s)
+    --- PASS: TestLevenshteinDistance/Equal_strings_(case-sensitive) (0.00s)
+    --- PASS: TestLevenshteinDistance/Equal_strings_(case-insensitive) (0.00s)
+    --- PASS: TestLevenshteinDistance/Different_strings_(case-sensitive) (0.00s)
+    --- PASS: TestLevenshteinDistance/Different_strings_(case-insensitive) (0.00s)
+    --- PASS: TestLevenshteinDistance/Empty_strings (0.00s)
+    --- PASS: TestLevenshteinDistance/One_empty_string (0.00s)
+    --- PASS: TestLevenshteinDistance/Both_empty_strings (0.00s)
+    --- PASS: TestLevenshteinDistance/Non-ASCII_characters (0.00s)
+PASS
+ok  	github.com/spf13/cobra	0.002s
+== full suite: go test ./...
+ok  	github.com/spf13/cobra	0.201s
+ok  	github.com/spf13/cobra/doc	0.003s

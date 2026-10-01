@@ -1,0 +1,48 @@
+
+Matchers (tests/router/matchers.spec.ts)
+  ✔ get matcher for a number (4.86ms)
+  ✔ get matcher for a uuid (0.48ms)
+  ✖ uuid matcher rejects non-hex characters (0.73ms)
+  ✔ get matcher for a slug (0.34ms)
+  ✔ slug matcher does not backtrack excessively on invalid input (0.7ms)
+ ERRORS 
+
+❯ Matchers / uuid matcher rejects non-hex characters
+
+- Expected  - 1
++ Received  + 1
+
+- false
++ true
+
+[31mℹ AssertionError: expected true to be false[39m
+
+ ⁃ at Assert.isFalse [33m(/tmp/adonw/node_modules/@japa/assert/build/index.js:125:19)[39m
+ ⁃ at Object.executor [33m(tests/router/matchers.spec.ts:41:12)[39m
+
+   [2m36[22m [2m┃[22m    })
+   [2m37[22m [2m┃[22m  
+   [2m38[22m [2m┃[22m    [35mtest[0m([32m'uuid matcher rejects non-hex characters'[0m[34m,[0m ({ assert }) [31m=>[0m {
+   [2m39[22m [2m┃[22m      [31mconst[0m uuid [34m=[0m [31mnew[0m [33mRouteMatchers[0m()[34m.[0m[35muuid[0m()
+   [2m40[22m [2m┃[22m  
+ [41m❯ 41 ┃      assert.isFalse(uuid.match.test('zzzzzzzz-zzzz-zzzz-zzzz-zzzzzzzzzzzz'))[49m
+   [2m42[22m [2m┃[22m      assert[34m.[0m[35misFalse[0m(uuid[34m.[0mmatch[34m.[0m[35mtest[0m([32m'gggggggg-gggg-gggg-gggg-gggggggggggg'[0m))
+   [2m43[22m [2m┃[22m    })
+   [2m44[22m [2m┃[22m  
+   [2m45[22m [2m┃[22m    [35mtest[0m([32m'get matcher for a slug'[0m[34m,[0m ({ assert }) [31m=>[0m {
+   [2m46[22m [2m┃[22m      [31mconst[0m slug [34m=[0m [31mnew[0m [33mRouteMatchers[0m()[34m.[0m[35mslug[0m()
+
+ ⁃ at #runTest [33m(/tmp/adonw/node_modules/@japa/core/build/index.js:634:121)[39m
+ ⁃ at #wrapRegressionTest [33m(/tmp/adonw/node_modules/@japa/core/build/index.js:670:118)[39m
+ ⁃ at #wrapTestInTimeout [33m(/tmp/adonw/node_modules/@japa/core/build/index.js:680:102)[39m
+ ⁃ at #wrapTestInRetries [33m(/tmp/adonw/node_modules/@japa/core/build/index.js:686:66)[39m
+ ⁃ at TestRunner.run [33m(/tmp/adonw/node_modules/@japa/core/build/index.js:710:33)[39m
+ ⁃ at async Test$1.exec [33m(/tmp/adonw/node_modules/@japa/core/build/index.js:918:3)[39m
+ ⁃ at async GroupRunner.run [33m(/tmp/adonw/node_modules/@japa/core/build/index.js:259:4)[39m
+ ⁃ at async Group$1.exec [33m(/tmp/adonw/node_modules/@japa/core/build/index.js:354:3)[39m
+[1/1]─
+
+ FAILED 
+
+Tests  4 passed, 1 failed (5)
+ Time  10ms

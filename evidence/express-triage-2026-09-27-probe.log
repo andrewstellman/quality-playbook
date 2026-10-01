@@ -1,0 +1,8 @@
+# node /tmp/probe.js @ 9a34acf03cb818ff3f8bc40e44176e277a25cbb9
+cookie: [ 'a=b; Max-Age=0; Path=/; Expires=Sun, 27 Sep 2026 20:11:42 GMT' ]
+redirect text: "undefined. Redirecting to /x" 310
+redirect html: "<!DOCTYPE html><head><title>undefined</title></head><body><p>undefined. Redirecting to /x</p></body>"
+send str: text/plain; charset=utf-8 636166c3a9
+send buf: text/plain; charset=iso-8859-1
+format: 200 text/html; charset=utf-8
+acceptParams: {"value":"text/html","quality":5,"params":{"x":"\"a"}}

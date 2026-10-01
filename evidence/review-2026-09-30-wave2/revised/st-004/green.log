@@ -1,0 +1,3 @@
+64 passed, 1 xfailed in 3.13s
+--- setuptools/tests (excl. integration, test_virtualenv, test_editable_install, test_distutils_adoption; TMPDIR=/tmp because /sessions is full) ---
+932 passed, 6 skipped, 9 xfailed, 2 xpassed in 59.10s

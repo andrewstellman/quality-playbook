@@ -1,0 +1,972 @@
+[INFO] Scanning for projects...
+[INFO] Inspecting build with total of 1 modules
+[INFO] Installing Central Publishing features
+[INFO] 
+[INFO] -------------------------< io.javalin:javalin >-------------------------
+[INFO] Building Javalin 7.2.4-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- git-commit-id:10.0.0:revision (default) @ javalin ---
+[INFO] 
+[INFO] --- resources:3.5.0:copy-resources (copy-license) @ javalin ---
+[INFO] Copying 1 resource from .. to target/classes/META-INF
+[INFO] 
+[INFO] --- resources:3.5.0:copy-resources (copy-pom-properties) @ javalin ---
+[INFO] Copying 1 resource from .. to target
+[INFO] 
+[INFO] --- jacoco:0.8.15:prepare-agent (default) @ javalin ---
+[INFO] argLine set to -javaagent:/tmp/m2/org/jacoco/org.jacoco.agent/0.8.15/org.jacoco.agent-0.8.15-runtime.jar=destfile=/tmp/w2fix/jav-011/javalin/target/jacoco.exec
+[INFO] 
+[INFO] --- resources:3.5.0:resources (default-resources) @ javalin ---
+[INFO] skip non existing resourceDirectory /tmp/w2fix/jav-011/javalin/src/main/resources
+[INFO] 
+[INFO] --- kotlin:2.2.20:compile (compile) @ javalin ---
+[WARNING] Source root doesn't exist: /tmp/w2fix/jav-011/javalin/src/main/kotlin
+[WARNING] Using experimental Kotlin incremental compilation
+[INFO] cannot connect to registry: Connection refused
+[INFO] cannot connect to registry: Connection refused
+[INFO] starting the daemon as: /tmp/jdk17/bin/java -cp /tmp/m2/org/jetbrains/kotlin/kotlin-build-tools-impl/2.2.20/kotlin-build-tools-impl-2.2.20.jar:/tmp/m2/org/jetbrains/kotlin/kotlin-build-tools-api/2.2.20/kotlin-build-tools-api-2.2.20.jar:/tmp/m2/org/jetbrains/kotlin/kotlin-stdlib/2.2.20/kotlin-stdlib-2.2.20.jar:/tmp/m2/org/jetbrains/annotations/13.0/annotations-13.0.jar:/tmp/m2/org/jetbrains/kotlin/kotlin-compiler-embeddable/2.2.20/kotlin-compiler-embeddable-2.2.20.jar:/tmp/m2/org/jetbrains/kotlin/kotlin-script-runtime/2.2.20/kotlin-script-runtime-2.2.20.jar:/tmp/m2/org/jetbrains/kotlin/kotlin-reflect/1.6.10/kotlin-reflect-1.6.10.jar:/tmp/m2/org/jetbrains/kotlin/kotlin-daemon-embeddable/2.2.20/kotlin-daemon-embeddable-2.2.20.jar:/tmp/m2/org/jetbrains/kotlinx/kotlinx-coroutines-core-jvm/1.8.0/kotlinx-coroutines-core-jvm-1.8.0.jar:/tmp/m2/org/jetbrains/kotlin/kotlin-compiler-runner/2.2.20/kotlin-compiler-runner-2.2.20.jar:/tmp/m2/org/jetbrains/kotlin/kotlin-daemon-client/2.2.20/kotlin-daemon-client-2.2.20.jar:/tmp/m2/org/jetbrains/kotlin/kotlin-scripting-compiler-embeddable/2.2.20/kotlin-scripting-compiler-embeddable-2.2.20.jar:/tmp/m2/org/jetbrains/kotlin/kotlin-scripting-common/2.2.20/kotlin-scripting-common-2.2.20.jar:/tmp/m2/org/jetbrains/kotlin/kotlin-scripting-jvm/2.2.20/kotlin-scripting-jvm-2.2.20.jar:/tmp/m2/org/jetbrains/kotlin/kotlin-scripting-compiler-impl-embeddable/2.2.20/kotlin-scripting-compiler-impl-embeddable-2.2.20.jar -Djava.awt.headless=true -Djava.rmi.server.hostname=127.0.0.1 -Xmx978m -XX:ReservedCodeCacheSize=320m -ea -XX:+UseCodeCacheFlushing -XX:+UseParallelGC -Dkotlin.daemon.initiator.marker.file=/tmp/kotlin-compiler-client-11158332872519904398-is-running --add-exports java.base/sun.nio.ch=ALL-UNNAMED org.jetbrains.kotlin.daemon.KotlinCompileDaemon --daemon-runFilesPath /sessions/kind-zealous-edison/.local/share/kotlin/daemon --daemon-autoshutdownIdleSeconds=7200 --daemon-shutdownDelayMilliseconds=1800000 --daemon-compilerClasspath /tmp/m2/org/jetbrains/kotlin/kotlin-build-tools-impl/2.2.20/kotlin-build-tools-impl-2.2.20.jar:/tmp/m2/org/jetbrains/kotlin/kotlin-build-tools-api/2.2.20/kotlin-build-tools-api-2.2.20.jar:/tmp/m2/org/jetbrains/kotlin/kotlin-stdlib/2.2.20/kotlin-stdlib-2.2.20.jar:/tmp/m2/org/jetbrains/annotations/13.0/annotations-13.0.jar:/tmp/m2/org/jetbrains/kotlin/kotlin-compiler-embeddable/2.2.20/kotlin-compiler-embeddable-2.2.20.jar:/tmp/m2/org/jetbrains/kotlin/kotlin-script-runtime/2.2.20/kotlin-script-runtime-2.2.20.jar:/tmp/m2/org/jetbrains/kotlin/kotlin-reflect/1.6.10/kotlin-reflect-1.6.10.jar:/tmp/m2/org/jetbrains/kotlin/kotlin-daemon-embeddable/2.2.20/kotlin-daemon-embeddable-2.2.20.jar:/tmp/m2/org/jetbrains/kotlinx/kotlinx-coroutines-core-jvm/1.8.0/kotlinx-coroutines-core-jvm-1.8.0.jar:/tmp/m2/org/jetbrains/kotlin/kotlin-compiler-runner/2.2.20/kotlin-compiler-runner-2.2.20.jar:/tmp/m2/org/jetbrains/kotlin/kotlin-daemon-client/2.2.20/kotlin-daemon-client-2.2.20.jar:/tmp/m2/org/jetbrains/kotlin/kotlin-scripting-compiler-embeddable/2.2.20/kotlin-scripting-compiler-embeddable-2.2.20.jar:/tmp/m2/org/jetbrains/kotlin/kotlin-scripting-common/2.2.20/kotlin-scripting-common-2.2.20.jar:/tmp/m2/org/jetbrains/kotlin/kotlin-scripting-jvm/2.2.20/kotlin-scripting-jvm-2.2.20.jar:/tmp/m2/org/jetbrains/kotlin/kotlin-scripting-compiler-impl-embeddable/2.2.20/kotlin-scripting-compiler-impl-embeddable-2.2.20.jar
+[INFO] #1 retrying connecting to the daemon 
+[INFO] cannot connect to registry: Connection refused
+[INFO] cannot connect to registry: Connection refused
+[INFO] 
+[INFO] --- compiler:3.15.0:compile (java-compile) @ javalin ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ javalin ---
+[INFO] Copying 42 resources from src/test/resources to target/test-classes
+[INFO] 
+[INFO] --- kotlin:2.2.20:test-compile (test-compile) @ javalin ---
+[WARNING] Using experimental Kotlin incremental compilation
+[INFO] cannot connect to registry: Connection refused
+[INFO] cannot connect to registry: Connection refused
+[INFO] 
+[INFO] --- compiler:3.15.0:testCompile (java-test-compile) @ javalin ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- surefire:3.5.6:test (default-test) @ javalin ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO] 
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running io.javalin.TestCorsUtils
+[INFO] Running io.javalin.TestCorsUtils$IsValidOrigin
+[INFO] Tests run: 15, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.172 s -- in io.javalin.TestCorsUtils$IsValidOrigin
+[INFO] Running io.javalin.TestCorsUtils$OriginsMatch
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.007 s -- in io.javalin.TestCorsUtils$OriginsMatch
+[INFO] Running io.javalin.TestCorsUtils$WildcardRequirements
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.005 s -- in io.javalin.TestCorsUtils$WildcardRequirements
+[INFO] Running io.javalin.TestCorsUtils$TestOriginParts
+[INFO] Tests run: 14, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.041 s -- in io.javalin.TestCorsUtils$TestOriginParts
+[INFO] Running io.javalin.TestCorsUtils$AddSchemeIfMissing
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.013 s -- in io.javalin.TestCorsUtils$AddSchemeIfMissing
+[INFO] Tests run: 0, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.261 s -- in io.javalin.TestCorsUtils
+[INFO] Running io.javalin.TestValidation_Java
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.372 s -- in io.javalin.TestValidation_Java
+[INFO] Running io.javalin.TestGracefulShutdown
+[WARNING] Tests run: 3, Failures: 0, Errors: 0, Skipped: 3, Time elapsed: 0 s -- in io.javalin.TestGracefulShutdown
+[INFO] Running io.javalin.TestMocking
+[INFO] Running io.javalin.TestMocking$Mockk
+OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.285 s -- in io.javalin.TestMocking$Mockk
+[INFO] Running io.javalin.TestMocking$Mockito
+OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.610 s -- in io.javalin.TestMocking$Mockito
+[INFO] Tests run: 0, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.902 s -- in io.javalin.TestMocking
+[INFO] Running io.javalin.TestCors
+[INFO] Running io.javalin.TestCors$NegativeTests
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.105 s -- in io.javalin.TestCors$NegativeTests
+[INFO] Running io.javalin.TestCors$ExposingHeaders
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.035 s -- in io.javalin.TestCors$ExposingHeaders
+[INFO] Running io.javalin.TestCors$ComplexSetup
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.048 s -- in io.javalin.TestCors$ComplexSetup
+[INFO] Running io.javalin.TestCors$ConvenienceFeatures
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.123 s -- in io.javalin.TestCors$ConvenienceFeatures
+[INFO] Running io.javalin.TestCors$HappyPath
+[INFO] Tests run: 11, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.181 s -- in io.javalin.TestCors$HappyPath
+[INFO] Running io.javalin.TestCors$ExceptionTests
+[INFO] Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.018 s -- in io.javalin.TestCors$ExceptionTests
+[INFO] Running io.javalin.TestCors$EdgeCases
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.044 s -- in io.javalin.TestCors$EdgeCases
+[INFO] Tests run: 0, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.565 s -- in io.javalin.TestCors
+[INFO] Running io.javalin.TestClose_Java
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.035 s -- in io.javalin.TestClose_Java
+[INFO] Running io.javalin.TestCookieStore
+[INFO] Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.216 s -- in io.javalin.TestCookieStore
+[INFO] Running io.javalin.TestHttpAllowedMethodsPlugin
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.019 s -- in io.javalin.TestHttpAllowedMethodsPlugin
+[INFO] Running io.javalin.TestResponse
+[WARNING] Tests run: 25, Failures: 0, Errors: 0, Skipped: 1, Time elapsed: 0.419 s -- in io.javalin.TestResponse
+[INFO] Running io.javalin.TestCustomRequestLifecycle
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.043 s -- in io.javalin.TestCustomRequestLifecycle
+[INFO] Running io.javalin.TestSse
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 27, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.545 s -- in io.javalin.TestSse
+[INFO] Running io.javalin.TestConcurrencyUtil
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[WARNING] Tests run: 12, Failures: 0, Errors: 0, Skipped: 2, Time elapsed: 1.033 s -- in io.javalin.TestConcurrencyUtil
+[INFO] Running io.javalin.TestRouting
+[WARNING] Tests run: 43, Failures: 0, Errors: 0, Skipped: 1, Time elapsed: 0.393 s -- in io.javalin.TestRouting
+[INFO] Running io.javalin.TestMultipartForms
+[INFO] Tests run: 17, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.199 s -- in io.javalin.TestMultipartForms
+[INFO] Running io.javalin.TestTrailingSlashes
+[WARNING] Tests run: 13, Failures: 0, Errors: 0, Skipped: 1, Time elapsed: 0.085 s -- in io.javalin.TestTrailingSlashes
+[INFO] Running io.javalin.TestValidation
+[INFO] Tests run: 37, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.333 s -- in io.javalin.TestValidation
+[INFO] Running io.javalin.TestEtags
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.044 s -- in io.javalin.TestEtags
+[INFO] Running io.javalin.TestFuture
+[INFO] Running io.javalin.TestFuture$AsyncLifecycle
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.061 s -- in io.javalin.TestFuture$AsyncLifecycle
+[INFO] Running io.javalin.TestFuture$FutureBasics
+[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.280 s -- in io.javalin.TestFuture$FutureBasics
+[INFO] Running io.javalin.TestFuture$FutureLifecycle
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.264 s -- in io.javalin.TestFuture$FutureLifecycle
+[INFO] Running io.javalin.TestFuture$FutureExceptions
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.157 s -- in io.javalin.TestFuture$FutureExceptions
+[INFO] Running io.javalin.TestFuture$AsyncBasics
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.153 s -- in io.javalin.TestFuture$AsyncBasics
+[INFO] Running io.javalin.TestFuture$FutureTimeouts
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.063 s -- in io.javalin.TestFuture$FutureTimeouts
+[INFO] Tests run: 0, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.987 s -- in io.javalin.TestFuture
+[INFO] Running io.javalin.TestApiBuilder
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 26, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.147 s -- in io.javalin.TestApiBuilder
+[INFO] Running io.javalin.TestGlobalGlobalHeaderConfigPlugin
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 17, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.027 s -- in io.javalin.TestGlobalGlobalHeaderConfigPlugin
+[INFO] Running io.javalin.TestContextRouteRoles
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.032 s -- in io.javalin.TestContextRouteRoles
+[INFO] Running io.javalin.TestWebBrowser
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO io.github.bonigarcia.wdm.online.Downloader - Downloading https://storage.googleapis.com/chrome-for-testing-public/154.0.8037.92/linux64/chromedriver-linux64.zip
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO io.github.bonigarcia.wdm.online.Downloader - Extracting driver from compressed file chromedriver-linux64.zip
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO io.github.bonigarcia.wdm.WebDriverManager - Exporting webdriver.chrome.driver as /sessions/kind-zealous-edison/.cache/selenium/chromedriver/linux-arm64/154.0.8037.92/chromedriver
+[WARNING] Tests run: 4, Failures: 0, Errors: 0, Skipped: 4, Time elapsed: 0.953 s -- in io.javalin.TestWebBrowser
+[INFO] Running io.javalin.TestRateLimitPlugin
+[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.108 s -- in io.javalin.TestRateLimitPlugin
+[INFO] Running io.javalin.TestCustomJetty
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 12, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.125 s -- in io.javalin.TestCustomJetty
+[INFO] Running io.javalin.TestBeforeMatched
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.023 s -- in io.javalin.TestBeforeMatched
+[INFO] Running io.javalin.TestJavalinJackson3
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 11, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.484 s -- in io.javalin.TestJavalinJackson3
+[INFO] Running io.javalin.TestLogging
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.121 s -- in io.javalin.TestLogging
+[INFO] Running io.javalin.TestCompression
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/webjars, directory=META-INF/resources/webjars, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=31622400}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: '[jar:file:///tmp/m2/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/, jar:file:///tmp/m2/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/]'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/upload-test, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/upload-test/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/webjars, directory=META-INF/resources/webjars, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=31622400}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: '[jar:file:///tmp/m2/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/, jar:file:///tmp/m2/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/]'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/webjars, directory=META-INF/resources/webjars, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=31622400}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: '[jar:file:///tmp/m2/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/, jar:file:///tmp/m2/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/]'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/webjars, directory=META-INF/resources/webjars, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=31622400}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: '[jar:file:///tmp/m2/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/, jar:file:///tmp/m2/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/]'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/webjars, directory=META-INF/resources/webjars, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=31622400}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: '[jar:file:///tmp/m2/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/, jar:file:///tmp/m2/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/]'
+[INFO] Tests run: 37, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.149 s -- in io.javalin.TestCompression
+[INFO] Running io.javalin.TestSslRedirectPlugin
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.024 s -- in io.javalin.TestSslRedirectPlugin
+[INFO] Running io.javalin.TestExceptionMapper
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 15, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.087 s -- in io.javalin.TestExceptionMapper
+[INFO] Running io.javalin.TestErrorMapper
+[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.042 s -- in io.javalin.TestErrorMapper
+[INFO] Running io.javalin.TestFilters
+[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.040 s -- in io.javalin.TestFilters
+[INFO] Running io.javalin.TestEndpoint
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.029 s -- in io.javalin.TestEndpoint
+[INFO] Running io.javalin.TestContextHandlerType
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.005 s -- in io.javalin.TestContextHandlerType
+[INFO] Running io.javalin.routeoverview.TestRouteOverviewInJava
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.004 s -- in io.javalin.routeoverview.TestRouteOverviewInJava
+[INFO] Running io.javalin.routeoverview.TestRouteOverviewPlugin
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.029 s -- in io.javalin.routeoverview.TestRouteOverviewPlugin
+[INFO] Running io.javalin.routeoverview.TestRouteOverviewInKotlin
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.002 s -- in io.javalin.routeoverview.TestRouteOverviewInKotlin
+[INFO] Running io.javalin.TestRequest_Java
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.022 s -- in io.javalin.TestRequest_Java
+[INFO] Running io.javalin.staticfiles.TestStaticFilesPrecompressor
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=public, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/webjars, directory=META-INF/resources/webjars, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: '[jar:file:///tmp/m2/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/, jar:file:///tmp/m2/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/]'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public/immutable, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/immutable/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public/protected, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/protected/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/webjars, directory=META-INF/resources/webjars, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: '[jar:file:///tmp/m2/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/, jar:file:///tmp/m2/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/]'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public/immutable, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/immutable/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public/protected, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/protected/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/webjars, directory=META-INF/resources/webjars, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: '[jar:file:///tmp/m2/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/, jar:file:///tmp/m2/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/]'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public/immutable, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/immutable/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public/protected, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/protected/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=public, location=CLASSPATH, precompressMaxSize=1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/webjars, directory=META-INF/resources/webjars, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: '[jar:file:///tmp/m2/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/, jar:file:///tmp/m2/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/]'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public/immutable, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/immutable/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public/protected, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/protected/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/webjars, directory=META-INF/resources/webjars, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=31622400}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: '[jar:file:///tmp/m2/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/, jar:file:///tmp/m2/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/]'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/webjars, directory=META-INF/resources/webjars, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: '[jar:file:///tmp/m2/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/, jar:file:///tmp/m2/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/]'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public/immutable, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/immutable/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public/protected, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/protected/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/webjars, directory=META-INF/resources/webjars, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: '[jar:file:///tmp/m2/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/, jar:file:///tmp/m2/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/]'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public/immutable, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/immutable/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public/protected, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/protected/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=public, location=CLASSPATH, precompressMaxSize=0, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[INFO] Tests run: 11, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.398 s -- in io.javalin.staticfiles.TestStaticFilesPrecompressor
+[INFO] Running io.javalin.staticfiles.TestSinglePageMode
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/webjars, directory=META-INF/resources/webjars, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=31622400}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: '[jar:file:///tmp/m2/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/, jar:file:///tmp/m2/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/]'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/webjars, directory=META-INF/resources/webjars, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=31622400}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: '[jar:file:///tmp/m2/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/, jar:file:///tmp/m2/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/]'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/webjars, directory=META-INF/resources/webjars, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=31622400}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: '[jar:file:///tmp/m2/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/, jar:file:///tmp/m2/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/]'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/webjars, directory=META-INF/resources/webjars, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=31622400}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: '[jar:file:///tmp/m2/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/, jar:file:///tmp/m2/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/]'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/webjars, directory=META-INF/resources/webjars, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=31622400}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: '[jar:file:///tmp/m2/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/, jar:file:///tmp/m2/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/]'
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 12, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.105 s -- in io.javalin.staticfiles.TestSinglePageMode
+[INFO] Running io.javalin.staticfiles.TestStaticFileAccess
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[ROLE_ONE]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=src/test/external/, location=EXTERNAL, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[ROLE_ONE]). File system location: 'file:///tmp/w2fix/jav-011/javalin/src/test/external/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public/immutable, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[ROLE_TWO]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/immutable/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[ROLE_ONE]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=src/test/external/, location=EXTERNAL, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[ROLE_ONE]). File system location: 'file:///tmp/w2fix/jav-011/javalin/src/test/external/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[ROLE_ONE]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.068 s -- in io.javalin.staticfiles.TestStaticFileAccess
+[INFO] Running io.javalin.staticfiles.TestStaticDirectorySlash
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=public, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=public, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.038 s -- in io.javalin.staticfiles.TestStaticDirectorySlash
+[INFO] Running io.javalin.staticfiles.TestStaticFilesEdgeCases
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Starting Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - jetty-12.1.12; built: 2026-08-03T22:37:55.389Z; git: 10dd3948f37767b84cc2c62358364f042e51dbbe; jvm 17.0.20.1+1
+[main] INFO org.eclipse.jetty.session.DefaultSessionIdManager - Session workerName=node0
+[main] INFO org.eclipse.jetty.server.handler.ContextHandler - Started oeje10s.ServletContextHandler@4065b4ab{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@22a760c7{STARTED}}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Started oeje10s.ServletContextHandler@4065b4ab{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@22a760c7{STARTED}}
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO org.eclipse.jetty.util.ssl.SslContextFactory - x509=oejus.X509@2e27b0b2(my-alias,h=[localhost],a=[],w=[]) for oejus.SslContextFactory$Server@946658d[provider=null,keyStore=file:///tmp/w2fix/jav-011/javalin/target/test-classes/keystore.jks,trustStore=null]
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Started oejs.ServerConnector@6591063b{SSL, (ssl, http/1.1)}{0.0.0.0:37311}
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Started oejs.ServerConnector@64049991{HTTP/1.1, (http/1.1)}{0.0.0.0:45557}
+[main] INFO org.eclipse.jetty.server.Server - Started oejs.Server@f973a72{STARTING}[12.1.12,sto=0] @142ms
+[main] INFO io.javalin.Javalin - 
+       __                  ___          _____
+      / /___ __   ______ _/ (_)___     /__  /
+ __  / / __ `/ | / / __ `/ / / __ \      / /
+/ /_/ / /_/ /| |/ / /_/ / / / / / /     / /
+\____/\__,_/ |___/\__,_/_/_/_/ /_/     /_/
+
+       https://javalin.io/documentation
+
+[main] INFO io.javalin.Javalin - Javalin started in 154ms \o/
+[main] INFO io.javalin.Javalin - Listening on https://localhost:37311/
+[main] INFO io.javalin.Javalin - Listening on http://localhost:45557/
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO io.javalin.Javalin - Stopping Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - Stopped oejs.Server@f973a72{STOPPING}[12.1.12,sto=0]
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Stopped oejs.ServerConnector@6591063b{SSL, (ssl, http/1.1)}{0.0.0.0:37311}
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Stopped oejs.ServerConnector@64049991{HTTP/1.1, (http/1.1)}{0.0.0.0:0}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Stopped oeje10s.ServletContextHandler@4065b4ab{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@22a760c7{STOPPED}}
+[main] INFO io.javalin.Javalin - Javalin has stopped
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Starting Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - jetty-12.1.12; built: 2026-08-03T22:37:55.389Z; git: 10dd3948f37767b84cc2c62358364f042e51dbbe; jvm 17.0.20.1+1
+[main] INFO org.eclipse.jetty.session.DefaultSessionIdManager - Session workerName=node0
+[main] INFO org.eclipse.jetty.server.handler.ContextHandler - Started oeje10s.ServletContextHandler@79c126a5{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@12d26a7{STARTED}}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Started oeje10s.ServletContextHandler@79c126a5{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@12d26a7{STARTED}}
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO org.eclipse.jetty.util.ssl.SslContextFactory - x509=oejus.X509@6cdad40f(my-alias,h=[localhost],a=[],w=[]) for oejus.SslContextFactory$Server@4aadf2d[provider=null,keyStore=file:///tmp/w2fix/jav-011/javalin/target/test-classes/keystore.jks,trustStore=null]
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Started oejs.ServerConnector@124a8d9d{SSL, (ssl, alpn, h2, http/1.1)}{0.0.0.0:34027}
+[main] INFO org.eclipse.jetty.server.Server - Started oejs.Server@1337e502{STARTING}[12.1.12,sto=0] @20ms
+[main] INFO io.javalin.Javalin - 
+       __                  ___          _____
+      / /___ __   ______ _/ (_)___     /__  /
+ __  / / __ `/ | / / __ `/ / / __ \      / /
+/ /_/ / /_/ /| |/ / /_/ / / / / / /     / /
+\____/\__,_/ |___/\__,_/_/_/_/ /_/     /_/
+
+       https://javalin.io/documentation
+
+[main] INFO io.javalin.Javalin - Javalin started in 31ms \o/
+[main] INFO io.javalin.Javalin - Listening on https://localhost:34027/
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO io.javalin.Javalin - Stopping Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - Stopped oejs.Server@1337e502{STOPPING}[12.1.12,sto=0]
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Stopped oejs.ServerConnector@124a8d9d{SSL, (ssl, alpn, h2, http/1.1)}{0.0.0.0:34027}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Stopped oeje10s.ServletContextHandler@79c126a5{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@12d26a7{STOPPED}}
+[main] INFO io.javalin.Javalin - Javalin has stopped
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Starting Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - jetty-12.1.12; built: 2026-08-03T22:37:55.389Z; git: 10dd3948f37767b84cc2c62358364f042e51dbbe; jvm 17.0.20.1+1
+[main] INFO org.eclipse.jetty.session.DefaultSessionIdManager - Session workerName=node0
+[main] INFO org.eclipse.jetty.server.handler.ContextHandler - Started oeje10s.ServletContextHandler@70e5ca81{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@5c51da21{STARTED}}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Started oeje10s.ServletContextHandler@70e5ca81{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@5c51da21{STARTED}}
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Started oejs.ServerConnector@30f14c8{HTTP/1.1, (http/1.1, h2c)}{0.0.0.0:35911}
+[main] INFO org.eclipse.jetty.server.Server - Started oejs.Server@21c92c7e{STARTING}[12.1.12,sto=0] @1ms
+[main] INFO io.javalin.Javalin - 
+       __                  ___          _____
+      / /___ __   ______ _/ (_)___     /__  /
+ __  / / __ `/ | / / __ `/ / / __ \      / /
+/ /_/ / /_/ /| |/ / /_/ / / / / / /     / /
+\____/\__,_/ |___/\__,_/_/_/_/ /_/     /_/
+
+       https://javalin.io/documentation
+
+[main] INFO io.javalin.Javalin - Javalin started in 2ms \o/
+[main] INFO io.javalin.Javalin - Listening on http://localhost:35911/
+[main] INFO io.javalin.Javalin - Stopping Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - Stopped oejs.Server@21c92c7e{STOPPING}[12.1.12,sto=0]
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Stopped oejs.ServerConnector@30f14c8{HTTP/1.1, (http/1.1, h2c)}{0.0.0.0:35911}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Stopped oeje10s.ServletContextHandler@70e5ca81{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@5c51da21{STOPPED}}
+[main] INFO io.javalin.Javalin - Javalin has stopped
+[INFO] Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.444 s -- in io.javalin.staticfiles.TestStaticFilesEdgeCases
+[INFO] Running io.javalin.staticfiles.TestStaticFilesPathTraversal
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/tmp/junit-317095055437983258/public, location=EXTERNAL, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/junit-317095055437983258/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[INFO] Tests run: 10, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.193 s -- in io.javalin.staticfiles.TestStaticFilesPathTraversal
+[INFO] Running io.javalin.staticfiles.TestStaticFiles
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=src/test/external/, location=EXTERNAL, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/src/test/external/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/tmp/junit-18366565050637586383, location=EXTERNAL, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/junit-18366565050637586383/'
+Sep 30, 2026 11:21:58 PM org.junit.jupiter.api.io.TempDirDeletionStrategy$Standard$1 warnAboutLinkWithTargetOutsideTempDir
+WARNING: Deleting symbolic link from location inside of temp dir (/tmp/junit-18366565050637586383/linked_html.html) to location outside of temp dir (/tmp/w2fix/jav-011/javalin/src/test/external/html.html) but not the target file/directory
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=src/test/external/, location=EXTERNAL, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/src/test/external/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public/immutable, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/immutable/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public/protected, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/protected/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public/subdir, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/subdir/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public/subdir, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/subdir/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/webjars, directory=META-INF/resources/webjars, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=31622400}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: '[jar:file:///tmp/m2/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/, jar:file:///tmp/m2/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/]'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/assets, directory=/public/assets, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/assets/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={javalin=application/x-javalin}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/url-prefix, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/url-prefix, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=31622400}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/subdir, directory=/public/subdir, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/subdir/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/tmp/junit-12437252524164083787, location=EXTERNAL, precompressMaxSize=-1, aliasCheck=io.javalin.staticfiles.TestStaticFiles$$Lambda$3524/0x0000009001ae3e48@43a8f206, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/junit-12437252524164083787/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/url-prefix, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=io.javalin.staticfiles.TestStaticFiles$$Lambda$3524/0x0000009001ae3e48@43a8f206, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+Sep 30, 2026 11:21:59 PM org.junit.jupiter.api.io.TempDirDeletionStrategy$Standard$1 warnAboutLinkWithTargetOutsideTempDir
+WARNING: Deleting symbolic link from location inside of temp dir (/tmp/junit-12437252524164083787/linked_txt.txt) to location outside of temp dir (/tmp/w2fix/jav-011/javalin/src/test/external/txt.txt) but not the target file/directory
+[Thread-2151] INFO io.javalin.Javalin - It looks like you created a Javalin instance, but you never started it.
+[Thread-2151] INFO io.javalin.Javalin - Try: Javalin app = Javalin.create().start();
+[Thread-2151] INFO io.javalin.Javalin - For more help, visit https://javalin.io/documentation#server-setup
+Sep 30, 2026 11:21:59 PM org.junit.jupiter.api.io.TempDirDeletionStrategy$Standard$1 warnAboutLinkWithTargetOutsideTempDir
+WARNING: Deleting symbolic link from location inside of temp dir (/tmp/junit-12437252524164083787/linked_html.html) to location outside of temp dir (/tmp/w2fix/jav-011/javalin/src/test/external/html.html) but not the target file/directory
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/url-prefix, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=io.javalin.staticfiles.TestStaticFiles$$Lambda$3539/0x0000009001ae5fe0@4e1273d2, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[INFO] Tests run: 30, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.405 s -- in io.javalin.staticfiles.TestStaticFiles
+[INFO] Running io.javalin.websocket.TestWsUpgrade
+[Thread-2228] INFO io.javalin.Javalin - It looks like you created a Javalin instance, but you never started it.
+[Thread-2228] INFO io.javalin.Javalin - Try: Javalin app = Javalin.create().start();
+[Thread-2228] INFO io.javalin.Javalin - For more help, visit https://javalin.io/documentation#server-setup
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.153 s -- in io.javalin.websocket.TestWsUpgrade
+[INFO] Running io.javalin.websocket.TestWebSocketHttp2
+[main] INFO io.javalin.Javalin - Starting Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - jetty-12.1.12; built: 2026-08-03T22:37:55.389Z; git: 10dd3948f37767b84cc2c62358364f042e51dbbe; jvm 17.0.20.1+1
+[main] INFO org.eclipse.jetty.session.DefaultSessionIdManager - Session workerName=node0
+[main] INFO org.eclipse.jetty.server.handler.ContextHandler - Started oeje10s.ServletContextHandler@5ded1c1d{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@6e867668{STARTED}}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Started oeje10s.ServletContextHandler@5ded1c1d{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@6e867668{STARTED}}
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO org.eclipse.jetty.util.ssl.SslContextFactory - x509=oejus.X509@547f4eff(my-alias,h=[localhost],a=[],w=[]) for oejus.SslContextFactory$Server@728561a2[provider=null,keyStore=file:///tmp/w2fix/jav-011/javalin/target/test-classes/keystore.jks,trustStore=null]
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Started oejs.ServerConnector@1029136e{SSL, (ssl, alpn, h2, http/1.1)}{0.0.0.0:42579}
+[main] INFO org.eclipse.jetty.server.Server - Started oejs.Server@669c7f87{STARTING}[12.1.12,sto=0] @17ms
+[main] INFO io.javalin.Javalin - 
+       __                  ___          _____
+      / /___ __   ______ _/ (_)___     /__  /
+ __  / / __ `/ | / / __ `/ / / __ \      / /
+/ /_/ / /_/ /| |/ / /_/ / / / / / /     / /
+\____/\__,_/ |___/\__,_/_/_/_/ /_/     /_/
+
+       https://javalin.io/documentation
+
+[main] INFO io.javalin.Javalin - Javalin started in 17ms \o/
+[main] INFO io.javalin.Javalin - Listening on https://localhost:42579/
+[main] WARN org.eclipse.jetty.util.ssl.SslContextFactory.config - Trusting all certificates configured for oejus.SslContextFactory$Client@5f549033[provider=null,keyStore=null,trustStore=null]
+[main] WARN org.eclipse.jetty.util.ssl.SslContextFactory.config - No Client EndPointIdentificationAlgorithm configured for oejus.SslContextFactory$Client@5f549033[provider=null,keyStore=null,trustStore=null]
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[WebSocket@496285971-5600] WARN io.javalin.websocket.TestWebSocketHttp2$test$endpoint$1 - Unhandled Error: Endpoint io.javalin.websocket.TestWebSocketHttp2$test$endpoint$1 : java.io.IOException: no_error/stop
+[main] INFO io.javalin.Javalin - Stopping Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - Stopped oejs.Server@669c7f87{STOPPING}[12.1.12,sto=0]
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Stopped oejs.ServerConnector@1029136e{SSL, (ssl, alpn, h2, http/1.1)}{0.0.0.0:0}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Stopped oeje10s.ServletContextHandler@5ded1c1d{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@6e867668{STOPPED}}
+[main] INFO io.javalin.Javalin - Javalin has stopped
+[main] INFO io.javalin.Javalin - Starting Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - jetty-12.1.12; built: 2026-08-03T22:37:55.389Z; git: 10dd3948f37767b84cc2c62358364f042e51dbbe; jvm 17.0.20.1+1
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO org.eclipse.jetty.session.DefaultSessionIdManager - Session workerName=node0
+[main] INFO org.eclipse.jetty.server.handler.ContextHandler - Started oeje10s.ServletContextHandler@2b8e0b5d{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@2cefea47{STARTED}}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Started oeje10s.ServletContextHandler@2b8e0b5d{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@2cefea47{STARTED}}
+[main] INFO org.eclipse.jetty.util.ssl.SslContextFactory - x509=oejus.X509@5c7234fb(my-alias,h=[localhost],a=[],w=[]) for oejus.SslContextFactory$Server@6d5c28bc[provider=null,keyStore=file:///tmp/w2fix/jav-011/javalin/target/test-classes/keystore.jks,trustStore=null]
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Started oejs.ServerConnector@c412800{SSL, (ssl, alpn, h2, http/1.1)}{0.0.0.0:40241}
+[main] INFO org.eclipse.jetty.server.Server - Started oejs.Server@6f1ee337{STARTING}[12.1.12,sto=0] @17ms
+[main] INFO io.javalin.Javalin - 
+       __                  ___          _____
+      / /___ __   ______ _/ (_)___     /__  /
+ __  / / __ `/ | / / __ `/ / / __ \      / /
+/ /_/ / /_/ /| |/ / /_/ / / / / / /     / /
+\____/\__,_/ |___/\__,_/_/_/_/ /_/     /_/
+
+       https://javalin.io/documentation
+
+[main] INFO io.javalin.Javalin - Javalin started in 20ms \o/
+[main] INFO io.javalin.Javalin - Listening on https://localhost:40241/
+[main] WARN org.eclipse.jetty.util.ssl.SslContextFactory.config - Trusting all certificates configured for oejus.SslContextFactory$Client@b185100[provider=null,keyStore=null,trustStore=null]
+[main] WARN org.eclipse.jetty.util.ssl.SslContextFactory.config - No Client EndPointIdentificationAlgorithm configured for oejus.SslContextFactory$Client@b185100[provider=null,keyStore=null,trustStore=null]
+[JettyServerThreadPool-5608] WARN io.javalin.websocket.TestWebSocketHttp2$websocket works over http2 via direct jetty mapping$1$1$1$1$1 - Unhandled Error: Endpoint io.javalin.websocket.TestWebSocketHttp2$websocket works over http2 via direct jetty mapping$1$1$1$1$1 : java.io.EOFException: Reset cancel_stream_error
+[main] INFO io.javalin.Javalin - Stopping Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - Stopped oejs.Server@6f1ee337{STOPPING}[12.1.12,sto=0]
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Stopped oejs.ServerConnector@c412800{SSL, (ssl, alpn, h2, http/1.1)}{0.0.0.0:0}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Stopped oeje10s.ServletContextHandler@2b8e0b5d{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@2cefea47{STOPPED}}
+[main] INFO io.javalin.Javalin - Javalin has stopped
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.167 s -- in io.javalin.websocket.TestWebSocketHttp2
+[INFO] Running io.javalin.websocket.TestWsException
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.034 s -- in io.javalin.websocket.TestWsException
+[INFO] Running io.javalin.websocket.TestWsBeforeAfter
+[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.141 s -- in io.javalin.websocket.TestWsBeforeAfter
+[INFO] Running io.javalin.websocket.TestWsLogging
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.055 s -- in io.javalin.websocket.TestWsLogging
+[INFO] Running io.javalin.websocket.TestWsContext
+[INFO] Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.110 s -- in io.javalin.websocket.TestWsContext
+[INFO] Running io.javalin.websocket.TestWsRouting
+[main] INFO io.javalin.Javalin - Starting Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - jetty-12.1.12; built: 2026-08-03T22:37:55.389Z; git: 10dd3948f37767b84cc2c62358364f042e51dbbe; jvm 17.0.20.1+1
+[main] INFO org.eclipse.jetty.session.DefaultSessionIdManager - Session workerName=node0
+[main] INFO org.eclipse.jetty.server.handler.ContextHandler - Started oeje10s.ServletContextHandler@3bd724d{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@21154c66{STARTED}}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Started oeje10s.ServletContextHandler@3bd724d{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@21154c66{STARTED}}
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Started oejs.ServerConnector@70ed644a{HTTP/1.1, (http/1.1)}{0.0.0.0:33487}
+[main] INFO org.eclipse.jetty.server.Server - Started oejs.Server@7e01bf89{STARTING}[12.1.12,sto=0] @1ms
+[main] INFO io.javalin.Javalin - 
+       __                  ___          _____
+      / /___ __   ______ _/ (_)___     /__  /
+ __  / / __ `/ | / / __ `/ / / __ \      / /
+/ /_/ / /_/ /| |/ / /_/ / / / / / /     / /
+\____/\__,_/ |___/\__,_/_/_/_/ /_/     /_/
+
+       https://javalin.io/documentation
+
+[main] INFO io.javalin.Javalin - Javalin started in 2ms \o/
+[main] INFO io.javalin.Javalin - Listening on http://localhost:33487/
+[main] INFO io.javalin.Javalin - Starting Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - jetty-12.1.12; built: 2026-08-03T22:37:55.389Z; git: 10dd3948f37767b84cc2c62358364f042e51dbbe; jvm 17.0.20.1+1
+[main] INFO org.eclipse.jetty.session.DefaultSessionIdManager - Session workerName=node0
+[main] INFO org.eclipse.jetty.server.handler.ContextHandler - Started oeje10s.ServletContextHandler@594c94da{/websocket,/websocket,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@44dad6b6{STARTED}}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Started oeje10s.ServletContextHandler@594c94da{/websocket,/websocket,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@44dad6b6{STARTED}}
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Started oejs.ServerConnector@a5d57af{HTTP/1.1, (http/1.1)}{0.0.0.0:42171}
+[main] INFO org.eclipse.jetty.server.Server - Started oejs.Server@686818c7{STARTING}[12.1.12,sto=0] @1ms
+[main] INFO io.javalin.Javalin - 
+       __                  ___          _____
+      / /___ __   ______ _/ (_)___     /__  /
+ __  / / __ `/ | / / __ `/ / / __ \      / /
+/ /_/ / /_/ /| |/ / /_/ / / / / / /     / /
+\____/\__,_/ |___/\__,_/_/_/_/ /_/     /_/
+
+       https://javalin.io/documentation
+
+[main] INFO io.javalin.Javalin - Javalin started in 2ms \o/
+[main] INFO io.javalin.Javalin - Listening on http://localhost:42171/websocket
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO io.javalin.Javalin - Stopping Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - Stopped oejs.Server@7e01bf89{STOPPING}[12.1.12,sto=0]
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Stopped oejs.ServerConnector@70ed644a{HTTP/1.1, (http/1.1)}{0.0.0.0:0}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Stopped oeje10s.ServletContextHandler@3bd724d{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@21154c66{STOPPED}}
+[main] INFO io.javalin.Javalin - Javalin has stopped
+[main] INFO io.javalin.Javalin - Stopping Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - Stopped oejs.Server@686818c7{STOPPING}[12.1.12,sto=0]
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Stopped oejs.ServerConnector@a5d57af{HTTP/1.1, (http/1.1)}{0.0.0.0:0}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Stopped oeje10s.ServletContextHandler@594c94da{/websocket,/websocket,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@44dad6b6{STOPPED}}
+[main] INFO io.javalin.Javalin - Javalin has stopped
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.071 s -- in io.javalin.websocket.TestWsRouting
+[INFO] Running io.javalin.websocket.TestWebSocket
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 13, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.408 s -- in io.javalin.websocket.TestWebSocket
+[INFO] Running io.javalin.TestMethodNotAllowed
+[INFO] Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.042 s -- in io.javalin.TestMethodNotAllowed
+[INFO] Running io.javalin.TestLifecycleEvents
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.034 s -- in io.javalin.TestLifecycleEvents
+[INFO] Running io.javalin.TestConfigureServletContextHandler
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.010 s -- in io.javalin.TestConfigureServletContextHandler
+[INFO] Running io.javalin.TestHttpResponseExceptions
+[INFO] Tests run: 17, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.097 s -- in io.javalin.TestHttpResponseExceptions
+[INFO] Running io.javalin.TestClose
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.017 s -- in io.javalin.TestClose
+[INFO] Running io.javalin.http.HttpResponseExceptionTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.004 s -- in io.javalin.http.HttpResponseExceptionTest
+[INFO] Running io.javalin.http.TestCustomHttpMethods
+[INFO] Tests run: 12, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.044 s -- in io.javalin.http.TestCustomHttpMethods
+[INFO] Running io.javalin.http.HttpStatusCodeTest
+[INFO] Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.003 s -- in io.javalin.http.HttpStatusCodeTest
+[INFO] Running io.javalin.http.ContentTypeTest
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/markdown, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/markdown/'
+[INFO] Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.031 s -- in io.javalin.http.ContentTypeTest
+[INFO] Running io.javalin.TestEventManager
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.003 s -- in io.javalin.TestEventManager
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Running io.javalin.TestMultipleSlashes
+[INFO] Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.042 s -- in io.javalin.TestMultipleSlashes
+[INFO] Running io.javalin.TestRequest
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[INFO] Tests run: 45, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.241 s -- in io.javalin.TestRequest
+[INFO] Running io.javalin.TestCustomJettyHttpConfiguration
+[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.033 s -- in io.javalin.TestCustomJettyHttpConfiguration
+[INFO] Running io.javalin.TestUnsafeStateAccess
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.017 s -- in io.javalin.TestUnsafeStateAccess
+[INFO] Running io.javalin.TestHandlerWrapper
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.035 s -- in io.javalin.TestHandlerWrapper
+[INFO] Running io.javalin.TestJsonMapperExtensions
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.005 s -- in io.javalin.TestJsonMapperExtensions
+[INFO] Running io.javalin.TestCookie
+[INFO] Tests run: 14, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.077 s -- in io.javalin.TestCookie
+[INFO] Running io.javalin.TestPlugins
+[INFO] Tests run: 11, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.020 s -- in io.javalin.TestPlugins
+[INFO] Running io.javalin.TestEncoding
+[INFO] Tests run: 10, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.055 s -- in io.javalin.TestEncoding
+[INFO] Running io.javalin.TestApiBuilderWebSocket
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.002 s -- in io.javalin.TestApiBuilderWebSocket
+[INFO] Running io.javalin.TestUnixSocketConnector
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.017 s -- in io.javalin.TestUnixSocketConnector
+[INFO] Running io.javalin.javalinvue.TestJavalinVueResolution
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.062 s -- in io.javalin.javalinvue.TestJavalinVueResolution
+[INFO] Running io.javalin.javalinvue.TestJavalinVue
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 25, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.168 s -- in io.javalin.javalinvue.TestJavalinVue
+[INFO] Running io.javalin.javalinvue.TestJavalinVueHandler
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.027 s -- in io.javalin.javalinvue.TestJavalinVueHandler
+[INFO] Running io.javalin.javalinvue.TestJavalinVueBrowser
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+Sep 30, 2026 11:22:01 PM org.openqa.selenium.net.HostIdentifier resolveHostName
+WARNING: Failed to resolve host name
+java.net.UnknownHostException: claude: claude: Name or service not known
+	at java.base/java.net.InetAddress.getLocalHost(InetAddress.java:1671)
+	at org.openqa.selenium.net.HostIdentifier.resolveHostName(HostIdentifier.java:75)
+	at org.openqa.selenium.net.HostIdentifier.getHostName(HostIdentifier.java:117)
+	at org.openqa.selenium.WebDriverException.getHostInformation(WebDriverException.java:106)
+	at org.openqa.selenium.SessionNotCreatedException.<init>(SessionNotCreatedException.java:35)
+	at org.openqa.selenium.remote.RemoteWebDriver.execute(RemoteWebDriver.java:674)
+	at org.openqa.selenium.remote.RemoteWebDriver.startSession(RemoteWebDriver.java:279)
+	at org.openqa.selenium.remote.RemoteWebDriver.<init>(RemoteWebDriver.java:213)
+	at org.openqa.selenium.chromium.ChromiumDriver.<init>(ChromiumDriver.java:108)
+	at org.openqa.selenium.chrome.ChromeDriver.<init>(ChromeDriver.java:92)
+	at org.openqa.selenium.chrome.ChromeDriver.<init>(ChromeDriver.java:76)
+	at org.openqa.selenium.chrome.ChromeDriver.<init>(ChromeDriver.java:72)
+	at io.javalin.testing.WebDriverUtil.getDriver(WebDriverUtil.kt:21)
+	at io.javalin.javalinvue.TestJavalinVueBrowser.setup(TestJavalinVueBrowser.kt:23)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
+	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:569)
+	at org.junit.platform.commons.util.ReflectionUtils.invokeMethod(ReflectionUtils.java:700)
+	at org.junit.platform.commons.support.ReflectionSupport.invokeMethod(ReflectionSupport.java:528)
+	at org.junit.jupiter.engine.support.MethodReflectionUtils.invoke(MethodReflectionUtils.java:53)
+	at org.junit.jupiter.engine.execution.MethodInvocation.proceed(MethodInvocation.java:61)
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain$ValidatingInvocation.proceed(InvocationInterceptorChain.java:124)
+	at org.junit.jupiter.engine.extension.SameThreadTimeoutInvocation.proceed(SameThreadTimeoutInvocation.java:51)
+	at org.junit.jupiter.engine.extension.TimeoutExtension.intercept(TimeoutExtension.java:163)
+	at org.junit.jupiter.engine.extension.TimeoutExtension.interceptLifecycleMethod(TimeoutExtension.java:128)
+	at org.junit.jupiter.engine.extension.TimeoutExtension.interceptBeforeEachMethod(TimeoutExtension.java:78)
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker$ReflectiveInterceptorCall.lambda$ofVoidMethod$0(InterceptingExecutableInvoker.java:124)
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.lambda$invoke$0(InterceptingExecutableInvoker.java:105)
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain$InterceptedInvocation.proceed(InvocationInterceptorChain.java:99)
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.proceed(InvocationInterceptorChain.java:66)
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.chainAndInvoke(InvocationInterceptorChain.java:47)
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.invoke(InvocationInterceptorChain.java:39)
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.invoke(InterceptingExecutableInvoker.java:104)
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.invoke(InterceptingExecutableInvoker.java:98)
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.invokeVoid(InterceptingExecutableInvoker.java:71)
+	at org.junit.jupiter.engine.descriptor.ClassBasedTestDescriptor.invokeMethodInExtensionContext(ClassBasedTestDescriptor.java:549)
+	at org.junit.jupiter.engine.descriptor.ClassBasedTestDescriptor.lambda$synthesizeBeforeEachMethodAdapter$0(ClassBasedTestDescriptor.java:534)
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.lambda$invokeBeforeEachMethods$0(TestMethodTestDescriptor.java:191)
+	at org.junit.jupiter.engine.descriptor.CallbackSupport.lambda$invokeBeforeCallbacks$0(CallbackSupport.java:34)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74)
+	at org.junit.jupiter.engine.descriptor.CallbackSupport.invokeBeforeCallbacks(CallbackSupport.java:34)
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.invokeBeforeEachMethods(TestMethodTestDescriptor.java:189)
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.execute(TestMethodTestDescriptor.java:153)
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.execute(TestMethodTestDescriptor.java:70)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$2(NodeTestTask.java:176)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$1(NodeTestTask.java:166)
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:139)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$0(NodeTestTask.java:164)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:163)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:116)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.invokeAll(SameThreadHierarchicalTestExecutorService.java:42)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$2(NodeTestTask.java:180)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$1(NodeTestTask.java:166)
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:139)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$0(NodeTestTask.java:164)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:163)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:116)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.invokeAll(SameThreadHierarchicalTestExecutorService.java:42)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$2(NodeTestTask.java:180)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$1(NodeTestTask.java:166)
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:139)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$0(NodeTestTask.java:164)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:163)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:116)
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.submit(SameThreadHierarchicalTestExecutorService.java:36)
+	at org.junit.platform.engine.support.hierarchical.HierarchicalTestExecutor.execute(HierarchicalTestExecutor.java:52)
+	at org.junit.platform.engine.support.hierarchical.HierarchicalTestEngine.execute(HierarchicalTestEngine.java:58)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.executeEngine(EngineExecutionOrchestrator.java:256)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.failOrExecuteEngine(EngineExecutionOrchestrator.java:228)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:189)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:109)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.lambda$execute$0(EngineExecutionOrchestrator.java:66)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.withInterceptedStreams(EngineExecutionOrchestrator.java:168)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:65)
+	at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:137)
+	at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:126)
+	at org.junit.platform.launcher.core.DelegatingLauncher.execute(DelegatingLauncher.java:71)
+	at org.junit.platform.launcher.core.InterceptingLauncher.lambda$execute$2(InterceptingLauncher.java:66)
+	at org.junit.platform.launcher.core.ClasspathAlignmentCheckingLauncherInterceptor.intercept(ClasspathAlignmentCheckingLauncherInterceptor.java:25)
+	at org.junit.platform.launcher.core.InterceptingLauncher.execute(InterceptingLauncher.java:65)
+	at org.junit.platform.launcher.core.DelegatingLauncher.execute(DelegatingLauncher.java:71)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
+	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:569)
+	at org.apache.maven.surefire.api.util.ReflectionUtils.invokeMethodWithArray(ReflectionUtils.java:125)
+	at org.apache.maven.surefire.junitplatform.LauncherAdapter.executeWithCancellationToken(LauncherAdapter.java:68)
+	at org.apache.maven.surefire.junitplatform.LauncherAdapter.execute(LauncherAdapter.java:54)
+	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.execute(JUnitPlatformProvider.java:203)
+	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.invokeAllTests(JUnitPlatformProvider.java:168)
+	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.invoke(JUnitPlatformProvider.java:136)
+	at org.apache.maven.surefire.booter.ForkedBooter.runSuitesInProcess(ForkedBooter.java:385)
+	at org.apache.maven.surefire.booter.ForkedBooter.execute(ForkedBooter.java:162)
+	at org.apache.maven.surefire.booter.ForkedBooter.run(ForkedBooter.java:507)
+	at org.apache.maven.surefire.booter.ForkedBooter.main(ForkedBooter.java:495)
+Caused by: java.net.UnknownHostException: claude: Name or service not known
+	at java.base/java.net.Inet6AddressImpl.lookupAllHostAddr(Native Method)
+	at java.base/java.net.InetAddress$PlatformNameService.lookupAllHostAddr(InetAddress.java:934)
+	at java.base/java.net.InetAddress.getAddressesFromNameService(InetAddress.java:1543)
+	at java.base/java.net.InetAddress$NameServiceAddresses.get(InetAddress.java:852)
+	at java.base/java.net.InetAddress.getAllByName0(InetAddress.java:1533)
+	at java.base/java.net.InetAddress.getLocalHost(InetAddress.java:1666)
+	... 103 more
+
+Sep 30, 2026 11:22:01 PM org.openqa.selenium.net.HostIdentifier resolveHostAddress
+WARNING: Failed to resolve host address
+java.net.UnknownHostException: claude: claude: Name or service not known
+	at java.base/java.net.InetAddress.getLocalHost(InetAddress.java:1671)
+	at org.openqa.selenium.net.HostIdentifier.resolveHostAddress(HostIdentifier.java:105)
+	at org.openqa.selenium.net.HostIdentifier.getHostAddress(HostIdentifier.java:124)
+	at org.openqa.selenium.WebDriverException.getHostInformation(WebDriverException.java:106)
+	at org.openqa.selenium.SessionNotCreatedException.<init>(SessionNotCreatedException.java:35)
+	at org.openqa.selenium.remote.RemoteWebDriver.execute(RemoteWebDriver.java:674)
+	at org.openqa.selenium.remote.RemoteWebDriver.startSession(RemoteWebDriver.java:279)
+	at org.openqa.selenium.remote.RemoteWebDriver.<init>(RemoteWebDriver.java:213)
+	at org.openqa.selenium.chromium.ChromiumDriver.<init>(ChromiumDriver.java:108)
+	at org.openqa.selenium.chrome.ChromeDriver.<init>(ChromeDriver.java:92)
+	at org.openqa.selenium.chrome.ChromeDriver.<init>(ChromeDriver.java:76)
+	at org.openqa.selenium.chrome.ChromeDriver.<init>(ChromeDriver.java:72)
+	at io.javalin.testing.WebDriverUtil.getDriver(WebDriverUtil.kt:21)
+	at io.javalin.javalinvue.TestJavalinVueBrowser.setup(TestJavalinVueBrowser.kt:23)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
+	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:569)
+	at org.junit.platform.commons.util.ReflectionUtils.invokeMethod(ReflectionUtils.java:700)
+	at org.junit.platform.commons.support.ReflectionSupport.invokeMethod(ReflectionSupport.java:528)
+	at org.junit.jupiter.engine.support.MethodReflectionUtils.invoke(MethodReflectionUtils.java:53)
+	at org.junit.jupiter.engine.execution.MethodInvocation.proceed(MethodInvocation.java:61)
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain$ValidatingInvocation.proceed(InvocationInterceptorChain.java:124)
+	at org.junit.jupiter.engine.extension.SameThreadTimeoutInvocation.proceed(SameThreadTimeoutInvocation.java:51)
+	at org.junit.jupiter.engine.extension.TimeoutExtension.intercept(TimeoutExtension.java:163)
+	at org.junit.jupiter.engine.extension.TimeoutExtension.interceptLifecycleMethod(TimeoutExtension.java:128)
+	at org.junit.jupiter.engine.extension.TimeoutExtension.interceptBeforeEachMethod(TimeoutExtension.java:78)
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker$ReflectiveInterceptorCall.lambda$ofVoidMethod$0(InterceptingExecutableInvoker.java:124)
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.lambda$invoke$0(InterceptingExecutableInvoker.java:105)
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain$InterceptedInvocation.proceed(InvocationInterceptorChain.java:99)
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.proceed(InvocationInterceptorChain.java:66)
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.chainAndInvoke(InvocationInterceptorChain.java:47)
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.invoke(InvocationInterceptorChain.java:39)
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.invoke(InterceptingExecutableInvoker.java:104)
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.invoke(InterceptingExecutableInvoker.java:98)
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.invokeVoid(InterceptingExecutableInvoker.java:71)
+	at org.junit.jupiter.engine.descriptor.ClassBasedTestDescriptor.invokeMethodInExtensionContext(ClassBasedTestDescriptor.java:549)
+	at org.junit.jupiter.engine.descriptor.ClassBasedTestDescriptor.lambda$synthesizeBeforeEachMethodAdapter$0(ClassBasedTestDescriptor.java:534)
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.lambda$invokeBeforeEachMethods$0(TestMethodTestDescriptor.java:191)
+	at org.junit.jupiter.engine.descriptor.CallbackSupport.lambda$invokeBeforeCallbacks$0(CallbackSupport.java:34)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74)
+	at org.junit.jupiter.engine.descriptor.CallbackSupport.invokeBeforeCallbacks(CallbackSupport.java:34)
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.invokeBeforeEachMethods(TestMethodTestDescriptor.java:189)
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.execute(TestMethodTestDescriptor.java:153)
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.execute(TestMethodTestDescriptor.java:70)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$2(NodeTestTask.java:176)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$1(NodeTestTask.java:166)
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:139)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$0(NodeTestTask.java:164)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:163)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:116)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.invokeAll(SameThreadHierarchicalTestExecutorService.java:42)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$2(NodeTestTask.java:180)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$1(NodeTestTask.java:166)
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:139)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$0(NodeTestTask.java:164)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:163)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:116)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.invokeAll(SameThreadHierarchicalTestExecutorService.java:42)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$2(NodeTestTask.java:180)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$1(NodeTestTask.java:166)
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:139)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$0(NodeTestTask.java:164)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:163)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:116)
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.submit(SameThreadHierarchicalTestExecutorService.java:36)
+	at org.junit.platform.engine.support.hierarchical.HierarchicalTestExecutor.execute(HierarchicalTestExecutor.java:52)
+	at org.junit.platform.engine.support.hierarchical.HierarchicalTestEngine.execute(HierarchicalTestEngine.java:58)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.executeEngine(EngineExecutionOrchestrator.java:256)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.failOrExecuteEngine(EngineExecutionOrchestrator.java:228)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:189)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:109)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.lambda$execute$0(EngineExecutionOrchestrator.java:66)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.withInterceptedStreams(EngineExecutionOrchestrator.java:168)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:65)
+	at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:137)
+	at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:126)
+	at org.junit.platform.launcher.core.DelegatingLauncher.execute(DelegatingLauncher.java:71)
+	at org.junit.platform.launcher.core.InterceptingLauncher.lambda$execute$2(InterceptingLauncher.java:66)
+	at org.junit.platform.launcher.core.ClasspathAlignmentCheckingLauncherInterceptor.intercept(ClasspathAlignmentCheckingLauncherInterceptor.java:25)
+	at org.junit.platform.launcher.core.InterceptingLauncher.execute(InterceptingLauncher.java:65)
+	at org.junit.platform.launcher.core.DelegatingLauncher.execute(DelegatingLauncher.java:71)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
+	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:569)
+	at org.apache.maven.surefire.api.util.ReflectionUtils.invokeMethodWithArray(ReflectionUtils.java:125)
+	at org.apache.maven.surefire.junitplatform.LauncherAdapter.executeWithCancellationToken(LauncherAdapter.java:68)
+	at org.apache.maven.surefire.junitplatform.LauncherAdapter.execute(LauncherAdapter.java:54)
+	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.execute(JUnitPlatformProvider.java:203)
+	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.invokeAllTests(JUnitPlatformProvider.java:168)
+	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.invoke(JUnitPlatformProvider.java:136)
+	at org.apache.maven.surefire.booter.ForkedBooter.runSuitesInProcess(ForkedBooter.java:385)
+	at org.apache.maven.surefire.booter.ForkedBooter.execute(ForkedBooter.java:162)
+	at org.apache.maven.surefire.booter.ForkedBooter.run(ForkedBooter.java:507)
+	at org.apache.maven.surefire.booter.ForkedBooter.main(ForkedBooter.java:495)
+Caused by: java.net.UnknownHostException: claude: Name or service not known
+	at java.base/java.net.Inet6AddressImpl.lookupAllHostAddr(Native Method)
+	at java.base/java.net.InetAddress$PlatformNameService.lookupAllHostAddr(InetAddress.java:934)
+	at java.base/java.net.InetAddress.getAddressesFromNameService(InetAddress.java:1543)
+	at java.base/java.net.InetAddress$NameServiceAddresses.get(InetAddress.java:852)
+	at java.base/java.net.InetAddress.getAllByName0(InetAddress.java:1533)
+	at java.base/java.net.InetAddress.getLocalHost(InetAddress.java:1666)
+	... 103 more
+
+[ERROR] Tests run: 16, Failures: 0, Errors: 1, Skipped: 15, Time elapsed: 0.082 s <<< FAILURE! -- in io.javalin.javalinvue.TestJavalinVueBrowser
+[ERROR] io.javalin.javalinvue.TestJavalinVueBrowser.LoadableData errorCallback works -- Time elapsed: 0.076 s <<< ERROR!
+org.openqa.selenium.SessionNotCreatedException: 
+Could not start a new session. Possible causes are invalid address of the remote server or browser start-up failure. 
+Host info: host: 'Unknown', ip: 'Unknown'
+	at org.openqa.selenium.remote.RemoteWebDriver.execute(RemoteWebDriver.java:674)
+	at org.openqa.selenium.remote.RemoteWebDriver.startSession(RemoteWebDriver.java:279)
+	at org.openqa.selenium.remote.RemoteWebDriver.<init>(RemoteWebDriver.java:213)
+	at org.openqa.selenium.chromium.ChromiumDriver.<init>(ChromiumDriver.java:108)
+	at org.openqa.selenium.chrome.ChromeDriver.<init>(ChromeDriver.java:92)
+	at org.openqa.selenium.chrome.ChromeDriver.<init>(ChromeDriver.java:76)
+	at org.openqa.selenium.chrome.ChromeDriver.<init>(ChromeDriver.java:72)
+	at io.javalin.testing.WebDriverUtil.getDriver(WebDriverUtil.kt:21)
+	at io.javalin.javalinvue.TestJavalinVueBrowser.setup(TestJavalinVueBrowser.kt:23)
+Caused by: org.openqa.selenium.WebDriverException: Driver server process died prematurely, exit value: 2
+Build info: version: '4.48.0', revision: '27f5213 27f5213055e28398a5105b7892b7a3bb2012a6ef'
+System info: os.name: 'Linux', os.arch: 'aarch64', os.version: '6.8.0-138-generic', java.version: '17.0.20.1'
+Driver info: driver.version: ChromeDriver
+	at org.openqa.selenium.remote.service.DriverService.start(DriverService.java:252)
+	at org.openqa.selenium.remote.service.DriverCommandExecutor.execute(DriverCommandExecutor.java:118)
+	at org.openqa.selenium.remote.RemoteWebDriver.execute(RemoteWebDriver.java:653)
+	... 8 more
+
+[INFO] Running io.javalin.TestDependencyUtil
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.001 s -- in io.javalin.TestDependencyUtil
+[INFO] Running io.javalin.TestRendering
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.032 s -- in io.javalin.TestRendering
+[INFO] Running io.javalin.TestMaxRequestSize
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.046 s -- in io.javalin.TestMaxRequestSize
+[INFO] Running io.javalin.TestRedirectToLowercasePathPlugin
+[INFO] Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.049 s -- in io.javalin.TestRedirectToLowercasePathPlugin
+[INFO] Running io.javalin.TestBodyReading
+[INFO] Tests run: 14, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.063 s -- in io.javalin.TestBodyReading
+[INFO] Running io.javalin.TestJavalinJackson
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.063 s -- in io.javalin.TestJavalinJackson
+[INFO] Running io.javalin.TestRoutesConfig
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.029 s -- in io.javalin.TestRoutesConfig
+[INFO] Running io.javalin.TestLegacyAccessManager
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.044 s -- in io.javalin.TestLegacyAccessManager
+[INFO] Running io.javalin.TestJson
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 18, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.129 s -- in io.javalin.TestJson
+[INFO] Running io.javalin.TestServerHeader
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.008 s -- in io.javalin.TestServerHeader
+[INFO] Running io.javalin.TestContextPath
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.020 s -- in io.javalin.TestContextPath
+[INFO] Running io.javalin.TestConfiguration
+[INFO] Tests run: 10, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.030 s -- in io.javalin.TestConfiguration
+[INFO] Running io.javalin.TestBeforeAfterMatched
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=io.javalin.TestBeforeAfterMatched$$Lambda$4867/0x0000009001c26d20@392d6317, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public/subdir, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/subdir/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public/assets, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/assets/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=src/test/external/, location=EXTERNAL, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/src/test/external/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=public, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=io.javalin.TestBeforeAfterMatched$$Lambda$4903/0x0000009001c2bd80@7fe871e6, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/webjars, directory=META-INF/resources/webjars, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=31622400}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: '[jar:file:///tmp/m2/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/, jar:file:///tmp/m2/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/]'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[INFO] Tests run: 25, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.155 s -- in io.javalin.TestBeforeAfterMatched
+[INFO] Running io.javalin.TestUtil
+[WARNING] Tests run: 11, Failures: 0, Errors: 0, Skipped: 2, Time elapsed: 0.002 s -- in io.javalin.TestUtil
+[INFO] Running io.javalin.TestAppData
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.020 s -- in io.javalin.TestAppData
+[INFO] Running io.javalin.TestJavalinGson
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.073 s -- in io.javalin.TestJavalinGson
+[INFO] Running io.javalin.TestApiBuilderRouteRoles
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.008 s -- in io.javalin.TestApiBuilderRouteRoles
+[INFO] Running io.javalin.javalinvue.TestJavalinVueBrowser
+[WARNING] Tests run: 1, Failures: 0, Errors: 0, Skipped: 1, Time elapsed: 0.001 s -- in io.javalin.javalinvue.TestJavalinVueBrowser
+[INFO] 
+[INFO] Results:
+[INFO] 
+[ERROR] Errors: 
+[ERROR] io.javalin.javalinvue.TestJavalinVueBrowser.LoadableData errorCallback works
+[ERROR]   Run 1: TestJavalinVueBrowser.setup:23 » SessionNotCreated Could not start a new session. Possible causes are invalid address of the remote server or browser start-up failure. 
+Host info: host: 'Unknown', ip: 'Unknown'
+[ERROR]   Run 2: TestJavalinVueBrowser.setup:23 Assumption failed: Skipping random WebDriver tests because we're not on a CI server and the tests are sooo slow
+[INFO] 
+[INFO] 
+[ERROR] Tests run: 1014, Failures: 0, Errors: 1, Skipped: 29
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  21.061 s
+[INFO] Finished at: 2026-09-30T23:22:02-04:00
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:3.5.6:test (default-test) on project javalin: 
+[ERROR] 
+[ERROR] See /tmp/w2fix/jav-011/javalin/target/surefire-reports for the individual test results.
+[ERROR] See dump files (if any exist) [date].dump, [date]-jvmRun[N].dump and [date].dumpstream.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

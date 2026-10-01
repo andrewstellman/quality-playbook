@@ -1,0 +1,3 @@
+ok  	github.com/go-chi/chi/v5	1.480s
+ok  	github.com/go-chi/chi/v5/middleware	26.188s
+ok  	github.com/go-chi/chi/v5/middleware	27.274s

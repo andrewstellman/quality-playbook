@@ -1,0 +1,60 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.11 [39m[90m/tmp/zodfix/BUG-012/packages/zod[39m
+
+ [31m❯[39m src/v4/classic/tests/registries.test.ts [2m([22m[2m21 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 31[2mms[22m[39m
+   [32m✓[39m globalRegistry[32m 9[2mms[22m[39m
+   [32m✓[39m globalRegistry is singleton and attached to globalThis[32m 0[2mms[22m[39m
+   [32m✓[39m z.registry[32m 0[2mms[22m[39m
+   [32m✓[39m z.registry no metadata[32m 1[2mms[22m[39m
+   [32m✓[39m z.registry with schema constraints[32m 0[2mms[22m[39m
+   [32m✓[39m output type in registry meta[32m 0[2mms[22m[39m
+   [32m✓[39m output type in registry meta - objects and arrays[32m 1[2mms[22m[39m
+   [32m✓[39m input type in registry meta[32m 2[2mms[22m[39m
+   [32m✓[39m input type in registry meta - objects and arrays[32m 1[2mms[22m[39m
+   [32m✓[39m .meta method[32m 0[2mms[22m[39m
+   [32m✓[39m .meta metadata does not bubble up[32m 1[2mms[22m[39m
+   [32m✓[39m .describe[32m 0[2mms[22m[39m
+   [32m✓[39m inherit across clone[32m 0[2mms[22m[39m
+   [32m✓[39m loose examples[32m 0[2mms[22m[39m
+   [32m✓[39m function meta without replacement[32m 0[2mms[22m[39m
+   [32m✓[39m function meta with replacement[32m 0[2mms[22m[39m
+   [32m✓[39m test .clear()[32m 0[2mms[22m[39m
+   [32m✓[39m re-registering same id silently overwrites[32m 0[2mms[22m[39m
+[31m   [31m×[31m removing the overwritten schema keeps the id for its current owner[39m[32m 9[2mms[22m[39m
+   [32m✓[39m toJSONSchema throws on duplicate id across different schemas[32m 3[2mms[22m[39m
+   [32m✓[39m toJSONSchema allows same schema with same id[32m 1[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 1 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/v4/classic/tests/registries.test.ts[2m > [22mremoving the overwritten schema keeps the id for its current owner
+[31m[1mAssertionError[22m: expected undefined to be ZodNumber{ _zod: { …(10) }, …(3) } // Object.is equality[39m
+
+[32m- Expected:[39m
+ZodNumber {
+  "def": {
+    "checks": [],
+    "type": "number",
+  },
+  "isFinite": true,
+  "type": "number",
+}
+
+[31m+ Received:[39m
+undefined
+
+[36m [2m❯[22m src/v4/classic/tests/registries.test.ts:[2m232:39[22m[39m
+    [90m230|[39m
+    [90m231|[39m   [34mexpect[39m(reg[33m.[39m[34mhas[39m(b))[33m.[39m[34mtoBe[39m([35mtrue[39m)[33m;[39m
+    [90m232|[39m   [34mexpect[39m(reg[33m.[39m_idmap[33m.[39m[35mget[39m([32m"shared-id"[39m))[33m.[39m[34mtoBe[39m(b)[33m;[39m
+    [90m   |[39m                                       [31m^[39m
+    [90m233|[39m   expect(z.toJSONSchema(reg).schemas).toMatchObject({ "shared-id": { t…
+    [90m234|[39m })[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m20 passed[39m[22m[90m (21)[39m
+[2m   Start at [22m 16:54:07
+[2m   Duration [22m 1.13s[2m (transform 870ms, setup 0ms, import 1.01s, tests 31ms, environment 0ms)[22m
+

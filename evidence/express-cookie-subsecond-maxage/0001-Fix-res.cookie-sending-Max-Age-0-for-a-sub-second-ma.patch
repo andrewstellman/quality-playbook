@@ -1,0 +1,68 @@
+From 3be7deb327c638a85375772e7b2ce6f8284fa990 Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <andrew@stellman.com>
+Date: Sun, 27 Sep 2026 16:11:05 -0400
+Subject: [PATCH] Fix res.cookie sending Max-Age=0 for a sub-second maxAge
+
+---
+ lib/response.js    |  5 +++++
+ test/res.cookie.js | 28 ++++++++++++++++++++++++++++
+ 2 files changed, 33 insertions(+)
+
+diff --git a/lib/response.js b/lib/response.js
+index e3c30974..f4e0bf99 100644
+--- a/lib/response.js
++++ b/lib/response.js
+@@ -767,6 +767,11 @@ res.cookie = function (name, value, options) {
+     if (!isNaN(maxAge)) {
+       opts.expires = new Date(Date.now() + maxAge)
+       opts.maxAge = Math.floor(maxAge / 1000)
++
++      // a positive maxAge must not become Max-Age=0, which deletes the cookie
++      if (maxAge > 0 && opts.maxAge === 0) {
++        opts.maxAge = 1
++      }
+     }
+   }
+ 
+diff --git a/test/res.cookie.js b/test/res.cookie.js
+index 180d1be3..81150a1a 100644
+--- a/test/res.cookie.js
++++ b/test/res.cookie.js
+@@ -125,6 +125,34 @@ describe('res', function(){
+         .expect('Set-Cookie', /Max-Age=1/, done)
+       })
+ 
++      it('should not set Max-Age=0 for a positive sub-second maxAge', function (done) {
++        var app = express()
++
++        app.use(function (req, res) {
++          res.cookie('name', 'tobi', { maxAge: 500 })
++          res.end()
++        })
++
++        request(app)
++          .get('/')
++          .expect('Set-Cookie', /name=tobi; Max-Age=1; Path=\/; Expires=/)
++          .expect(200, done)
++      })
++
++      it('should set Max-Age=0 for a maxAge of 0', function (done) {
++        var app = express()
++
++        app.use(function (req, res) {
++          res.cookie('name', 'tobi', { maxAge: 0 })
++          res.end()
++        })
++
++        request(app)
++          .get('/')
++          .expect('Set-Cookie', /name=tobi; Max-Age=0; Path=\/; Expires=/)
++          .expect(200, done)
++      })
++
+       it('should not mutate the options object', function(done){
+         var app = express();
+ 
+-- 
+2.34.1
+

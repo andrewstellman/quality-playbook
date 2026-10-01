@@ -1,0 +1,47 @@
+$ python run_extracted.py amplify --src-tree /tmp/fix/bionemo-amplify --test-tree /tmp/fix/bionemo-amplify   # GREEN: patched source, patched tests
+source tree: /tmp/fix/bionemo-amplify
+  HEAD bbaf2bd93e1ee1ba67285adeeffe8f9dea632a42
+  git status --short: clean
+test tree: /tmp/fix/bionemo-amplify
+  HEAD bbaf2bd93e1ee1ba67285adeeffe8f9dea632a42
+  git status --short: clean
+
+== extracted from models/amplify/src/amplify/state_dict_convert.py (source tree)
+  _pad_weights: lines 85-93 sha256=abb3a9bb001117e2
+
+== extracted from models/amplify/tests/test_amplify_model.py (test tree)
+  test_pad_weights_dtype_device: lines 173-191 sha256=687fa3aedefe3bcf
+
+== extracted source function(s), exactly as written into the stand-in module
+  | import types
+  | 
+  | import torch
+  | 
+  | io = types.SimpleNamespace(TransformCTX=object)  # STUB
+  | 
+  | 
+  | def _pad_weights(ctx: io.TransformCTX, source_embed):
+  |     """Pad the embedding layer to the new input dimension."""
+  |     target_embedding_dimension = ctx.target.config.padded_vocab_size
+  |     hf_embedding_dimension = source_embed.size(0)
+  |     num_padding_rows = target_embedding_dimension - hf_embedding_dimension
+  |     padding_rows = torch.zeros(
+  |         num_padding_rows, source_embed.size(1), dtype=source_embed.dtype, device=source_embed.device
+  |     )
+  |     return torch.cat((source_embed, padding_rows), dim=0)
+
+== torch 2.14.0+cpu, cuda available: False
+
+============================= test session starts ==============================
+platform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0 -- /tmp/fix/venv/bin/python
+rootdir: /tmp/fix/harness-amplify-usl4ngeh
+collecting ... collected 2 items
+
+test_extracted_amplify.py::test_pad_weights_dtype_device[cpu] PASSED     [ 50%]
+test_extracted_amplify.py::test_pad_weights_dtype_device[cuda] SKIPPED   [100%]
+
+=========================== short test summary info ============================
+SKIPPED [1] test_extracted_amplify.py:7: requires CUDA
+========================= 1 passed, 1 skipped in 1.06s =========================
+
+pytest exit code: 0

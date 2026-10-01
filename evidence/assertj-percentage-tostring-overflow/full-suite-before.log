@@ -1,0 +1,6 @@
+# Filtered from full Maven output: grep -E 'Tests run:.*Fail|BUILD|Total time' | grep -v ' in '
+# Command (unpatched main 7ca2715): ./mvnw -B -ntp -o -Dmaven.repo.local=/tmp/m2 -pl assertj-tests/assertj-integration-tests/assertj-core-tests -am test -Dspotless.check.skip=true -Dlicense.skip=true  (JAVA_TOOL_OPTIONS=-Xmx2g)
+[INFO] Tests run: 14441, Failures: 0, Errors: 0, Skipped: 21
+[INFO] Tests run: 6338, Failures: 0, Errors: 0, Skipped: 7
+[INFO] BUILD SUCCESS
+[INFO] Total time:  41.077 s

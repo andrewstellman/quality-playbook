@@ -1,0 +1,57 @@
+From 0d1aa29a5a56ac1b93bfa2048a169983f041faae Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <andrew@stellman.com>
+Date: Tue, 29 Sep 2026 16:54:24 -0400
+Subject: [PATCH] fix(registry): only unmap an id when the removed schema still
+ owns it
+
+add() re-points _idmap[id] at the latest schema registered under that id,
+but remove() deleted _idmap[id] whenever the removed schema's metadata
+carried the id, even after another schema had taken it over. The surviving
+schema then vanished from z.toJSONSchema(registry). remove() now checks
+that _idmap[id] still points at the schema being removed before deleting.
+---
+ .../zod/src/v4/classic/tests/registries.test.ts    | 14 ++++++++++++++
+ packages/zod/src/v4/core/registries.ts             |  2 +-
+ 2 files changed, 15 insertions(+), 1 deletion(-)
+
+diff --git a/packages/zod/src/v4/classic/tests/registries.test.ts b/packages/zod/src/v4/classic/tests/registries.test.ts
+index 10d1e0b1..59e682ee 100644
+--- a/packages/zod/src/v4/classic/tests/registries.test.ts
++++ b/packages/zod/src/v4/classic/tests/registries.test.ts
+@@ -219,6 +219,20 @@ test("re-registering same id silently overwrites", () => {
+   expect(reg._idmap.get("shared-id")).toBe(b);
+ });
+ 
++test("removing the overwritten schema keeps the id for its current owner", () => {
++  const reg = z.registry<z.core.GlobalMeta>();
++  const a = z.string();
++  const b = z.number();
++
++  reg.add(a, { id: "shared-id" });
++  reg.add(b, { id: "shared-id" });
++  reg.remove(a);
++
++  expect(reg.has(b)).toBe(true);
++  expect(reg._idmap.get("shared-id")).toBe(b);
++  expect(z.toJSONSchema(reg).schemas).toMatchObject({ "shared-id": { type: "number" } });
++});
++
+ test("toJSONSchema throws on duplicate id across different schemas", () => {
+   const reg = z.registry<z.core.GlobalMeta>();
+   const a = z.string().register(reg, { id: "duplicate-id" });
+diff --git a/packages/zod/src/v4/core/registries.ts b/packages/zod/src/v4/core/registries.ts
+index cdd19e79..1cdf3678 100644
+--- a/packages/zod/src/v4/core/registries.ts
++++ b/packages/zod/src/v4/core/registries.ts
+@@ -50,7 +50,7 @@ export class $ZodRegistry<Meta extends MetadataType = MetadataType, Schema exten
+ 
+   remove(schema: Schema): this {
+     const meta: any = this._map.get(schema);
+-    if (meta && typeof meta === "object" && "id" in meta) {
++    if (meta && typeof meta === "object" && "id" in meta && this._idmap.get(meta.id!) === schema) {
+       this._idmap.delete(meta.id!);
+     }
+     this._map.delete(schema);
+-- 
+2.34.1
+

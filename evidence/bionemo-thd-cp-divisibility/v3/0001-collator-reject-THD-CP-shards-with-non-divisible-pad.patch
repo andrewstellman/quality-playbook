@@ -1,0 +1,243 @@
+From 0a4eda16aabaadb7bc2dc3de9490648e0e6fe8b2 Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <andrew@stellman.com>
+Date: Mon, 28 Sep 2026 01:15:42 -0400
+Subject: [PATCH] collator: reject THD CP shards with non-divisible padded
+ lengths
+
+The THD branch of _split_batch_by_cp_rank floor-divides each padded
+sequence length by 2 * cp_world_size, so a length that is not a multiple
+loses its remainder tokens from every CP rank's shard. Raise ValueError,
+as the BSHD branch already does. Copies regenerated with
+check_copied_files.py --fix.
+---
+ models/esm2/collator.py                          | 10 +++++++++-
+ .../esm2/tests/test_collator_context_parallel.py | 16 ++++++++++++++++
+ models/llama3/collator.py                        | 10 +++++++++-
+ models/mixtral/collator.py                       | 10 +++++++++-
+ models/qwen/collator.py                          | 10 +++++++++-
+ recipes/esm2_native_te/collator.py               | 10 +++++++++-
+ recipes/esm2_peft_te/collator.py                 | 10 +++++++++-
+ recipes/llama3_native_te/collator.py             | 10 +++++++++-
+ recipes/mixtral_native_te/collator.py            | 10 +++++++++-
+ recipes/opengenome2_llama_native_te/collator.py  | 10 +++++++++-
+ 10 files changed, 97 insertions(+), 9 deletions(-)
+
+diff --git a/models/esm2/collator.py b/models/esm2/collator.py
+index e83d719e..f343f1aa 100644
+--- a/models/esm2/collator.py
++++ b/models/esm2/collator.py
+@@ -973,7 +973,15 @@ def _split_batch_by_cp_rank(
+ 
+         # Calculate the chunk sizes for each sequence
+         total_slices_of_any_sequence = 2 * cp_world_size
+-        slice_sizes = (cu_seqlens_padded[1:] - cu_seqlens_padded[:-1]) // total_slices_of_any_sequence
++        seq_lengths = cu_seqlens_padded[1:] - cu_seqlens_padded[:-1]
++        bad_lengths = seq_lengths[seq_lengths % total_slices_of_any_sequence != 0].tolist()
++        if bad_lengths:
++            raise ValueError(
++                f"Padded sequence lengths {bad_lengths} must be divisible by {total_slices_of_any_sequence} "
++                f"(2 * cp_world_size) for THD context parallelism; "
++                f"set pad_sequences_to_be_divisible_by to a multiple of {total_slices_of_any_sequence}"
++            )
++        slice_sizes = seq_lengths // total_slices_of_any_sequence
+ 
+         # Ensure cu_seqlens_padded[-1] is a Python int, not a 0-dim tensor
+         last_elem = cu_seqlens_padded[-1]
+diff --git a/models/esm2/tests/test_collator_context_parallel.py b/models/esm2/tests/test_collator_context_parallel.py
+index 044a13ab..b462f62f 100644
+--- a/models/esm2/tests/test_collator_context_parallel.py
++++ b/models/esm2/tests/test_collator_context_parallel.py
+@@ -801,6 +801,22 @@ def test_split_batch_by_cp_rank_bshd_3d_tensor():
+     torch.testing.assert_close(labels_cp1[:, 2:4, :], labels[:, 4:6, :])
+ 
+ 
++def test_split_batch_by_cp_rank_thd_non_divisible():
++    """THD splitting raises when a padded sequence length is not divisible by 2 * cp_world_size."""
++    cu_seqlens_padded = torch.tensor([0, 8, 18], dtype=torch.int32)  # lengths 8 and 10; 10 % 4 != 0
++    input_ids = torch.arange(18, dtype=torch.int64).unsqueeze(0)
++
++    with pytest.raises(ValueError, match=r"\[10\] must be divisible by 4"):
++        _split_batch_by_cp_rank(
++            cu_seqlens_padded=cu_seqlens_padded,
++            input_ids_padded=input_ids,
++            labels_padded=input_ids.clone(),
++            qvk_format="thd",
++            cp_rank=0,
++            cp_world_size=2,
++        )
++
++
+ def test_bshd_and_thd_equivalence(tokenizer):
+     """Test that BSHD and THD formats produce equivalent CP shards for real protein sequences.
+ 
+diff --git a/models/llama3/collator.py b/models/llama3/collator.py
+index c70fc2b0..1e7d603e 100644
+--- a/models/llama3/collator.py
++++ b/models/llama3/collator.py
+@@ -979,7 +979,15 @@ def _split_batch_by_cp_rank(
+ 
+         # Calculate the chunk sizes for each sequence
+         total_slices_of_any_sequence = 2 * cp_world_size
+-        slice_sizes = (cu_seqlens_padded[1:] - cu_seqlens_padded[:-1]) // total_slices_of_any_sequence
++        seq_lengths = cu_seqlens_padded[1:] - cu_seqlens_padded[:-1]
++        bad_lengths = seq_lengths[seq_lengths % total_slices_of_any_sequence != 0].tolist()
++        if bad_lengths:
++            raise ValueError(
++                f"Padded sequence lengths {bad_lengths} must be divisible by {total_slices_of_any_sequence} "
++                f"(2 * cp_world_size) for THD context parallelism; "
++                f"set pad_sequences_to_be_divisible_by to a multiple of {total_slices_of_any_sequence}"
++            )
++        slice_sizes = seq_lengths // total_slices_of_any_sequence
+ 
+         # Ensure cu_seqlens_padded[-1] is a Python int, not a 0-dim tensor
+         last_elem = cu_seqlens_padded[-1]
+diff --git a/models/mixtral/collator.py b/models/mixtral/collator.py
+index c70fc2b0..1e7d603e 100644
+--- a/models/mixtral/collator.py
++++ b/models/mixtral/collator.py
+@@ -979,7 +979,15 @@ def _split_batch_by_cp_rank(
+ 
+         # Calculate the chunk sizes for each sequence
+         total_slices_of_any_sequence = 2 * cp_world_size
+-        slice_sizes = (cu_seqlens_padded[1:] - cu_seqlens_padded[:-1]) // total_slices_of_any_sequence
++        seq_lengths = cu_seqlens_padded[1:] - cu_seqlens_padded[:-1]
++        bad_lengths = seq_lengths[seq_lengths % total_slices_of_any_sequence != 0].tolist()
++        if bad_lengths:
++            raise ValueError(
++                f"Padded sequence lengths {bad_lengths} must be divisible by {total_slices_of_any_sequence} "
++                f"(2 * cp_world_size) for THD context parallelism; "
++                f"set pad_sequences_to_be_divisible_by to a multiple of {total_slices_of_any_sequence}"
++            )
++        slice_sizes = seq_lengths // total_slices_of_any_sequence
+ 
+         # Ensure cu_seqlens_padded[-1] is a Python int, not a 0-dim tensor
+         last_elem = cu_seqlens_padded[-1]
+diff --git a/models/qwen/collator.py b/models/qwen/collator.py
+index c70fc2b0..1e7d603e 100644
+--- a/models/qwen/collator.py
++++ b/models/qwen/collator.py
+@@ -979,7 +979,15 @@ def _split_batch_by_cp_rank(
+ 
+         # Calculate the chunk sizes for each sequence
+         total_slices_of_any_sequence = 2 * cp_world_size
+-        slice_sizes = (cu_seqlens_padded[1:] - cu_seqlens_padded[:-1]) // total_slices_of_any_sequence
++        seq_lengths = cu_seqlens_padded[1:] - cu_seqlens_padded[:-1]
++        bad_lengths = seq_lengths[seq_lengths % total_slices_of_any_sequence != 0].tolist()
++        if bad_lengths:
++            raise ValueError(
++                f"Padded sequence lengths {bad_lengths} must be divisible by {total_slices_of_any_sequence} "
++                f"(2 * cp_world_size) for THD context parallelism; "
++                f"set pad_sequences_to_be_divisible_by to a multiple of {total_slices_of_any_sequence}"
++            )
++        slice_sizes = seq_lengths // total_slices_of_any_sequence
+ 
+         # Ensure cu_seqlens_padded[-1] is a Python int, not a 0-dim tensor
+         last_elem = cu_seqlens_padded[-1]
+diff --git a/recipes/esm2_native_te/collator.py b/recipes/esm2_native_te/collator.py
+index c70fc2b0..1e7d603e 100644
+--- a/recipes/esm2_native_te/collator.py
++++ b/recipes/esm2_native_te/collator.py
+@@ -979,7 +979,15 @@ def _split_batch_by_cp_rank(
+ 
+         # Calculate the chunk sizes for each sequence
+         total_slices_of_any_sequence = 2 * cp_world_size
+-        slice_sizes = (cu_seqlens_padded[1:] - cu_seqlens_padded[:-1]) // total_slices_of_any_sequence
++        seq_lengths = cu_seqlens_padded[1:] - cu_seqlens_padded[:-1]
++        bad_lengths = seq_lengths[seq_lengths % total_slices_of_any_sequence != 0].tolist()
++        if bad_lengths:
++            raise ValueError(
++                f"Padded sequence lengths {bad_lengths} must be divisible by {total_slices_of_any_sequence} "
++                f"(2 * cp_world_size) for THD context parallelism; "
++                f"set pad_sequences_to_be_divisible_by to a multiple of {total_slices_of_any_sequence}"
++            )
++        slice_sizes = seq_lengths // total_slices_of_any_sequence
+ 
+         # Ensure cu_seqlens_padded[-1] is a Python int, not a 0-dim tensor
+         last_elem = cu_seqlens_padded[-1]
+diff --git a/recipes/esm2_peft_te/collator.py b/recipes/esm2_peft_te/collator.py
+index c70fc2b0..1e7d603e 100644
+--- a/recipes/esm2_peft_te/collator.py
++++ b/recipes/esm2_peft_te/collator.py
+@@ -979,7 +979,15 @@ def _split_batch_by_cp_rank(
+ 
+         # Calculate the chunk sizes for each sequence
+         total_slices_of_any_sequence = 2 * cp_world_size
+-        slice_sizes = (cu_seqlens_padded[1:] - cu_seqlens_padded[:-1]) // total_slices_of_any_sequence
++        seq_lengths = cu_seqlens_padded[1:] - cu_seqlens_padded[:-1]
++        bad_lengths = seq_lengths[seq_lengths % total_slices_of_any_sequence != 0].tolist()
++        if bad_lengths:
++            raise ValueError(
++                f"Padded sequence lengths {bad_lengths} must be divisible by {total_slices_of_any_sequence} "
++                f"(2 * cp_world_size) for THD context parallelism; "
++                f"set pad_sequences_to_be_divisible_by to a multiple of {total_slices_of_any_sequence}"
++            )
++        slice_sizes = seq_lengths // total_slices_of_any_sequence
+ 
+         # Ensure cu_seqlens_padded[-1] is a Python int, not a 0-dim tensor
+         last_elem = cu_seqlens_padded[-1]
+diff --git a/recipes/llama3_native_te/collator.py b/recipes/llama3_native_te/collator.py
+index c70fc2b0..1e7d603e 100644
+--- a/recipes/llama3_native_te/collator.py
++++ b/recipes/llama3_native_te/collator.py
+@@ -979,7 +979,15 @@ def _split_batch_by_cp_rank(
+ 
+         # Calculate the chunk sizes for each sequence
+         total_slices_of_any_sequence = 2 * cp_world_size
+-        slice_sizes = (cu_seqlens_padded[1:] - cu_seqlens_padded[:-1]) // total_slices_of_any_sequence
++        seq_lengths = cu_seqlens_padded[1:] - cu_seqlens_padded[:-1]
++        bad_lengths = seq_lengths[seq_lengths % total_slices_of_any_sequence != 0].tolist()
++        if bad_lengths:
++            raise ValueError(
++                f"Padded sequence lengths {bad_lengths} must be divisible by {total_slices_of_any_sequence} "
++                f"(2 * cp_world_size) for THD context parallelism; "
++                f"set pad_sequences_to_be_divisible_by to a multiple of {total_slices_of_any_sequence}"
++            )
++        slice_sizes = seq_lengths // total_slices_of_any_sequence
+ 
+         # Ensure cu_seqlens_padded[-1] is a Python int, not a 0-dim tensor
+         last_elem = cu_seqlens_padded[-1]
+diff --git a/recipes/mixtral_native_te/collator.py b/recipes/mixtral_native_te/collator.py
+index c70fc2b0..1e7d603e 100644
+--- a/recipes/mixtral_native_te/collator.py
++++ b/recipes/mixtral_native_te/collator.py
+@@ -979,7 +979,15 @@ def _split_batch_by_cp_rank(
+ 
+         # Calculate the chunk sizes for each sequence
+         total_slices_of_any_sequence = 2 * cp_world_size
+-        slice_sizes = (cu_seqlens_padded[1:] - cu_seqlens_padded[:-1]) // total_slices_of_any_sequence
++        seq_lengths = cu_seqlens_padded[1:] - cu_seqlens_padded[:-1]
++        bad_lengths = seq_lengths[seq_lengths % total_slices_of_any_sequence != 0].tolist()
++        if bad_lengths:
++            raise ValueError(
++                f"Padded sequence lengths {bad_lengths} must be divisible by {total_slices_of_any_sequence} "
++                f"(2 * cp_world_size) for THD context parallelism; "
++                f"set pad_sequences_to_be_divisible_by to a multiple of {total_slices_of_any_sequence}"
++            )
++        slice_sizes = seq_lengths // total_slices_of_any_sequence
+ 
+         # Ensure cu_seqlens_padded[-1] is a Python int, not a 0-dim tensor
+         last_elem = cu_seqlens_padded[-1]
+diff --git a/recipes/opengenome2_llama_native_te/collator.py b/recipes/opengenome2_llama_native_te/collator.py
+index c70fc2b0..1e7d603e 100644
+--- a/recipes/opengenome2_llama_native_te/collator.py
++++ b/recipes/opengenome2_llama_native_te/collator.py
+@@ -979,7 +979,15 @@ def _split_batch_by_cp_rank(
+ 
+         # Calculate the chunk sizes for each sequence
+         total_slices_of_any_sequence = 2 * cp_world_size
+-        slice_sizes = (cu_seqlens_padded[1:] - cu_seqlens_padded[:-1]) // total_slices_of_any_sequence
++        seq_lengths = cu_seqlens_padded[1:] - cu_seqlens_padded[:-1]
++        bad_lengths = seq_lengths[seq_lengths % total_slices_of_any_sequence != 0].tolist()
++        if bad_lengths:
++            raise ValueError(
++                f"Padded sequence lengths {bad_lengths} must be divisible by {total_slices_of_any_sequence} "
++                f"(2 * cp_world_size) for THD context parallelism; "
++                f"set pad_sequences_to_be_divisible_by to a multiple of {total_slices_of_any_sequence}"
++            )
++        slice_sizes = seq_lengths // total_slices_of_any_sequence
+ 
+         # Ensure cu_seqlens_padded[-1] is a Python int, not a 0-dim tensor
+         last_elem = cu_seqlens_padded[-1]
+-- 
+2.34.1
+

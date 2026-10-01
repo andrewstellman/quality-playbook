@@ -1,0 +1,8 @@
+$ ruff --version
+ruff 0.12.8
+$ ruff check models/amplify/src/amplify/state_dict_convert.py models/amplify/tests/test_amplify_model.py
+All checks passed!
+exit 0
+$ ruff format --check models/amplify/src/amplify/state_dict_convert.py models/amplify/tests/test_amplify_model.py
+2 files already formatted
+exit 0

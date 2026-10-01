@@ -1,0 +1,61 @@
+============================= test session starts ==============================
+platform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0 -- /tmp/aiohttp-venv/bin/python
+codspeed: 5.0.3 (disabled, mode: walltime, callgraph: not supported, timer_resolution: 1.0ns)
+rootdir: /tmp/review/exec/A/aiohttp-readuntil
+configfile: pytest.ini
+plugins: cov-7.1.0, xdist-3.8.0, codspeed-5.0.3, timeout-2.4.0, platformdirs-4.12.0, asyncio-1.4.0, mock-3.15.1
+timeout: 120.0s
+timeout method: signal
+timeout func_only: False
+asyncio: mode=auto, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 162 items / 119 deselected / 43 selected
+
+tests/test_streams.py::TestStreamReader::test_readuntil[*] PASSED        [  2%]
+tests/test_streams.py::TestStreamReader::test_readuntil[**] PASSED       [  4%]
+tests/test_streams.py::TestStreamReader::test_readuntil_limit_with_existing_data[&] PASSED [  6%]
+tests/test_streams.py::TestStreamReader::test_readuntil_limit_with_existing_data[&&] PASSED [  9%]
+tests/test_streams.py::TestStreamReader::test_readuntil_limit[$] PASSED  [ 11%]
+tests/test_streams.py::TestStreamReader::test_readuntil_limit[$$] PASSED [ 13%]
+tests/test_streams.py::TestStreamReader::test_readuntil_nolimit_nowait[!] PASSED [ 16%]
+tests/test_streams.py::TestStreamReader::test_readuntil_nolimit_nowait[!!] PASSED [ 18%]
+tests/test_streams.py::TestStreamReader::test_readuntil_eof[@] PASSED    [ 20%]
+tests/test_streams.py::TestStreamReader::test_readuntil_eof[@@] PASSED   [ 23%]
+tests/test_streams.py::TestStreamReader::test_readuntil_empty_eof[@] PASSED [ 25%]
+tests/test_streams.py::TestStreamReader::test_readuntil_empty_eof[@@] PASSED [ 27%]
+tests/test_streams.py::TestStreamReader::test_readuntil_read_byte_count[!] PASSED [ 30%]
+tests/test_streams.py::TestStreamReader::test_readuntil_read_byte_count[!!] PASSED [ 32%]
+tests/test_streams.py::TestStreamReader::test_readuntil_exception[#] PASSED [ 34%]
+tests/test_streams.py::TestStreamReader::test_readuntil_exception[##] PASSED [ 37%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[\r\n-0] PASSED [ 39%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[\r\n-1] PASSED [ 41%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[\r\n-2] PASSED [ 44%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[\r\n\r\n-0] PASSED [ 46%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[\r\n\r\n-1] PASSED [ 48%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[\r\n\r\n-2] PASSED [ 51%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[\r\n\r\n-3] PASSED [ 53%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[\r\n\r\n-4] PASSED [ 55%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[--xyz-0] PASSED [ 58%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[--xyz-1] PASSED [ 60%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[--xyz-2] PASSED [ 62%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[--xyz-3] PASSED [ 65%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[--xyz-4] PASSED [ 67%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[--xyz-5] PASSED [ 69%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_one_byte_per_chunk[\r\n\r\n] PASSED [ 72%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_one_byte_per_chunk[--xyz] PASSED [ 74%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_partial_overlap[chunks0-xaab] PASSED [ 76%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_partial_overlap[chunks1-xaaab] PASSED [ 79%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_partial_overlap[chunks2-xaaab] PASSED [ 81%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_with_false_start PASSED [ 83%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_after_wait[\r\n] PASSED [ 86%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_after_wait[\r\n\r\n] PASSED [ 88%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_eof PASSED [ 90%]
+tests/test_streams.py::TestStreamReader::test_readuntil_partial_separator_eof PASSED [ 93%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_max_size PASSED [ 95%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_line_too_long PASSED [ 97%]
+tests/test_streams.py::TestStreamReaderChunkHook::test_readuntil_fires PASSED [100%]
+
+============================= slowest 10 durations =============================
+0.01s call     tests/test_streams.py::TestStreamReaderChunkHook::test_readuntil_fires
+
+(9 durations < 0.005s hidden.  Use -vv to show these durations.)
+====================== 43 passed, 119 deselected in 0.15s ======================

@@ -1,0 +1,151 @@
+From 64cbc793ee85736692b5dce3ae8d89620849d054 Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <andrew@stellman.com>
+Date: Sun, 27 Sep 2026 16:17:13 -0400
+Subject: [PATCH] Handle bracketed IPv6 hosts in UrlParser
+
+Assisted-by: Claude Opus 5.5
+---
+ .../semconv/net/internal/UrlParser.java          | 13 +++++++++++++
+ .../semconv/net/internal/UrlParserTest.java      | 16 ++++++++++++++++
+ .../peer/internal/ServicePeerResolverTest.java   |  6 +++++-
+ .../reactornetty/v1_0/UrlParserTest.java         | 14 ++++++++++++++
+ .../reactornetty/v1_0/UrlParser.java             | 13 +++++++++++++
+ 5 files changed, 61 insertions(+), 1 deletion(-)
+
+diff --git a/instrumentation-api-incubator/src/main/java/io/opentelemetry/instrumentation/api/incubator/semconv/net/internal/UrlParser.java b/instrumentation-api-incubator/src/main/java/io/opentelemetry/instrumentation/api/incubator/semconv/net/internal/UrlParser.java
+index 9cd354b0..2467c363 100644
+--- a/instrumentation-api-incubator/src/main/java/io/opentelemetry/instrumentation/api/incubator/semconv/net/internal/UrlParser.java
++++ b/instrumentation-api-incubator/src/main/java/io/opentelemetry/instrumentation/api/incubator/semconv/net/internal/UrlParser.java
+@@ -27,6 +27,12 @@ public final class UrlParser {
+       return null;
+     }
+ 
++    if (url.charAt(startIndex) == '[') {
++      // strip the square brackets enclosing an IPv6 address
++      return endIndexExclusive - startIndex > 2
++          ? url.substring(startIndex + 1, endIndexExclusive - 1)
++          : null;
++    }
+     return url.substring(startIndex, endIndexExclusive);
+   }
+ 
+@@ -103,6 +109,13 @@ public final class UrlParser {
+   }
+ 
+   private static int getHostEndIndexExclusive(String url, int startIndex) {
++    // an IPv6 address is enclosed in square brackets and contains ':' characters, so the host ends
++    // after the closing ']' (https://www.rfc-editor.org/rfc/rfc3986#section-3.2.2)
++    if (startIndex < url.length() && url.charAt(startIndex) == '[') {
++      int ipv6End = url.indexOf(']', startIndex);
++      // treat an unterminated IPv6 address as a missing host
++      return ipv6End == -1 ? startIndex : ipv6End + 1;
++    }
+     // look for the end of the host:
+     //   ':' ==> start of port, or
+     //   '/', '?', '#' ==> start of path
+diff --git a/instrumentation-api-incubator/src/test/java/io/opentelemetry/instrumentation/api/incubator/semconv/net/internal/UrlParserTest.java b/instrumentation-api-incubator/src/test/java/io/opentelemetry/instrumentation/api/incubator/semconv/net/internal/UrlParserTest.java
+index 03c00b88..add7c395 100644
+--- a/instrumentation-api-incubator/src/test/java/io/opentelemetry/instrumentation/api/incubator/semconv/net/internal/UrlParserTest.java
++++ b/instrumentation-api-incubator/src/test/java/io/opentelemetry/instrumentation/api/incubator/semconv/net/internal/UrlParserTest.java
+@@ -246,4 +246,20 @@ class UrlParserTest {
+     assertThat(UrlParser.getPath("/#fragment")).isNull();
+     assertThat(UrlParser.getPath("/api/v1#fragment")).isNull();
+   }
++
++  @Test
++  void testGetHostAndPortWithIpv6() {
++    assertThat(UrlParser.getHost("https://[::1]")).isEqualTo("::1");
++    assertThat(UrlParser.getHost("https://[::1]/")).isEqualTo("::1");
++    assertThat(UrlParser.getHost("https://[::1]:8080/")).isEqualTo("::1");
++    assertThat(UrlParser.getHost("https://[2001:db8::1]:8080?query")).isEqualTo("2001:db8::1");
++    assertThat(UrlParser.getHost("https://[::1")).isNull();
++
++    assertThat(UrlParser.getPort("https://[::1]")).isNull();
++    assertThat(UrlParser.getPort("https://[::1]/")).isNull();
++    assertThat(UrlParser.getPort("https://[::1]:8080/")).isEqualTo(8080);
++    assertThat(UrlParser.getPort("https://[2001:db8::1]:8080?query")).isEqualTo(8080);
++
++    assertThat(UrlParser.getPath("https://[::1]:8080/path?query")).isEqualTo("/path");
++  }
+ }
+diff --git a/instrumentation-api-incubator/src/test/java/io/opentelemetry/instrumentation/api/incubator/semconv/service/peer/internal/ServicePeerResolverTest.java b/instrumentation-api-incubator/src/test/java/io/opentelemetry/instrumentation/api/incubator/semconv/service/peer/internal/ServicePeerResolverTest.java
+index 2b4c08f8..4aa82f9d 100644
+--- a/instrumentation-api-incubator/src/test/java/io/opentelemetry/instrumentation/api/incubator/semconv/service/peer/internal/ServicePeerResolverTest.java
++++ b/instrumentation-api-incubator/src/test/java/io/opentelemetry/instrumentation/api/incubator/semconv/service/peer/internal/ServicePeerResolverTest.java
+@@ -38,6 +38,7 @@ class ServicePeerResolverTest {
+           mapping("1.2.3.4", "ipSvc", "ipNs"),
+           mapping("1.2.3.4/api", "ipApiSvc", null),
+           mapping("1.2.3.4:8080/api", "ipPortApi", "ipPortApiNs"),
++          mapping("[::1]:8080", "ipv6PortSvc", null),
+           mapping("nsonly.com", null, "nsOnly"));
+ 
+   @ParameterizedTest
+@@ -80,7 +81,10 @@ class ServicePeerResolverTest {
+         // mismatch, falls back to host-only
+         Arguments.of("1.2.3.4", 8080, null, "ipSvc", "ipNs"),
+         // path-only matcher rejects when query port differs from matcher port
+-        Arguments.of("1.2.3.4", 9000, "/api", "ipSvc", "ipNs"));
++        Arguments.of("1.2.3.4", 9000, "/api", "ipSvc", "ipNs"),
++        // bracketed IPv6 mapping matches the IPv6 address and port
++        Arguments.of("::1", 8080, null, "ipv6PortSvc", null),
++        Arguments.of("::1", 9090, null, null, null));
+   }
+ 
+   @Test
+diff --git a/instrumentation/reactor/reactor-netty/reactor-netty-1.0/javaagent-unit-tests/src/test/java/io/opentelemetry/javaagent/instrumentation/reactornetty/v1_0/UrlParserTest.java b/instrumentation/reactor/reactor-netty/reactor-netty-1.0/javaagent-unit-tests/src/test/java/io/opentelemetry/javaagent/instrumentation/reactornetty/v1_0/UrlParserTest.java
+index 2987cfe4..3516aae2 100644
+--- a/instrumentation/reactor/reactor-netty/reactor-netty-1.0/javaagent-unit-tests/src/test/java/io/opentelemetry/javaagent/instrumentation/reactornetty/v1_0/UrlParserTest.java
++++ b/instrumentation/reactor/reactor-netty/reactor-netty-1.0/javaagent-unit-tests/src/test/java/io/opentelemetry/javaagent/instrumentation/reactornetty/v1_0/UrlParserTest.java
+@@ -154,4 +154,18 @@ class UrlParserTest {
+     assertThat(UrlParser.getPort("#fragment")).isNull();
+     assertThat(UrlParser.getPort("/#fragment")).isNull();
+   }
++
++  @Test
++  void testGetHostAndPortWithIpv6() {
++    assertThat(UrlParser.getHost("https://[::1]")).isEqualTo("::1");
++    assertThat(UrlParser.getHost("https://[::1]/")).isEqualTo("::1");
++    assertThat(UrlParser.getHost("https://[::1]:8080/")).isEqualTo("::1");
++    assertThat(UrlParser.getHost("https://[2001:db8::1]:8080?query")).isEqualTo("2001:db8::1");
++    assertThat(UrlParser.getHost("https://[::1")).isNull();
++
++    assertThat(UrlParser.getPort("https://[::1]")).isNull();
++    assertThat(UrlParser.getPort("https://[::1]/")).isNull();
++    assertThat(UrlParser.getPort("https://[::1]:8080/")).isEqualTo(8080);
++    assertThat(UrlParser.getPort("https://[2001:db8::1]:8080?query")).isEqualTo(8080);
++  }
+ }
+diff --git a/instrumentation/reactor/reactor-netty/reactor-netty-1.0/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/reactornetty/v1_0/UrlParser.java b/instrumentation/reactor/reactor-netty/reactor-netty-1.0/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/reactornetty/v1_0/UrlParser.java
+index bbd0003c..30c7fa44 100644
+--- a/instrumentation/reactor/reactor-netty/reactor-netty-1.0/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/reactornetty/v1_0/UrlParser.java
++++ b/instrumentation/reactor/reactor-netty/reactor-netty-1.0/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/reactornetty/v1_0/UrlParser.java
+@@ -22,6 +22,12 @@ class UrlParser {
+       return null;
+     }
+ 
++    if (url.charAt(startIndex) == '[') {
++      // strip the square brackets enclosing an IPv6 address
++      return endIndexExclusive - startIndex > 2
++          ? url.substring(startIndex + 1, endIndexExclusive - 1)
++          : null;
++    }
+     return url.substring(startIndex, endIndexExclusive);
+   }
+ 
+@@ -72,6 +78,13 @@ class UrlParser {
+   }
+ 
+   private static int getHostEndIndexExclusive(String url, int startIndex) {
++    // an IPv6 address is enclosed in square brackets and contains ':' characters, so the host ends
++    // after the closing ']' (https://www.rfc-editor.org/rfc/rfc3986#section-3.2.2)
++    if (startIndex < url.length() && url.charAt(startIndex) == '[') {
++      int ipv6End = url.indexOf(']', startIndex);
++      // treat an unterminated IPv6 address as a missing host
++      return ipv6End == -1 ? startIndex : ipv6End + 1;
++    }
+     // look for the end of the host:
+     //   ':' ==> start of port, or
+     //   '/', '?', '#' ==> start of path
+-- 
+2.34.1
+

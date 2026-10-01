@@ -1,0 +1,47 @@
+From 2fc14a03c2a80e47bc24c74fb7c0baa6b26f7c2c Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <andrew@stellman.com>
+Date: Wed, 30 Sep 2026 13:32:47 -0400
+Subject: [PATCH] fix(router): reject non-hex characters in uuid matcher
+
+The uuid matcher used the character class [0-9a-zA-F], so any letter
+a-z (e.g. "zzzzzzzz-zzzz-zzzz-zzzz-zzzzzzzzzzzz") passed as a UUID.
+Use [0-9a-fA-F] so only hexadecimal digits are accepted.
+---
+ src/router/matchers.ts        | 2 +-
+ tests/router/matchers.spec.ts | 7 +++++++
+ 2 files changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/router/matchers.ts b/src/router/matchers.ts
+index a8652bc..2799c67 100644
+--- a/src/router/matchers.ts
++++ b/src/router/matchers.ts
+@@ -28,7 +28,7 @@ export class RouteMatchers extends Macroable {
+    */
+   uuid() {
+     return {
+-      match: /^[0-9a-zA-F]{8}-[0-9a-zA-F]{4}-[0-9a-zA-F]{4}-[0-9a-zA-F]{4}-[0-9a-zA-F]{12}$/,
++      match: /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/,
+       cast: (value: string) => value.toLowerCase(),
+     }
+   }
+diff --git a/tests/router/matchers.spec.ts b/tests/router/matchers.spec.ts
+index 166f669..b9197a7 100644
+--- a/tests/router/matchers.spec.ts
++++ b/tests/router/matchers.spec.ts
+@@ -35,6 +35,13 @@ test.group('Matchers', () => {
+     assert.equal(uuid.cast(value.toUpperCase()), value)
+   })
+ 
++  test('uuid matcher rejects non-hex characters', ({ assert }) => {
++    const uuid = new RouteMatchers().uuid()
++
++    assert.isFalse(uuid.match.test('zzzzzzzz-zzzz-zzzz-zzzz-zzzzzzzzzzzz'))
++    assert.isFalse(uuid.match.test('gggggggg-gggg-gggg-gggg-gggggggggggg'))
++  })
++
+   test('get matcher for a slug', ({ assert }) => {
+     const slug = new RouteMatchers().slug()
+ 
+-- 
+2.34.1
+

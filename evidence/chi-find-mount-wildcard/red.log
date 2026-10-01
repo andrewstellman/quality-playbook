@@ -1,0 +1,8 @@
+$ go test -count=1 -v -run 'TestMuxFindMountResetsWildcardParam' .
+=== RUN   TestMuxFindMountResetsWildcardParam
+    mux_test.go:2185: Find left URLParam("*") = "ping", live request saw ""
+--- FAIL: TestMuxFindMountResetsWildcardParam (0.00s)
+FAIL
+FAIL	github.com/go-chi/chi/v5	0.002s
+FAIL
+exit=1

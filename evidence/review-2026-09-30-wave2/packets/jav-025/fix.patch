@@ -1,0 +1,62 @@
+From 8237f0afc774ffd589d4910c959f053bb0fdbd60 Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <andrew@stellman.com>
+Date: Wed, 30 Sep 2026 23:25:46 -0400
+Subject: [PATCH] [plugins] Keep the context path in lowercase-path redirects
+
+RedirectToLowercasePathPlugin strips the context path to match routes
+but built the Location from "/" alone, so with contextPath = "/blog" a
+request to /blog/Users/John was redirected to /users/John, outside the
+app. Prefix the redirect with ctx.contextPath().
+---
+ .../bundled/RedirectToLowercasePathPlugin.kt       |  2 +-
+ .../javalin/TestRedirectToLowercasePathPlugin.kt   | 14 ++++++++++++++
+ 2 files changed, 15 insertions(+), 1 deletion(-)
+
+diff --git a/javalin/src/main/java/io/javalin/plugin/bundled/RedirectToLowercasePathPlugin.kt b/javalin/src/main/java/io/javalin/plugin/bundled/RedirectToLowercasePathPlugin.kt
+index 8651f9ca..83b62813 100644
+--- a/javalin/src/main/java/io/javalin/plugin/bundled/RedirectToLowercasePathPlugin.kt
++++ b/javalin/src/main/java/io/javalin/plugin/bundled/RedirectToLowercasePathPlugin.kt
+@@ -87,7 +87,7 @@ open class RedirectToLowercasePathPlugin : Plugin<Void>() {
+             }
+ 
+             ctx.redirect(
+-                location = "/" + clientSegments.joinToString("/") + (ctx.queryString()?.let { "?$it" } ?: ""), // lowercase path
++                location = ctx.contextPath() + "/" + clientSegments.joinToString("/") + (ctx.queryString()?.let { "?$it" } ?: ""), // lowercase path
+                 status = MOVED_PERMANENTLY
+             )
+         }
+diff --git a/javalin/src/test/java/io/javalin/TestRedirectToLowercasePathPlugin.kt b/javalin/src/test/java/io/javalin/TestRedirectToLowercasePathPlugin.kt
+index 3e2d6af6..f7ad8852 100644
+--- a/javalin/src/test/java/io/javalin/TestRedirectToLowercasePathPlugin.kt
++++ b/javalin/src/test/java/io/javalin/TestRedirectToLowercasePathPlugin.kt
+@@ -6,6 +6,7 @@
+ 
+ package io.javalin
+ 
++import io.javalin.http.Header
+ import io.javalin.http.HttpStatus
+ import io.javalin.http.HttpStatus.IM_A_TEAPOT
+ import io.javalin.http.HttpStatus.MOVED_PERMANENTLY
+@@ -89,6 +90,19 @@ class TestRedirectToLowercasePathPlugin {
+         assertThat(http.getBody("/PaRaM/sPlAt")).isEqualTo("/PaRaM/sPlAt")
+     }
+ 
++    @Test
++    fun `redirect keeps the context path`() = TestUtil.test(Javalin.create {
++        it.router.contextPath = "/blog"
++        it.registerPlugin(RedirectToLowercasePathPlugin())
++    }) { app, http ->
++        app.unsafe.routes.get("/users/{name}") { it.status(IM_A_TEAPOT) }
++        http.disableUnirestRedirects()
++        val response = http.get("/blog/Users/John")
++        http.enableUnirestRedirects()
++        assertThat(response.httpCode()).isEqualTo(MOVED_PERMANENTLY)
++        assertThat(response.headers.getFirst(Header.LOCATION)).isEqualTo("/blog/users/John")
++    }
++
+     private fun HttpResponse<String?>.assertStatusAndBodyMatch(status: Int, body: String) {
+         assertThat(this.status).isEqualTo(status)
+         assertThat(this.body).isNotNull.isEqualTo(body)
+-- 
+2.34.1
+

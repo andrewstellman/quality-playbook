@@ -1,0 +1,7 @@
+[amplify-buggy (unpatched main)] source dtype=torch.bfloat16 device=cpu -> output dtype=torch.float32 device=cpu shape=(12, 4)
+Traceback (most recent call last):
+  File "/tmp/bionemo-work/amplify/harness_pad_weights.py", line 88, in <module>
+    run(pad_weights_amplify_buggy, "amplify-buggy (unpatched main)")
+  File "/tmp/bionemo-work/amplify/harness_pad_weights.py", line 74, in run
+    assert out.dtype == source_embed.dtype, (
+AssertionError: amplify-buggy (unpatched main): expected dtype torch.bfloat16, got torch.float32

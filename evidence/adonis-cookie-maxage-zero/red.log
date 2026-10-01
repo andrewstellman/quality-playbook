@@ -1,0 +1,51 @@
+
+Cookie | serialize (tests/cookies/serializer.spec.ts)
+  ✔ serialize and sign cookie (2.42ms)
+  ✔ serialize and encrypt cookie (0.75ms)
+  ✔ serialize and base64 encode cookie (0.68ms)
+  ✔ serialize and don't stringify cookie (0.37ms)
+  ✔ set cookie domain (0.46ms)
+  ✔ set httponly flag (0.25ms)
+  ✔ invoke expires callback when defined as a function (1s)
+  ✔ do not set expires when it is set to undefined (1.64ms)
+  ✔ do not set max age when it is set to undefined (1.4ms)
+  ✔ define max age as time expression (0.83ms)
+  ✔ define max age in seconds (0.4ms)
+  ✖ define max age as zero (0.72ms)
+ ERRORS 
+
+❯ Cookie | serialize / define max age as zero
+
+  Comparing two different types of values. Expected string but received undefined.
+
+[31mℹ AssertionError: expected undefined to equal 'Max-Age=0'[39m
+
+ ⁃ at Assert.equal [33m(/tmp/adonw/node_modules/@japa/assert/build/index.js:69:19)[39m
+ ⁃ at Object.executor [33m(tests/cookies/serializer.spec.ts:139:12)[39m
+
+   [2m132[22m [2m┃[22m  
+   [2m133[22m [2m┃[22m    [35mtest[0m([32m'define max age as zero'[0m[34m,[0m ({ assert }) [31m=>[0m {
+   [2m134[22m [2m┃[22m      [31mconst[0m config [34m=[0m { maxAge[34m:[0m [33m0[0m }
+   [2m135[22m [2m┃[22m      [31mconst[0m serializer [34m=[0m [31mnew[0m [33mCookieSerializer[0m(encryption)
+   [2m136[22m [2m┃[22m      [31mconst[0m serialized [34m=[0m serializer[34m.[0m[35mencode[0m([32m'username'[0m[34m,[0m [32m'virk'[0m[34m,[0m config)
+   [2m137[22m [2m┃[22m  
+   [2m138[22m [2m┃[22m      [31mconst[0m [[34m,[0m options] [34m=[0m serialized[34m!.[0m[35msplit[0m([32m'; '[0m)
+ [41m❯ 139 ┃      assert.equal(options, `Max-Age=0`)[49m
+   [2m140[22m [2m┃[22m    })
+   [2m141[22m [2m┃[22m  })
+   [2m142[22m [2m┃[22m  
+
+ ⁃ at #runTest [33m(/tmp/adonw/node_modules/@japa/core/build/index.js:634:121)[39m
+ ⁃ at #wrapRegressionTest [33m(/tmp/adonw/node_modules/@japa/core/build/index.js:670:118)[39m
+ ⁃ at #wrapTestInTimeout [33m(/tmp/adonw/node_modules/@japa/core/build/index.js:680:102)[39m
+ ⁃ at #wrapTestInRetries [33m(/tmp/adonw/node_modules/@japa/core/build/index.js:686:66)[39m
+ ⁃ at TestRunner.run [33m(/tmp/adonw/node_modules/@japa/core/build/index.js:710:33)[39m
+ ⁃ at async Test$1.exec [33m(/tmp/adonw/node_modules/@japa/core/build/index.js:918:3)[39m
+ ⁃ at async GroupRunner.run [33m(/tmp/adonw/node_modules/@japa/core/build/index.js:259:4)[39m
+ ⁃ at async Group$1.exec [33m(/tmp/adonw/node_modules/@japa/core/build/index.js:354:3)[39m
+[1/1]─
+
+ FAILED 
+
+Tests  11 passed, 1 failed (12)
+ Time  1s

@@ -1,0 +1,12 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.11 [39m[90m/tmp/zodfix/BUG-005/packages/zod[39m
+
+ [32m✓[39m src/v4/mini/tests/error.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m src/v4/classic/tests/error-utils.test.ts [2m([22m[2m37 tests[22m[2m)[22m[32m 42[2mms[22m[39m
+ [32m✓[39m src/v4/classic/tests/error.test.ts [2m([22m[2m48 tests[22m[2m)[22m[32m 83[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m3 passed[39m[22m[90m (3)[39m
+[2m      Tests [22m [1m[32m88 passed[39m[22m[90m (88)[39m
+[2m   Start at [22m 16:54:15
+[2m   Duration [22m 931ms[2m (transform 1.84s, setup 0ms, import 2.23s, tests 130ms, environment 0ms)[22m
+

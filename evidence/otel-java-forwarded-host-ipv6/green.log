@@ -1,0 +1,112 @@
+# green: branch bug001-forwarded-host-ipv6 (a6f83b9f957427e8807d36efcd0aa47fc29b87f1) = fix + regression tests
+== harness: repo=/tmp/wt-green suite=api HEAD=a6f83b9f957427e8807d36efcd0aa47fc29b87f1 dirty=0
+== javac: javac 25.0.4.1
+/tmp/wt-green/instrumentation-api/src/main/java/io/opentelemetry/instrumentation/api/internal/SupportabilityMetrics.java:114: warning: [removal] getSecurityManager() in System has been deprecated and marked for removal
+    if (System.getSecurityManager() == null) {
+              ^
+/tmp/wt-green/instrumentation-api/src/main/java/io/opentelemetry/instrumentation/api/internal/SupportabilityMetrics.java:117: warning: [removal] AccessController in java.security has been deprecated and marked for removal
+    return java.security.AccessController.doPrivileged(action);
+                        ^
+2 warnings
+== junit selection: --select-class io.opentelemetry.instrumentation.api.semconv.http.ForwardedHostAddressAndPortExtractorTest --select-method io.opentelemetry.instrumentation.api.semconv.http.HttpServerAttributesExtractorTest#shouldExtractIpv6ServerAddressAndPortFromHostHeader
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by net.bytebuddy.dynamic.loading.ClassInjector$UsingUnsafe$Dispatcher$CreationAction (file:/tmp/deps/byte-buddy-1.18.14.jar)
+WARNING: Please consider reporting this to the maintainers of class net.bytebuddy.dynamic.loading.ClassInjector$UsingUnsafe$Dispatcher$CreationAction
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+╷
+├─ JUnit Platform Suite ✔
+├─ JUnit Jupiter ✔
+│  ├─ ForwardedHostAddressAndPortExtractorTest ✔
+│  │  ├─ shouldParsePseudoAuthority(List, String, Integer) ✔
+│  │  │  ├─ [1] [], null, null ✔
+│  │  │  ├─ [2] ["], null, null ✔
+│  │  │  ├─ [3] [""], null, null ✔
+│  │  │  ├─ [4] [example.com], example.com, null ✔
+│  │  │  ├─ [5] [example.com:port], example.com, null ✔
+│  │  │  ├─ [6] [example.com:42], example.com, 42 ✔
+│  │  │  ├─ [7] ["example.com"], example.com, null ✔
+│  │  │  ├─ [8] ["example.com:port"], example.com, null ✔
+│  │  │  ├─ [9] ["example.com:42"], example.com, 42 ✔
+│  │  │  ├─ [10] [[::1]], ::1, null ✔
+│  │  │  ├─ [11] [[::1]:42], ::1, 42 ✔
+│  │  │  ├─ [12] [[2001:db8::1]:42], 2001:db8::1, 42 ✔
+│  │  │  ├─ [13] ["[::1]:42"], ::1, 42 ✔
+│  │  │  ├─ [14] [[::1]:port], ::1, null ✔
+│  │  │  ├─ [15] [[::1], null, null ✔
+│  │  │  └─ [16] [example.com, github.com:1234], example.com, null ✔
+│  │  ├─ shouldParseForwarded(List, String, Integer) ✔
+│  │  │  ├─ [1] [], null, null ✔
+│  │  │  ├─ [2] [host=], null, null ✔
+│  │  │  ├─ [3] [host=;], null, null ✔
+│  │  │  ├─ [4] [host="], null, null ✔
+│  │  │  ├─ [5] [host=""], null, null ✔
+│  │  │  ├─ [6] [host="example.com], null, null ✔
+│  │  │  ├─ [7] [by=1.2.3.4, test=abc], null, null ✔
+│  │  │  ├─ [8] [host=example.com], example.com, null ✔
+│  │  │  ├─ [9] [host="example.com"], example.com, null ✔
+│  │  │  ├─ [10] [host=example.com; test=abc:1234], example.com, null ✔
+│  │  │  ├─ [11] [host="example.com"; test=abc:1234], example.com, null ✔
+│  │  │  ├─ [12] [host=example.com:port], example.com, null ✔
+│  │  │  ├─ [13] [host="example.com:port"], example.com, null ✔
+│  │  │  ├─ [14] [host=example.com:42], example.com, 42 ✔
+│  │  │  ├─ [15] [host="example.com:42"], example.com, 42 ✔
+│  │  │  ├─ [16] [host=example.com:42; test=abc:1234], example.com, 42 ✔
+│  │  │  ├─ [17] [host="example.com:42"; test=abc:1234], example.com, 42 ✔
+│  │  │  ├─ [18] [host="[::1]"], ::1, null ✔
+│  │  │  ├─ [19] [host="[::1]:42"], ::1, 42 ✔
+│  │  │  ├─ [20] [host="[2001:db8::1]:42"; test=abc:1234], 2001:db8::1, 42 ✔
+│  │  │  ├─ [21] [host="[::1"], null, null ✔
+│  │  │  └─ [22] [proto=https, host=example.com, host=github.com:1234], example.com, null ✔
+│  │  ├─ shouldParseForwardedHost(List, String, Integer) ✔
+│  │  │  ├─ [1] [], null, null ✔
+│  │  │  ├─ [2] ["], null, null ✔
+│  │  │  ├─ [3] [""], null, null ✔
+│  │  │  ├─ [4] [example.com], example.com, null ✔
+│  │  │  ├─ [5] [example.com:port], example.com, null ✔
+│  │  │  ├─ [6] [example.com:42], example.com, 42 ✔
+│  │  │  ├─ [7] ["example.com"], example.com, null ✔
+│  │  │  ├─ [8] ["example.com:port"], example.com, null ✔
+│  │  │  ├─ [9] ["example.com:42"], example.com, 42 ✔
+│  │  │  ├─ [10] [[::1]], ::1, null ✔
+│  │  │  ├─ [11] [[::1]:42], ::1, 42 ✔
+│  │  │  ├─ [12] [[2001:db8::1]:42], 2001:db8::1, 42 ✔
+│  │  │  ├─ [13] ["[::1]:42"], ::1, 42 ✔
+│  │  │  ├─ [14] [[::1]:port], ::1, null ✔
+│  │  │  ├─ [15] [[::1], null, null ✔
+│  │  │  └─ [16] [example.com, github.com:1234], example.com, null ✔
+│  │  └─ shouldParseHost(List, String, Integer) ✔
+│  │     ├─ [1] [], null, null ✔
+│  │     ├─ [2] ["], null, null ✔
+│  │     ├─ [3] [""], null, null ✔
+│  │     ├─ [4] [example.com], example.com, null ✔
+│  │     ├─ [5] [example.com:port], example.com, null ✔
+│  │     ├─ [6] [example.com:42], example.com, 42 ✔
+│  │     ├─ [7] ["example.com"], example.com, null ✔
+│  │     ├─ [8] ["example.com:port"], example.com, null ✔
+│  │     ├─ [9] ["example.com:42"], example.com, 42 ✔
+│  │     ├─ [10] [[::1]], ::1, null ✔
+│  │     ├─ [11] [[::1]:42], ::1, 42 ✔
+│  │     ├─ [12] [[2001:db8::1]:42], 2001:db8::1, 42 ✔
+│  │     ├─ [13] ["[::1]:42"], ::1, 42 ✔
+│  │     ├─ [14] [[::1]:port], ::1, null ✔
+│  │     ├─ [15] [[::1], null, null ✔
+│  │     └─ [16] [example.com, github.com:1234], example.com, null ✔
+│  └─ HttpServerAttributesExtractorTest ✔
+│     └─ shouldExtractIpv6ServerAddressAndPortFromHostHeader() ✔
+└─ JUnit Vintage ✔
+
+Test run finished after 407 ms
+[         9 containers found      ]
+[         0 containers skipped    ]
+[         9 containers started    ]
+[         0 containers aborted    ]
+[         9 containers successful ]
+[         0 containers failed     ]
+[        71 tests found           ]
+[         0 tests skipped         ]
+[        71 tests started         ]
+[         0 tests aborted         ]
+[        71 tests successful      ]
+[         0 tests failed          ]
+
+== junit exit code: 0

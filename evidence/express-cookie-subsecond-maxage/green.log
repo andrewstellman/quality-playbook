@@ -1,0 +1,39 @@
+
+
+  res
+    .cookie(name, object)
+      ✔ should generate a JSON cookie
+    .cookie(name, string)
+      ✔ should set a cookie
+      ✔ should allow multiple calls
+    .cookie(name, string, options)
+      ✔ should set params
+      expires
+        ✔ should throw on invalid date
+      partitioned
+        ✔ should set partitioned
+      maxAge
+        ✔ should set relative expires
+        ✔ should set max-age
+        ✔ should not set Max-Age=0 for a positive sub-second maxAge
+        ✔ should set Max-Age=0 for a maxAge of 0
+        ✔ should not mutate the options object
+        ✔ should not throw on null
+        ✔ should not throw on undefined
+        ✔ should throw an error with invalid maxAge
+      priority
+        ✔ should set low priority
+        ✔ should set medium priority
+        ✔ should set high priority
+        ✔ should throw with invalid priority
+      signed
+        ✔ should generate a signed JSON cookie
+      signed without secret
+        ✔ should throw an error
+      .signedCookie(name, string)
+        ✔ should set a signed cookie
+
+
+  21 passing (43ms)
+
+EXIT: 0

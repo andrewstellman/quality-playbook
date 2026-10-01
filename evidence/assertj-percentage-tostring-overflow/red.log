@@ -1,0 +1,346 @@
+[INFO] Scanning for projects...
+[INFO] Inspecting build with total of 6 modules
+[INFO] Installing Central Publishing features
+[INFO] ------------------------------------------------------------------------
+[INFO] Reactor Build Order:
+[INFO] 
+[INFO] AssertJ Build                                                      [pom]
+[INFO] AssertJ Parent                                                     [pom]
+[INFO] AssertJ Core                                                       [jar]
+[INFO] AssertJ Tests                                                      [pom]
+[INFO] AssertJ Integration Tests                                          [pom]
+[INFO] AssertJ Core Integration Tests                                     [jar]
+[INFO] 
+[INFO] ---------------------< org.assertj:assertj-build >----------------------
+[INFO] Building AssertJ Build 4.0.0-SNAPSHOT                              [1/6]
+[INFO]   from pom.xml
+[INFO] --------------------------------[ pom ]---------------------------------
+[INFO] 
+[INFO] --- spotless:3.10.2:check (default) @ assertj-build ---
+[INFO] Spotless check skipped
+[INFO] 
+[INFO] --- enforcer:3.6.3:enforce (default) @ assertj-build ---
+[INFO] Rule 0: org.apache.maven.enforcer.rules.dependency.DependencyConvergence passed
+[INFO] Rule 1: org.apache.maven.enforcer.rules.ReactorModuleConvergence passed
+[INFO] 
+[INFO] ---------------------< org.assertj:assertj-parent >---------------------
+[INFO] Building AssertJ Parent 4.0.0-SNAPSHOT                             [2/6]
+[INFO]   from assertj-parent/pom.xml
+[INFO] --------------------------------[ pom ]---------------------------------
+[INFO] 
+[INFO] --- spotless:3.10.2:check (default) @ assertj-parent ---
+[INFO] Spotless check skipped
+[INFO] 
+[INFO] --- enforcer:3.6.3:enforce (default) @ assertj-parent ---
+[INFO] Rule 0: org.apache.maven.enforcer.rules.dependency.DependencyConvergence passed
+[INFO] 
+[INFO] ----------------------< org.assertj:assertj-core >----------------------
+[INFO] Building AssertJ Core 4.0.0-SNAPSHOT                               [3/6]
+[INFO]   from assertj-core/pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- spotless:3.10.2:check (default) @ assertj-core ---
+[INFO] Spotless check skipped
+[INFO] 
+[INFO] --- enforcer:3.6.3:enforce (default) @ assertj-core ---
+[INFO] Rule 0: org.apache.maven.enforcer.rules.dependency.DependencyConvergence passed
+[INFO] Rule 1: org.apache.maven.enforcer.rules.ReactorModuleConvergence passed
+[INFO] Rule 2: org.apache.maven.enforcer.rules.dependency.BannedDependencies passed
+[INFO] 
+[INFO] --- jacoco:0.8.15:prepare-agent (prepare-agent) @ assertj-core ---
+[INFO] Skipping JaCoCo execution because property jacoco.skip is set.
+[INFO] 
+[INFO] --- resources:3.5.0:resources (default-resources) @ assertj-core ---
+[INFO] skip non existing resourceDirectory /tmp/assertj/assertj-core/src/main/resources
+[INFO] 
+[INFO] --- flatten:1.8.0:flatten (flatten) @ assertj-core ---
+[INFO] Generating flattened POM of project org.assertj:assertj-core:jar:4.0.0-SNAPSHOT...
+[INFO] 
+[INFO] --- compiler:3.16.0:compile (default-compile) @ assertj-core ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ assertj-core ---
+[INFO] Copying 22 resources from src/test/resources to target/test-classes
+[INFO] 
+[INFO] --- compiler:3.16.0:testCompile (default-testCompile) @ assertj-core ---
+[INFO] Recompiling the module because of changed source code.
+[INFO] Compiling 3306 source files with javac [debug deprecation parameters release 17 module-path] to target/test-classes
+[WARNING] /tmp/assertj/assertj-core/src/test/java/org/assertj/core/api/BaseAssertionsTest.java:[54,64] org.assertj.core.api.FactoryBasedNavigableListAssert in org.assertj.core.api has been deprecated
+[WARNING] /tmp/assertj/assertj-core/src/test/java/org/assertj/core/api/BaseAssertionsTest.java:[55,64] org.assertj.core.api.FactoryBasedNavigableIterableAssert in org.assertj.core.api has been deprecated
+[WARNING] /tmp/assertj/assertj-core/src/test/java/org/assertj/core/api/ConcreteIterableAssert.java:[21,5] org.assertj.core.api.FactoryBasedNavigableIterableAssert in org.assertj.core.api has been deprecated
+[WARNING] /tmp/assertj/assertj-core/src/test/java/org/assertj/core/api/ConcreteIterableAssert.java:[21,5] org.assertj.core.api.FactoryBasedNavigableIterableAssert in org.assertj.core.api has been deprecated
+[INFO] /tmp/assertj/assertj-core/src/test/java/org/assertj/core/api/EntryPointAssertions_as_with_InstanceOfAssertFactory_Test.java: Some input files use unchecked or unsafe operations.
+[INFO] /tmp/assertj/assertj-core/src/test/java/org/assertj/core/api/EntryPointAssertions_as_with_InstanceOfAssertFactory_Test.java: Recompile with -Xlint:unchecked for details.
+[INFO] 
+[INFO] --- surefire:3.6.0:test (default-test) @ assertj-core ---
+[INFO] 
+[INFO] ---------------------< org.assertj:assertj-tests >----------------------
+[INFO] Building AssertJ Tests 4.0.0-SNAPSHOT                              [4/6]
+[INFO]   from assertj-tests/pom.xml
+[INFO] --------------------------------[ pom ]---------------------------------
+[INFO] 
+[INFO] --- spotless:3.10.2:check (default) @ assertj-tests ---
+[INFO] Spotless check skipped
+[INFO] 
+[INFO] --- enforcer:3.6.3:enforce (default) @ assertj-tests ---
+[INFO] Rule 0: org.apache.maven.enforcer.rules.dependency.DependencyConvergence passed
+[INFO] Rule 1: org.apache.maven.enforcer.rules.ReactorModuleConvergence passed
+[INFO] Rule 2: org.apache.maven.enforcer.rules.dependency.BannedDependencies passed
+[INFO] 
+[INFO] ---------------< org.assertj:assertj-integration-tests >----------------
+[INFO] Building AssertJ Integration Tests 4.0.0-SNAPSHOT                  [5/6]
+[INFO]   from assertj-tests/assertj-integration-tests/pom.xml
+[INFO] --------------------------------[ pom ]---------------------------------
+[INFO] 
+[INFO] --- spotless:3.10.2:check (default) @ assertj-integration-tests ---
+[INFO] Spotless check skipped
+[INFO] 
+[INFO] --- enforcer:3.6.3:enforce (default) @ assertj-integration-tests ---
+[INFO] Rule 0: org.apache.maven.enforcer.rules.dependency.DependencyConvergence passed
+[INFO] Rule 2: org.apache.maven.enforcer.rules.dependency.BannedDependencies passed
+[INFO] 
+[INFO] -------------------< org.assertj:assertj-core-tests >-------------------
+[INFO] Building AssertJ Core Integration Tests 4.0.0-SNAPSHOT             [6/6]
+[INFO]   from assertj-tests/assertj-integration-tests/assertj-core-tests/pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- spotless:3.10.2:check (default) @ assertj-core-tests ---
+[INFO] Spotless check skipped
+[INFO] 
+[INFO] --- enforcer:3.6.3:enforce (default) @ assertj-core-tests ---
+[INFO] Rule 0: org.apache.maven.enforcer.rules.dependency.DependencyConvergence passed
+[INFO] Rule 2: org.apache.maven.enforcer.rules.dependency.BannedDependencies passed
+[INFO] 
+[INFO] --- resources:3.5.0:resources (default-resources) @ assertj-core-tests ---
+[INFO] skip non existing resourceDirectory /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/main/resources
+[INFO] 
+[INFO] --- compiler:3.16.0:compile (default-compile) @ assertj-core-tests ---
+[INFO] No sources to compile
+[INFO] 
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ assertj-core-tests ---
+[INFO] Copying 6 resources from src/test/resources to target/test-classes
+[INFO] 
+[INFO] --- compiler:3.16.0:testCompile (default-testCompile) @ assertj-core-tests ---
+[WARNING] I/O error reading dependency state: /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/target/classes: /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/target/classes
+[INFO] Recompiling the module because of changed source code.
+[INFO] Compiling 917 source files with javac [debug deprecation parameters release 25 module-path] to target/test-classes
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/api/BaseAssertionsTest.java:[57,64] org.assertj.core.api.FactoryBasedNavigableListAssert in org.assertj.core.api has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/api/BaseAssertionsTest.java:[58,64] org.assertj.core.api.FactoryBasedNavigableIterableAssert in org.assertj.core.api has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/api/InstanceOfAssertFactoriesTest.java:[784,35] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/api/future/AbstractFutureTest.java:[72,104] getId() in java.lang.Thread has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/error/uri/ShouldBeEqualToWithSortedQueryParameters_create_Test.java:[35,18] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/error/uri/ShouldBeEqualToWithSortedQueryParameters_create_Test.java:[36,20] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/error/uri/ShouldHaveAnchor_create_Test.java:[32,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/error/uri/ShouldHaveAnchor_create_Test.java:[48,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/error/uri/ShouldHaveAuthority_create_Test.java:[49,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/error/uri/ShouldHaveHost_create_Test.java:[47,35] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/error/uri/ShouldHaveNoHost_create_Test.java:[51,54] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/error/uri/ShouldHaveParameter_create_Test.java:[251,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/error/uri/ShouldHaveParameter_create_Test.java:[266,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/error/uri/ShouldHaveParameter_create_Test.java:[281,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/error/uri/ShouldHaveParameter_create_Test.java:[298,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/error/uri/ShouldHaveParameter_create_Test.java:[314,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/error/uri/ShouldHaveParameter_create_Test.java:[331,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/error/uri/ShouldHaveParameter_create_Test.java:[349,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/error/uri/ShouldHaveParameter_create_Test.java:[367,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/error/uri/ShouldHaveParameter_create_Test.java:[386,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/error/uri/ShouldHaveParameter_create_Test.java:[401,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/error/uri/ShouldHaveParameter_create_Test.java:[417,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/error/uri/ShouldHaveParameter_create_Test.java:[433,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/error/uri/ShouldHaveParameter_create_Test.java:[448,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/error/uri/ShouldHavePath_create_Test.java:[47,35] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/error/uri/ShouldHavePath_create_Test.java:[75,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/error/uri/ShouldHavePort_create_Test.java:[61,35] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/error/uri/ShouldHavePort_create_Test.java:[75,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/error/uri/ShouldHaveQuery_create_Test.java:[79,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/error/uri/ShouldHaveUserInfo_create_Test.java:[63,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/error/uri/ShouldHaveUserInfo_create_Test.java:[79,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/internal/classes/Classes_assertHasMethods_Test.java:[77,12] currentVersion() in org.junit.jupiter.api.condition.JRE has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/internal/urls/Urls_assertHasAnchor_Test.java:[45,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/internal/urls/Urls_assertHasAnchor_Test.java:[65,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/internal/urls/Urls_assertHasAnchor_Test.java:[76,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/internal/urls/Urls_assertHasAnchor_Test.java:[87,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/internal/urls/Urls_assertHasAnchor_Test.java:[98,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/internal/urls/Urls_assertHasAuthority_Test.java:[44,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/internal/urls/Urls_assertHasAuthority_Test.java:[53,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/internal/urls/Urls_assertHasAuthority_Test.java:[62,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/internal/urls/Urls_assertHasAuthority_Test.java:[73,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/internal/urls/Urls_assertHasHost_Test.java:[45,18] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/internal/urls/Urls_assertHasHost_Test.java:[57,18] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/internal/urls/Urls_assertHasHost_Test.java:[66,18] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/internal/urls/Urls_assertHasHost_Test.java:[75,18] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/internal/urls/Urls_assertHasNoHost_Test.java:[46,18] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/internal/urls/Urls_assertHasNoHost_Test.java:[61,22] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/internal/urls/Urls_assertHasNoHost_Test.java:[62,22] URL(java.lang.String,java.lang.String,java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/internal/urls/Urls_assertHasNoHost_Test.java:[63,22] URL(java.lang.String,java.lang.String,java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/internal/urls/Urls_assertHasNoParameter_Test.java:[37,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/internal/urls/Urls_assertHasNoParameter_Test.java:[46,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/internal/urls/Urls_assertHasNoParameter_Test.java:[58,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/internal/urls/Urls_assertHasNoParameter_Test.java:[70,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/internal/urls/Urls_assertHasNoParameter_Test.java:[82,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/internal/urls/Urls_assertHasNoParameter_Test.java:[92,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/internal/urls/Urls_assertHasNoParameter_Test.java:[105,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/internal/urls/Urls_assertHasNoParameter_Test.java:[115,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/internal/urls/Urls_assertHasNoParameter_Test.java:[125,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/internal/urls/Urls_assertHasNoParameter_Test.java:[135,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/internal/urls/Urls_assertHasNoParameter_Test.java:[145,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/internal/urls/Urls_assertHasNoParameter_Test.java:[158,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/internal/urls/Urls_assertHasNoParameter_Test.java:[166,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/internal/urls/Urls_assertHasNoParameter_Test.java:[177,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/internal/urls/Urls_assertHasParameter_Test.java:[34,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/internal/urls/Urls_assertHasParameter_Test.java:[45,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/internal/urls/Urls_assertHasParameter_Test.java:[54,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/internal/urls/Urls_assertHasParameter_Test.java:[63,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/internal/urls/Urls_assertHasParameter_Test.java:[75,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/internal/urls/Urls_assertHasParameter_Test.java:[85,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/internal/urls/Urls_assertHasParameter_Test.java:[98,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/internal/urls/Urls_assertHasParameter_Test.java:[111,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/internal/urls/Urls_assertHasParameter_Test.java:[123,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/internal/urls/Urls_assertHasParameter_Test.java:[136,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/internal/urls/Urls_assertHasParameter_Test.java:[149,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/internal/urls/Urls_assertHasParameter_Test.java:[162,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/internal/urls/Urls_assertHasPath_Test.java:[57,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/internal/urls/Urls_assertHasPath_Test.java:[67,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/internal/urls/Urls_assertHasPath_Test.java:[78,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/internal/urls/Urls_assertHasPort_Test.java:[44,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/internal/urls/Urls_assertHasPort_Test.java:[54,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/internal/urls/Urls_assertHasProtocol_Test.java:[33,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/internal/urls/Urls_assertHasProtocol_Test.java:[54,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/internal/urls/Urls_assertHasQuery_Test.java:[40,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/internal/urls/Urls_assertHasQuery_Test.java:[50,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/internal/urls/Urls_assertHasQuery_Test.java:[71,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/internal/urls/Urls_assertHasQuery_Test.java:[82,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/internal/urls/Urls_assertHasQuery_Test.java:[93,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/internal/urls/Urls_assertHasUserInfo_Test.java:[33,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/internal/urls/Urls_assertHasUserInfo_Test.java:[43,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/internal/urls/Urls_assertHasUserInfo_Test.java:[64,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/internal/urls/Urls_assertHasUserInfo_Test.java:[76,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/internal/urls/Urls_assertHasUserInfo_Test.java:[87,15] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/internal/urls/Urls_assertIsEqualToWithSortedQueryParameters_Test.java:[57,21] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/internal/urls/Urls_assertIsEqualToWithSortedQueryParameters_Test.java:[58,23] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/internal/urls/Urls_assertIsEqualToWithSortedQueryParameters_Test.java:[99,21] URL(java.lang.String) in java.net.URL has been deprecated
+[WARNING] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/internal/urls/Urls_assertIsEqualToWithSortedQueryParameters_Test.java:[100,23] URL(java.lang.String) in java.net.URL has been deprecated
+[INFO] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/api/recursive/assertion/RecursiveAssertionDriver_OptionalPolicy_Test.java: Some input files use unchecked or unsafe operations.
+[INFO] /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/src/test/java/org/assertj/tests/core/api/recursive/assertion/RecursiveAssertionDriver_OptionalPolicy_Test.java: Recompile with -Xlint:unchecked for details.
+[INFO] 
+[INFO] --- surefire:3.6.0:test (default-test) @ assertj-core-tests ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO] 
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running org.assertj.tests.core.data.Percentage_Test
+OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+[ERROR] Tests run: 13, Failures: 2, Errors: 0, Skipped: 0, Time elapsed: 0.294 s <<< FAILURE! -- in org.assertj.tests.core.data.Percentage_Test
+[ERROR] org.assertj.tests.core.data.Percentage_Test.toString_should_display_fractional_part_when_present(double, String)[6] -- Time elapsed: 0.006 s <<< FAILURE!
+org.opentest4j.AssertionFailedError: 
+
+expected: "3000000000%"
+ but was: "2147483647%"
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at java.base/java.util.Optional.ifPresent(Optional.java:178)
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+	at java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:214)
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+	at java.base/java.util.ArrayList$ArrayListSpliterator.forEachRemaining(ArrayList.java:1716)
+	at java.base/java.util.stream.ReferencePipeline$Head.forEach(ReferencePipeline.java:803)
+	at java.base/java.util.stream.ReferencePipeline$7$1FlatMap.accept(ReferencePipeline.java:293)
+	at java.base/java.util.ArrayList$ArrayListSpliterator.forEachRemaining(ArrayList.java:1716)
+	at java.base/java.util.stream.AbstractPipeline.copyInto(AbstractPipeline.java:570)
+	at java.base/java.util.stream.AbstractPipeline.wrapAndCopyInto(AbstractPipeline.java:560)
+	at java.base/java.util.stream.ForEachOps$ForEachOp.evaluateSequential(ForEachOps.java:153)
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.evaluateSequential(ForEachOps.java:176)
+	at java.base/java.util.stream.AbstractPipeline.evaluate(AbstractPipeline.java:265)
+	at java.base/java.util.stream.ReferencePipeline.forEach(ReferencePipeline.java:632)
+	at java.base/java.util.stream.ReferencePipeline$7$1FlatMap.accept(ReferencePipeline.java:293)
+	at java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:214)
+	at java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:214)
+	at java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:214)
+	at java.base/java.util.Collections$2.tryAdvance(Collections.java:5182)
+	at java.base/java.util.Collections$2.forEachRemaining(Collections.java:5190)
+	at java.base/java.util.stream.AbstractPipeline.copyInto(AbstractPipeline.java:570)
+	at java.base/java.util.stream.AbstractPipeline.wrapAndCopyInto(AbstractPipeline.java:560)
+	at java.base/java.util.stream.ForEachOps$ForEachOp.evaluateSequential(ForEachOps.java:153)
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.evaluateSequential(ForEachOps.java:176)
+	at java.base/java.util.stream.AbstractPipeline.evaluate(AbstractPipeline.java:265)
+	at java.base/java.util.stream.ReferencePipeline.forEach(ReferencePipeline.java:632)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1604)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1604)
+
+[ERROR] org.assertj.tests.core.data.Percentage_Test.toString_should_display_fractional_part_when_present(double, String)[7] -- Time elapsed: 0.002 s <<< FAILURE!
+org.opentest4j.AssertionFailedError: 
+
+expected: "100000000000000000000%"
+ but was: "2147483647%"
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at java.base/java.util.Optional.ifPresent(Optional.java:178)
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+	at java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:214)
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+	at java.base/java.util.ArrayList$ArrayListSpliterator.forEachRemaining(ArrayList.java:1716)
+	at java.base/java.util.stream.ReferencePipeline$Head.forEach(ReferencePipeline.java:803)
+	at java.base/java.util.stream.ReferencePipeline$7$1FlatMap.accept(ReferencePipeline.java:293)
+	at java.base/java.util.ArrayList$ArrayListSpliterator.forEachRemaining(ArrayList.java:1716)
+	at java.base/java.util.stream.AbstractPipeline.copyInto(AbstractPipeline.java:570)
+	at java.base/java.util.stream.AbstractPipeline.wrapAndCopyInto(AbstractPipeline.java:560)
+	at java.base/java.util.stream.ForEachOps$ForEachOp.evaluateSequential(ForEachOps.java:153)
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.evaluateSequential(ForEachOps.java:176)
+	at java.base/java.util.stream.AbstractPipeline.evaluate(AbstractPipeline.java:265)
+	at java.base/java.util.stream.ReferencePipeline.forEach(ReferencePipeline.java:632)
+	at java.base/java.util.stream.ReferencePipeline$7$1FlatMap.accept(ReferencePipeline.java:293)
+	at java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:214)
+	at java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:214)
+	at java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:214)
+	at java.base/java.util.Collections$2.tryAdvance(Collections.java:5182)
+	at java.base/java.util.Collections$2.forEachRemaining(Collections.java:5190)
+	at java.base/java.util.stream.AbstractPipeline.copyInto(AbstractPipeline.java:570)
+	at java.base/java.util.stream.AbstractPipeline.wrapAndCopyInto(AbstractPipeline.java:560)
+	at java.base/java.util.stream.ForEachOps$ForEachOp.evaluateSequential(ForEachOps.java:153)
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.evaluateSequential(ForEachOps.java:176)
+	at java.base/java.util.stream.AbstractPipeline.evaluate(AbstractPipeline.java:265)
+	at java.base/java.util.stream.ReferencePipeline.forEach(ReferencePipeline.java:632)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1604)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1604)
+
+[INFO] 
+[INFO] Results:
+[INFO] 
+[ERROR] Failures: 
+[ERROR]   Percentage_Test.toString_should_display_fractional_part_when_present(double, String)[6] 
+expected: "3000000000%"
+ but was: "2147483647%"
+[ERROR]   Percentage_Test.toString_should_display_fractional_part_when_present(double, String)[7] 
+expected: "100000000000000000000%"
+ but was: "2147483647%"
+[INFO] 
+[ERROR] Tests run: 13, Failures: 2, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] Reactor Summary for AssertJ Build 4.0.0-SNAPSHOT:
+[INFO] 
+[INFO] AssertJ Build ...................................... SUCCESS [  0.178 s]
+[INFO] AssertJ Parent ..................................... SUCCESS [  0.004 s]
+[INFO] AssertJ Core ....................................... SUCCESS [  9.946 s]
+[INFO] AssertJ Tests ...................................... SUCCESS [  0.074 s]
+[INFO] AssertJ Integration Tests .......................... SUCCESS [  0.003 s]
+[INFO] AssertJ Core Integration Tests ..................... FAILURE [  5.759 s]
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  16.333 s
+[INFO] Finished at: 2026-09-27T16:35:25-04:00
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:3.6.0:test (default-test) on project assertj-core-tests: There are test failures.
+[ERROR] 
+[ERROR] See /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/target/surefire-reports for the individual test results.
+[ERROR] See dump files (if any exist) [date].dump, [date]-jvmRun[N].dump and [date].dumpstream.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException
+[ERROR] 
+[ERROR] After correcting the problems, you can resume the build with the command
+[ERROR]   mvn <args> -rf :assertj-core-tests

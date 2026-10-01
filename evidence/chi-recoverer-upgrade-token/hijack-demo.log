@@ -1,0 +1,14 @@
+### branch master (3d1777a)
+=== RUN   TestZZHijackDemo
+    zz_hijack_demo_test.go:58: Connection: "Upgrade"              client got "HTTP/1.1 101 Switching Protocols\r\n"; server error log: ""
+    zz_hijack_demo_test.go:58: Connection: "keep-alive, Upgrade"  client got "HTTP/1.1 101 Switching Protocols\r\n"; server error log: "http: response.WriteHeader on hijacked connection from github.com/go-chi/chi/v5/middleware.Recoverer.func1.1 (recoverer.go:40)\n"
+--- PASS: TestZZHijackDemo (0.21s)
+PASS
+ok  	github.com/go-chi/chi/v5/middleware	0.212s
+### branch fix-recoverer-upgrade (49ca853)
+=== RUN   TestZZHijackDemo
+    zz_hijack_demo_test.go:58: Connection: "Upgrade"              client got "HTTP/1.1 101 Switching Protocols\r\n"; server error log: ""
+    zz_hijack_demo_test.go:58: Connection: "keep-alive, Upgrade"  client got "HTTP/1.1 101 Switching Protocols\r\n"; server error log: ""
+--- PASS: TestZZHijackDemo (0.21s)
+PASS
+ok  	github.com/go-chi/chi/v5/middleware	0.216s

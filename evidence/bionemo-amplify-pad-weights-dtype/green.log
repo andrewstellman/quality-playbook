@@ -1,0 +1,4 @@
+[amplify-fixed] source dtype=torch.bfloat16 device=cpu -> output dtype=torch.bfloat16 device=cpu shape=(12, 4)
+[amplify-fixed] PASS: dtype/device preserved
+[esm2-reference (already correct upstream)] source dtype=torch.bfloat16 device=cpu -> output dtype=torch.bfloat16 device=cpu shape=(12, 4)
+[esm2-reference (already correct upstream)] PASS: dtype/device preserved

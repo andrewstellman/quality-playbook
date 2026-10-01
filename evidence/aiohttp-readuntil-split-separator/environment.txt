@@ -1,0 +1,107 @@
+Environment for aiohttp readuntil split-separator validation (2026-09-27)
+
+Host: Linux 6.8.0-138-generic aarch64
+Description:	Ubuntu 22.04.5 LTS
+Python: Python 3.10.12 (system /usr/bin/python3, Ubuntu package; master requires-python >= 3.10, so no newer Python was installed)
+git: git version 2.34.1
+
+aiohttp clone: https://github.com/aio-libs/aiohttp
+Pinned commit: e11d2836203a21bec59095498e578d37801027e7  commit date 2026-09-27T20:36:58+01:00  subject: Fix secure shared cookie (#13830)
+Fix commit (local only, not pushed): e4c6e605cb5b7adc695379ae972292c0b705d969
+
+Commands:
+  git clone https://github.com/aio-libs/aiohttp /tmp/aiohttp       # no --recurse-submodules; vendor/llhttp not initialised
+  python3 -m venv /tmp/aiohttp-venv && . /tmp/aiohttp-venv/bin/activate
+  pip install --upgrade pip
+  pip install -r requirements/test.txt
+  AIOHTTP_NO_EXTENSIONS=1 pip install --no-deps -e .   # FAILED: setup.py requires the vendor/llhttp submodule
+                                                       # ("git submodule update --init"); not needed for pure-Python mode.
+  # Tests therefore run from the checkout with PYTHONPATH=. as AGENTS.md documents:
+  AIOHTTP_NO_EXTENSIONS=1 PYTHONPATH=. python -m pytest <files> --no-cov ...
+  pip install black==26.5.1 flake8 mypy isort==9.0.1 codespell   # black/isort versions from .pre-commit-config.yaml, mypy 2.1.0 from requirements/lint.txt
+  black --target-version py310 aiohttp/streams.py tests/test_streams.py   # unchanged
+  flake8 aiohttp/streams.py tests/test_streams.py                         # no findings (setup.cfg config)
+  isort --check-only aiohttp/streams.py tests/test_streams.py             # clean
+  codespell aiohttp/streams.py tests/test_streams.py CHANGES/PRNUMBER.bugfix.rst  # clean
+  mypy aiohttp/streams.py   # 18 errors in 7 other files, identical before and after the fix; none in streams.py
+
+C/Cython paths: setup.py builds aiohttp._websocket.mask, aiohttp._http_parser, aiohttp._http_writer, aiohttp._websocket.reader_c.
+None of them implements readuntil/readline (grep of aiohttp/*.pyx, *.pxd, _websocket/*: no match). _http_parser.pyx only
+instantiates the Python aiohttp.streams.StreamReader for payloads. StreamReader.readuntil is pure Python in every build,
+so the new tests exercise the only implementation. No extensions were built in this environment.
+
+pytest.ini addopts include --numprocesses=auto (xdist, 4 CPUs here) and coverage; runs used --no-cov.
+
+Installed packages:
+aiodns==4.0.4
+aiofastnet==1.1.1
+aiohappyeyeballs==2.7.1
+aiohttp==3.14.3
+aiosignal==1.4.0
+annotated-types==0.8.0
+ast_serialize==0.11.2
+async-timeout==5.0.1
+attrs==26.1.0
+backports.asyncio.runner==1.2.0
+backports.zstd==1.3.0
+black==26.5.1
+blockbuster==1.5.28
+brotli==1.2.0
+cffi==2.1.1
+click==8.5.0
+codespell==2.4.3
+coverage==7.16.1
+cryptography==50.0.1
+exceptiongroup==1.3.1
+execnet==2.1.2
+flake8==7.4.1
+forbiddenfruit==0.1.4
+freezegun==1.5.5
+frozenlist==1.8.0
+gunicorn==26.2.0
+idna==3.20
+iniconfig==2.3.0
+isal==1.8.0
+isort==9.0.1
+librt==0.15.0
+markdown-it-py==4.2.0
+mccabe==0.7.0
+mdurl==0.1.2
+multidict==6.9.1
+mypy==2.1.0
+mypy_extensions==1.1.0
+packaging==26.3
+pathspec==1.1.1
+pkgconfig==1.6.0
+platformdirs==4.12.0
+pluggy==1.6.0
+propcache==0.5.4
+proxy.py==2.4.10
+pycares==5.0.1
+pycodestyle==2.15.0
+pycparser==3.0
+pydantic==2.13.5
+pydantic_core==2.46.5
+pyflakes==4.0.0
+Pygments==2.21.0
+pytest==9.1.1
+pytest-aiohttp==1.1.1
+pytest-asyncio==1.4.0
+pytest-codspeed==5.0.3
+pytest-cov==7.1.0
+pytest-mock==3.15.1
+pytest-timeout==2.4.0
+pytest-xdist==3.8.0
+python-dateutil==2.9.0.post0
+python-on-whales==0.81.0
+pytokens==0.4.1
+rich==15.0.0
+setuptools-git==1.2
+six==1.17.0
+tomli==2.4.1
+trustme==1.2.1
+typing-inspection==0.4.4
+typing_extensions==4.16.0
+uvloop==0.22.1
+yarl==1.25.1
+zlib-ng==1.0.0

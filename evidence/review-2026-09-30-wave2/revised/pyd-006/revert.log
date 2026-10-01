@@ -1,0 +1,7 @@
+FAILED tests/pydantic_core/validators/test_float.py::test_float_multiple_of[python-0.5-inf-Err('Input should be a multiple of 0.5')]
+FAILED tests/pydantic_core/validators/test_float.py::test_float_multiple_of[python-0.5--inf-Err('Input should be a multiple of 0.5')]
+FAILED tests/pydantic_core/validators/test_float.py::test_float_multiple_of[python-0.5-nan-Err('Input should be a multiple of 0.5')]
+FAILED tests/pydantic_core/validators/test_float.py::test_float_multiple_of[json-0.5-inf-Err('Input should be a multiple of 0.5')]
+FAILED tests/pydantic_core/validators/test_float.py::test_float_multiple_of[json-0.5--inf-Err('Input should be a multiple of 0.5')]
+FAILED tests/pydantic_core/validators/test_float.py::test_float_multiple_of[json-0.5-nan-Err('Input should be a multiple of 0.5')]
+6 failed, 322 passed in 0.44s

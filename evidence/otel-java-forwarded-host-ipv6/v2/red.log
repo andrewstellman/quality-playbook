@@ -1,0 +1,540 @@
+# red (tests only): upstream 78d71b585a77d7f2312c1b8751ff6c95a72722d7 main code + test files from 27a4094a55a41df26a91e17148be5118fe5117f6: instrumentation-api/src/test/java/io/opentelemetry/instrumentation/api/semconv/http/ForwardedHostAddressAndPortExtractorTest.java
+instrumentation-api/src/test/java/io/opentelemetry/instrumentation/api/semconv/http/HttpServerAttributesExtractorTest.java
+# tree: HEAD=78d71b585a77d7f2312c1b8751ff6c95a72722d7; working-tree changes vs HEAD:
+#   M  instrumentation-api/src/test/java/io/opentelemetry/instrumentation/api/semconv/http/ForwardedHostAddressAndPortExtractorTest.java
+#   M  instrumentation-api/src/test/java/io/opentelemetry/instrumentation/api/semconv/http/HttpServerAttributesExtractorTest.java
+########## suite: api
+== harness: repo=/tmp/fix/otel-forwarded suite=api HEAD=78d71b585a77d7f2312c1b8751ff6c95a72722d7 dirty=2
+== javac: javac 25.0.4.1
+/tmp/fix/otel-forwarded/instrumentation-api/src/main/java/io/opentelemetry/instrumentation/api/internal/SupportabilityMetrics.java:114: warning: [removal] getSecurityManager() in System has been deprecated and marked for removal
+    if (System.getSecurityManager() == null) {
+              ^
+/tmp/fix/otel-forwarded/instrumentation-api/src/main/java/io/opentelemetry/instrumentation/api/internal/SupportabilityMetrics.java:117: warning: [removal] AccessController in java.security has been deprecated and marked for removal
+    return java.security.AccessController.doPrivileged(action);
+                        ^
+2 warnings
+== junit selection: --select-class io.opentelemetry.instrumentation.api.semconv.http.ForwardedHostAddressAndPortExtractorTest --select-method io.opentelemetry.instrumentation.api.semconv.http.HttpServerAttributesExtractorTest#shouldExtractIpv6ServerAddressAndPortFromHostHeader
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by net.bytebuddy.dynamic.loading.ClassInjector$UsingUnsafe$Dispatcher$CreationAction (file:/tmp/deps/byte-buddy-1.18.14.jar)
+WARNING: Please consider reporting this to the maintainers of class net.bytebuddy.dynamic.loading.ClassInjector$UsingUnsafe$Dispatcher$CreationAction
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+╷
+├─ JUnit Platform Suite ✔
+├─ JUnit Jupiter ✔
+│  ├─ ForwardedHostAddressAndPortExtractorTest ✔
+│  │  ├─ shouldParsePseudoAuthority(List, String, Integer) ✔
+│  │  │  ├─ [1] [], null, null ✔
+│  │  │  ├─ [2] ["], null, null ✔
+│  │  │  ├─ [3] [""], null, null ✔
+│  │  │  ├─ [4] [example.com], example.com, null ✔
+│  │  │  ├─ [5] [example.com:port], example.com, null ✔
+│  │  │  ├─ [6] [example.com:42], example.com, 42 ✔
+│  │  │  ├─ [7] ["example.com"], example.com, null ✔
+│  │  │  ├─ [8] ["example.com:port"], example.com, null ✔
+│  │  │  ├─ [9] ["example.com:42"], example.com, 42 ✔
+│  │  │  ├─ [10] [[::1]], ::1, null ✘ 
+│  │  │  │        expected: "::1"
+│  │  │  │         but was: "["
+│  │  │  ├─ [11] [[::1]:42], ::1, 42 ✘ 
+│  │  │  │        expected: "::1"
+│  │  │  │         but was: "["
+│  │  │  ├─ [12] [[2001:db8::1]:42], 2001:db8::1, 42 ✘ 
+│  │  │  │        expected: "2001:db8::1"
+│  │  │  │         but was: "[2001"
+│  │  │  ├─ [13] ["[::1]:42"], ::1, 42 ✘ 
+│  │  │  │        expected: "::1"
+│  │  │  │         but was: "["
+│  │  │  ├─ [14] [[::1]:port], ::1, null ✘ 
+│  │  │  │        expected: "::1"
+│  │  │  │         but was: "["
+│  │  │  ├─ [15] [[::1], null, null ✘ 
+│  │  │  │        expected: null
+│  │  │  │         but was: "["
+│  │  │  └─ [16] [example.com, github.com:1234], example.com, null ✔
+│  │  ├─ shouldParseForwarded(List, String, Integer) ✔
+│  │  │  ├─ [1] [], null, null ✔
+│  │  │  ├─ [2] [host=], null, null ✔
+│  │  │  ├─ [3] [host=;], null, null ✔
+│  │  │  ├─ [4] [host="], null, null ✔
+│  │  │  ├─ [5] [host=""], null, null ✔
+│  │  │  ├─ [6] [host="example.com], null, null ✔
+│  │  │  ├─ [7] [by=1.2.3.4, test=abc], null, null ✔
+│  │  │  ├─ [8] [host=example.com], example.com, null ✔
+│  │  │  ├─ [9] [host="example.com"], example.com, null ✔
+│  │  │  ├─ [10] [host=example.com; test=abc:1234], example.com, null ✔
+│  │  │  ├─ [11] [host="example.com"; test=abc:1234], example.com, null ✔
+│  │  │  ├─ [12] [host=example.com:port], example.com, null ✔
+│  │  │  ├─ [13] [host="example.com:port"], example.com, null ✔
+│  │  │  ├─ [14] [host=example.com:42], example.com, 42 ✔
+│  │  │  ├─ [15] [host="example.com:42"], example.com, 42 ✔
+│  │  │  ├─ [16] [host=example.com:42; test=abc:1234], example.com, 42 ✔
+│  │  │  ├─ [17] [host="example.com:42"; test=abc:1234], example.com, 42 ✔
+│  │  │  ├─ [18] [host="[::1]"], ::1, null ✘ 
+│  │  │  │        expected: "::1"
+│  │  │  │         but was: "["
+│  │  │  ├─ [19] [host="[::1]:42"], ::1, 42 ✘ 
+│  │  │  │        expected: "::1"
+│  │  │  │         but was: "["
+│  │  │  ├─ [20] [host="[2001:db8::1]:42"; test=abc:1234], 2001:db8::1, 42 ✘ 
+│  │  │  │        expected: "2001:db8::1"
+│  │  │  │         but was: "[2001"
+│  │  │  ├─ [21] [host="[::1"], null, null ✘ 
+│  │  │  │        expected: null
+│  │  │  │         but was: "["
+│  │  │  └─ [22] [proto=https, host=example.com, host=github.com:1234], example.com, null ✔
+│  │  ├─ shouldParseForwardedHost(List, String, Integer) ✔
+│  │  │  ├─ [1] [], null, null ✔
+│  │  │  ├─ [2] ["], null, null ✔
+│  │  │  ├─ [3] [""], null, null ✔
+│  │  │  ├─ [4] [example.com], example.com, null ✔
+│  │  │  ├─ [5] [example.com:port], example.com, null ✔
+│  │  │  ├─ [6] [example.com:42], example.com, 42 ✔
+│  │  │  ├─ [7] ["example.com"], example.com, null ✔
+│  │  │  ├─ [8] ["example.com:port"], example.com, null ✔
+│  │  │  ├─ [9] ["example.com:42"], example.com, 42 ✔
+│  │  │  ├─ [10] [[::1]], ::1, null ✘ 
+│  │  │  │        expected: "::1"
+│  │  │  │         but was: "["
+│  │  │  ├─ [11] [[::1]:42], ::1, 42 ✘ 
+│  │  │  │        expected: "::1"
+│  │  │  │         but was: "["
+│  │  │  ├─ [12] [[2001:db8::1]:42], 2001:db8::1, 42 ✘ 
+│  │  │  │        expected: "2001:db8::1"
+│  │  │  │         but was: "[2001"
+│  │  │  ├─ [13] ["[::1]:42"], ::1, 42 ✘ 
+│  │  │  │        expected: "::1"
+│  │  │  │         but was: "["
+│  │  │  ├─ [14] [[::1]:port], ::1, null ✘ 
+│  │  │  │        expected: "::1"
+│  │  │  │         but was: "["
+│  │  │  ├─ [15] [[::1], null, null ✘ 
+│  │  │  │        expected: null
+│  │  │  │         but was: "["
+│  │  │  └─ [16] [example.com, github.com:1234], example.com, null ✔
+│  │  └─ shouldParseHost(List, String, Integer) ✔
+│  │     ├─ [1] [], null, null ✔
+│  │     ├─ [2] ["], null, null ✔
+│  │     ├─ [3] [""], null, null ✔
+│  │     ├─ [4] [example.com], example.com, null ✔
+│  │     ├─ [5] [example.com:port], example.com, null ✔
+│  │     ├─ [6] [example.com:42], example.com, 42 ✔
+│  │     ├─ [7] ["example.com"], example.com, null ✔
+│  │     ├─ [8] ["example.com:port"], example.com, null ✔
+│  │     ├─ [9] ["example.com:42"], example.com, 42 ✔
+│  │     ├─ [10] [[::1]], ::1, null ✘ 
+│  │     │        expected: "::1"
+│  │     │         but was: "["
+│  │     ├─ [11] [[::1]:42], ::1, 42 ✘ 
+│  │     │        expected: "::1"
+│  │     │         but was: "["
+│  │     ├─ [12] [[2001:db8::1]:42], 2001:db8::1, 42 ✘ 
+│  │     │        expected: "2001:db8::1"
+│  │     │         but was: "[2001"
+│  │     ├─ [13] ["[::1]:42"], ::1, 42 ✘ 
+│  │     │        expected: "::1"
+│  │     │         but was: "["
+│  │     ├─ [14] [[::1]:port], ::1, null ✘ 
+│  │     │        expected: "::1"
+│  │     │         but was: "["
+│  │     ├─ [15] [[::1], null, null ✘ 
+│  │     │        expected: null
+│  │     │         but was: "["
+│  │     └─ [16] [example.com, github.com:1234], example.com, null ✔
+│  └─ HttpServerAttributesExtractorTest ✔
+│     └─ shouldExtractIpv6ServerAddressAndPortFromHostHeader() ✘ 
+│              Expecting map:
+│                {server.address="[2001"}
+│              to contain only:
+│                [server.address="2001:db8::1", server.port=8080L]
+│              map entries not found:
+│                [server.address="2001:db8::1", server.port=8080L]
+│              and map entries not expected:
+│                [server.address="[2001"]
+└─ JUnit Vintage ✔
+
+Failures (23):
+  JUnit Jupiter:ForwardedHostAddressAndPortExtractorTest:shouldParsePseudoAuthority(List, String, Integer):[10] [[::1]], ::1, null
+    MethodSource [className = 'io.opentelemetry.instrumentation.api.semconv.http.ForwardedHostAddressAndPortExtractorTest', methodName = 'shouldParsePseudoAuthority', methodParameterTypes = 'java.util.List, java.lang.String, java.lang.Integer']
+    => org.opentest4j.AssertionFailedError: 
+expected: "::1"
+ but was: "["
+       io.opentelemetry.instrumentation.api.semconv.http.ForwardedHostAddressAndPortExtractorTest.shouldParsePseudoAuthority(ForwardedHostAddressAndPortExtractorTest.java:109)
+       java.base/java.lang.reflect.Method.invoke(Method.java:565)
+       java.base/java.util.Optional.ifPresent(Optional.java:178)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+       java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:214)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+       java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:214)
+       java.base/java.util.Spliterators$ArraySpliterator.forEachRemaining(Spliterators.java:1024)
+       java.base/java.util.stream.ReferencePipeline$Head.forEach(ReferencePipeline.java:803)
+       [...]
+  JUnit Jupiter:ForwardedHostAddressAndPortExtractorTest:shouldParsePseudoAuthority(List, String, Integer):[11] [[::1]:42], ::1, 42
+    MethodSource [className = 'io.opentelemetry.instrumentation.api.semconv.http.ForwardedHostAddressAndPortExtractorTest', methodName = 'shouldParsePseudoAuthority', methodParameterTypes = 'java.util.List, java.lang.String, java.lang.Integer']
+    => org.opentest4j.AssertionFailedError: 
+expected: "::1"
+ but was: "["
+       io.opentelemetry.instrumentation.api.semconv.http.ForwardedHostAddressAndPortExtractorTest.shouldParsePseudoAuthority(ForwardedHostAddressAndPortExtractorTest.java:109)
+       java.base/java.lang.reflect.Method.invoke(Method.java:565)
+       java.base/java.util.Optional.ifPresent(Optional.java:178)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+       java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:214)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+       java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:214)
+       java.base/java.util.Spliterators$ArraySpliterator.forEachRemaining(Spliterators.java:1024)
+       java.base/java.util.stream.ReferencePipeline$Head.forEach(ReferencePipeline.java:803)
+       [...]
+  JUnit Jupiter:ForwardedHostAddressAndPortExtractorTest:shouldParsePseudoAuthority(List, String, Integer):[12] [[2001:db8::1]:42], 2001:db8::1, 42
+    MethodSource [className = 'io.opentelemetry.instrumentation.api.semconv.http.ForwardedHostAddressAndPortExtractorTest', methodName = 'shouldParsePseudoAuthority', methodParameterTypes = 'java.util.List, java.lang.String, java.lang.Integer']
+    => org.opentest4j.AssertionFailedError: 
+expected: "2001:db8::1"
+ but was: "[2001"
+       io.opentelemetry.instrumentation.api.semconv.http.ForwardedHostAddressAndPortExtractorTest.shouldParsePseudoAuthority(ForwardedHostAddressAndPortExtractorTest.java:109)
+       java.base/java.lang.reflect.Method.invoke(Method.java:565)
+       java.base/java.util.Optional.ifPresent(Optional.java:178)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+       java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:214)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+       java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:214)
+       java.base/java.util.Spliterators$ArraySpliterator.forEachRemaining(Spliterators.java:1024)
+       java.base/java.util.stream.ReferencePipeline$Head.forEach(ReferencePipeline.java:803)
+       [...]
+  JUnit Jupiter:ForwardedHostAddressAndPortExtractorTest:shouldParsePseudoAuthority(List, String, Integer):[13] ["[::1]:42"], ::1, 42
+    MethodSource [className = 'io.opentelemetry.instrumentation.api.semconv.http.ForwardedHostAddressAndPortExtractorTest', methodName = 'shouldParsePseudoAuthority', methodParameterTypes = 'java.util.List, java.lang.String, java.lang.Integer']
+    => org.opentest4j.AssertionFailedError: 
+expected: "::1"
+ but was: "["
+       io.opentelemetry.instrumentation.api.semconv.http.ForwardedHostAddressAndPortExtractorTest.shouldParsePseudoAuthority(ForwardedHostAddressAndPortExtractorTest.java:109)
+       java.base/java.lang.reflect.Method.invoke(Method.java:565)
+       java.base/java.util.Optional.ifPresent(Optional.java:178)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+       java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:214)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+       java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:214)
+       java.base/java.util.Spliterators$ArraySpliterator.forEachRemaining(Spliterators.java:1024)
+       java.base/java.util.stream.ReferencePipeline$Head.forEach(ReferencePipeline.java:803)
+       [...]
+  JUnit Jupiter:ForwardedHostAddressAndPortExtractorTest:shouldParsePseudoAuthority(List, String, Integer):[14] [[::1]:port], ::1, null
+    MethodSource [className = 'io.opentelemetry.instrumentation.api.semconv.http.ForwardedHostAddressAndPortExtractorTest', methodName = 'shouldParsePseudoAuthority', methodParameterTypes = 'java.util.List, java.lang.String, java.lang.Integer']
+    => org.opentest4j.AssertionFailedError: 
+expected: "::1"
+ but was: "["
+       io.opentelemetry.instrumentation.api.semconv.http.ForwardedHostAddressAndPortExtractorTest.shouldParsePseudoAuthority(ForwardedHostAddressAndPortExtractorTest.java:109)
+       java.base/java.lang.reflect.Method.invoke(Method.java:565)
+       java.base/java.util.Optional.ifPresent(Optional.java:178)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+       java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:214)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+       java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:214)
+       java.base/java.util.Spliterators$ArraySpliterator.forEachRemaining(Spliterators.java:1024)
+       java.base/java.util.stream.ReferencePipeline$Head.forEach(ReferencePipeline.java:803)
+       [...]
+  JUnit Jupiter:ForwardedHostAddressAndPortExtractorTest:shouldParsePseudoAuthority(List, String, Integer):[15] [[::1], null, null
+    MethodSource [className = 'io.opentelemetry.instrumentation.api.semconv.http.ForwardedHostAddressAndPortExtractorTest', methodName = 'shouldParsePseudoAuthority', methodParameterTypes = 'java.util.List, java.lang.String, java.lang.Integer']
+    => org.opentest4j.AssertionFailedError: 
+expected: null
+ but was: "["
+       io.opentelemetry.instrumentation.api.semconv.http.ForwardedHostAddressAndPortExtractorTest.shouldParsePseudoAuthority(ForwardedHostAddressAndPortExtractorTest.java:109)
+       java.base/java.lang.reflect.Method.invoke(Method.java:565)
+       java.base/java.util.Optional.ifPresent(Optional.java:178)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+       java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:214)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+       java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:214)
+       java.base/java.util.Spliterators$ArraySpliterator.forEachRemaining(Spliterators.java:1024)
+       java.base/java.util.stream.ReferencePipeline$Head.forEach(ReferencePipeline.java:803)
+       [...]
+  JUnit Jupiter:ForwardedHostAddressAndPortExtractorTest:shouldParseForwarded(List, String, Integer):[18] [host="[::1]"], ::1, null
+    MethodSource [className = 'io.opentelemetry.instrumentation.api.semconv.http.ForwardedHostAddressAndPortExtractorTest', methodName = 'shouldParseForwarded', methodParameterTypes = 'java.util.List, java.lang.String, java.lang.Integer']
+    => org.opentest4j.AssertionFailedError: 
+expected: "::1"
+ but was: "["
+       io.opentelemetry.instrumentation.api.semconv.http.ForwardedHostAddressAndPortExtractorTest.shouldParseForwarded(ForwardedHostAddressAndPortExtractorTest.java:46)
+       java.base/java.lang.reflect.Method.invoke(Method.java:565)
+       java.base/java.util.Optional.ifPresent(Optional.java:178)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+       java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:214)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+       java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:214)
+       java.base/java.util.Spliterators$ArraySpliterator.forEachRemaining(Spliterators.java:1024)
+       java.base/java.util.stream.ReferencePipeline$Head.forEach(ReferencePipeline.java:803)
+       [...]
+  JUnit Jupiter:ForwardedHostAddressAndPortExtractorTest:shouldParseForwarded(List, String, Integer):[19] [host="[::1]:42"], ::1, 42
+    MethodSource [className = 'io.opentelemetry.instrumentation.api.semconv.http.ForwardedHostAddressAndPortExtractorTest', methodName = 'shouldParseForwarded', methodParameterTypes = 'java.util.List, java.lang.String, java.lang.Integer']
+    => org.opentest4j.AssertionFailedError: 
+expected: "::1"
+ but was: "["
+       io.opentelemetry.instrumentation.api.semconv.http.ForwardedHostAddressAndPortExtractorTest.shouldParseForwarded(ForwardedHostAddressAndPortExtractorTest.java:46)
+       java.base/java.lang.reflect.Method.invoke(Method.java:565)
+       java.base/java.util.Optional.ifPresent(Optional.java:178)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+       java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:214)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+       java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:214)
+       java.base/java.util.Spliterators$ArraySpliterator.forEachRemaining(Spliterators.java:1024)
+       java.base/java.util.stream.ReferencePipeline$Head.forEach(ReferencePipeline.java:803)
+       [...]
+  JUnit Jupiter:ForwardedHostAddressAndPortExtractorTest:shouldParseForwarded(List, String, Integer):[20] [host="[2001:db8::1]:42"; test=abc:1234], 2001:db8::1, 42
+    MethodSource [className = 'io.opentelemetry.instrumentation.api.semconv.http.ForwardedHostAddressAndPortExtractorTest', methodName = 'shouldParseForwarded', methodParameterTypes = 'java.util.List, java.lang.String, java.lang.Integer']
+    => org.opentest4j.AssertionFailedError: 
+expected: "2001:db8::1"
+ but was: "[2001"
+       io.opentelemetry.instrumentation.api.semconv.http.ForwardedHostAddressAndPortExtractorTest.shouldParseForwarded(ForwardedHostAddressAndPortExtractorTest.java:46)
+       java.base/java.lang.reflect.Method.invoke(Method.java:565)
+       java.base/java.util.Optional.ifPresent(Optional.java:178)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+       java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:214)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+       java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:214)
+       java.base/java.util.Spliterators$ArraySpliterator.forEachRemaining(Spliterators.java:1024)
+       java.base/java.util.stream.ReferencePipeline$Head.forEach(ReferencePipeline.java:803)
+       [...]
+  JUnit Jupiter:ForwardedHostAddressAndPortExtractorTest:shouldParseForwarded(List, String, Integer):[21] [host="[::1"], null, null
+    MethodSource [className = 'io.opentelemetry.instrumentation.api.semconv.http.ForwardedHostAddressAndPortExtractorTest', methodName = 'shouldParseForwarded', methodParameterTypes = 'java.util.List, java.lang.String, java.lang.Integer']
+    => org.opentest4j.AssertionFailedError: 
+expected: null
+ but was: "["
+       io.opentelemetry.instrumentation.api.semconv.http.ForwardedHostAddressAndPortExtractorTest.shouldParseForwarded(ForwardedHostAddressAndPortExtractorTest.java:46)
+       java.base/java.lang.reflect.Method.invoke(Method.java:565)
+       java.base/java.util.Optional.ifPresent(Optional.java:178)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+       java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:214)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+       java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:214)
+       java.base/java.util.Spliterators$ArraySpliterator.forEachRemaining(Spliterators.java:1024)
+       java.base/java.util.stream.ReferencePipeline$Head.forEach(ReferencePipeline.java:803)
+       [...]
+  JUnit Jupiter:ForwardedHostAddressAndPortExtractorTest:shouldParseForwardedHost(List, String, Integer):[10] [[::1]], ::1, null
+    MethodSource [className = 'io.opentelemetry.instrumentation.api.semconv.http.ForwardedHostAddressAndPortExtractorTest', methodName = 'shouldParseForwardedHost', methodParameterTypes = 'java.util.List, java.lang.String, java.lang.Integer']
+    => org.opentest4j.AssertionFailedError: 
+expected: "::1"
+ but was: "["
+       io.opentelemetry.instrumentation.api.semconv.http.ForwardedHostAddressAndPortExtractorTest.shouldParseForwardedHost(ForwardedHostAddressAndPortExtractorTest.java:93)
+       java.base/java.lang.reflect.Method.invoke(Method.java:565)
+       java.base/java.util.Optional.ifPresent(Optional.java:178)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+       java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:214)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+       java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:214)
+       java.base/java.util.Spliterators$ArraySpliterator.forEachRemaining(Spliterators.java:1024)
+       java.base/java.util.stream.ReferencePipeline$Head.forEach(ReferencePipeline.java:803)
+       [...]
+  JUnit Jupiter:ForwardedHostAddressAndPortExtractorTest:shouldParseForwardedHost(List, String, Integer):[11] [[::1]:42], ::1, 42
+    MethodSource [className = 'io.opentelemetry.instrumentation.api.semconv.http.ForwardedHostAddressAndPortExtractorTest', methodName = 'shouldParseForwardedHost', methodParameterTypes = 'java.util.List, java.lang.String, java.lang.Integer']
+    => org.opentest4j.AssertionFailedError: 
+expected: "::1"
+ but was: "["
+       io.opentelemetry.instrumentation.api.semconv.http.ForwardedHostAddressAndPortExtractorTest.shouldParseForwardedHost(ForwardedHostAddressAndPortExtractorTest.java:93)
+       java.base/java.lang.reflect.Method.invoke(Method.java:565)
+       java.base/java.util.Optional.ifPresent(Optional.java:178)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+       java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:214)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+       java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:214)
+       java.base/java.util.Spliterators$ArraySpliterator.forEachRemaining(Spliterators.java:1024)
+       java.base/java.util.stream.ReferencePipeline$Head.forEach(ReferencePipeline.java:803)
+       [...]
+  JUnit Jupiter:ForwardedHostAddressAndPortExtractorTest:shouldParseForwardedHost(List, String, Integer):[12] [[2001:db8::1]:42], 2001:db8::1, 42
+    MethodSource [className = 'io.opentelemetry.instrumentation.api.semconv.http.ForwardedHostAddressAndPortExtractorTest', methodName = 'shouldParseForwardedHost', methodParameterTypes = 'java.util.List, java.lang.String, java.lang.Integer']
+    => org.opentest4j.AssertionFailedError: 
+expected: "2001:db8::1"
+ but was: "[2001"
+       io.opentelemetry.instrumentation.api.semconv.http.ForwardedHostAddressAndPortExtractorTest.shouldParseForwardedHost(ForwardedHostAddressAndPortExtractorTest.java:93)
+       java.base/java.lang.reflect.Method.invoke(Method.java:565)
+       java.base/java.util.Optional.ifPresent(Optional.java:178)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+       java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:214)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+       java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:214)
+       java.base/java.util.Spliterators$ArraySpliterator.forEachRemaining(Spliterators.java:1024)
+       java.base/java.util.stream.ReferencePipeline$Head.forEach(ReferencePipeline.java:803)
+       [...]
+  JUnit Jupiter:ForwardedHostAddressAndPortExtractorTest:shouldParseForwardedHost(List, String, Integer):[13] ["[::1]:42"], ::1, 42
+    MethodSource [className = 'io.opentelemetry.instrumentation.api.semconv.http.ForwardedHostAddressAndPortExtractorTest', methodName = 'shouldParseForwardedHost', methodParameterTypes = 'java.util.List, java.lang.String, java.lang.Integer']
+    => org.opentest4j.AssertionFailedError: 
+expected: "::1"
+ but was: "["
+       io.opentelemetry.instrumentation.api.semconv.http.ForwardedHostAddressAndPortExtractorTest.shouldParseForwardedHost(ForwardedHostAddressAndPortExtractorTest.java:93)
+       java.base/java.lang.reflect.Method.invoke(Method.java:565)
+       java.base/java.util.Optional.ifPresent(Optional.java:178)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+       java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:214)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+       java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:214)
+       java.base/java.util.Spliterators$ArraySpliterator.forEachRemaining(Spliterators.java:1024)
+       java.base/java.util.stream.ReferencePipeline$Head.forEach(ReferencePipeline.java:803)
+       [...]
+  JUnit Jupiter:ForwardedHostAddressAndPortExtractorTest:shouldParseForwardedHost(List, String, Integer):[14] [[::1]:port], ::1, null
+    MethodSource [className = 'io.opentelemetry.instrumentation.api.semconv.http.ForwardedHostAddressAndPortExtractorTest', methodName = 'shouldParseForwardedHost', methodParameterTypes = 'java.util.List, java.lang.String, java.lang.Integer']
+    => org.opentest4j.AssertionFailedError: 
+expected: "::1"
+ but was: "["
+       io.opentelemetry.instrumentation.api.semconv.http.ForwardedHostAddressAndPortExtractorTest.shouldParseForwardedHost(ForwardedHostAddressAndPortExtractorTest.java:93)
+       java.base/java.lang.reflect.Method.invoke(Method.java:565)
+       java.base/java.util.Optional.ifPresent(Optional.java:178)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+       java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:214)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+       java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:214)
+       java.base/java.util.Spliterators$ArraySpliterator.forEachRemaining(Spliterators.java:1024)
+       java.base/java.util.stream.ReferencePipeline$Head.forEach(ReferencePipeline.java:803)
+       [...]
+  JUnit Jupiter:ForwardedHostAddressAndPortExtractorTest:shouldParseForwardedHost(List, String, Integer):[15] [[::1], null, null
+    MethodSource [className = 'io.opentelemetry.instrumentation.api.semconv.http.ForwardedHostAddressAndPortExtractorTest', methodName = 'shouldParseForwardedHost', methodParameterTypes = 'java.util.List, java.lang.String, java.lang.Integer']
+    => org.opentest4j.AssertionFailedError: 
+expected: null
+ but was: "["
+       io.opentelemetry.instrumentation.api.semconv.http.ForwardedHostAddressAndPortExtractorTest.shouldParseForwardedHost(ForwardedHostAddressAndPortExtractorTest.java:93)
+       java.base/java.lang.reflect.Method.invoke(Method.java:565)
+       java.base/java.util.Optional.ifPresent(Optional.java:178)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+       java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:214)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+       java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:214)
+       java.base/java.util.Spliterators$ArraySpliterator.forEachRemaining(Spliterators.java:1024)
+       java.base/java.util.stream.ReferencePipeline$Head.forEach(ReferencePipeline.java:803)
+       [...]
+  JUnit Jupiter:ForwardedHostAddressAndPortExtractorTest:shouldParseHost(List, String, Integer):[10] [[::1]], ::1, null
+    MethodSource [className = 'io.opentelemetry.instrumentation.api.semconv.http.ForwardedHostAddressAndPortExtractorTest', methodName = 'shouldParseHost', methodParameterTypes = 'java.util.List, java.lang.String, java.lang.Integer']
+    => org.opentest4j.AssertionFailedError: 
+expected: "::1"
+ but was: "["
+       io.opentelemetry.instrumentation.api.semconv.http.ForwardedHostAddressAndPortExtractorTest.shouldParseHost(ForwardedHostAddressAndPortExtractorTest.java:126)
+       java.base/java.lang.reflect.Method.invoke(Method.java:565)
+       java.base/java.util.Optional.ifPresent(Optional.java:178)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+       java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:214)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+       java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:214)
+       java.base/java.util.Spliterators$ArraySpliterator.forEachRemaining(Spliterators.java:1024)
+       java.base/java.util.stream.ReferencePipeline$Head.forEach(ReferencePipeline.java:803)
+       [...]
+  JUnit Jupiter:ForwardedHostAddressAndPortExtractorTest:shouldParseHost(List, String, Integer):[11] [[::1]:42], ::1, 42
+    MethodSource [className = 'io.opentelemetry.instrumentation.api.semconv.http.ForwardedHostAddressAndPortExtractorTest', methodName = 'shouldParseHost', methodParameterTypes = 'java.util.List, java.lang.String, java.lang.Integer']
+    => org.opentest4j.AssertionFailedError: 
+expected: "::1"
+ but was: "["
+       io.opentelemetry.instrumentation.api.semconv.http.ForwardedHostAddressAndPortExtractorTest.shouldParseHost(ForwardedHostAddressAndPortExtractorTest.java:126)
+       java.base/java.lang.reflect.Method.invoke(Method.java:565)
+       java.base/java.util.Optional.ifPresent(Optional.java:178)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+       java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:214)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+       java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:214)
+       java.base/java.util.Spliterators$ArraySpliterator.forEachRemaining(Spliterators.java:1024)
+       java.base/java.util.stream.ReferencePipeline$Head.forEach(ReferencePipeline.java:803)
+       [...]
+  JUnit Jupiter:ForwardedHostAddressAndPortExtractorTest:shouldParseHost(List, String, Integer):[12] [[2001:db8::1]:42], 2001:db8::1, 42
+    MethodSource [className = 'io.opentelemetry.instrumentation.api.semconv.http.ForwardedHostAddressAndPortExtractorTest', methodName = 'shouldParseHost', methodParameterTypes = 'java.util.List, java.lang.String, java.lang.Integer']
+    => org.opentest4j.AssertionFailedError: 
+expected: "2001:db8::1"
+ but was: "[2001"
+       io.opentelemetry.instrumentation.api.semconv.http.ForwardedHostAddressAndPortExtractorTest.shouldParseHost(ForwardedHostAddressAndPortExtractorTest.java:126)
+       java.base/java.lang.reflect.Method.invoke(Method.java:565)
+       java.base/java.util.Optional.ifPresent(Optional.java:178)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+       java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:214)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+       java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:214)
+       java.base/java.util.Spliterators$ArraySpliterator.forEachRemaining(Spliterators.java:1024)
+       java.base/java.util.stream.ReferencePipeline$Head.forEach(ReferencePipeline.java:803)
+       [...]
+  JUnit Jupiter:ForwardedHostAddressAndPortExtractorTest:shouldParseHost(List, String, Integer):[13] ["[::1]:42"], ::1, 42
+    MethodSource [className = 'io.opentelemetry.instrumentation.api.semconv.http.ForwardedHostAddressAndPortExtractorTest', methodName = 'shouldParseHost', methodParameterTypes = 'java.util.List, java.lang.String, java.lang.Integer']
+    => org.opentest4j.AssertionFailedError: 
+expected: "::1"
+ but was: "["
+       io.opentelemetry.instrumentation.api.semconv.http.ForwardedHostAddressAndPortExtractorTest.shouldParseHost(ForwardedHostAddressAndPortExtractorTest.java:126)
+       java.base/java.lang.reflect.Method.invoke(Method.java:565)
+       java.base/java.util.Optional.ifPresent(Optional.java:178)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+       java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:214)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+       java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:214)
+       java.base/java.util.Spliterators$ArraySpliterator.forEachRemaining(Spliterators.java:1024)
+       java.base/java.util.stream.ReferencePipeline$Head.forEach(ReferencePipeline.java:803)
+       [...]
+  JUnit Jupiter:ForwardedHostAddressAndPortExtractorTest:shouldParseHost(List, String, Integer):[14] [[::1]:port], ::1, null
+    MethodSource [className = 'io.opentelemetry.instrumentation.api.semconv.http.ForwardedHostAddressAndPortExtractorTest', methodName = 'shouldParseHost', methodParameterTypes = 'java.util.List, java.lang.String, java.lang.Integer']
+    => org.opentest4j.AssertionFailedError: 
+expected: "::1"
+ but was: "["
+       io.opentelemetry.instrumentation.api.semconv.http.ForwardedHostAddressAndPortExtractorTest.shouldParseHost(ForwardedHostAddressAndPortExtractorTest.java:126)
+       java.base/java.lang.reflect.Method.invoke(Method.java:565)
+       java.base/java.util.Optional.ifPresent(Optional.java:178)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+       java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:214)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+       java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:214)
+       java.base/java.util.Spliterators$ArraySpliterator.forEachRemaining(Spliterators.java:1024)
+       java.base/java.util.stream.ReferencePipeline$Head.forEach(ReferencePipeline.java:803)
+       [...]
+  JUnit Jupiter:ForwardedHostAddressAndPortExtractorTest:shouldParseHost(List, String, Integer):[15] [[::1], null, null
+    MethodSource [className = 'io.opentelemetry.instrumentation.api.semconv.http.ForwardedHostAddressAndPortExtractorTest', methodName = 'shouldParseHost', methodParameterTypes = 'java.util.List, java.lang.String, java.lang.Integer']
+    => org.opentest4j.AssertionFailedError: 
+expected: null
+ but was: "["
+       io.opentelemetry.instrumentation.api.semconv.http.ForwardedHostAddressAndPortExtractorTest.shouldParseHost(ForwardedHostAddressAndPortExtractorTest.java:126)
+       java.base/java.lang.reflect.Method.invoke(Method.java:565)
+       java.base/java.util.Optional.ifPresent(Optional.java:178)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+       java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:214)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+       java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186)
+       java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:214)
+       java.base/java.util.Spliterators$ArraySpliterator.forEachRemaining(Spliterators.java:1024)
+       java.base/java.util.stream.ReferencePipeline$Head.forEach(ReferencePipeline.java:803)
+       [...]
+  JUnit Jupiter:HttpServerAttributesExtractorTest:shouldExtractIpv6ServerAddressAndPortFromHostHeader()
+    MethodSource [className = 'io.opentelemetry.instrumentation.api.semconv.http.HttpServerAttributesExtractorTest', methodName = 'shouldExtractIpv6ServerAddressAndPortFromHostHeader', methodParameterTypes = '']
+    => java.lang.AssertionError: 
+Expecting map:
+  {server.address="[2001"}
+to contain only:
+  [server.address="2001:db8::1", server.port=8080L]
+map entries not found:
+  [server.address="2001:db8::1", server.port=8080L]
+and map entries not expected:
+  [server.address="[2001"]
+
+       io.opentelemetry.sdk.testing.assertj.AttributesAssert.containsOnly(AttributesAssert.java:169)
+       io.opentelemetry.instrumentation.api.semconv.http.HttpServerAttributesExtractorTest.shouldExtractIpv6ServerAddressAndPortFromHostHeader(HttpServerAttributesExtractorTest.java:522)
+       java.base/java.lang.reflect.Method.invoke(Method.java:565)
+       java.base/java.util.ArrayList.forEach(ArrayList.java:1604)
+       java.base/java.util.ArrayList.forEach(ArrayList.java:1604)
+
+Test run finished after 464 ms
+[         9 containers found      ]
+[         0 containers skipped    ]
+[         9 containers started    ]
+[         0 containers aborted    ]
+[         9 containers successful ]
+[         0 containers failed     ]
+[        71 tests found           ]
+[         0 tests skipped         ]
+[        71 tests started         ]
+[         0 tests aborted         ]
+[        48 tests successful      ]
+[        23 tests failed          ]
+
+== junit exit code: 1

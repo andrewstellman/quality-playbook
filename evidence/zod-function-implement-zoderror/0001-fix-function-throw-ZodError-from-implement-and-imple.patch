@@ -1,0 +1,92 @@
+From 99b8eda6267b35a2b24b1d3036961dc60a37bdc7 Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <andrew@stellman.com>
+Date: Tue, 29 Sep 2026 16:56:19 -0400
+Subject: [PATCH] fix(function): throw ZodError from implement() and
+ implementAsync()
+
+Core's $ZodFunction validates arguments and return values with the core
+parsers, which throw $ZodError. The classic ZodFunction inherited that,
+so an implemented function threw an error that fails `instanceof
+z.ZodError` and has no flatten()/format(), unlike schema.parse. Override
+implement/implementAsync in classic to use the classic parsers.
+---
+ packages/zod/src/v4/classic/schemas.ts        | 38 +++++++++++++++++++
+ .../zod/src/v4/classic/tests/function.test.ts | 13 +++++++
+ 2 files changed, 51 insertions(+)
+
+diff --git a/packages/zod/src/v4/classic/schemas.ts b/packages/zod/src/v4/classic/schemas.ts
+index 34aca446..df5af0dc 100644
+--- a/packages/zod/src/v4/classic/schemas.ts
++++ b/packages/zod/src/v4/classic/schemas.ts
+@@ -2744,6 +2744,44 @@ export const ZodFunction: core.$constructor<ZodFunction> = /*@__PURE__*/ core.$c
+     core.$ZodFunction.init(inst, def);
+     ZodType.init(inst, def);
+     inst._zod.processJSONSchema = (ctx, json, params) => processors.functionProcessor(inst, ctx, json, params);
++
++    // Core's implement/implementAsync throw $ZodError; use the classic parsers so ZodError is thrown.
++    // Mirrors core's $ZodFunction implement/implementAsync; keep in sync.
++    inst.implement = (func) => {
++      if (typeof func !== "function") {
++        throw new Error("implement() must be called with a function");
++      }
++      return Object.defineProperty(
++        function (this: any, ...args: never[]) {
++          const parsedArgs = inst._def.input ? parse.parse(inst._def.input, args) : args;
++          const result = Reflect.apply(func, this, parsedArgs as never[]);
++          if (inst._def.output) {
++            return parse.parse(inst._def.output, result);
++          }
++          return result as any;
++        },
++        "_zod",
++        { value: inst._zod, enumerable: false }
++      ) as any;
++    };
++
++    inst.implementAsync = (func) => {
++      if (typeof func !== "function") {
++        throw new Error("implementAsync() must be called with a function");
++      }
++      return Object.defineProperty(
++        async function (this: any, ...args: never[]) {
++          const parsedArgs = inst._def.input ? await parse.parseAsync(inst._def.input, args) : args;
++          const result = await Reflect.apply(func, this, parsedArgs as never[]);
++          if (inst._def.output) {
++            return await parse.parseAsync(inst._def.output, result);
++          }
++          return result;
++        },
++        "_zod",
++        { value: inst._zod, enumerable: false }
++      ) as any;
++    };
+   }
+ );
+ 
+diff --git a/packages/zod/src/v4/classic/tests/function.test.ts b/packages/zod/src/v4/classic/tests/function.test.ts
+index 008c3347..e11e800d 100644
+--- a/packages/zod/src/v4/classic/tests/function.test.ts
++++ b/packages/zod/src/v4/classic/tests/function.test.ts
+@@ -27,6 +27,19 @@ test("parsed function fail 2", () => {
+   expect(() => parsed(13 as any)).toThrow();
+ });
+ 
++test("implemented function throws ZodError", async () => {
++  const schema = z.function({ input: [z.string()], output: z.number() });
++  const badArg = schema.implement((s) => s.length);
++  const badReturn = schema.implement(() => "nope" as any);
++  const badArgAsync = schema.implementAsync(async (s) => s.length);
++  const badReturnAsync = schema.implementAsync(async () => "nope" as any);
++
++  expect(() => badArg(13 as any)).toThrow(z.ZodError);
++  expect(() => badReturn("asdf")).toThrow(z.ZodError);
++  await expect(badArgAsync(13 as any)).rejects.toThrow(z.ZodError);
++  await expect(badReturnAsync("asdf")).rejects.toThrow(z.ZodError);
++});
++
+ test("function inference 1", () => {
+   type func1 = (typeof func1)["_input"];
+   expectTypeOf<func1>().toEqualTypeOf<(k: string) => number>();
+-- 
+2.34.1
+

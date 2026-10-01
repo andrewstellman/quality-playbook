@@ -1,0 +1,9 @@
+No existing pytest/unittest suite could be run: calibre's own test runner
+(setup.py test) fails to import without compiled calibre_extensions
+(ModuleNotFoundError: calibre_extensions.translator), independently
+reproduced in this executor's copy. src/calibre/srv/tests/ajax.py:374
+confirms OPDS/legacy routes are explicitly excluded from that suite
+("Not going test legacy and opds as they are too painful"), also verified
+in this copy. ruff check and ruff format --check on the patched
+src/calibre/srv/opds.py: "All checks passed!" / "1 file already formatted"
+(independently re-run in this executor's copy).

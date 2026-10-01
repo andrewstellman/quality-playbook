@@ -1,0 +1,1 @@
+REVERT check == re-running my_harness.py against the base (unpatched) tree, already captured as bionemo-amplify-red.log (RED: dtype upcast to float32).

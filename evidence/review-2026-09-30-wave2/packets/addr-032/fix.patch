@@ -1,0 +1,61 @@
+From 6c2b67790501a7433245d8300e6a6e5239f99447 Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <andrew@stellman.com>
+Date: Wed, 30 Sep 2026 23:23:21 -0400
+Subject: [PATCH] Keep pct-encoded triplets in reserved and fragment expansion
+
+RFC 6570 section 3.2.1 lets {+var} and {#var} pass pct-encoded triplets
+through unchanged, but every "%" was encoded, so "%20" became "%2520".
+Only a "%" that does not start a triplet is now encoded as "%25".
+---
+ lib/addressable/template.rb       | 4 +++-
+ spec/addressable/template_spec.rb | 3 +++
+ 2 files changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/lib/addressable/template.rb b/lib/addressable/template.rb
+index 4059f03..b365d98 100644
+--- a/lib/addressable/template.rb
++++ b/lib/addressable/template.rb
+@@ -778,9 +778,11 @@ module Addressable
+           if processor == nil || !processor.respond_to?(:transform)
+             # Handle percent escaping
+             if allow_reserved
+-              encode_map =
++              # Leave existing pct-encoded triplets intact (RFC 6570 3.2.1)
++              encode_map = /[^#{
+                 Addressable::URI::CharacterClasses::RESERVED +
+                 Addressable::URI::CharacterClasses::UNRESERVED
++              }%]|%(?![0-9A-Fa-f]{2})/
+             else
+               encode_map = Addressable::URI::CharacterClasses::UNRESERVED
+             end
+diff --git a/spec/addressable/template_spec.rb b/spec/addressable/template_spec.rb
+index fa29f12..e7875ef 100644
+--- a/spec/addressable/template_spec.rb
++++ b/spec/addressable/template_spec.rb
+@@ -316,6 +316,7 @@ describe "Expansion" do
+       :dub   => "me/too",
+       :hello => "Hello World!",
+       :half  => "50%",
++      :pct   => "%20a%2Fb",
+       :var   => "value",
+       :who   => "fred",
+       :base  => "http://example.com/home/",
+@@ -368,6 +369,7 @@ describe "Expansion" do
+       '{+var}' => 'value',
+       '{+hello}' => 'Hello%20World!',
+       '{+half}' => '50%25',
++      '{+pct}' => '%20a%2Fb',
+       '{base}index' => 'http%3A%2F%2Fexample.com%2Fhome%2Findex',
+       '{+base}index' => 'http://example.com/home/index',
+       'O{+empty}X' => 'OX',
+@@ -389,6 +391,7 @@ describe "Expansion" do
+       '{#var}' => '#value',
+       '{#hello}' => '#Hello%20World!',
+       '{#half}' => '#50%25',
++      '{#pct}' => '#%20a%2Fb',
+       'foo{#empty}' => 'foo#',
+       'foo{#undef}' => 'foo',
+       '{#x,hello,y}' => '#1024,Hello%20World!,768',
+-- 
+2.34.1
+

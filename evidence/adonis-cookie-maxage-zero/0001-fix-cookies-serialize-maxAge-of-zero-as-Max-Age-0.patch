@@ -1,0 +1,48 @@
+From ec5c81d89a0503f9967a44ce60849adb7aa2d09d Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <andrew@stellman.com>
+Date: Wed, 30 Sep 2026 13:33:18 -0400
+Subject: [PATCH] fix(cookies): serialize maxAge of zero as Max-Age=0
+
+serializeCookie used a truthiness check on maxAge, so maxAge: 0 was
+dropped and the cookie became a session cookie instead of expiring.
+Treat 0 as a valid value and pass it through to the serializer.
+---
+ src/helpers.ts                   | 3 ++-
+ tests/cookies/serializer.spec.ts | 9 +++++++++
+ 2 files changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/helpers.ts b/src/helpers.ts
+index fc4c6cd..a5a843b 100644
+--- a/src/helpers.ts
++++ b/src/helpers.ts
+@@ -242,7 +242,8 @@ export function serializeCookie(
+ 
+   if (options) {
+     expires = typeof options.expires === 'function' ? options.expires() : options.expires
+-    maxAge = options.maxAge ? string.seconds.parse(options.maxAge) : undefined
++    maxAge =
++      options.maxAge || options.maxAge === 0 ? string.seconds.parse(options.maxAge) : undefined
+   }
+ 
+   return serialize(key, value, { ...options, maxAge, expires })
+diff --git a/tests/cookies/serializer.spec.ts b/tests/cookies/serializer.spec.ts
+index 9cc27ae..1ab5040 100644
+--- a/tests/cookies/serializer.spec.ts
++++ b/tests/cookies/serializer.spec.ts
+@@ -129,4 +129,13 @@ test.group('Cookie | serialize', () => {
+     const [, options] = serialized!.split('; ')
+     assert.equal(options, `Max-Age=60`)
+   })
++
++  test('define max age as zero', ({ assert }) => {
++    const config = { maxAge: 0 }
++    const serializer = new CookieSerializer(encryption)
++    const serialized = serializer.encode('username', 'virk', config)
++
++    const [, options] = serialized!.split('; ')
++    assert.equal(options, `Max-Age=0`)
++  })
+ })
+-- 
+2.34.1
+

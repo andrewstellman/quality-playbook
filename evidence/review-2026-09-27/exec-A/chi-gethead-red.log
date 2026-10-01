@@ -1,0 +1,9 @@
+=== RUN   TestGetHead
+--- PASS: TestGetHead (0.00s)
+=== RUN   TestGetHeadInMountedRouter
+    get_head_test.go:94: HEAD /api/hi: expected X-Handler 'head', got "get" (status 200)
+    get_head_test.go:100: HEAD /api/only-get: expected 200 with X-Handler 'get', got "" (status 405)
+--- FAIL: TestGetHeadInMountedRouter (0.00s)
+FAIL
+FAIL	github.com/go-chi/chi/v5/middleware	0.005s
+FAIL

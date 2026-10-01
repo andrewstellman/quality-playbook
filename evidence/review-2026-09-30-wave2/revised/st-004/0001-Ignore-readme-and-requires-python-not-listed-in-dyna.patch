@@ -1,0 +1,76 @@
+From 4e38cdf9525e3b4a08dca31976898d2412fee2fe Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <andrew@stellman.com>
+Date: Wed, 30 Sep 2026 23:29:04 -0400
+Subject: [PATCH] Ignore readme and requires-python not listed in dynamic
+
+_handle_missing_dynamic resets these fields to None, which _long_description
+and _python_requires did not accept (AttributeError / TypeError). Treat None
+as a reset so the value from setup.py is dropped with the _MissingDynamic
+warning, as for the other fields.
+---
+ ...missing-dynamic-readme-requires-python.bugfix.rst |  4 ++++
+ setuptools/config/_apply_pyprojecttoml.py            | 12 ++++++++++--
+ setuptools/tests/config/test_apply_pyprojecttoml.py  |  2 ++
+ 3 files changed, 16 insertions(+), 2 deletions(-)
+ create mode 100644 newsfragments/+missing-dynamic-readme-requires-python.bugfix.rst
+
+diff --git a/newsfragments/+missing-dynamic-readme-requires-python.bugfix.rst b/newsfragments/+missing-dynamic-readme-requires-python.bugfix.rst
+new file mode 100644
+index 00000000..a0d67bfc
+--- /dev/null
++++ b/newsfragments/+missing-dynamic-readme-requires-python.bugfix.rst
+@@ -0,0 +1,4 @@
++A ``long_description`` or ``python_requires`` given in ``setup.py`` while
++``pyproject.toml`` does not list ``readme`` or ``requires-python`` in
++``dynamic`` is now ignored with a warning, as for other fields, instead of
++crashing the build.
+diff --git a/setuptools/config/_apply_pyprojecttoml.py b/setuptools/config/_apply_pyprojecttoml.py
+index 286ed43c..b9d650dd 100644
+--- a/setuptools/config/_apply_pyprojecttoml.py
++++ b/setuptools/config/_apply_pyprojecttoml.py
+@@ -174,11 +174,14 @@ def _guess_content_type(file: str) -> str | None:
+ 
+ 
+ def _long_description(
+-    dist: Distribution, val: _ProjectReadmeValue, root_dir: StrPath | None
++    dist: Distribution, val: _ProjectReadmeValue | None, root_dir: StrPath | None
+ ):
+     from setuptools.config import expand
+ 
+     file: str | tuple[()]
++    if val is None:  # reset by _handle_missing_dynamic
++        _set_config(dist, "long_description", None)
++        return
+     if isinstance(val, str):
+         file = val
+         text = expand.read_files(file, root_dir)
+@@ -247,7 +250,12 @@ def _project_urls(dist: Distribution, val: dict, _root_dir: StrPath | None):
+     _set_config(dist, "project_urls", val)
+ 
+ 
+-def _python_requires(dist: Distribution, val: str, _root_dir: StrPath | None):
++def _python_requires(dist: Distribution, val: str | None, _root_dir: StrPath | None):
++    if val is None:  # reset by _handle_missing_dynamic
++        dist.python_requires = None
++        # _core_metadata writes Requires-Python whenever the attribute exists
++        vars(dist.metadata).pop("python_requires", None)
++        return
+     _set_config(dist, "python_requires", _static.SpecifierSet(val))
+ 
+ 
+diff --git a/setuptools/tests/config/test_apply_pyprojecttoml.py b/setuptools/tests/config/test_apply_pyprojecttoml.py
+index 202f2318..f46519a7 100644
+--- a/setuptools/tests/config/test_apply_pyprojecttoml.py
++++ b/setuptools/tests/config/test_apply_pyprojecttoml.py
+@@ -613,6 +613,8 @@ class TestPresetField:
+                 marks=[pytest.mark.filterwarnings("ignore:.*license. overwritten")],
+             ),
+             ("classifiers", "classifiers", ["Private :: Classifier"]),
++            ("long_description", "readme", "Some description"),
++            ("python_requires", "requires-python", ">=3.8"),
+             ("entry_points", "scripts", {"console_scripts": ["foobar=foobar:main"]}),
+             ("entry_points", "gui-scripts", {"gui_scripts": ["bazquux=bazquux:main"]}),
+             pytest.param(
+-- 
+2.34.1
+

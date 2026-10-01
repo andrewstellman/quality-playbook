@@ -1,0 +1,8 @@
+$ go test -count=1 -v -run 'TestGetHead' ./middleware/
+=== RUN   TestGetHead
+--- PASS: TestGetHead (0.00s)
+=== RUN   TestGetHeadInMountedRouter
+--- PASS: TestGetHeadInMountedRouter (0.00s)
+PASS
+ok  	github.com/go-chi/chi/v5/middleware	0.004s
+exit=0

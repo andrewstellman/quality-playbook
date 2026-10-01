@@ -1,0 +1,35 @@
+# SUITE BEFORE: unpatched base, tests/test_streams.py
+# aiohttp base: e11d2836203a21bec59095498e578d37801027e7 (copied tree, local git: base=aace596)
+# worktree: /tmp/fix/before  HEAD=aace596 Base: aio-libs/aiohttp e11d2836203a21bec59095498e578d37801027e7
+# uncommitted changes vs HEAD:
+# date: 2026-09-28T05:13:47Z  python: Python 3.10.12
+$ cd /tmp/fix/before && AIOHTTP_NO_EXTENSIONS=1 PYTHONPATH=. /tmp/aiohttp-venv/bin/python -m pytest -p no:cacheprovider -n0 --no-cov tests/test_streams.py
+============================= test session starts ==============================
+platform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0
+codspeed: 5.0.3 (disabled, mode: walltime, callgraph: not supported, timer_resolution: 1.0ns)
+rootdir: /tmp/fix/before
+configfile: pytest.ini
+plugins: cov-7.1.0, xdist-3.8.0, codspeed-5.0.3, timeout-2.4.0, asyncio-1.4.0, platformdirs-4.12.1, mock-3.15.1
+timeout: 120.0s
+timeout method: signal
+timeout func_only: False
+asyncio: mode=auto, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 136 items
+
+tests/test_streams.py .................................................. [ 36%]
+........................................................................ [ 89%]
+..............                                                           [100%]
+
+============================= slowest 10 durations =============================
+0.21s call     tests/test_streams.py::TestStreamReader::test_readany_chunk_end_race
+0.20s call     tests/test_streams.py::TestStreamReader::test_readchunk_separate_http_chunk_tail
+0.10s call     tests/test_streams.py::TestStreamReader::test_wait_eof
+0.10s call     tests/test_streams.py::TestStreamReader::test_readchunk_wait_eof
+0.01s call     tests/test_streams.py::TestStreamReaderChunkHook::test_readany_fires
+0.01s call     tests/test_streams.py::TestStreamReaderChunkHook::test_iter_chunks_fires
+0.01s call     tests/test_streams.py::TestStreamReaderChunkHook::test_read_all_fires_via_readany
+0.01s call     tests/test_streams.py::TestStreamReaderChunkHook::test_readchunk_data_fires
+
+(2 durations < 0.005s hidden.  Use -vv to show these durations.)
+============================= 136 passed in 1.03s ==============================
+# exit status: 0

@@ -1,0 +1,77 @@
+From 891c2980991575200179db3fd24b84f3aa287944 Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <andrew@stellman.com>
+Date: Sun, 27 Sep 2026 15:53:06 -0400
+Subject: [PATCH] middleware: split comma-separated lists in
+ AllowContentEncoding
+
+---
+ middleware/content_encoding.go      | 17 ++++++++++++-----
+ middleware/content_encoding_test.go | 17 ++++++++++++++++-
+ 2 files changed, 28 insertions(+), 6 deletions(-)
+
+diff --git a/middleware/content_encoding.go b/middleware/content_encoding.go
+index e0b9ccc..0535295 100644
+--- a/middleware/content_encoding.go
++++ b/middleware/content_encoding.go
+@@ -20,11 +20,18 @@ func AllowContentEncoding(contentEncoding ...string) func(next http.Handler) htt
+ 				next.ServeHTTP(w, r)
+ 				return
+ 			}
+-			// All encodings in the request must be allowed
+-			for _, encoding := range requestEncodings {
+-				if _, ok := allowedEncodings[strings.TrimSpace(strings.ToLower(encoding))]; !ok {
+-					w.WriteHeader(http.StatusUnsupportedMediaType)
+-					return
++			// All encodings in the request must be allowed. A single header
++			// line may hold a comma-separated list, e.g. "gzip, deflate".
++			for _, header := range requestEncodings {
++				for _, encoding := range strings.Split(header, ",") {
++					encoding = strings.TrimSpace(strings.ToLower(encoding))
++					if encoding == "" {
++						continue
++					}
++					if _, ok := allowedEncodings[encoding]; !ok {
++						w.WriteHeader(http.StatusUnsupportedMediaType)
++						return
++					}
+ 				}
+ 			}
+ 			next.ServeHTTP(w, r)
+diff --git a/middleware/content_encoding_test.go b/middleware/content_encoding_test.go
+index e23a708..043b5f3 100644
+--- a/middleware/content_encoding_test.go
++++ b/middleware/content_encoding_test.go
+@@ -54,6 +54,21 @@ func TestContentEncodingMiddleware(t *testing.T) {
+ 			encodings:      []string{"deflate", "br"},
+ 			expectedStatus: 415,
+ 		},
++		{
++			name:           "Support for gzip and deflate encoding in one header",
++			encodings:      []string{"gzip, deflate"},
++			expectedStatus: 200,
++		},
++		{
++			name:           "Support for deflate and gzip encoding in one header",
++			encodings:      []string{"deflate,gzip"},
++			expectedStatus: 200,
++		},
++		{
++			name:           "No support for deflate and br encoding in one header",
++			encodings:      []string{"deflate, br"},
++			expectedStatus: 415,
++		},
+ 	}
+ 
+ 	for _, tt := range tests {
+@@ -64,7 +79,7 @@ func TestContentEncodingMiddleware(t *testing.T) {
+ 			body := []byte("This is my content. There are many like this but this one is mine")
+ 			r := httptest.NewRequest("POST", "/", bytes.NewReader(body))
+ 			for _, encoding := range tt.encodings {
+-				r.Header.Set("Content-Encoding", encoding)
++				r.Header.Add("Content-Encoding", encoding)
+ 			}
+ 
+ 			w := httptest.NewRecorder()
+-- 
+2.34.1
+

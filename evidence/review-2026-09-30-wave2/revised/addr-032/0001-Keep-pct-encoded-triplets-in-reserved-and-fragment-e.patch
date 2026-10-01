@@ -1,0 +1,75 @@
+From 8c867bd0c7a45e9fcd3d19b7343a871e6efa15b6 Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <andrew@stellman.com>
+Date: Wed, 30 Sep 2026 23:23:21 -0400
+Subject: [PATCH] Keep pct-encoded triplets in reserved and fragment expansion
+
+RFC 6570 section 3.2.1 lets {+var} and {#var} pass pct-encoded triplets
+through unchanged, but every "%" was encoded, so "%20" became "%2520".
+Only a "%" that does not start a triplet is now encoded as "%25".
+---
+ lib/addressable/template.rb       | 9 ++++++---
+ spec/addressable/template_spec.rb | 7 +++++++
+ 2 files changed, 13 insertions(+), 3 deletions(-)
+
+diff --git a/lib/addressable/template.rb b/lib/addressable/template.rb
+index 4059f03..01af3e5 100644
+--- a/lib/addressable/template.rb
++++ b/lib/addressable/template.rb
+@@ -45,6 +45,11 @@ module Addressable
+       "(?:[#{
+         Addressable::URI::CharacterClasses::UNRESERVED
+       }]|%[a-fA-F0-9][a-fA-F0-9])"
++    # Characters to encode in reserved ("+") and fragment ("#") expansion.
++    # "%" is in the negated class so pct-encoded triplets pass through
++    # (RFC 6570 3.2.1); a "%" that does not start one is still encoded.
++    ALLOW_RESERVED_ENCODE_MAP =
++      /[^#{anything}%]|%(?![a-fA-F0-9]{2})/
+     variable =
+       "(?:#{var_char}(?:\\.?#{var_char})*)"
+     varspec =
+@@ -778,9 +783,7 @@ module Addressable
+           if processor == nil || !processor.respond_to?(:transform)
+             # Handle percent escaping
+             if allow_reserved
+-              encode_map =
+-                Addressable::URI::CharacterClasses::RESERVED +
+-                Addressable::URI::CharacterClasses::UNRESERVED
++              encode_map = ALLOW_RESERVED_ENCODE_MAP
+             else
+               encode_map = Addressable::URI::CharacterClasses::UNRESERVED
+             end
+diff --git a/spec/addressable/template_spec.rb b/spec/addressable/template_spec.rb
+index fa29f12..cbd1c08 100644
+--- a/spec/addressable/template_spec.rb
++++ b/spec/addressable/template_spec.rb
+@@ -316,6 +316,9 @@ describe "Expansion" do
+       :dub   => "me/too",
+       :hello => "Hello World!",
+       :half  => "50%",
++      :pct   => "%20a%2Fb",
++      :badpct => "%zz%2/%2f",
++      :pctlist => ["%20a", "b%2F"],
+       :var   => "value",
+       :who   => "fred",
+       :base  => "http://example.com/home/",
+@@ -368,6 +371,9 @@ describe "Expansion" do
+       '{+var}' => 'value',
+       '{+hello}' => 'Hello%20World!',
+       '{+half}' => '50%25',
++      '{+pct}' => '%20a%2Fb',
++      '{+badpct}' => '%25zz%252/%2f',
++      '{+pctlist*}' => '%20a,b%2F',
+       '{base}index' => 'http%3A%2F%2Fexample.com%2Fhome%2Findex',
+       '{+base}index' => 'http://example.com/home/index',
+       'O{+empty}X' => 'OX',
+@@ -389,6 +395,7 @@ describe "Expansion" do
+       '{#var}' => '#value',
+       '{#hello}' => '#Hello%20World!',
+       '{#half}' => '#50%25',
++      '{#pct}' => '#%20a%2Fb',
+       'foo{#empty}' => 'foo#',
+       'foo{#undef}' => 'foo',
+       '{#x,hello,y}' => '#1024,Hello%20World!,768',
+-- 
+2.34.1
+

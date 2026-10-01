@@ -1,0 +1,49 @@
+[INFO] Scanning for projects...
+[INFO] Inspecting build with total of 2 modules
+[INFO] Installing Central Publishing features
+[INFO] ------------------------------------------------------------------------
+[INFO] Reactor Build Order:
+[INFO] 
+[INFO] AssertJ Core                                                       [jar]
+[INFO] AssertJ Core Integration Tests                                     [jar]
+[INFO] 
+[INFO] ----------------------< org.assertj:assertj-core >----------------------
+[INFO] Building AssertJ Core 4.0.0-SNAPSHOT                               [1/2]
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- spotless:3.10.2:check (default-cli) @ assertj-core ---
+[INFO] Index file does not exist. Fallback to an empty index
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::staticFieldBase has been called by com.diffplug.spotless.java.ModuleHelper (file:/tmp/m2/com/diffplug/spotless/spotless-lib/4.10.2/spotless-lib-4.10.2.jar)
+WARNING: Please consider reporting this to the maintainers of class com.diffplug.spotless.java.ModuleHelper
+WARNING: sun.misc.Unsafe::staticFieldBase will be removed in a future release
+[INFO] Spotless.Java is keeping 4084 files clean - 0 needs changes to be clean, 4084 were already clean, 0 were skipped because caching determined they were already clean
+[INFO] 
+[INFO] --- license:5.1.2:check (default-cli) @ assertj-core ---
+[INFO] Checking licenses...
+[INFO] License check: 4084 file(s) checked (OK: 4084, Missing: 0, Unknown: 0)
+[INFO] 
+[INFO] -------------------< org.assertj:assertj-core-tests >-------------------
+[INFO] Building AssertJ Core Integration Tests 4.0.0-SNAPSHOT             [2/2]
+[INFO]   from /tmp/assertj/assertj-tests/assertj-integration-tests/assertj-core-tests/pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- spotless:3.10.2:check (default-cli) @ assertj-core-tests ---
+[INFO] Index file does not exist. Fallback to an empty index
+[INFO] Spotless.Java is keeping 917 files clean - 0 needs changes to be clean, 917 were already clean, 0 were skipped because caching determined they were already clean
+[INFO] 
+[INFO] --- license:5.1.2:check (default-cli) @ assertj-core-tests ---
+[INFO] Checking licenses...
+[INFO] License check: 917 file(s) checked (OK: 917, Missing: 0, Unknown: 0)
+[INFO] ------------------------------------------------------------------------
+[INFO] Reactor Summary for AssertJ Core 4.0.0-SNAPSHOT:
+[INFO] 
+[INFO] AssertJ Core ....................................... SUCCESS [ 23.938 s]
+[INFO] AssertJ Core Integration Tests ..................... SUCCESS [  2.238 s]
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  26.563 s
+[INFO] Finished at: 2026-09-27T16:37:19-04:00
+[INFO] ------------------------------------------------------------------------

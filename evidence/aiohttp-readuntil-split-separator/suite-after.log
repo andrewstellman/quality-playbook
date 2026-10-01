@@ -1,0 +1,61 @@
+# master e11d2836203a21bec59095498e578d37801027e7 + fix in aiohttp/streams.py + new tests in tests/test_streams.py
+$ AIOHTTP_NO_EXTENSIONS=1 PYTHONPATH=. python -m pytest tests/test_streams.py tests/test_flowcontrol_streams.py tests/test_multipart.py tests/test_benchmarks_multipart.py tests/test_http_parser.py tests/test_client_proto.py tests/test_client_response.py tests/test_client_functional.py tests/test_client_ws_functional.py tests/test_web_functional.py tests/test_web_request.py tests/test_web_app.py tests/test_web_middleware.py tests/test_web_urldispatcher.py tests/test_web_websocket_functional.py tests/test_run_app.py --no-cov -q -p no:randomly
+bringing up nodes...
+bringing up nodes...
+
+........................................................................ [  3%]
+........................................................................ [  7%]
+........................................................................ [ 11%]
+..........................s...................s......................... [ 14%]
+...............ss.........................s............................. [ 18%]
+........................................................................ [ 22%]
+..................................................................s..... [ 25%]
+........................................................................ [ 29%]
+........................................................................ [ 33%]
+.............................ss.sss.ss.s.ss.sss.ss.ssss.ss..sssss.s.ssss [ 36%]
+........................................................................ [ 40%]
+..................................s..................................... [ 44%]
+........................................................................ [ 47%]
+........................................................................ [ 51%]
+........................................................................ [ 55%]
+........................................................................ [ 58%]
+........................................................................ [ 62%]
+....................................................x................... [ 66%]
+........................................................................ [ 69%]
+........s............................................................... [ 73%]
+............................s........................................... [ 77%]
+........................................................................ [ 81%]
+........................................................................ [ 84%]
+........................................................................ [ 88%]
+........................................................................ [ 92%]
+........................................................................ [ 95%]
+........................................................................ [ 99%]
+...........                                                              [100%]
+============================= slowest 10 durations =============================
+1.10s call     tests/test_client_functional.py::test_set_cookies_max_age
+1.02s call     tests/test_run_app.py::TestShutdown::test_shutdown_timeout_handler
+1.01s call     tests/test_client_functional.py::test_timeout_on_reading_data
+1.00s call     tests/test_client_functional.py::test_readline_error_on_conn_close
+0.92s call     tests/test_run_app.py::TestShutdown::test_shutdown_handler_cancellation_suppressed
+0.52s call     tests/test_run_app.py::TestShutdown::test_shutdown_pending_handler_responds
+0.51s call     tests/test_client_functional.py::test_read_timeout_on_write
+0.51s call     tests/test_run_app.py::TestShutdown::test_shutdown_wait_for_handler
+0.51s call     tests/test_client_functional.py::test_no_error_on_conn_close_if_eof
+0.50s call     tests/test_client_functional.py::test_timeout_with_full_buffer
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_multipart.py:1874: No wbits parameter
+SKIPPED [1] tests/test_http_parser.py:148: Extensions available but not imported
+SKIPPED [1] tests/test_http_parser.py:284: Only tests C parser.
+SKIPPED [1] tests/test_http_parser.py:309: Only tests C parser.
+SKIPPED [1] tests/test_multipart.py:368: wbits not available
+SKIPPED [1] tests/test_http_parser.py:2930: C based HTTP parser not available
+SKIPPED [8] tests/test_http_parser.py:2381: Only tests C parser.
+SKIPPED [2] tests/test_http_parser.py:2402: Only tests C parser.
+SKIPPED [1] tests/test_http_parser.py:2420: Python parser lacks error pos output
+SKIPPED [20] tests/test_http_parser.py:2437: Only tests C parser.
+SKIPPED [1] tests/test_client_functional.py:754: ssl_shutdown_timeout requires Python 3.11+
+SKIPPED [1] tests/test_web_functional.py:215: Needs Task.cancelling()
+SKIPPED [1] tests/test_web_functional.py:3130: C based HTTP parser not available
+XFAIL tests/test_client_functional.py::test_broken_connection
+1914 passed, 40 skipped, 1 xfailed in 8.25s
+exit: 0

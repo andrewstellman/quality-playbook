@@ -1,0 +1,31 @@
+== test_float.py
+328 passed in 0.38s
+== full suite: tests/ (includes tests/pydantic_core)
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+ruff failed:
+FAILED tests/pydantic_core/validators/test_allow_partial.py::test_set_frozenset[set_schema]
+FAILED tests/test_generics.py::test_generic_model_pickle_different_module - I...
+27 failed, 12039 passed, 1193 skipped, 32 xfailed in 33.47s

@@ -1,0 +1,8 @@
+== revert: source part reverted, test kept
+=== RUN   TestFlagCompletionWithNotInterspersedArgs
+    completions_test.go:2058: expected: "--string\n:0\nCompletion ended with directive: ShellCompDirectiveDefault\n", got: ":0\nCompletion ended with directive: ShellCompDirectiveDefault\n"
+    completions_test.go:2074: expected: "arg\n--string\n:0\nCompletion ended with directive: ShellCompDirectiveDefault\n", got: "arg\n:0\nCompletion ended with directive: ShellCompDirectiveDefault\n"
+--- FAIL: TestFlagCompletionWithNotInterspersedArgs (0.00s)
+FAIL
+FAIL	github.com/spf13/cobra	0.003s
+FAIL

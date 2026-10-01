@@ -1,0 +1,33 @@
+# red.log — unpatched base, all three OPDS handlers
+# Commit under test: 7691f4f1a155d799afdfec99e2cdc2716c178402 (pinned, read-only checkout at /tmp/review/src/calibre/base)
+$ git -C /tmp/review/src/calibre/base rev-parse HEAD
+7691f4f1a155d799afdfec99e2cdc2716c178402
+$ python3.14 harness.py /tmp/review/src/calibre/base/src
+python 3.14.7 | source /tmp/review/src/calibre/base/src
+
+== Reachability: real parse_uri() path components (route is /opds/navcatalog/{which}, 3 components) ==
+  /opds/navcatalog/                -> path=('opds', 'navcatalog')
+  /opds/navcatalog//               -> path=('opds', 'navcatalog')
+  /opds/navcatalog/zz              -> path=('opds', 'navcatalog', 'zz')
+  /opds/navcatalog/4               -> path=('opds', 'navcatalog', '4')
+  /opds/navcatalog/ff              -> path=('opds', 'navcatalog', 'ff')
+  /opds/navcatalog/4e74616773      -> path=('opds', 'navcatalog', '4e74616773')
+
+== opds_navcatalog(which) ==
+  [FAIL] empty (direct call only; not reachable via URL) which=''                     -> UNHANDLED: builtins.IndexError: string index out of range
+  [FAIL] non-hex chars                                 which='zz'                   -> UNHANDLED: binascii.Error: Non-hexadecimal digit found
+  [FAIL] odd-length hex                                which='4'                    -> UNHANDLED: binascii.Error: Odd-length string
+  [FAIL] valid hex, invalid UTF-8                      which='ff'                   -> UNHANDLED: builtins.UnicodeDecodeError: 'utf-8' codec can't decode byte 0xff in position 0: invalid start byte
+  [pass] control: valid N+tags                         which='4e74616773'           -> OK: "SENTINEL get_navcatalog('tags')"
+  [pass] control: valid O+title                        which='4f7469746c65'         -> OK: "SENTINEL get_all_books('title')"
+  [pass] control: valid hex, unknown type X            which='58666f6f'             -> HTTP404: HTTPNotFound(Not found)
+
+== siblings, same malformed input (informational, not counted) ==
+  opds_category('74616773', 'zz')                            -> UNHANDLED: binascii.Error: Non-hexadecimal digit found
+  opds_category('zz', '497461673a74616773')                  -> UNHANDLED: binascii.Error: Non-hexadecimal digit found
+  opds_categorygroup('zz', '41')                                  -> UNHANDLED: binascii.Error: Non-hexadecimal digit found
+  opds_categorygroup('74616773', 'ff')                            -> HTTP404: HTTPNotFound(Category 'ff' not found)
+
+navcatalog malformed-input cases raising non-HTTP exceptions (-> HTTP 500 in server): 4
+RESULT: RED
+exit=1

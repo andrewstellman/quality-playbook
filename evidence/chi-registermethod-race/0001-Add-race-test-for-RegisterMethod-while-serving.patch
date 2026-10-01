@@ -1,0 +1,35 @@
+From 70ef1729088d3d2b787f790516c5f8715399a81c Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <andrew@stellman.com>
+Date: Sun, 27 Sep 2026 15:56:07 -0400
+Subject: [PATCH] Add race test for RegisterMethod while serving
+
+---
+ mux_test.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)
+
+diff --git a/mux_test.go b/mux_test.go
+index 9d0e7cc..fe515e9 100644
+--- a/mux_test.go
++++ b/mux_test.go
+@@ -2159,3 +2159,18 @@ func BenchmarkMux(b *testing.B) {
+ 		})
+ 	}
+ }
++
++func TestRegisterMethodWhileServing(t *testing.T) {
++	r := NewRouter()
++	r.Get("/", func(w http.ResponseWriter, r *http.Request) {})
++
++	done := make(chan struct{})
++	go func() {
++		defer close(done)
++		for i := 0; i < 100; i++ {
++			r.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest("GET", "/", nil))
++		}
++	}()
++	RegisterMethod("RACEMETHOD")
++	<-done
++}
+-- 
+2.34.1
+

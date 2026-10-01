@@ -1,0 +1,53 @@
+From 14b186601d0be74546a6a7e54a673b14aa59b6cb Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <andrew@stellman.com>
+Date: Tue, 29 Sep 2026 16:54:31 -0400
+Subject: [PATCH] fix(intersection): merge identical NaN outputs instead of
+ throwing
+
+mergeValues used `a === b` to decide two outputs are the same, which is
+false for NaN, so an intersection whose sides both produce NaN threw
+"Unmergable intersection". Treat a NaN on both sides as equal. Nothing
+that merged before changes; +0 and -0 still merge.
+---
+ .../zod/src/v4/classic/tests/intersection.test.ts     | 11 +++++++++++
+ packages/zod/src/v4/core/schemas.ts                   |  2 +-
+ 2 files changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/packages/zod/src/v4/classic/tests/intersection.test.ts b/packages/zod/src/v4/classic/tests/intersection.test.ts
+index fbd023b0..7a45e6e5 100644
+--- a/packages/zod/src/v4/classic/tests/intersection.test.ts
++++ b/packages/zod/src/v4/classic/tests/intersection.test.ts
+@@ -135,6 +135,17 @@ test("deep intersection of arrays", async () => {
+   expect(asyncCat.posts).toEqual(posts);
+ });
+ 
++test("identical NaN merges", () => {
++  expect(z.nan().and(z.nan()).safeParse(Number.NaN)).toEqual({ success: true, data: Number.NaN });
++  expect(z.unknown().and(z.unknown()).safeParse(Number.NaN)).toEqual({ success: true, data: Number.NaN });
++
++  const loose = z.looseObject({ a: z.string() }).and(z.looseObject({ b: z.string() }));
++  expect(loose.safeParse({ a: "x", b: "y", c: Number.NaN })).toEqual({
++    success: true,
++    data: { a: "x", b: "y", c: Number.NaN },
++  });
++});
++
+ test("invalid intersection types", async () => {
+   const numberIntersection = z.intersection(
+     z.number(),
+diff --git a/packages/zod/src/v4/core/schemas.ts b/packages/zod/src/v4/core/schemas.ts
+index 63a4391f..b2b81345 100644
+--- a/packages/zod/src/v4/core/schemas.ts
++++ b/packages/zod/src/v4/core/schemas.ts
+@@ -2830,7 +2830,7 @@ export function mergeValues(
+   // const aType = parse.t(a);
+   // const bType = parse.t(b);
+ 
+-  if (a === b) {
++  if (a === b || (Number.isNaN(a) && Number.isNaN(b))) {
+     return { valid: true, data: a };
+   }
+   if (a instanceof Date && b instanceof Date && +a === +b) {
+-- 
+2.34.1
+

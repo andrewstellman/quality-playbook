@@ -1,0 +1,11 @@
+nvmet: derive the CRTO property from CAP, not CSTS
+
+NVME_CAP_TIMEOUT() reads bits 31:24, which hold CAP.TO.  CSTS has no
+bits above 6, so nvmet_execute_prop_get() returns CRTO as 0 while the
+same controller advertises CAP.TO = 15.  Read it from ctrl->cap.
+
+Verified with nvme get-property in an arm64 QEMU guest: CRTO reads 0
+before the change and 0xf after.
+
+Fixes: 1e058089d28f ("nvmet: implement crto property")
+Assisted-by: Claude:claude-opus-5 [Quality Playbook]

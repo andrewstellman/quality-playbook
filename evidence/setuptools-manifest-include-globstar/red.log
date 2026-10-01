@@ -1,0 +1,24 @@
+...................................................F..................   [100%]
+=================================== FAILURES ===================================
+_________________ TestManifestTest.test_include_recursive_glob _________________
+
+self = <setuptools.tests.test_manifest.TestManifestTest object at 0xffe37f4eb8e0>
+
+    def test_include_recursive_glob(self):
+        """Include files at any depth with **."""
+        ml = make_local_path
+        self.make_manifest("include **/*.css")
+        files = default_files | {ml('app/static/app.css')}
+>       assert files == self.get_files()
+E       AssertionError: assert frozenset({'M...el.txt', ...}) == {'MANIFEST.in...vel.txt', ...}
+E         
+E         Extra items in the left set:
+E         'app/static/app.css'
+E         Use -v to get more diff
+
+/tmp/w2fix/st-024/setuptools/tests/test_manifest.py:290: AssertionError
+------------------------------ Captured log call -------------------------------
+WARNING  root:egg_info.py:431 warning: no files found matching '**/*.css'
+=========================== short test summary info ============================
+FAILED setuptools/tests/test_manifest.py::TestManifestTest::test_include_recursive_glob
+1 failed, 69 passed in 0.39s

@@ -1,0 +1,24 @@
+$ go test -count=1 -v -run 'TestRecoverer' ./middleware/
+=== RUN   TestRecoverer
+--- PASS: TestRecoverer (0.00s)
+=== RUN   TestRecovererNoColor
+--- PASS: TestRecovererNoColor (0.00s)
+=== RUN   TestRecovererAbortHandler
+--- PASS: TestRecovererAbortHandler (0.00s)
+=== RUN   TestRecovererUpgradeConnection
+=== RUN   TestRecovererUpgradeConnection/Upgrade
+=== RUN   TestRecovererUpgradeConnection/upgrade
+    recoverer_test.go:124: Connection "upgrade": status header should not be written on an upgrade request
+=== RUN   TestRecovererUpgradeConnection/keep-alive,_Upgrade
+    recoverer_test.go:124: Connection "keep-alive, Upgrade": status header should not be written on an upgrade request
+=== RUN   TestRecovererUpgradeConnection/Upgrade,_keep-alive
+    recoverer_test.go:124: Connection "Upgrade, keep-alive": status header should not be written on an upgrade request
+--- FAIL: TestRecovererUpgradeConnection (0.00s)
+    --- PASS: TestRecovererUpgradeConnection/Upgrade (0.00s)
+    --- FAIL: TestRecovererUpgradeConnection/upgrade (0.00s)
+    --- FAIL: TestRecovererUpgradeConnection/keep-alive,_Upgrade (0.00s)
+    --- FAIL: TestRecovererUpgradeConnection/Upgrade,_keep-alive (0.00s)
+FAIL
+FAIL	github.com/go-chi/chi/v5/middleware	0.004s
+FAIL
+exit=1

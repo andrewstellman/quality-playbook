@@ -1,0 +1,11 @@
+# lint on full patch (HEAD a284956), tool versions: black, 26.5.1 (compiled: no); isort 9.0.1 (compiled no); flake8 7.4.1 (mccabe: 0.7.0, pycodestyle: 2.15.0, pyflakes: 4.0.0) CPython 3.10.12 on; codespell 2.4.3
+$ black --check --target-version py310 aiohttp/streams.py tests/test_streams.py
+All done! ✨ 🍰 ✨
+2 files would be left unchanged.
+# exit status: 0
+$ isort --check-only aiohttp/streams.py tests/test_streams.py
+# exit status: 0
+$ flake8 aiohttp/streams.py tests/test_streams.py
+# exit status: 0
+$ codespell aiohttp/streams.py tests/test_streams.py CHANGES/PRNUMBER.bugfix.rst
+# exit status: 0

@@ -1,0 +1,2 @@
+[fixed]  GREEN confirmed: raises ValueError instead of silently dropping tokens: Padded sequence length(s) [10] must be divisible by 4 (2 * cp_world_size) for THD context parallelism
+[fixed]  no-regression check passed: divisible lengths still fully covered, no tokens dropped

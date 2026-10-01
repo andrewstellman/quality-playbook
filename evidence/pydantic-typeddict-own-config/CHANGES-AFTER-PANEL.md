@@ -1,0 +1,6 @@
+- "as the validator does" wrong (comment + commit message): done. Comment now `// use the typed dict's own config if it has one, otherwise the parent config`; commit body now "Use the schema's own config when present, otherwise the parent config." cargo fmt --check: exit 0 (no build).
+- State behaviour change (TypedDict with any own config stops inheriting parent ser_json_*): done, one line in PR.
+- Restore PR template checklist: done (ticked: title, unit tests, docs (config.md already says this); unticked: CI, ready-to-review/"please review" comment).
+- Rebase past #13891: done. Fetched pydantic main (tip e2ac21dcd) as refs/remotes/upstream-main; `git rebase` clean, no conflicts; no upstream commit since base touches typed_dict.rs or test_types_typeddict.py. main now 045dd5b80 on e2ac21dcd; pre-rebase commit kept as branch pre-rebase (c1cb0e29e). Patch regenerated from the rebased commit.
+- NOT done: red/green/revert NOT re-run after the comment edit or the rebase (no build: disk). out/*.log are from the pre-rebase base 8fb804027. Upstream changed pydantic-core/src/serializers/config.rs (#13892) since base; not compiled against it.
+- Pydantic AI policy certification (S8): not done by design; placeholder `<<ANDREW: understanding statement>>` left for Andrew.

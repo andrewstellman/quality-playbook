@@ -1,0 +1,154 @@
+.........................x.....................FF................        [100%]
+=================================== FAILURES ===================================
+_ TestPresetField.test_not_listed_in_dynamic[long_description-readme-Some description] _
+
+self = <setuptools.tests.config.test_apply_pyprojecttoml.TestPresetField object at 0xec9bbad249d0>
+tmp_path = PosixPath('/sessions/kind-zealous-edison/tmp/pytest-of-kind-zealous-edison/pytest-55/test_not_listed_in_dynamic_lon0')
+attr = 'long_description', field = 'readme', value = 'Some description'
+
+    @pytest.mark.parametrize(
+        ("attr", "field", "value"),
+        [
+            ("license_expression", "license", "MIT"),
+            pytest.param(
+                *("license", "license", "Not SPDX"),
+                marks=[pytest.mark.filterwarnings("ignore:.*license. overwritten")],
+            ),
+            ("classifiers", "classifiers", ["Private :: Classifier"]),
+            ("long_description", "readme", "Some description"),
+            ("python_requires", "requires-python", ">=3.8"),
+            ("entry_points", "scripts", {"console_scripts": ["foobar=foobar:main"]}),
+            ("entry_points", "gui-scripts", {"gui_scripts": ["bazquux=bazquux:main"]}),
+            pytest.param(
+                *("install_requires", "dependencies", ["six"]),
+                marks=[
+                    pytest.mark.filterwarnings("ignore:.*install_requires. overwritten")
+                ],
+            ),
+        ],
+    )
+    def test_not_listed_in_dynamic(self, tmp_path, attr, field, value):
+        """Setuptools cannot set a field if not listed in ``dynamic``"""
+        pyproject = self.pyproject(tmp_path, [])
+        dist = makedist(tmp_path, **{attr: value})
+        msg = re.compile(f"defined outside of `pyproject.toml`:.*{field}", re.DOTALL)
+        with pytest.warns(_MissingDynamic, match=msg):
+>           dist = pyprojecttoml.apply_configuration(dist, pyproject)
+
+setuptools/tests/config/test_apply_pyprojecttoml.py:634: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+setuptools/config/pyprojecttoml.py:73: in apply_configuration
+    return _apply(dist, config, filepath)
+setuptools/config/_apply_pyprojecttoml.py:54: in apply
+    _apply_project_table(dist, config, root_dir)
+setuptools/config/_apply_pyprojecttoml.py:82: in _apply_project_table
+    corresp(dist, value, root_dir)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+dist = <setuptools.dist.Distribution object at 0xec9bba6c5150>, val = None
+root_dir = '/sessions/kind-zealous-edison/tmp/pytest-of-kind-zealous-edison/pytest-55/test_not_listed_in_dynamic_lon0'
+
+    def _long_description(
+        dist: Distribution, val: _ProjectReadmeValue, root_dir: StrPath | None
+    ):
+        from setuptools.config import expand
+    
+        file: str | tuple[()]
+        if isinstance(val, str):
+            file = val
+            text = expand.read_files(file, root_dir)
+            ctype = _guess_content_type(file)
+        else:
+>           file = val.get("file") or ()
+E           AttributeError: 'NoneType' object has no attribute 'get'
+
+setuptools/config/_apply_pyprojecttoml.py:187: AttributeError
+_ TestPresetField.test_not_listed_in_dynamic[python_requires-requires-python->=3.8] _
+
+self = <setuptools.tests.config.test_apply_pyprojecttoml.TestPresetField object at 0xec9bbad24700>
+tmp_path = PosixPath('/sessions/kind-zealous-edison/tmp/pytest-of-kind-zealous-edison/pytest-55/test_not_listed_in_dynamic_pyt0')
+attr = 'python_requires', field = 'requires-python', value = '>=3.8'
+
+    @pytest.mark.parametrize(
+        ("attr", "field", "value"),
+        [
+            ("license_expression", "license", "MIT"),
+            pytest.param(
+                *("license", "license", "Not SPDX"),
+                marks=[pytest.mark.filterwarnings("ignore:.*license. overwritten")],
+            ),
+            ("classifiers", "classifiers", ["Private :: Classifier"]),
+            ("long_description", "readme", "Some description"),
+            ("python_requires", "requires-python", ">=3.8"),
+            ("entry_points", "scripts", {"console_scripts": ["foobar=foobar:main"]}),
+            ("entry_points", "gui-scripts", {"gui_scripts": ["bazquux=bazquux:main"]}),
+            pytest.param(
+                *("install_requires", "dependencies", ["six"]),
+                marks=[
+                    pytest.mark.filterwarnings("ignore:.*install_requires. overwritten")
+                ],
+            ),
+        ],
+    )
+    def test_not_listed_in_dynamic(self, tmp_path, attr, field, value):
+        """Setuptools cannot set a field if not listed in ``dynamic``"""
+        pyproject = self.pyproject(tmp_path, [])
+        dist = makedist(tmp_path, **{attr: value})
+        msg = re.compile(f"defined outside of `pyproject.toml`:.*{field}", re.DOTALL)
+        with pytest.warns(_MissingDynamic, match=msg):
+>           dist = pyprojecttoml.apply_configuration(dist, pyproject)
+
+setuptools/tests/config/test_apply_pyprojecttoml.py:634: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+setuptools/config/pyprojecttoml.py:73: in apply_configuration
+    return _apply(dist, config, filepath)
+setuptools/config/_apply_pyprojecttoml.py:54: in apply
+    _apply_project_table(dist, config, root_dir)
+setuptools/config/_apply_pyprojecttoml.py:82: in _apply_project_table
+    corresp(dist, value, root_dir)
+setuptools/config/_apply_pyprojecttoml.py:251: in _python_requires
+    _set_config(dist, "python_requires", _static.SpecifierSet(val))
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <[AttributeError("'SpecifierSet' object has no attribute '_prereleases'") raised in repr()] SpecifierSet object at 0xec9bbaa96620>
+specifiers = None, prereleases = None
+
+    def __init__(
+        self,
+        specifiers: str | Iterable[Specifier] = "",
+        prereleases: bool | None = None,
+    ) -> None:
+        """Initialize a SpecifierSet instance.
+    
+        :param specifiers:
+            The string representation of a specifier or a comma-separated list of
+            specifiers which will be parsed and normalized before use.
+            May also be an iterable of ``Specifier`` instances, which will be used
+            as is.
+        :param prereleases:
+            This tells the SpecifierSet if it should accept prerelease versions if
+            applicable or not. The default of ``None`` will autodetect it from the
+            given specifiers.
+    
+        :raises InvalidSpecifier:
+            If the given ``specifiers`` are not parseable than this exception will be
+            raised.
+        """
+    
+        if isinstance(specifiers, str):
+            # Split on `,` to break each individual specifier into its own item, and
+            # strip each item to remove leading/trailing whitespace.
+            split_specifiers = [s.strip() for s in specifiers.split(",") if s.strip()]
+    
+            self._specs: tuple[Specifier, ...] = tuple(map(Specifier, split_specifiers))
+            # Fast substring check; avoids iterating parsed specs.
+            self._has_arbitrary = "===" in specifiers
+        else:
+>           self._specs = tuple(specifiers)
+E           TypeError: 'NoneType' object is not iterable
+
+../st-venv/lib/python3.10/site-packages/packaging/specifiers.py:825: TypeError
+=========================== short test summary info ============================
+FAILED setuptools/tests/config/test_apply_pyprojecttoml.py::TestPresetField::test_not_listed_in_dynamic[long_description-readme-Some description]
+FAILED setuptools/tests/config/test_apply_pyprojecttoml.py::TestPresetField::test_not_listed_in_dynamic[python_requires-requires-python->=3.8]
+2 failed, 62 passed, 1 xfailed in 3.36s

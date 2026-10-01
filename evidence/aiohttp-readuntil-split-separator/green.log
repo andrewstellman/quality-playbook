@@ -1,0 +1,151 @@
+# aiohttp HEAD e11d2836203a21bec59095498e578d37801027e7 + fix in aiohttp/streams.py + new tests
+$ AIOHTTP_NO_EXTENSIONS=1 PYTHONPATH=. python -m pytest tests/test_streams.py -k 'readuntil_separator_split or readuntil_partial_separator' --numprocesses=0 --no-cov -v
+============================= test session starts ==============================
+platform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0 -- /tmp/aiohttp-venv/bin/python
+codspeed: 5.0.3 (disabled, mode: walltime, callgraph: not supported, timer_resolution: 1.0ns)
+cachedir: .pytest_cache
+rootdir: /tmp/aiohttp
+configfile: pytest.ini
+plugins: cov-7.1.0, xdist-3.8.0, codspeed-5.0.3, timeout-2.4.0, platformdirs-4.12.0, asyncio-1.4.0, mock-3.15.1
+timeout: 120.0s
+timeout method: signal
+timeout func_only: False
+asyncio: mode=auto, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 162 items / 136 deselected / 26 selected
+
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[\r\n-0] PASSED [  3%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[\r\n-1] PASSED [  7%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[\r\n-2] PASSED [ 11%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[\r\n\r\n-0] PASSED [ 15%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[\r\n\r\n-1] PASSED [ 19%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[\r\n\r\n-2] PASSED [ 23%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[\r\n\r\n-3] PASSED [ 26%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[\r\n\r\n-4] PASSED [ 30%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[--xyz-0] PASSED [ 34%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[--xyz-1] PASSED [ 38%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[--xyz-2] PASSED [ 42%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[--xyz-3] PASSED [ 46%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[--xyz-4] PASSED [ 50%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[--xyz-5] PASSED [ 53%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_one_byte_per_chunk[\r\n\r\n] PASSED [ 57%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_one_byte_per_chunk[--xyz] PASSED [ 61%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_partial_overlap[chunks0-xaab] PASSED [ 65%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_partial_overlap[chunks1-xaaab] PASSED [ 69%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_partial_overlap[chunks2-xaaab] PASSED [ 73%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_with_false_start PASSED [ 76%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_after_wait[\r\n] PASSED [ 80%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_after_wait[\r\n\r\n] PASSED [ 84%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_eof PASSED [ 88%]
+tests/test_streams.py::TestStreamReader::test_readuntil_partial_separator_eof PASSED [ 92%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_max_size PASSED [ 96%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_line_too_long PASSED [100%]
+
+============================= slowest 10 durations =============================
+
+(10 durations < 0.005s hidden.  Use -vv to show these durations.)
+====================== 26 passed, 136 deselected in 0.21s ======================
+exit: 0
+
+# Section 2: patch file applied with 'git am' to a fresh worktree of e11d2836 (/tmp/verify), whole tests/test_streams.py
+$ AIOHTTP_NO_EXTENSIONS=1 PYTHONPATH=. python -m pytest tests/test_streams.py --no-cov -q -p no:randomly --numprocesses=0
+........................................................................ [ 44%]
+........................................................................ [ 88%]
+..................                                                       [100%]
+============================= slowest 10 durations =============================
+0.22s call     tests/test_streams.py::TestStreamReader::test_readany_chunk_end_race
+0.21s call     tests/test_streams.py::TestStreamReader::test_readchunk_separate_http_chunk_tail
+0.11s call     tests/test_streams.py::TestStreamReader::test_readchunk_wait_eof
+0.10s call     tests/test_streams.py::TestStreamReader::test_wait_eof
+0.01s call     tests/test_streams.py::test_stream_reader_iter_any
+0.01s call     tests/test_streams.py::TestStreamReaderChunkHook::test_readany_fires
+
+(4 durations < 0.005s hidden.  Use -vv to show these durations.)
+162 passed in 1.11s
+
+# Same, with the default --numprocesses=auto (xdist). All 162 tests pass (162 dots), then pytest exits 1 while cleaning
+# /tmp/pytest-of-<user> at session end: a leftover permission-restricted directory from an earlier
+# test_web_urldispatcher run could not be removed. This is a temp-dir cleanup error in the sandbox, not a test failure.
+$ AIOHTTP_NO_EXTENSIONS=1 PYTHONPATH=. python -m pytest tests/test_streams.py --no-cov -q -p no:randomly
+bringing up nodes...
+bringing up nodes...
+
+........................................................................ [ 44%]
+........................................................................ [ 88%]
+..................                                                       [100%]Traceback (most recent call last):
+  File "/usr/lib/python3.10/shutil.py", line 662, in _rmtree_safe_fd
+    os.rmdir(entry.name, dir_fd=topfd)
+OSError: [Errno 39] Directory not empty: 'test_static_directory_without_1'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/usr/lib/python3.10/runpy.py", line 196, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File "/usr/lib/python3.10/runpy.py", line 86, in _run_code
+    exec(code, run_globals)
+  File "/tmp/aiohttp-venv/lib/python3.10/site-packages/pytest/__main__.py", line 9, in <module>
+    raise SystemExit(_console_main())
+  File "/tmp/aiohttp-venv/lib/python3.10/site-packages/_pytest/config/__init__.py", line 253, in _console_main
+    code = _main(prog=_get_prog_name(sys.argv))
+  File "/tmp/aiohttp-venv/lib/python3.10/site-packages/_pytest/config/__init__.py", line 229, in _main
+    ret: ExitCode | int = config.hook.pytest_cmdline_main(config=config)
+  File "/tmp/aiohttp-venv/lib/python3.10/site-packages/pluggy/_hooks.py", line 512, in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+  File "/tmp/aiohttp-venv/lib/python3.10/site-packages/pluggy/_manager.py", line 120, in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+  File "/tmp/aiohttp-venv/lib/python3.10/site-packages/pluggy/_callers.py", line 167, in _multicall
+    raise exception
+  File "/tmp/aiohttp-venv/lib/python3.10/site-packages/pluggy/_callers.py", line 121, in _multicall
+    res = hook_impl.function(*args)
+  File "/tmp/aiohttp-venv/lib/python3.10/site-packages/_pytest/main.py", line 377, in pytest_cmdline_main
+    return wrap_session(config, _main)
+  File "/tmp/aiohttp-venv/lib/python3.10/site-packages/_pytest/main.py", line 365, in wrap_session
+    config.hook.pytest_sessionfinish(
+  File "/tmp/aiohttp-venv/lib/python3.10/site-packages/pluggy/_hooks.py", line 512, in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+  File "/tmp/aiohttp-venv/lib/python3.10/site-packages/pluggy/_manager.py", line 120, in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+  File "/tmp/aiohttp-venv/lib/python3.10/site-packages/pluggy/_callers.py", line 167, in _multicall
+    raise exception
+  File "/tmp/aiohttp-venv/lib/python3.10/site-packages/pluggy/_callers.py", line 139, in _multicall
+    teardown.throw(exception)
+  File "/tmp/aiohttp-venv/lib/python3.10/site-packages/_pytest/logging.py", line 888, in pytest_sessionfinish
+    return (yield)
+  File "/tmp/aiohttp-venv/lib/python3.10/site-packages/pluggy/_callers.py", line 139, in _multicall
+    teardown.throw(exception)
+  File "/tmp/aiohttp-venv/lib/python3.10/site-packages/_pytest/terminal.py", line 961, in pytest_sessionfinish
+    result = yield
+  File "/tmp/aiohttp-venv/lib/python3.10/site-packages/pluggy/_callers.py", line 139, in _multicall
+    teardown.throw(exception)
+  File "/tmp/aiohttp-venv/lib/python3.10/site-packages/_pytest/warnings.py", line 119, in pytest_sessionfinish
+    return (yield)
+  File "/tmp/aiohttp-venv/lib/python3.10/site-packages/pluggy/_callers.py", line 121, in _multicall
+    res = hook_impl.function(*args)
+  File "/tmp/aiohttp-venv/lib/python3.10/site-packages/_pytest/tmpdir.py", line 340, in pytest_sessionfinish
+    tmp_path_factory._exit_stack.close()
+  File "/usr/lib/python3.10/contextlib.py", line 584, in close
+    self.__exit__(None, None, None)
+  File "/usr/lib/python3.10/contextlib.py", line 576, in __exit__
+    raise exc_details[1]
+  File "/usr/lib/python3.10/contextlib.py", line 561, in __exit__
+    if cb(*exc_details):
+  File "/usr/lib/python3.10/contextlib.py", line 449, in _exit_wrapper
+    callback(*args, **kwds)
+  File "/tmp/aiohttp-venv/lib/python3.10/site-packages/_pytest/pathlib.py", line 369, in cleanup_numbered_dir
+    try_cleanup(path, consider_lock_dead_if_created_before)
+  File "/tmp/aiohttp-venv/lib/python3.10/site-packages/_pytest/pathlib.py", line 338, in try_cleanup
+    maybe_delete_a_numbered_dir(path)
+  File "/tmp/aiohttp-venv/lib/python3.10/site-packages/_pytest/pathlib.py", line 290, in maybe_delete_a_numbered_dir
+    rm_rf(garbage)
+  File "/tmp/aiohttp-venv/lib/python3.10/site-packages/_pytest/pathlib.py", line 169, in rm_rf
+    shutil.rmtree(str(path), onerror=onerror)
+  File "/usr/lib/python3.10/shutil.py", line 725, in rmtree
+    _rmtree_safe_fd(fd, path, onerror)
+  File "/usr/lib/python3.10/shutil.py", line 658, in _rmtree_safe_fd
+    _rmtree_safe_fd(dirfd, fullname, onerror)
+  File "/usr/lib/python3.10/shutil.py", line 664, in _rmtree_safe_fd
+    onerror(os.rmdir, fullname, sys.exc_info())
+  File "/tmp/aiohttp-venv/lib/python3.10/site-packages/_pytest/pathlib.py", line 95, in on_rm_rf_error
+    warnings.warn(
+pytest.PytestWarning: (rm_rf) error removing /sessions/kind-zealous-edison/tmp/pytest-of-kind-zealous-edison/garbage-cb37af2a-f884-49a8-80f1-f3ca2ddf7fbf/popen-gw0/test_static_directory_without_1
+<class 'OSError'>: [Errno 39] Directory not empty: 'test_static_directory_without_1'

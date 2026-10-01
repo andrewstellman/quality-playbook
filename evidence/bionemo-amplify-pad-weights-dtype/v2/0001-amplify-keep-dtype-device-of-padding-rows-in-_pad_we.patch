@@ -1,0 +1,63 @@
+From bbaf2bd93e1ee1ba67285adeeffe8f9dea632a42 Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <andrew@stellman.com>
+Date: Mon, 28 Sep 2026 01:15:42 -0400
+Subject: [PATCH] amplify: keep dtype/device of padding rows in _pad_weights
+
+torch.zeros() defaulted to fp32 on CPU regardless of the source
+embedding. Pass dtype= and device=, as _pad_bias in the same file and
+the ESM2 _pad_weights already do.
+---
+ .../amplify/src/amplify/state_dict_convert.py |  4 +++-
+ models/amplify/tests/test_amplify_model.py    | 21 +++++++++++++++++++
+ 2 files changed, 24 insertions(+), 1 deletion(-)
+
+diff --git a/models/amplify/src/amplify/state_dict_convert.py b/models/amplify/src/amplify/state_dict_convert.py
+index c4bc5b6..ef547c4 100644
+--- a/models/amplify/src/amplify/state_dict_convert.py
++++ b/models/amplify/src/amplify/state_dict_convert.py
+@@ -87,7 +87,9 @@ def _pad_weights(ctx: io.TransformCTX, source_embed):
+     target_embedding_dimension = ctx.target.config.padded_vocab_size
+     hf_embedding_dimension = source_embed.size(0)
+     num_padding_rows = target_embedding_dimension - hf_embedding_dimension
+-    padding_rows = torch.zeros(num_padding_rows, source_embed.size(1))
++    padding_rows = torch.zeros(
++        num_padding_rows, source_embed.size(1), dtype=source_embed.dtype, device=source_embed.device
++    )
+     return torch.cat((source_embed, padding_rows), dim=0)
+ 
+ 
+diff --git a/models/amplify/tests/test_amplify_model.py b/models/amplify/tests/test_amplify_model.py
+index 2b35e6f..c788a53 100644
+--- a/models/amplify/tests/test_amplify_model.py
++++ b/models/amplify/tests/test_amplify_model.py
+@@ -170,6 +170,27 @@ def test_convert_state_dict():
+     assert len(te_state_dict_keys) == 0
+ 
+ 
++@pytest.mark.parametrize(
++    "device",
++    ["cpu", pytest.param("cuda", marks=pytest.mark.skipif(not torch.cuda.is_available(), reason="requires CUDA"))],
++)
++def test_pad_weights_dtype_device(device):
++    """_pad_weights pads with zeros in the source embedding's dtype and on its device."""
++    from amplify.state_dict_convert import _pad_weights
++
++    ctx_mock = MagicMock()
++    ctx_mock.target.config.padded_vocab_size = 12
++    source_embed = torch.randn(10, 4, dtype=torch.bfloat16, device=device)
++
++    padded = _pad_weights(ctx_mock, source_embed)
++
++    assert padded.shape == (12, 4)
++    assert padded.dtype == torch.bfloat16
++    assert padded.device == source_embed.device
++    torch.testing.assert_close(padded[:10], source_embed)
++    assert torch.all(padded[10:] == 0)
++
++
+ def test_hf_trained_model_loss(input_data):
+     model = amp_hf.AMPLIFY.from_pretrained("chandar-lab/AMPLIFY_120M", revision="d918a9e8")
+     model.to("cuda", dtype=torch.bfloat16)
+-- 
+2.34.1
+

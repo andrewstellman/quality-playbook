@@ -1,0 +1,29 @@
+============================= test session starts ==============================
+platform linux -- Python 3.11.16, pytest-9.1.1, pluggy-1.6.0 -- /tmp/review/exec/A/bionemo-thd/.venv/bin/python
+cachedir: .pytest_cache
+rootdir: /tmp/review/exec/A/bionemo-thd/onlyesm2/tree
+collecting ... collected 0 items / 1 error
+
+==================================== ERRORS ====================================
+_____ ERROR collecting models/esm2/tests/test_cp_thd_divisibility_guard.py _____
+ImportError while importing test module '/tmp/review/exec/A/bionemo-thd/onlyesm2/tree/models/esm2/tests/test_cp_thd_divisibility_guard.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/sessions/kind-zealous-edison/.local/share/uv/python/cpython-3.11.16-linux-aarch64-gnu/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+models/esm2/tests/test_cp_thd_divisibility_guard.py:19: in <module>
+    from collator import _split_batch_by_cp_rank
+models/esm2/collator.py:26: in <module>
+    import datasets
+E   ModuleNotFoundError: No module named 'datasets'
+=============================== warnings summary ===============================
+../../.venv/lib/python3.11/site-packages/torch/_subclasses/functional_tensor.py:368
+  /tmp/review/exec/A/bionemo-thd/.venv/lib/python3.11/site-packages/torch/_subclasses/functional_tensor.py:368: UserWarning: Failed to initialize NumPy: No module named 'numpy' (Triggered internally at /__w/pytorch/pytorch/torch/csrc/utils/tensor_numpy.cpp:84.)
+    cpu = _conversion_method_template(device=torch.device("cpu"))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+ERROR models/esm2/tests/test_cp_thd_divisibility_guard.py
+!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+========================= 1 warning, 1 error in 0.71s ==========================

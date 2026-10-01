@@ -1,0 +1,1143 @@
+# aiohttp HEAD e11d2836203a21bec59095498e578d37801027e7; aiohttp/ unmodified: yes; tests/test_streams.py has the new tests
+$ AIOHTTP_NO_EXTENSIONS=1 PYTHONPATH=. python -m pytest tests/test_streams.py -k 'readuntil_separator_split or readuntil_partial_separator' --numprocesses=0 --no-cov -v
+============================= test session starts ==============================
+platform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0 -- /tmp/aiohttp-venv/bin/python
+codspeed: 5.0.3 (disabled, mode: walltime, callgraph: not supported, timer_resolution: 1.0ns)
+cachedir: .pytest_cache
+rootdir: /tmp/aiohttp
+configfile: pytest.ini
+plugins: cov-7.1.0, xdist-3.8.0, codspeed-5.0.3, timeout-2.4.0, platformdirs-4.12.0, asyncio-1.4.0, mock-3.15.1
+timeout: 120.0s
+timeout method: signal
+timeout func_only: False
+asyncio: mode=auto, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 162 items / 136 deselected / 26 selected
+
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[\r\n-0] PASSED [  3%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[\r\n-1] FAILED [  7%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[\r\n-2] PASSED [ 11%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[\r\n\r\n-0] PASSED [ 15%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[\r\n\r\n-1] FAILED [ 19%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[\r\n\r\n-2] FAILED [ 23%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[\r\n\r\n-3] FAILED [ 26%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[\r\n\r\n-4] PASSED [ 30%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[--xyz-0] PASSED [ 34%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[--xyz-1] FAILED [ 38%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[--xyz-2] FAILED [ 42%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[--xyz-3] FAILED [ 46%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[--xyz-4] FAILED [ 50%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[--xyz-5] PASSED [ 53%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_one_byte_per_chunk[\r\n\r\n] FAILED [ 57%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_one_byte_per_chunk[--xyz] FAILED [ 61%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_partial_overlap[chunks0-xaab] FAILED [ 65%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_partial_overlap[chunks1-xaaab] FAILED [ 69%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_partial_overlap[chunks2-xaaab] PASSED [ 73%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_with_false_start FAILED [ 76%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_after_wait[\r\n] FAILED [ 80%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_after_wait[\r\n\r\n] FAILED [ 84%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_eof PASSED [ 88%]
+tests/test_streams.py::TestStreamReader::test_readuntil_partial_separator_eof PASSED [ 92%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_max_size FAILED [ 96%]
+tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_line_too_long PASSED [100%]
+
+=================================== FAILURES ===================================
+____ TestStreamReader.test_readuntil_separator_split_between_chunks[\r\n-1] ____
+
+self = <test_streams.TestStreamReader object at 0xf6e9a569a020>
+separator = b'\r\n', split = 1
+
+    @pytest.mark.parametrize(
+        ("separator", "split"),
+        [
+            (separator, split)
+            for separator in (b"\r\n", b"\r\n\r\n", b"--xyz")
+            for split in range(len(separator) + 1)
+        ],
+    )
+    async def test_readuntil_separator_split_between_chunks(
+        self, separator: bytes, split: int
+    ) -> None:
+        stream = self._make_one()
+        stream.feed_data(b"line1" + separator[:split])
+        stream.feed_data(separator[split:] + b"line2")
+        stream.feed_eof()
+    
+        line = await stream.readuntil(separator)
+>       assert b"line1" + separator == line
+E       AssertionError: assert b'line1\r\n' == b'line1\r\nline2'
+E         
+E         Full diff:
+E         - (b'line1\r\nline2')
+E         ?             -----
+E         + (b'line1\r\n')
+
+line       = b'line1\r\nline2'
+self       = <test_streams.TestStreamReader object at 0xf6e9a569a020>
+separator  = b'\r\n'
+split      = 1
+stream     = <StreamReader eof>
+
+tests/test_streams.py:524: AssertionError
+__ TestStreamReader.test_readuntil_separator_split_between_chunks[\r\n\r\n-1] __
+
+self = <test_streams.TestStreamReader object at 0xf6e9a5699630>
+separator = b'\r\n\r\n', split = 1
+
+    @pytest.mark.parametrize(
+        ("separator", "split"),
+        [
+            (separator, split)
+            for separator in (b"\r\n", b"\r\n\r\n", b"--xyz")
+            for split in range(len(separator) + 1)
+        ],
+    )
+    async def test_readuntil_separator_split_between_chunks(
+        self, separator: bytes, split: int
+    ) -> None:
+        stream = self._make_one()
+        stream.feed_data(b"line1" + separator[:split])
+        stream.feed_data(separator[split:] + b"line2")
+        stream.feed_eof()
+    
+        line = await stream.readuntil(separator)
+>       assert b"line1" + separator == line
+E       AssertionError: assert b'line1\r\n\r\n' == b'line1\r\n\r\nline2'
+E         
+E         Full diff:
+E         - (b'line1\r\n\r\nline2')
+E         ?                 -----
+E         + (b'line1\r\n\r\n')
+
+line       = b'line1\r\n\r\nline2'
+self       = <test_streams.TestStreamReader object at 0xf6e9a5699630>
+separator  = b'\r\n\r\n'
+split      = 1
+stream     = <StreamReader eof>
+
+tests/test_streams.py:524: AssertionError
+__ TestStreamReader.test_readuntil_separator_split_between_chunks[\r\n\r\n-2] __
+
+self = <test_streams.TestStreamReader object at 0xf6e9a5699570>
+separator = b'\r\n\r\n', split = 2
+
+    @pytest.mark.parametrize(
+        ("separator", "split"),
+        [
+            (separator, split)
+            for separator in (b"\r\n", b"\r\n\r\n", b"--xyz")
+            for split in range(len(separator) + 1)
+        ],
+    )
+    async def test_readuntil_separator_split_between_chunks(
+        self, separator: bytes, split: int
+    ) -> None:
+        stream = self._make_one()
+        stream.feed_data(b"line1" + separator[:split])
+        stream.feed_data(separator[split:] + b"line2")
+        stream.feed_eof()
+    
+        line = await stream.readuntil(separator)
+>       assert b"line1" + separator == line
+E       AssertionError: assert b'line1\r\n\r\n' == b'line1\r\n\r\nline2'
+E         
+E         Full diff:
+E         - (b'line1\r\n\r\nline2')
+E         ?                 -----
+E         + (b'line1\r\n\r\n')
+
+line       = b'line1\r\n\r\nline2'
+self       = <test_streams.TestStreamReader object at 0xf6e9a5699570>
+separator  = b'\r\n\r\n'
+split      = 2
+stream     = <StreamReader eof>
+
+tests/test_streams.py:524: AssertionError
+__ TestStreamReader.test_readuntil_separator_split_between_chunks[\r\n\r\n-3] __
+
+self = <test_streams.TestStreamReader object at 0xf6e9a5699b10>
+separator = b'\r\n\r\n', split = 3
+
+    @pytest.mark.parametrize(
+        ("separator", "split"),
+        [
+            (separator, split)
+            for separator in (b"\r\n", b"\r\n\r\n", b"--xyz")
+            for split in range(len(separator) + 1)
+        ],
+    )
+    async def test_readuntil_separator_split_between_chunks(
+        self, separator: bytes, split: int
+    ) -> None:
+        stream = self._make_one()
+        stream.feed_data(b"line1" + separator[:split])
+        stream.feed_data(separator[split:] + b"line2")
+        stream.feed_eof()
+    
+        line = await stream.readuntil(separator)
+>       assert b"line1" + separator == line
+E       AssertionError: assert b'line1\r\n\r\n' == b'line1\r\n\r\nline2'
+E         
+E         Full diff:
+E         - (b'line1\r\n\r\nline2')
+E         ?                 -----
+E         + (b'line1\r\n\r\n')
+
+line       = b'line1\r\n\r\nline2'
+self       = <test_streams.TestStreamReader object at 0xf6e9a5699b10>
+separator  = b'\r\n\r\n'
+split      = 3
+stream     = <StreamReader eof>
+
+tests/test_streams.py:524: AssertionError
+___ TestStreamReader.test_readuntil_separator_split_between_chunks[--xyz-1] ____
+
+self = <test_streams.TestStreamReader object at 0xf6e9a56980d0>
+separator = b'--xyz', split = 1
+
+    @pytest.mark.parametrize(
+        ("separator", "split"),
+        [
+            (separator, split)
+            for separator in (b"\r\n", b"\r\n\r\n", b"--xyz")
+            for split in range(len(separator) + 1)
+        ],
+    )
+    async def test_readuntil_separator_split_between_chunks(
+        self, separator: bytes, split: int
+    ) -> None:
+        stream = self._make_one()
+        stream.feed_data(b"line1" + separator[:split])
+        stream.feed_data(separator[split:] + b"line2")
+        stream.feed_eof()
+    
+        line = await stream.readuntil(separator)
+>       assert b"line1" + separator == line
+E       AssertionError: assert b'line1--xyz' == b'line1--xyzline2'
+E         
+E         Full diff:
+E         - (b'line1--xyzline2')
+E         ?              -----
+E         + (b'line1--xyz')
+
+line       = b'line1--xyzline2'
+self       = <test_streams.TestStreamReader object at 0xf6e9a56980d0>
+separator  = b'--xyz'
+split      = 1
+stream     = <StreamReader eof>
+
+tests/test_streams.py:524: AssertionError
+___ TestStreamReader.test_readuntil_separator_split_between_chunks[--xyz-2] ____
+
+self = <test_streams.TestStreamReader object at 0xf6e9a56988e0>
+separator = b'--xyz', split = 2
+
+    @pytest.mark.parametrize(
+        ("separator", "split"),
+        [
+            (separator, split)
+            for separator in (b"\r\n", b"\r\n\r\n", b"--xyz")
+            for split in range(len(separator) + 1)
+        ],
+    )
+    async def test_readuntil_separator_split_between_chunks(
+        self, separator: bytes, split: int
+    ) -> None:
+        stream = self._make_one()
+        stream.feed_data(b"line1" + separator[:split])
+        stream.feed_data(separator[split:] + b"line2")
+        stream.feed_eof()
+    
+        line = await stream.readuntil(separator)
+>       assert b"line1" + separator == line
+E       AssertionError: assert b'line1--xyz' == b'line1--xyzline2'
+E         
+E         Full diff:
+E         - (b'line1--xyzline2')
+E         ?              -----
+E         + (b'line1--xyz')
+
+line       = b'line1--xyzline2'
+self       = <test_streams.TestStreamReader object at 0xf6e9a56988e0>
+separator  = b'--xyz'
+split      = 2
+stream     = <StreamReader eof>
+
+tests/test_streams.py:524: AssertionError
+___ TestStreamReader.test_readuntil_separator_split_between_chunks[--xyz-3] ____
+
+self = <test_streams.TestStreamReader object at 0xf6e9a56987c0>
+separator = b'--xyz', split = 3
+
+    @pytest.mark.parametrize(
+        ("separator", "split"),
+        [
+            (separator, split)
+            for separator in (b"\r\n", b"\r\n\r\n", b"--xyz")
+            for split in range(len(separator) + 1)
+        ],
+    )
+    async def test_readuntil_separator_split_between_chunks(
+        self, separator: bytes, split: int
+    ) -> None:
+        stream = self._make_one()
+        stream.feed_data(b"line1" + separator[:split])
+        stream.feed_data(separator[split:] + b"line2")
+        stream.feed_eof()
+    
+        line = await stream.readuntil(separator)
+>       assert b"line1" + separator == line
+E       AssertionError: assert b'line1--xyz' == b'line1--xyzline2'
+E         
+E         Full diff:
+E         - (b'line1--xyzline2')
+E         ?              -----
+E         + (b'line1--xyz')
+
+line       = b'line1--xyzline2'
+self       = <test_streams.TestStreamReader object at 0xf6e9a56987c0>
+separator  = b'--xyz'
+split      = 3
+stream     = <StreamReader eof>
+
+tests/test_streams.py:524: AssertionError
+___ TestStreamReader.test_readuntil_separator_split_between_chunks[--xyz-4] ____
+
+self = <test_streams.TestStreamReader object at 0xf6e9a5698160>
+separator = b'--xyz', split = 4
+
+    @pytest.mark.parametrize(
+        ("separator", "split"),
+        [
+            (separator, split)
+            for separator in (b"\r\n", b"\r\n\r\n", b"--xyz")
+            for split in range(len(separator) + 1)
+        ],
+    )
+    async def test_readuntil_separator_split_between_chunks(
+        self, separator: bytes, split: int
+    ) -> None:
+        stream = self._make_one()
+        stream.feed_data(b"line1" + separator[:split])
+        stream.feed_data(separator[split:] + b"line2")
+        stream.feed_eof()
+    
+        line = await stream.readuntil(separator)
+>       assert b"line1" + separator == line
+E       AssertionError: assert b'line1--xyz' == b'line1--xyzline2'
+E         
+E         Full diff:
+E         - (b'line1--xyzline2')
+E         ?              -----
+E         + (b'line1--xyz')
+
+line       = b'line1--xyzline2'
+self       = <test_streams.TestStreamReader object at 0xf6e9a5698160>
+separator  = b'--xyz'
+split      = 4
+stream     = <StreamReader eof>
+
+tests/test_streams.py:524: AssertionError
+_ TestStreamReader.test_readuntil_separator_split_one_byte_per_chunk[\r\n\r\n] _
+
+self = <test_streams.TestStreamReader object at 0xf6e9a569b7f0>
+separator = b'\r\n\r\n'
+
+    @pytest.mark.parametrize("separator", [b"\r\n\r\n", b"--xyz"])
+    async def test_readuntil_separator_split_one_byte_per_chunk(
+        self, separator: bytes
+    ) -> None:
+        stream = self._make_one()
+        for byte in b"line1" + separator + b"line2":
+            stream.feed_data(bytes([byte]))
+        stream.feed_eof()
+    
+        line = await stream.readuntil(separator)
+>       assert b"line1" + separator == line
+E       AssertionError: assert b'line1\r\n\r\n' == b'line1\r\n\r\nline2'
+E         
+E         Full diff:
+E         - (b'line1\r\n\r\nline2')
+E         ?                 -----
+E         + (b'line1\r\n\r\n')
+
+byte       = 50
+line       = b'line1\r\n\r\nline2'
+self       = <test_streams.TestStreamReader object at 0xf6e9a569b7f0>
+separator  = b'\r\n\r\n'
+stream     = <StreamReader eof>
+
+tests/test_streams.py:537: AssertionError
+__ TestStreamReader.test_readuntil_separator_split_one_byte_per_chunk[--xyz] ___
+
+self = <test_streams.TestStreamReader object at 0xf6e9a569bfd0>
+separator = b'--xyz'
+
+    @pytest.mark.parametrize("separator", [b"\r\n\r\n", b"--xyz"])
+    async def test_readuntil_separator_split_one_byte_per_chunk(
+        self, separator: bytes
+    ) -> None:
+        stream = self._make_one()
+        for byte in b"line1" + separator + b"line2":
+            stream.feed_data(bytes([byte]))
+        stream.feed_eof()
+    
+        line = await stream.readuntil(separator)
+>       assert b"line1" + separator == line
+E       AssertionError: assert b'line1--xyz' == b'line1--xyzline2'
+E         
+E         Full diff:
+E         - (b'line1--xyzline2')
+E         ?              -----
+E         + (b'line1--xyz')
+
+byte       = 50
+line       = b'line1--xyzline2'
+self       = <test_streams.TestStreamReader object at 0xf6e9a569bfd0>
+separator  = b'--xyz'
+stream     = <StreamReader eof>
+
+tests/test_streams.py:537: AssertionError
+_ TestStreamReader.test_readuntil_separator_split_partial_overlap[chunks0-xaab] _
+
+self = <test_streams.TestStreamReader object at 0xf6e9a569bca0>
+chunks = (b'xa', b'a', b'b', b'rest'), expected = b'xaab'
+
+    @pytest.mark.parametrize(
+        ("chunks", "expected"),
+        [
+            ((b"xa", b"a", b"b", b"rest"), b"xaab"),
+            ((b"xaa", b"ab", b"rest"), b"xaaab"),
+            ((b"xa", b"aab", b"rest"), b"xaaab"),
+        ],
+    )
+    async def test_readuntil_separator_split_partial_overlap(
+        self, chunks: tuple[bytes, ...], expected: bytes
+    ) -> None:
+        stream = self._make_one()
+        for data in chunks:
+            stream.feed_data(data)
+        stream.feed_eof()
+    
+        line = await stream.readuntil(b"aab")
+>       assert expected == line
+E       AssertionError: assert b'xaab' == b'xaabrest'
+E         
+E         Full diff:
+E         - (b'xaabrest')
+E         + b'xaab'
+
+chunks     = (b'xa', b'a', b'b', b'rest')
+data       = b'rest'
+expected   = b'xaab'
+line       = b'xaabrest'
+self       = <test_streams.TestStreamReader object at 0xf6e9a569bca0>
+stream     = <StreamReader eof>
+
+tests/test_streams.py:557: AssertionError
+_ TestStreamReader.test_readuntil_separator_split_partial_overlap[chunks1-xaaab] _
+
+self = <test_streams.TestStreamReader object at 0xf6e9a569b6a0>
+chunks = (b'xaa', b'ab', b'rest'), expected = b'xaaab'
+
+    @pytest.mark.parametrize(
+        ("chunks", "expected"),
+        [
+            ((b"xa", b"a", b"b", b"rest"), b"xaab"),
+            ((b"xaa", b"ab", b"rest"), b"xaaab"),
+            ((b"xa", b"aab", b"rest"), b"xaaab"),
+        ],
+    )
+    async def test_readuntil_separator_split_partial_overlap(
+        self, chunks: tuple[bytes, ...], expected: bytes
+    ) -> None:
+        stream = self._make_one()
+        for data in chunks:
+            stream.feed_data(data)
+        stream.feed_eof()
+    
+        line = await stream.readuntil(b"aab")
+>       assert expected == line
+E       AssertionError: assert b'xaaab' == b'xaaabrest'
+E         
+E         Full diff:
+E         - (b'xaaabrest')
+E         ?         ----
+E         + (b'xaaab')
+
+chunks     = (b'xaa', b'ab', b'rest')
+data       = b'rest'
+expected   = b'xaaab'
+line       = b'xaaabrest'
+self       = <test_streams.TestStreamReader object at 0xf6e9a569b6a0>
+stream     = <StreamReader eof>
+
+tests/test_streams.py:557: AssertionError
+_______ TestStreamReader.test_readuntil_separator_split_with_false_start _______
+
+self = <test_streams.TestStreamReader object at 0xf6e9a5699e10>
+
+    async def test_readuntil_separator_split_with_false_start(self) -> None:
+        stream = self._make_one()
+        stream.feed_data(b"a\r\n\r")
+        stream.feed_data(b"b\r\n\r")
+        stream.feed_data(b"\nrest")
+        stream.feed_eof()
+    
+        line = await stream.readuntil(b"\r\n\r\n")
+>       assert b"a\r\n\rb\r\n\r\n" == line
+E       AssertionError: assert b'a\r\n\rb\r\n\r\n' == b'a\r\n\rb\r\n\r\nrest'
+E         
+E         Full diff:
+E         - (b'a\r\n\rb\r\n\r\nrest')
+E         ?                    ----
+E         + (b'a\r\n\rb\r\n\r\n')
+
+line       = b'a\r\n\rb\r\n\r\nrest'
+self       = <test_streams.TestStreamReader object at 0xf6e9a5699e10>
+stream     = <StreamReader eof>
+
+tests/test_streams.py:568: AssertionError
+_______ TestStreamReader.test_readuntil_separator_split_after_wait[\r\n] _______
+
+self = <StreamReader>, separator = b'\r\n', max_size = 524288
+
+    async def readuntil(
+        self, separator: bytes = b"\n", *, max_size: int | None = None
+    ) -> bytes:
+        seplen = len(separator)
+        if seplen == 0:
+            raise ValueError("Separator should be at least one-byte string")
+    
+        if self._exception is not None:
+            raise self._exception
+    
+        chunk = b""
+        chunk_size = 0
+        not_enough = True
+        max_size = max_size or self._high_water
+    
+        while not_enough:
+            while self._buffer and not_enough:
+                offset = self._buffer_offset
+                ichar = self._buffer[0].find(separator, offset) + 1
+                # Read from current offset to found separator or to the end.
+                data = self._read_nowait_chunk(
+                    ichar - offset + seplen - 1 if ichar else -1
+                )
+                chunk += data
+                chunk_size += len(data)
+                if ichar:
+                    not_enough = False
+    
+                if chunk_size > max_size:
+                    raise LineTooLong(chunk[:100] + b"...", max_size)
+    
+            if self._eof:
+                break
+    
+            if not_enough:
+>               await self._wait("readuntil")
+
+chunk      = b'line1\r\nline2'
+chunk_size = 12
+data       = b'\nline2'
+ichar      = 0
+max_size   = 524288
+not_enough = True
+offset     = 0
+self       = <StreamReader>
+separator  = b'\r\n'
+seplen     = 2
+
+aiohttp/streams.py:416: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <StreamReader>, func_name = 'readuntil'
+
+    async def _wait(self, func_name: str) -> None:
+        if not self._protocol.connected:
+            raise RuntimeError("Connection closed.")
+    
+        # StreamReader uses a future to link the protocol feed_data() method
+        # to a read coroutine. Running two read coroutines at the same time
+        # would have an unexpected behaviour. It would not possible to know
+        # which coroutine would get the next data.
+        if self._waiter is not None:
+            raise RuntimeError(
+                "%s() called while another coroutine is "
+                "already waiting for incoming data" % func_name
+            )
+    
+        waiter = self._waiter = self._loop.create_future()
+        try:
+            with self._timer:
+>               await waiter
+E               asyncio.exceptions.CancelledError
+
+func_name  = 'readuntil'
+self       = <StreamReader>
+waiter     = <Future cancelled>
+
+aiohttp/streams.py:366: CancelledError
+
+During handling of the above exception, another exception occurred:
+
+fut = <Task cancelled name='Task-41' coro=<StreamReader.readuntil() done, defined at /tmp/aiohttp/aiohttp/streams.py:381>>
+timeout = 1
+
+    async def wait_for(fut, timeout):
+        """Wait for the single Future or coroutine to complete, with timeout.
+    
+        Coroutine will be wrapped in Task.
+    
+        Returns result of the Future or coroutine.  When a timeout occurs,
+        it cancels the task and raises TimeoutError.  To avoid the task
+        cancellation, wrap it in shield().
+    
+        If the wait is cancelled, the task is also cancelled.
+    
+        This function is a coroutine.
+        """
+        loop = events.get_running_loop()
+    
+        if timeout is None:
+            return await fut
+    
+        if timeout <= 0:
+            fut = ensure_future(fut, loop=loop)
+    
+            if fut.done():
+                return fut.result()
+    
+            await _cancel_and_wait(fut, loop=loop)
+            try:
+                return fut.result()
+            except exceptions.CancelledError as exc:
+                raise exceptions.TimeoutError() from exc
+    
+        waiter = loop.create_future()
+        timeout_handle = loop.call_later(timeout, _release_waiter, waiter)
+        cb = functools.partial(_release_waiter, waiter)
+    
+        fut = ensure_future(fut, loop=loop)
+        fut.add_done_callback(cb)
+    
+        try:
+            # wait until the future completes or the timeout
+            try:
+                await waiter
+            except exceptions.CancelledError:
+                if fut.done():
+                    return fut.result()
+                else:
+                    fut.remove_done_callback(cb)
+                    # We must ensure that the task is not running
+                    # after wait_for() returns.
+                    # See https://bugs.python.org/issue32751
+                    await _cancel_and_wait(fut, loop=loop)
+                    raise
+    
+            if fut.done():
+                return fut.result()
+            else:
+                fut.remove_done_callback(cb)
+                # We must ensure that the task is not running
+                # after wait_for() returns.
+                # See https://bugs.python.org/issue32751
+                await _cancel_and_wait(fut, loop=loop)
+                # In case task cancellation failed with some
+                # exception, we should re-raise it
+                # See https://bugs.python.org/issue40607
+                try:
+>                   return fut.result()
+E                   asyncio.exceptions.CancelledError
+
+cb         = functools.partial(<function _release_waiter at 0xf6e9a7036cb0>, <Future finished result=None>)
+fut        = <Task cancelled name='Task-41' coro=<StreamReader.readuntil() done, defined at /tmp/aiohttp/aiohttp/streams.py:381>>
+loop       = <_UnixSelectorEventLoop running=False closed=False debug=False>
+timeout    = 1
+timeout_handle = <TimerHandle cancelled when=56198.866047712>
+waiter     = <Future finished result=None>
+
+/usr/lib/python3.10/asyncio/tasks.py:456: CancelledError
+
+The above exception was the direct cause of the following exception:
+
+self = <test_streams.TestStreamReader object at 0xf6e9a569f490>
+separator = b'\r\n'
+
+    @pytest.mark.parametrize("separator", [b"\r\n", b"\r\n\r\n"])
+    async def test_readuntil_separator_split_after_wait(self, separator: bytes) -> None:
+        loop = asyncio.get_running_loop()
+        stream = self._make_one()
+        stream.feed_data(b"line1" + separator[:1])
+        read_task = loop.create_task(stream.readuntil(separator))
+        for byte in separator[1:-1]:
+            for _ in range(3):
+                await asyncio.sleep(0)
+            assert stream._waiter is not None
+            stream.feed_data(bytes([byte]))
+    
+        for _ in range(3):
+            await asyncio.sleep(0)
+        assert stream._waiter is not None
+        stream.feed_data(separator[-1:] + b"line2")
+>       line = await asyncio.wait_for(read_task, timeout=1)
+
+_          = 2
+loop       = <_UnixSelectorEventLoop running=False closed=False debug=False>
+read_task  = <Task cancelled name='Task-41' coro=<StreamReader.readuntil() done, defined at /tmp/aiohttp/aiohttp/streams.py:381>>
+self       = <test_streams.TestStreamReader object at 0xf6e9a569f490>
+separator  = b'\r\n'
+stream     = <StreamReader>
+
+tests/test_streams.py:587: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+fut = <Task cancelled name='Task-41' coro=<StreamReader.readuntil() done, defined at /tmp/aiohttp/aiohttp/streams.py:381>>
+timeout = 1
+
+    async def wait_for(fut, timeout):
+        """Wait for the single Future or coroutine to complete, with timeout.
+    
+        Coroutine will be wrapped in Task.
+    
+        Returns result of the Future or coroutine.  When a timeout occurs,
+        it cancels the task and raises TimeoutError.  To avoid the task
+        cancellation, wrap it in shield().
+    
+        If the wait is cancelled, the task is also cancelled.
+    
+        This function is a coroutine.
+        """
+        loop = events.get_running_loop()
+    
+        if timeout is None:
+            return await fut
+    
+        if timeout <= 0:
+            fut = ensure_future(fut, loop=loop)
+    
+            if fut.done():
+                return fut.result()
+    
+            await _cancel_and_wait(fut, loop=loop)
+            try:
+                return fut.result()
+            except exceptions.CancelledError as exc:
+                raise exceptions.TimeoutError() from exc
+    
+        waiter = loop.create_future()
+        timeout_handle = loop.call_later(timeout, _release_waiter, waiter)
+        cb = functools.partial(_release_waiter, waiter)
+    
+        fut = ensure_future(fut, loop=loop)
+        fut.add_done_callback(cb)
+    
+        try:
+            # wait until the future completes or the timeout
+            try:
+                await waiter
+            except exceptions.CancelledError:
+                if fut.done():
+                    return fut.result()
+                else:
+                    fut.remove_done_callback(cb)
+                    # We must ensure that the task is not running
+                    # after wait_for() returns.
+                    # See https://bugs.python.org/issue32751
+                    await _cancel_and_wait(fut, loop=loop)
+                    raise
+    
+            if fut.done():
+                return fut.result()
+            else:
+                fut.remove_done_callback(cb)
+                # We must ensure that the task is not running
+                # after wait_for() returns.
+                # See https://bugs.python.org/issue32751
+                await _cancel_and_wait(fut, loop=loop)
+                # In case task cancellation failed with some
+                # exception, we should re-raise it
+                # See https://bugs.python.org/issue40607
+                try:
+                    return fut.result()
+                except exceptions.CancelledError as exc:
+>                   raise exceptions.TimeoutError() from exc
+E                   asyncio.exceptions.TimeoutError
+
+cb         = functools.partial(<function _release_waiter at 0xf6e9a7036cb0>, <Future finished result=None>)
+fut        = <Task cancelled name='Task-41' coro=<StreamReader.readuntil() done, defined at /tmp/aiohttp/aiohttp/streams.py:381>>
+loop       = <_UnixSelectorEventLoop running=False closed=False debug=False>
+timeout    = 1
+timeout_handle = <TimerHandle cancelled when=56198.866047712>
+waiter     = <Future finished result=None>
+
+/usr/lib/python3.10/asyncio/tasks.py:458: TimeoutError
+_____ TestStreamReader.test_readuntil_separator_split_after_wait[\r\n\r\n] _____
+
+self = <StreamReader>, separator = b'\r\n\r\n', max_size = 524288
+
+    async def readuntil(
+        self, separator: bytes = b"\n", *, max_size: int | None = None
+    ) -> bytes:
+        seplen = len(separator)
+        if seplen == 0:
+            raise ValueError("Separator should be at least one-byte string")
+    
+        if self._exception is not None:
+            raise self._exception
+    
+        chunk = b""
+        chunk_size = 0
+        not_enough = True
+        max_size = max_size or self._high_water
+    
+        while not_enough:
+            while self._buffer and not_enough:
+                offset = self._buffer_offset
+                ichar = self._buffer[0].find(separator, offset) + 1
+                # Read from current offset to found separator or to the end.
+                data = self._read_nowait_chunk(
+                    ichar - offset + seplen - 1 if ichar else -1
+                )
+                chunk += data
+                chunk_size += len(data)
+                if ichar:
+                    not_enough = False
+    
+                if chunk_size > max_size:
+                    raise LineTooLong(chunk[:100] + b"...", max_size)
+    
+            if self._eof:
+                break
+    
+            if not_enough:
+>               await self._wait("readuntil")
+
+chunk      = b'line1\r\n\r\nline2'
+chunk_size = 14
+data       = b'\nline2'
+ichar      = 0
+max_size   = 524288
+not_enough = True
+offset     = 0
+self       = <StreamReader>
+separator  = b'\r\n\r\n'
+seplen     = 4
+
+aiohttp/streams.py:416: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <StreamReader>, func_name = 'readuntil'
+
+    async def _wait(self, func_name: str) -> None:
+        if not self._protocol.connected:
+            raise RuntimeError("Connection closed.")
+    
+        # StreamReader uses a future to link the protocol feed_data() method
+        # to a read coroutine. Running two read coroutines at the same time
+        # would have an unexpected behaviour. It would not possible to know
+        # which coroutine would get the next data.
+        if self._waiter is not None:
+            raise RuntimeError(
+                "%s() called while another coroutine is "
+                "already waiting for incoming data" % func_name
+            )
+    
+        waiter = self._waiter = self._loop.create_future()
+        try:
+            with self._timer:
+>               await waiter
+E               asyncio.exceptions.CancelledError
+
+func_name  = 'readuntil'
+self       = <StreamReader>
+waiter     = <Future cancelled>
+
+aiohttp/streams.py:366: CancelledError
+
+During handling of the above exception, another exception occurred:
+
+fut = <Task cancelled name='Task-44' coro=<StreamReader.readuntil() done, defined at /tmp/aiohttp/aiohttp/streams.py:381>>
+timeout = 1
+
+    async def wait_for(fut, timeout):
+        """Wait for the single Future or coroutine to complete, with timeout.
+    
+        Coroutine will be wrapped in Task.
+    
+        Returns result of the Future or coroutine.  When a timeout occurs,
+        it cancels the task and raises TimeoutError.  To avoid the task
+        cancellation, wrap it in shield().
+    
+        If the wait is cancelled, the task is also cancelled.
+    
+        This function is a coroutine.
+        """
+        loop = events.get_running_loop()
+    
+        if timeout is None:
+            return await fut
+    
+        if timeout <= 0:
+            fut = ensure_future(fut, loop=loop)
+    
+            if fut.done():
+                return fut.result()
+    
+            await _cancel_and_wait(fut, loop=loop)
+            try:
+                return fut.result()
+            except exceptions.CancelledError as exc:
+                raise exceptions.TimeoutError() from exc
+    
+        waiter = loop.create_future()
+        timeout_handle = loop.call_later(timeout, _release_waiter, waiter)
+        cb = functools.partial(_release_waiter, waiter)
+    
+        fut = ensure_future(fut, loop=loop)
+        fut.add_done_callback(cb)
+    
+        try:
+            # wait until the future completes or the timeout
+            try:
+                await waiter
+            except exceptions.CancelledError:
+                if fut.done():
+                    return fut.result()
+                else:
+                    fut.remove_done_callback(cb)
+                    # We must ensure that the task is not running
+                    # after wait_for() returns.
+                    # See https://bugs.python.org/issue32751
+                    await _cancel_and_wait(fut, loop=loop)
+                    raise
+    
+            if fut.done():
+                return fut.result()
+            else:
+                fut.remove_done_callback(cb)
+                # We must ensure that the task is not running
+                # after wait_for() returns.
+                # See https://bugs.python.org/issue32751
+                await _cancel_and_wait(fut, loop=loop)
+                # In case task cancellation failed with some
+                # exception, we should re-raise it
+                # See https://bugs.python.org/issue40607
+                try:
+>                   return fut.result()
+E                   asyncio.exceptions.CancelledError
+
+cb         = functools.partial(<function _release_waiter at 0xf6e9a7036cb0>, <Future finished result=None>)
+fut        = <Task cancelled name='Task-44' coro=<StreamReader.readuntil() done, defined at /tmp/aiohttp/aiohttp/streams.py:381>>
+loop       = <_UnixSelectorEventLoop running=False closed=False debug=False>
+timeout    = 1
+timeout_handle = <TimerHandle cancelled when=56199.92124013>
+waiter     = <Future finished result=None>
+
+/usr/lib/python3.10/asyncio/tasks.py:456: CancelledError
+
+The above exception was the direct cause of the following exception:
+
+self = <test_streams.TestStreamReader object at 0xf6e9a569e9b0>
+separator = b'\r\n\r\n'
+
+    @pytest.mark.parametrize("separator", [b"\r\n", b"\r\n\r\n"])
+    async def test_readuntil_separator_split_after_wait(self, separator: bytes) -> None:
+        loop = asyncio.get_running_loop()
+        stream = self._make_one()
+        stream.feed_data(b"line1" + separator[:1])
+        read_task = loop.create_task(stream.readuntil(separator))
+        for byte in separator[1:-1]:
+            for _ in range(3):
+                await asyncio.sleep(0)
+            assert stream._waiter is not None
+            stream.feed_data(bytes([byte]))
+    
+        for _ in range(3):
+            await asyncio.sleep(0)
+        assert stream._waiter is not None
+        stream.feed_data(separator[-1:] + b"line2")
+>       line = await asyncio.wait_for(read_task, timeout=1)
+
+_          = 2
+byte       = 13
+loop       = <_UnixSelectorEventLoop running=False closed=False debug=False>
+read_task  = <Task cancelled name='Task-44' coro=<StreamReader.readuntil() done, defined at /tmp/aiohttp/aiohttp/streams.py:381>>
+self       = <test_streams.TestStreamReader object at 0xf6e9a569e9b0>
+separator  = b'\r\n\r\n'
+stream     = <StreamReader>
+
+tests/test_streams.py:587: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+fut = <Task cancelled name='Task-44' coro=<StreamReader.readuntil() done, defined at /tmp/aiohttp/aiohttp/streams.py:381>>
+timeout = 1
+
+    async def wait_for(fut, timeout):
+        """Wait for the single Future or coroutine to complete, with timeout.
+    
+        Coroutine will be wrapped in Task.
+    
+        Returns result of the Future or coroutine.  When a timeout occurs,
+        it cancels the task and raises TimeoutError.  To avoid the task
+        cancellation, wrap it in shield().
+    
+        If the wait is cancelled, the task is also cancelled.
+    
+        This function is a coroutine.
+        """
+        loop = events.get_running_loop()
+    
+        if timeout is None:
+            return await fut
+    
+        if timeout <= 0:
+            fut = ensure_future(fut, loop=loop)
+    
+            if fut.done():
+                return fut.result()
+    
+            await _cancel_and_wait(fut, loop=loop)
+            try:
+                return fut.result()
+            except exceptions.CancelledError as exc:
+                raise exceptions.TimeoutError() from exc
+    
+        waiter = loop.create_future()
+        timeout_handle = loop.call_later(timeout, _release_waiter, waiter)
+        cb = functools.partial(_release_waiter, waiter)
+    
+        fut = ensure_future(fut, loop=loop)
+        fut.add_done_callback(cb)
+    
+        try:
+            # wait until the future completes or the timeout
+            try:
+                await waiter
+            except exceptions.CancelledError:
+                if fut.done():
+                    return fut.result()
+                else:
+                    fut.remove_done_callback(cb)
+                    # We must ensure that the task is not running
+                    # after wait_for() returns.
+                    # See https://bugs.python.org/issue32751
+                    await _cancel_and_wait(fut, loop=loop)
+                    raise
+    
+            if fut.done():
+                return fut.result()
+            else:
+                fut.remove_done_callback(cb)
+                # We must ensure that the task is not running
+                # after wait_for() returns.
+                # See https://bugs.python.org/issue32751
+                await _cancel_and_wait(fut, loop=loop)
+                # In case task cancellation failed with some
+                # exception, we should re-raise it
+                # See https://bugs.python.org/issue40607
+                try:
+                    return fut.result()
+                except exceptions.CancelledError as exc:
+>                   raise exceptions.TimeoutError() from exc
+E                   asyncio.exceptions.TimeoutError
+
+cb         = functools.partial(<function _release_waiter at 0xf6e9a7036cb0>, <Future finished result=None>)
+fut        = <Task cancelled name='Task-44' coro=<StreamReader.readuntil() done, defined at /tmp/aiohttp/aiohttp/streams.py:381>>
+loop       = <_UnixSelectorEventLoop running=False closed=False debug=False>
+timeout    = 1
+timeout_handle = <TimerHandle cancelled when=56199.92124013>
+waiter     = <Future finished result=None>
+
+/usr/lib/python3.10/asyncio/tasks.py:458: TimeoutError
+___________ TestStreamReader.test_readuntil_separator_split_max_size ___________
+
+self = <test_streams.TestStreamReader object at 0xf6e9a569fbb0>
+
+    async def test_readuntil_separator_split_max_size(self) -> None:
+        stream = self._make_one()
+        stream.feed_data(b"12\r")
+        stream.feed_data(b"\n3456")
+        stream.feed_eof()
+    
+>       line = await stream.readuntil(b"\r\n", max_size=4)
+
+self       = <test_streams.TestStreamReader object at 0xf6e9a569fbb0>
+stream     = <StreamReader eof>
+
+tests/test_streams.py:618: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <StreamReader eof>, separator = b'\r\n', max_size = 4
+
+    async def readuntil(
+        self, separator: bytes = b"\n", *, max_size: int | None = None
+    ) -> bytes:
+        seplen = len(separator)
+        if seplen == 0:
+            raise ValueError("Separator should be at least one-byte string")
+    
+        if self._exception is not None:
+            raise self._exception
+    
+        chunk = b""
+        chunk_size = 0
+        not_enough = True
+        max_size = max_size or self._high_water
+    
+        while not_enough:
+            while self._buffer and not_enough:
+                offset = self._buffer_offset
+                ichar = self._buffer[0].find(separator, offset) + 1
+                # Read from current offset to found separator or to the end.
+                data = self._read_nowait_chunk(
+                    ichar - offset + seplen - 1 if ichar else -1
+                )
+                chunk += data
+                chunk_size += len(data)
+                if ichar:
+                    not_enough = False
+    
+                if chunk_size > max_size:
+>                   raise LineTooLong(chunk[:100] + b"...", max_size)
+E                   aiohttp.http_exceptions.LineTooLong: 400, message:
+E                     Got more than 4 bytes when reading: b'12\r\n3456...'.
+
+chunk      = b'12\r\n3456'
+chunk_size = 8
+data       = b'\n3456'
+ichar      = 0
+max_size   = 4
+not_enough = True
+offset     = 0
+self       = <StreamReader eof>
+separator  = b'\r\n'
+seplen     = 2
+
+aiohttp/streams.py:410: LineTooLong
+============================= slowest 10 durations =============================
+1.01s call     tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_after_wait[\r\n]
+1.01s call     tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_after_wait[\r\n\r\n]
+
+(8 durations < 0.005s hidden.  Use -vv to show these durations.)
+=========================== short test summary info ============================
+FAILED tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[\r\n-1]
+FAILED tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[\r\n\r\n-1]
+FAILED tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[\r\n\r\n-2]
+FAILED tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[\r\n\r\n-3]
+FAILED tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[--xyz-1]
+FAILED tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[--xyz-2]
+FAILED tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[--xyz-3]
+FAILED tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[--xyz-4]
+FAILED tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_one_byte_per_chunk[\r\n\r\n]
+FAILED tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_one_byte_per_chunk[--xyz]
+FAILED tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_partial_overlap[chunks0-xaab]
+FAILED tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_partial_overlap[chunks1-xaaab]
+FAILED tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_with_false_start
+FAILED tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_after_wait[\r\n]
+FAILED tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_after_wait[\r\n\r\n]
+FAILED tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_max_size
+================ 16 failed, 10 passed, 136 deselected in 2.65s =================
+exit: 1

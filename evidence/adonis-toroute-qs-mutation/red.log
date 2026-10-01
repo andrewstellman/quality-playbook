@@ -1,0 +1,71 @@
+
+Redirect (tests/redirect.spec.ts)
+  ✔ redirect to given url (25.18ms)
+  ✔ redirect to given url with query string (10.52ms)
+  ✔ redirect to given url without overriding global query string forwarding (9.11ms)
+  ✔ redirect to given url can disable global query string forwarding (3.65ms)
+  ✔ redirect to given url and forward current query string (5.3ms)
+  ✔ redirect to given url with custom query string (2.99ms)
+  ✔ redirect to given url with custom query string overwriting the forward rules (3.05ms)
+  ✔ redirect to given url with custom query given as object (2.28ms)
+  ✔ do not set query string when originally there was no query string (3.58ms)
+  ✔ redirect to given url and set custom statusCode (6.62ms)
+  ✔ redirect to given url and set custom statusCode using fluent API (2.86ms)
+  ✔ redirect back to referrer (2.71ms)
+  ✔ redirect back to referrer with existing query string (3.14ms)
+  ✔ redirect back to referrer with query string (2.99ms)
+  ✔ redirect back to root (/) when referrer header is not set (2.85ms)
+  ✔ redirect back to root (/) when referrer header is empty (2.22ms)
+  ✔ redirect to given route (4.11ms)
+  ✔ redirect to given route with params (2.45ms)
+  ✔ encode route params before redirecting (0.6ms)
+  ✔ redirect to given route with domain (0.41ms)
+  ✔ redirect to given route and forward query string (8.2ms)
+  ✔ redirect to given route and add qs via makeRoute (9.06ms)
+  ✖ reuse the same options object across multiple toRoute calls (10.73ms)
+  ✔ throw when given route is not found (3.03ms)
+  ✔ merge query string values when withQs is called multiple times (2.67ms)
+  ✔ merge query string with current url qs values (3.15ms)
+  ✔ do not set query string original url has no qs (2.03ms)
+  ✔ clear existing qs (1.98ms)
+ ERRORS 
+
+❯ Redirect / reuse the same options object across multiple toRoute calls
+
+- Expected  - 1
++ Received  + 1
+
+- /posts/1?published=true
++ /posts/1
+
+[31mℹ AssertionError: expected '/posts/1' to equal '/posts/1?published=true'[39m
+
+ ⁃ at Assert.equal [33m(/tmp/adonw/node_modules/@japa/assert/build/index.js:69:19)[39m
+ ⁃ at Object.executor [33m(tests/redirect.spec.ts:389:12)[39m
+
+   [2m384[22m [2m┃[22m      })
+   [2m385[22m [2m┃[22m  
+   [2m386[22m [2m┃[22m      [31mconst[0m first [34m=[0m [31mawait[0m [35msupertest[0m(url)[34m.[0m[31mget[0m([32m'/'[0m)
+   [2m387[22m [2m┃[22m      [31mconst[0m second [34m=[0m [31mawait[0m [35msupertest[0m(url)[34m.[0m[31mget[0m([32m'/'[0m)
+   [2m388[22m [2m┃[22m      assert[34m.[0m[35mequal[0m(first[34m.[0mheader[34m.[0mlocation[34m,[0m [32m'/posts/1?published=true'[0m)
+ [41m❯ 389 ┃      assert.equal(second.header.location, '/posts/1?published=true')[49m
+   [2m390[22m [2m┃[22m    })
+   [2m391[22m [2m┃[22m  
+   [2m392[22m [2m┃[22m    [35mtest[0m([32m'throw when given route is not found'[0m[34m,[0m [31masync[0m ({ assert }) [31m=>[0m {
+   [2m393[22m [2m┃[22m      [31mconst[0m { url } [34m=[0m [31mawait[0m httpServer[34m.[0m[35mcreate[0m((req[34m,[0m res) [31m=>[0m {
+   [2m394[22m [2m┃[22m        [31mconst[0m response [34m=[0m [31mnew[0m [33mHttpResponseFactory[0m()[34m.[0m[35mmerge[0m({ req[34m,[0m res[34m,[0m encryption[34m,[0m router })[34m.[0m[35mcreate[0m()
+
+[2m ⁃ at [3mprocess.processTicksAndRejections[23m ([3mnode:internal/process/task_queues:103:5[23m)[22m
+ ⁃ at async #wrapTestInTimeout [33m(/tmp/adonw/node_modules/@japa/core/build/index.js:680:4)[39m
+ ⁃ at async TestRunner.run [33m(/tmp/adonw/node_modules/@japa/core/build/index.js:710:4)[39m
+ ⁃ at async Test$1.exec [33m(/tmp/adonw/node_modules/@japa/core/build/index.js:918:3)[39m
+ ⁃ at async GroupRunner.run [33m(/tmp/adonw/node_modules/@japa/core/build/index.js:259:4)[39m
+ ⁃ at async Group$1.exec [33m(/tmp/adonw/node_modules/@japa/core/build/index.js:354:3)[39m
+ ⁃ at async SuiteRunner.run [33m(/tmp/adonw/node_modules/@japa/core/build/index.js:1100:4)[39m
+ ⁃ at async Suite$1.exec [33m(/tmp/adonw/node_modules/@japa/core/build/index.js:1175:3)[39m
+[1/1]─
+
+ FAILED 
+
+Tests  27 passed, 1 failed (28)
+ Time  144ms

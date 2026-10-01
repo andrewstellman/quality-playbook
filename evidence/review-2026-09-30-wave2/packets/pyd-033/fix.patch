@@ -1,0 +1,61 @@
+From a5ad38dea2aa5a083e9dd02f98096fa6e197ba9e Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <andrew@stellman.com>
+Date: Wed, 30 Sep 2026 23:28:23 -0400
+Subject: [PATCH] Use the `TypedDict`'s own config when serializing
+
+The typed dict serializer built its fields with the parent config, so
+`ser_json_*` settings set via `with_config` or `__pydantic_config__` were
+ignored. Use the schema's config when present, as the validator does.
+---
+ .../type_serializers/typed_dict.rs            |  4 ++++
+ tests/test_types_typeddict.py                 | 19 +++++++++++++++++++
+ 2 files changed, 23 insertions(+)
+
+diff --git a/pydantic-core/src/serializers/type_serializers/typed_dict.rs b/pydantic-core/src/serializers/type_serializers/typed_dict.rs
+index 04900b143..f36b227bc 100644
+--- a/pydantic-core/src/serializers/type_serializers/typed_dict.rs
++++ b/pydantic-core/src/serializers/type_serializers/typed_dict.rs
+@@ -34,6 +34,10 @@ impl BuildSerializer for TypedDictSerializer {
+     ) -> PyResult<Arc<CombinedSerializer>> {
+         let py = schema.py();
+ 
++        // typed dicts use their own config if set (as the validator does), otherwise the parent config
++        let own_config = schema.get_as(intern!(py, "config"))?;
++        let config = own_config.as_ref().or(config);
++
+         let total =
+             schema_or_config(schema, config, intern!(py, "total"), intern!(py, "typed_dict_total"))?.unwrap_or(true);
+ 
+diff --git a/tests/test_types_typeddict.py b/tests/test_types_typeddict.py
+index 697913f2b..361fdc485 100644
+--- a/tests/test_types_typeddict.py
++++ b/tests/test_types_typeddict.py
+@@ -919,6 +919,25 @@ def test_typeddict_with_config_decorator():
+     assert ta.validate_python({'x': 'ABC'}) == {'x': 'abc'}
+ 
+ 
++def test_typeddict_with_config_decorator_serialization() -> None:
++    @with_config(ConfigDict(ser_json_bytes='base64'))
++    class TD(TypedDict):
++        b: bytes
++
++    class NoConfigTD(TypedDict):
++        b: bytes
++
++    class Model(BaseModel):
++        model_config = ConfigDict(ser_json_bytes='hex')
++
++        own: TD
++        inherited: NoConfigTD
++
++    assert TypeAdapter(TD).dump_json({'b': b'hi'}) == b'{"b":"aGk="}'
++    m = Model(own={'b': b'hi'}, inherited={'b': b'hi'})
++    assert m.model_dump_json() == '{"own":{"b":"aGk="},"inherited":{"b":"6869"}}'
++
++
+ def test_config_pushdown_typed_dict() -> None:
+     class ArbitraryType:
+         pass
+-- 
+2.34.1
+

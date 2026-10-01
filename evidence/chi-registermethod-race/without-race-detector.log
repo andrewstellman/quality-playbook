@@ -1,0 +1,3 @@
+$ go test -count=20 -run 'TestRegisterMethodWhileServing' .   # without -race
+ok  	github.com/go-chi/chi/v5	0.007s
+exit=0

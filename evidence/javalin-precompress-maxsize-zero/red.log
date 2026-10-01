@@ -1,0 +1,243 @@
+[INFO] Scanning for projects...
+[INFO] Inspecting build with total of 1 modules
+[INFO] Installing Central Publishing features
+[INFO] 
+[INFO] -------------------------< io.javalin:javalin >-------------------------
+[INFO] Building Javalin 7.2.4-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- git-commit-id:10.0.0:revision (default) @ javalin ---
+[INFO] 
+[INFO] --- resources:3.5.0:copy-resources (copy-license) @ javalin ---
+[INFO] Copying 1 resource from .. to target/classes/META-INF
+[INFO] 
+[INFO] --- resources:3.5.0:copy-resources (copy-pom-properties) @ javalin ---
+[INFO] Copying 1 resource from .. to target
+[INFO] 
+[INFO] --- jacoco:0.8.15:prepare-agent (default) @ javalin ---
+[INFO] argLine set to -javaagent:/tmp/m2/org/jacoco/org.jacoco.agent/0.8.15/org.jacoco.agent-0.8.15-runtime.jar=destfile=/tmp/w2fix/jav-011/javalin/target/jacoco.exec
+[INFO] 
+[INFO] --- resources:3.5.0:resources (default-resources) @ javalin ---
+[INFO] skip non existing resourceDirectory /tmp/w2fix/jav-011/javalin/src/main/resources
+[INFO] 
+[INFO] --- kotlin:2.2.20:compile (compile) @ javalin ---
+[WARNING] Source root doesn't exist: /tmp/w2fix/jav-011/javalin/src/main/kotlin
+[WARNING] Using experimental Kotlin incremental compilation
+[INFO] cannot connect to registry: Connection refused
+[INFO] cannot connect to registry: Connection refused
+[INFO] starting the daemon as: /tmp/jdk17/bin/java -cp /tmp/m2/org/jetbrains/kotlin/kotlin-build-tools-impl/2.2.20/kotlin-build-tools-impl-2.2.20.jar:/tmp/m2/org/jetbrains/kotlin/kotlin-build-tools-api/2.2.20/kotlin-build-tools-api-2.2.20.jar:/tmp/m2/org/jetbrains/kotlin/kotlin-stdlib/2.2.20/kotlin-stdlib-2.2.20.jar:/tmp/m2/org/jetbrains/annotations/13.0/annotations-13.0.jar:/tmp/m2/org/jetbrains/kotlin/kotlin-compiler-embeddable/2.2.20/kotlin-compiler-embeddable-2.2.20.jar:/tmp/m2/org/jetbrains/kotlin/kotlin-script-runtime/2.2.20/kotlin-script-runtime-2.2.20.jar:/tmp/m2/org/jetbrains/kotlin/kotlin-reflect/1.6.10/kotlin-reflect-1.6.10.jar:/tmp/m2/org/jetbrains/kotlin/kotlin-daemon-embeddable/2.2.20/kotlin-daemon-embeddable-2.2.20.jar:/tmp/m2/org/jetbrains/kotlinx/kotlinx-coroutines-core-jvm/1.8.0/kotlinx-coroutines-core-jvm-1.8.0.jar:/tmp/m2/org/jetbrains/kotlin/kotlin-compiler-runner/2.2.20/kotlin-compiler-runner-2.2.20.jar:/tmp/m2/org/jetbrains/kotlin/kotlin-daemon-client/2.2.20/kotlin-daemon-client-2.2.20.jar:/tmp/m2/org/jetbrains/kotlin/kotlin-scripting-compiler-embeddable/2.2.20/kotlin-scripting-compiler-embeddable-2.2.20.jar:/tmp/m2/org/jetbrains/kotlin/kotlin-scripting-common/2.2.20/kotlin-scripting-common-2.2.20.jar:/tmp/m2/org/jetbrains/kotlin/kotlin-scripting-jvm/2.2.20/kotlin-scripting-jvm-2.2.20.jar:/tmp/m2/org/jetbrains/kotlin/kotlin-scripting-compiler-impl-embeddable/2.2.20/kotlin-scripting-compiler-impl-embeddable-2.2.20.jar -Djava.awt.headless=true -Djava.rmi.server.hostname=127.0.0.1 -Xmx978m -XX:ReservedCodeCacheSize=320m -ea -XX:+UseCodeCacheFlushing -XX:+UseParallelGC -Dkotlin.daemon.initiator.marker.file=/tmp/kotlin-compiler-client-17900748269063244277-is-running --add-exports java.base/sun.nio.ch=ALL-UNNAMED org.jetbrains.kotlin.daemon.KotlinCompileDaemon --daemon-runFilesPath /sessions/kind-zealous-edison/.local/share/kotlin/daemon --daemon-autoshutdownIdleSeconds=7200 --daemon-shutdownDelayMilliseconds=1800000 --daemon-compilerClasspath /tmp/m2/org/jetbrains/kotlin/kotlin-build-tools-impl/2.2.20/kotlin-build-tools-impl-2.2.20.jar:/tmp/m2/org/jetbrains/kotlin/kotlin-build-tools-api/2.2.20/kotlin-build-tools-api-2.2.20.jar:/tmp/m2/org/jetbrains/kotlin/kotlin-stdlib/2.2.20/kotlin-stdlib-2.2.20.jar:/tmp/m2/org/jetbrains/annotations/13.0/annotations-13.0.jar:/tmp/m2/org/jetbrains/kotlin/kotlin-compiler-embeddable/2.2.20/kotlin-compiler-embeddable-2.2.20.jar:/tmp/m2/org/jetbrains/kotlin/kotlin-script-runtime/2.2.20/kotlin-script-runtime-2.2.20.jar:/tmp/m2/org/jetbrains/kotlin/kotlin-reflect/1.6.10/kotlin-reflect-1.6.10.jar:/tmp/m2/org/jetbrains/kotlin/kotlin-daemon-embeddable/2.2.20/kotlin-daemon-embeddable-2.2.20.jar:/tmp/m2/org/jetbrains/kotlinx/kotlinx-coroutines-core-jvm/1.8.0/kotlinx-coroutines-core-jvm-1.8.0.jar:/tmp/m2/org/jetbrains/kotlin/kotlin-compiler-runner/2.2.20/kotlin-compiler-runner-2.2.20.jar:/tmp/m2/org/jetbrains/kotlin/kotlin-daemon-client/2.2.20/kotlin-daemon-client-2.2.20.jar:/tmp/m2/org/jetbrains/kotlin/kotlin-scripting-compiler-embeddable/2.2.20/kotlin-scripting-compiler-embeddable-2.2.20.jar:/tmp/m2/org/jetbrains/kotlin/kotlin-scripting-common/2.2.20/kotlin-scripting-common-2.2.20.jar:/tmp/m2/org/jetbrains/kotlin/kotlin-scripting-jvm/2.2.20/kotlin-scripting-jvm-2.2.20.jar:/tmp/m2/org/jetbrains/kotlin/kotlin-scripting-compiler-impl-embeddable/2.2.20/kotlin-scripting-compiler-impl-embeddable-2.2.20.jar
+[INFO] #1 retrying connecting to the daemon 
+[WARNING] file:///tmp/w2fix/jav-011/javalin/src/main/java/io/javalin/config/AppDataManager.kt:24:26 Unchecked cast of 'Any?' to 'T? (of fun <T> get)'.
+[WARNING] file:///tmp/w2fix/jav-011/javalin/src/main/java/io/javalin/config/RouterConfig.kt:1:28 Suppression of error 'INVISIBLE_REFERENCE' might compile and work, but the compiler behavior is UNSPECIFIED and WILL NOT BE PRESERVED. Please report your use case to the Kotlin issue tracker instead: https://kotl.in/issue
+[WARNING] file:///tmp/w2fix/jav-011/javalin/src/main/java/io/javalin/config/RoutesConfig.kt:1:28 Suppression of error 'INVISIBLE_REFERENCE' might compile and work, but the compiler behavior is UNSPECIFIED and WILL NOT BE PRESERVED. Please report your use case to the Kotlin issue tracker instead: https://kotl.in/issue
+[WARNING] file:///tmp/w2fix/jav-011/javalin/src/main/java/io/javalin/http/HttpResponseException.kt:187:23 'static enum entry USE_PROXY: HttpStatus' is deprecated. It has been deprecated due to security concerns regarding in-band configuration of a proxy.
+[WARNING] file:///tmp/w2fix/jav-011/javalin/src/main/java/io/javalin/http/HttpResponseException.kt:189:27 'static enum entry USE_PROXY: HttpStatus' is deprecated. It has been deprecated due to security concerns regarding in-band configuration of a proxy.
+[WARNING] file:///tmp/w2fix/jav-011/javalin/src/main/java/io/javalin/plugin/PluginApi.kt:52:89 Unchecked cast of 'CONFIG? (of class Plugin<CONFIG>)' to 'CONFIG (of class Plugin<CONFIG>)'.
+[WARNING] file:///tmp/w2fix/jav-011/javalin/src/main/java/io/javalin/plugin/PluginManager.kt:45:102 Unchecked cast of 'Plugin<*>' to 'ContextPlugin<*, T (of fun <T> getContextPlugin)>'.
+[WARNING] file:///tmp/w2fix/jav-011/javalin/src/main/java/io/javalin/validation/Validation.kt:23:61 Unchecked cast of 'Class<T (of fun <T> convertValue)>' to 'Class<out Enum<*>>'.
+[WARNING] file:///tmp/w2fix/jav-011/javalin/src/main/java/io/javalin/validation/Validation.kt:50:97 Projection is redundant: the corresponding type parameter of 'ValidationError<out Any?>' has the same variance.
+[WARNING] file:///tmp/w2fix/jav-011/javalin/src/main/java/io/javalin/validation/Validation.kt:63:78 Projection is redundant: the corresponding type parameter of 'ValidationError<out Any?>' has the same variance.
+[WARNING] file:///tmp/w2fix/jav-011/javalin/src/main/java/io/javalin/websocket/WsContext.kt:117:62 Unchecked cast of 'Any?' to 'T? (of fun <T> attribute)'.
+[INFO] 
+[INFO] --- compiler:3.15.0:compile (java-compile) @ javalin ---
+[INFO] Recompiling the module because of changed source code.
+[INFO] Compiling 14 source files with javac [debug release 17] to target/classes
+[INFO] 
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ javalin ---
+[INFO] Copying 42 resources from src/test/resources to target/test-classes
+[INFO] 
+[INFO] --- kotlin:2.2.20:test-compile (test-compile) @ javalin ---
+[WARNING] Using experimental Kotlin incremental compilation
+[WARNING] file:///tmp/w2fix/jav-011/javalin/src/test/java/io/javalin/TestGlobalGlobalHeaderConfigPlugin.kt:61:28 'fun xFrameOptions(domain: String): Unit' is deprecated. This is an obsolete directive that no longer works in modern browsers.
+[WARNING] file:///tmp/w2fix/jav-011/javalin/src/test/java/io/javalin/TestJavalinJackson.kt:50:19 'fun setSerializationInclusion(p0: JsonInclude.Include!): ObjectMapper!' is deprecated. Deprecated in Java.
+[WARNING] file:///tmp/w2fix/jav-011/javalin/src/test/java/io/javalin/TestJson.kt:166:104 Unchecked cast of 'String' to 'T (of fun <T : Any> fromJsonString)'.
+[WARNING] file:///tmp/w2fix/jav-011/javalin/src/test/java/io/javalin/TestJson.kt:177:109 Unchecked cast of 'String' to 'T (of fun <T : Any> fromJsonStream)'.
+[WARNING] file:///tmp/w2fix/jav-011/javalin/src/test/java/io/javalin/TestJson.kt:197:133 Unchecked cast of 'Any?' to 'T (of fun <T : Any> fromJsonString)'.
+[WARNING] file:///tmp/w2fix/jav-011/javalin/src/test/java/io/javalin/TestJsonMapperExtensions.kt:35:109 Unchecked cast of 'TestJsonMapperExtensions.TestData' to 'T (of fun <T : Any> fromJsonString)'.
+[WARNING] file:///tmp/w2fix/jav-011/javalin/src/test/java/io/javalin/TestJsonMapperExtensions.kt:44:114 Unchecked cast of 'TestJsonMapperExtensions.TestData' to 'T (of fun <T : Any> fromJsonStream)'.
+[INFO] 
+[INFO] --- compiler:3.15.0:testCompile (java-test-compile) @ javalin ---
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 42 source files with javac [debug release 17] to target/test-classes
+[INFO] 
+[INFO] --- surefire:3.5.6:test (default-test) @ javalin ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO] 
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running io.javalin.staticfiles.TestStaticFilesPrecompressor
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=public, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/webjars, directory=META-INF/resources/webjars, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: '[jar:file:///tmp/m2/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/, jar:file:///tmp/m2/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/]'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public/immutable, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/immutable/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public/protected, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/protected/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/webjars, directory=META-INF/resources/webjars, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: '[jar:file:///tmp/m2/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/, jar:file:///tmp/m2/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/]'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public/immutable, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/immutable/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public/protected, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/protected/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/webjars, directory=META-INF/resources/webjars, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: '[jar:file:///tmp/m2/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/, jar:file:///tmp/m2/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/]'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public/immutable, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/immutable/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public/protected, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/protected/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=public, location=CLASSPATH, precompressMaxSize=1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/webjars, directory=META-INF/resources/webjars, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: '[jar:file:///tmp/m2/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/, jar:file:///tmp/m2/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/]'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public/immutable, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/immutable/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public/protected, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/protected/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/webjars, directory=META-INF/resources/webjars, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=31622400}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: '[jar:file:///tmp/m2/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/, jar:file:///tmp/m2/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/]'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/webjars, directory=META-INF/resources/webjars, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: '[jar:file:///tmp/m2/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/, jar:file:///tmp/m2/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/]'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public/immutable, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/immutable/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public/protected, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/protected/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/webjars, directory=META-INF/resources/webjars, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: '[jar:file:///tmp/m2/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/, jar:file:///tmp/m2/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/]'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public/immutable, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/immutable/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public/protected, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/protected/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=public, location=CLASSPATH, precompressMaxSize=0, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] ERROR io.javalin.Javalin - TestUtil#test failed - full log output below:
+[main] INFO io.javalin.Javalin - Starting Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - jetty-12.1.12; built: 2026-08-03T22:37:55.389Z; git: 10dd3948f37767b84cc2c62358364f042e51dbbe; jvm 17.0.20.1+1
+[main] INFO org.eclipse.jetty.session.DefaultSessionIdManager - Session workerName=node0
+[main] INFO org.eclipse.jetty.server.handler.ContextHandler - Started oeje10s.ServletContextHandler@21539796{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@215f8d7{STARTED}}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Started oeje10s.ServletContextHandler@21539796{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@215f8d7{STARTED}}
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Started oejs.ServerConnector@69d2c460{HTTP/1.1, (http/1.1)}{0.0.0.0:34409}
+[main] INFO org.eclipse.jetty.server.Server - Started oejs.Server@34a99d8{STARTING}[12.1.12,sto=0] @1ms
+[main] INFO io.javalin.Javalin - 
+       __                  ___          _____
+      / /___ __   ______ _/ (_)___     /__  /
+ __  / / __ `/ | / / __ `/ / / __ \      / /
+/ /_/ / /_/ /| |/ / /_/ / / / / / /     / /
+\____/\__,_/ |___/\__,_/_/_/_/ /_/     /_/
+
+       https://javalin.io/documentation
+
+[main] INFO io.javalin.Javalin - Javalin started in 3ms \o/
+[main] INFO io.javalin.Javalin - Listening on http://localhost:34409/
+
+[ERROR] Tests run: 11, Failures: 0, Errors: 1, Skipped: 0, Time elapsed: 1.708 s <<< FAILURE! -- in io.javalin.staticfiles.TestStaticFilesPrecompressor
+[ERROR] io.javalin.staticfiles.TestStaticFilesPrecompressor.precompressMaxSize of zero precompresses files of any size -- Time elapsed: 0.013 s <<< ERROR!
+java.lang.RuntimeException: 
+java.lang.Exception: Assertion error: [file should be precompressed and cached] 
+expected: 1
+ but was: 0
+	at io.javalin.testing.TestUtil.testWithResult(TestUtil.java:56)
+	at io.javalin.testing.TestUtil.test(TestUtil.java:33)
+	at io.javalin.staticfiles.StaticFilesTestUtilKt.testStaticFiles(StaticFilesTestUtil.kt:20)
+	at io.javalin.staticfiles.TestStaticFilesPrecompressor.precompressMaxSize of zero precompresses files of any size(TestStaticFilesPrecompressor.kt:222)
+Caused by: java.lang.Exception: Assertion error: [file should be precompressed and cached] 
+expected: 1
+ but was: 0
+	at io.javalin.testing.TestUtil.runAndCaptureLogs(TestUtil.java:75)
+	at io.javalin.testing.TestUtil.testWithResult(TestUtil.java:41)
+	... 3 more
+
+[INFO] Running io.javalin.staticfiles.TestStaticFilesPrecompressor
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=public, location=CLASSPATH, precompressMaxSize=0, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] ERROR io.javalin.Javalin - TestUtil#test failed - full log output below:
+[main] INFO io.javalin.Javalin - Starting Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - jetty-12.1.12; built: 2026-08-03T22:37:55.389Z; git: 10dd3948f37767b84cc2c62358364f042e51dbbe; jvm 17.0.20.1+1
+[main] INFO org.eclipse.jetty.session.DefaultSessionIdManager - Session workerName=node0
+[main] INFO org.eclipse.jetty.server.handler.ContextHandler - Started oeje10s.ServletContextHandler@619b7436{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@6af0407c{STARTED}}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Started oeje10s.ServletContextHandler@619b7436{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@6af0407c{STARTED}}
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Started oejs.ServerConnector@6f77b7e5{HTTP/1.1, (http/1.1)}{0.0.0.0:37261}
+[main] INFO org.eclipse.jetty.server.Server - Started oejs.Server@71c1ca1{STARTING}[12.1.12,sto=0] @12ms
+[main] INFO io.javalin.Javalin - 
+       __                  ___          _____
+      / /___ __   ______ _/ (_)___     /__  /
+ __  / / __ `/ | / / __ `/ / / __ \      / /
+/ /_/ / /_/ /| |/ / /_/ / / / / / /     / /
+\____/\__,_/ |___/\__,_/_/_/_/ /_/     /_/
+
+       https://javalin.io/documentation
+
+[main] INFO io.javalin.Javalin - Javalin started in 13ms \o/
+[main] INFO io.javalin.Javalin - Listening on http://localhost:37261/
+
+[ERROR] Tests run: 1, Failures: 0, Errors: 1, Skipped: 0, Time elapsed: 0.020 s <<< FAILURE! -- in io.javalin.staticfiles.TestStaticFilesPrecompressor
+[ERROR] io.javalin.staticfiles.TestStaticFilesPrecompressor.precompressMaxSize of zero precompresses files of any size -- Time elapsed: 0.020 s <<< ERROR!
+java.lang.RuntimeException: 
+java.lang.Exception: Assertion error: [file should be precompressed and cached] 
+expected: 1
+ but was: 0
+	at io.javalin.testing.TestUtil.testWithResult(TestUtil.java:56)
+	at io.javalin.testing.TestUtil.test(TestUtil.java:33)
+	at io.javalin.staticfiles.StaticFilesTestUtilKt.testStaticFiles(StaticFilesTestUtil.kt:20)
+	at io.javalin.staticfiles.TestStaticFilesPrecompressor.precompressMaxSize of zero precompresses files of any size(TestStaticFilesPrecompressor.kt:222)
+Caused by: java.lang.Exception: Assertion error: [file should be precompressed and cached] 
+expected: 1
+ but was: 0
+	at io.javalin.testing.TestUtil.runAndCaptureLogs(TestUtil.java:75)
+	at io.javalin.testing.TestUtil.testWithResult(TestUtil.java:41)
+	... 3 more
+
+[INFO] Running io.javalin.staticfiles.TestStaticFilesPrecompressor
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=public, location=CLASSPATH, precompressMaxSize=0, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/w2fix/jav-011/javalin/target/test-classes/public/'
+[main] ERROR io.javalin.Javalin - TestUtil#test failed - full log output below:
+[main] INFO io.javalin.Javalin - Starting Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - jetty-12.1.12; built: 2026-08-03T22:37:55.389Z; git: 10dd3948f37767b84cc2c62358364f042e51dbbe; jvm 17.0.20.1+1
+[main] INFO org.eclipse.jetty.session.DefaultSessionIdManager - Session workerName=node0
+[main] INFO org.eclipse.jetty.server.handler.ContextHandler - Started oeje10s.ServletContextHandler@62376bdd{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@3b8a063d{STARTED}}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Started oeje10s.ServletContextHandler@62376bdd{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@3b8a063d{STARTED}}
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Started oejs.ServerConnector@3a36da5e{HTTP/1.1, (http/1.1)}{0.0.0.0:35091}
+[main] INFO org.eclipse.jetty.server.Server - Started oejs.Server@b1f36e5{STARTING}[12.1.12,sto=0] @7ms
+[main] INFO io.javalin.Javalin - 
+       __                  ___          _____
+      / /___ __   ______ _/ (_)___     /__  /
+ __  / / __ `/ | / / __ `/ / / __ \      / /
+/ /_/ / /_/ /| |/ / /_/ / / / / / /     / /
+\____/\__,_/ |___/\__,_/_/_/_/ /_/     /_/
+
+       https://javalin.io/documentation
+
+[main] INFO io.javalin.Javalin - Javalin started in 8ms \o/
+[main] INFO io.javalin.Javalin - Listening on http://localhost:35091/
+
+[ERROR] Tests run: 1, Failures: 0, Errors: 1, Skipped: 0, Time elapsed: 0.017 s <<< FAILURE! -- in io.javalin.staticfiles.TestStaticFilesPrecompressor
+[ERROR] io.javalin.staticfiles.TestStaticFilesPrecompressor.precompressMaxSize of zero precompresses files of any size -- Time elapsed: 0.014 s <<< ERROR!
+java.lang.RuntimeException: 
+java.lang.Exception: Assertion error: [file should be precompressed and cached] 
+expected: 1
+ but was: 0
+	at io.javalin.testing.TestUtil.testWithResult(TestUtil.java:56)
+	at io.javalin.testing.TestUtil.test(TestUtil.java:33)
+	at io.javalin.staticfiles.StaticFilesTestUtilKt.testStaticFiles(StaticFilesTestUtil.kt:20)
+	at io.javalin.staticfiles.TestStaticFilesPrecompressor.precompressMaxSize of zero precompresses files of any size(TestStaticFilesPrecompressor.kt:222)
+Caused by: java.lang.Exception: Assertion error: [file should be precompressed and cached] 
+expected: 1
+ but was: 0
+	at io.javalin.testing.TestUtil.runAndCaptureLogs(TestUtil.java:75)
+	at io.javalin.testing.TestUtil.testWithResult(TestUtil.java:41)
+	... 3 more
+
+[INFO] 
+[INFO] Results:
+[INFO] 
+[ERROR] Errors: 
+[ERROR] io.javalin.staticfiles.TestStaticFilesPrecompressor.precompressMaxSize of zero precompresses files of any size
+[ERROR]   Run 1: TestStaticFilesPrecompressor.precompressMaxSize of zero precompresses files of any size:222 » Runtime java.lang.Exception: Assertion error: [file should be precompressed and cached] 
+expected: 1
+ but was: 0
+[ERROR]   Run 2: TestStaticFilesPrecompressor.precompressMaxSize of zero precompresses files of any size:222 » Runtime java.lang.Exception: Assertion error: [file should be precompressed and cached] 
+expected: 1
+ but was: 0
+[ERROR]   Run 3: TestStaticFilesPrecompressor.precompressMaxSize of zero precompresses files of any size:222 » Runtime java.lang.Exception: Assertion error: [file should be precompressed and cached] 
+expected: 1
+ but was: 0
+[INFO] 
+[INFO] 
+[ERROR] Tests run: 11, Failures: 0, Errors: 1, Skipped: 0
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  28.758 s
+[INFO] Finished at: 2026-09-30T23:20:57-04:00
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:3.5.6:test (default-test) on project javalin: 
+[ERROR] 
+[ERROR] See /tmp/w2fix/jav-011/javalin/target/surefire-reports for the individual test results.
+[ERROR] See dump files (if any exist) [date].dump, [date]-jvmRun[N].dump and [date].dumpstream.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

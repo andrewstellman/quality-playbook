@@ -1,0 +1,138 @@
+
+Response (tests/response.spec.ts)
+  ✔ set http response headers (24.9ms)
+  ✔ get recently set headers (12.7ms)
+  ✔ get header from http res object (3.17ms)
+  ✔ set x-request-id header (3.64ms)
+  ✔ set x-request-id header when the response has no body (3.18ms)
+  ✔ get merged from http res object (2.64ms)
+  ✔ append header to existing header (2.17ms)
+  ✔ add header via append when header doesn't exists already (1.83ms)
+  ✔ append to the header value when it's an array (4.15ms)
+  ✔ do not set header when already exists (1.85ms)
+  ✔ remove existing response header (2.04ms)
+  ✔ set HTTP status (1.46ms)
+  ✔ parse buffer and set correct response header (2.16ms)
+  ✔ parse Uint8Array and set correct response header (1.58ms)
+  ✔ parse string and set correct response header (1.99ms)
+  ✔ parse HTML string and return correct response header (1.59ms)
+  ✔ get regex in response (1.69ms)
+  ✔ parse array and set correct response type (1.86ms)
+  ✔ parse object and set correct response type (1.55ms)
+  ✔ do not set content type for empty strings (1.24ms)
+  ✔ do not set content-type for null (1.33ms)
+  ✔ do not write send body and headers unless finish is called explicitly (1.18ms)
+  ✔ write send body and headers when finish is called explicitly (1.99ms)
+  ✔ do not write response twice if finish is called twice (2.02ms)
+  ✔ hasContent must return true after send has been called (1.26ms)
+  ✔ hasLazyBody must return true after send has been called (1.23ms)
+  ✔ hasLazyBody and hasFileToStream must return true after download has been called (1.23ms)
+  ✔ hasContent must return false after download has been called (1.37ms)
+  ✔ hasLazyBody and hasStream must return true after stream has been called (1.28ms)
+  ✔ hasContent must return false after stream has been called (1.29ms)
+  ✔ write jsonp response (1.19ms)
+  ✔ use explicit value for callback name (1.95ms)
+  ✔ use config value when explicit value is not defined and their is no query string (1.21ms)
+  ✔ stream response (4.94ms)
+  ✔ raise error when we try to stream a non-existing file (2.42ms)
+  ✔ raise error when input is not a stream (1.92ms)
+  ✔ raise error when input is a writable stream (2.53ms)
+  ✔ should not hit the maxListeners when making more than 10 calls (12.05ms)
+  ✔ raise error when stream raises one (3.1ms)
+  ✔ send stream errors vs raising them (2.89ms)
+  ✔ download file with correct content type (3.18ms)
+  ✔ write errors as response when downloading folder (3.68ms)
+  ✔ write errors as response when file is missing (2.27ms)
+  ✔ return custom message and status when file is missing (1.84ms)
+  ✔ do not stream file on HEAD calls (3.13ms)
+  ✔ do not stream file when cache is fresh (3.17ms)
+  ✔ set HTTP status to 304 when cache is fresh and request is HEAD (3.13ms)
+  ✔ set HTTP status to 304 when cache is fresh and request is GET (3.55ms)
+  ✔ serve actual response when cache is fresh but request method is POST (3.07ms)
+  ✔ do not override status when cache is fresh but redirect status code is set (4.29ms)
+  ✔ download file with correct content disposition (3.71ms)
+  ✔ download file with custom file name (4.4ms)
+  ✔ download file with custom disposition (2.81ms)
+  ✔ add multiple vary fields (2.26ms)
+  ✔ add multiple vary fields as an array (2.02ms)
+  ✔ set status code to 204 when body is empty (1.53ms)
+  ✔ do not override explicit status even when body is empty (1.26ms)
+  ✔ remove previously set content headers when status code is 304 (2.13ms)
+  ✔ generate etag when set to true (3ms)
+  ✔ set HTTP status to 304 when cache is fresh and request is GET (1.87ms)
+  ✔ convert number to string when sending as response (2.19ms)
+  ✔ convert boolean to string when sending as response (1.92ms)
+  ✔ convert date to string when sending as response (2.66ms)
+  ✔ raise error when response data type is not valid (2.94ms)
+  ✔ convert serializable objects to JSON representation (2.32ms)
+  ✔ send response as 200 when request method is HEAD and cache is not fresh (2.83ms)
+  ✔ stream the file when request method is GET and cache is not fresh (2.61ms)
+  ✔ set response type with custom charset (1.31ms)
+  ✔ set signed cookie (2.8ms)
+  ✔ set plain cookie (2.1ms)
+  ✔ set encrypted cookie (2.2ms)
+  ✔ do not send cookies with null or undefined values (1.36ms)
+  ✔ set cookie with custom domain (2.05ms)
+  ✔ clear cookie by setting expiry and maxAge in past (2.33ms)
+  ✔ abort request by raising exception (1.82ms)
+  ✔ abort request with json body (1.75ms)
+  ✔ abort request with custom status code (2.45ms)
+  ✔ abortIf: abort request when condition is truthy (1.97ms)
+  ✔ abortIf: do not abort request when condition is falsy (1.4ms)
+  ✔ abortUnless: abort request when condition is falsy (1.32ms)
+  ✔ abortUnless: do not abort request when condition is truthy (1.11ms)
+  ✔ set appropriate status from the description methods (1.71ms)
+  ✔ send null in body with an explicit http status code (1.72ms)
+  ✔ do not send body or calculate content-length for a 304 response (1.7ms)
+  ✖ do not send body for a 205 response (1.76ms)
+  ✔ get response body (1.69ms)
+  ✔ return null when body is a stream (3.94ms)
+  ✔ return response status when not defined explicitly (1.47ms)
+  ✔ return response status when defined explicitly (2.14ms)
+  ✔ listen for the event when response finishes (2.22ms)
+  ✔ send JSON using web-native Response (3.96ms)
+  ✔ redirect using web-native Response (1.72ms)
+  ✔ set headers set by the web-native Response (2.47ms)
+  ✔ preserve multiple Set-Cookie headers from a web-native Response (2.21ms)
+  ✔ merge Set-Cookie headers from a web-native Response with existing headers (1.7ms)
+ ERRORS 
+
+❯ Response / do not send body for a 205 response
+
+- Expected  - 1
++ Received  + 1
+
+- 0
++ 11
+
+[31mℹ AssertionError: expected '11' to equal '0'[39m
+
+ ⁃ at Assert.equal [33m(/tmp/adonw/node_modules/@japa/assert/build/index.js:69:19)[39m
+ ⁃ at Object.executor [33m(tests/response.spec.ts:1502:12)[39m
+
+   [2m1497[22m [2m┃[22m        response[34m.[0m[35mstatus[0m([33m205[0m)[34m.[0m[35msend[0m([32m'hello world'[0m)
+   [2m1498[22m [2m┃[22m        response[34m.[0m[35mfinish[0m()
+   [2m1499[22m [2m┃[22m      })
+   [2m1500[22m [2m┃[22m  
+   [2m1501[22m [2m┃[22m      [31mconst[0m { header[34m,[0m text } [34m=[0m [31mawait[0m [35msupertest[0m(url)[34m.[0m[31mget[0m([32m'/'[0m)[34m.[0m[35mexpect[0m([33m205[0m)
+ [41m❯ 1502 ┃      assert.equal(header['content-length'], '0')[49m
+   [2m1503[22m [2m┃[22m      assert[34m.[0m[35mnotProperty[0m(header[34m,[0m [32m'content-type'[0m)
+   [2m1504[22m [2m┃[22m      assert[34m.[0m[35mequal[0m(text[34m,[0m [32m''[0m)
+   [2m1505[22m [2m┃[22m    })
+   [2m1506[22m [2m┃[22m  
+   [2m1507[22m [2m┃[22m    [35mtest[0m([32m'get response body'[0m[34m,[0m [31masync[0m ({ assert }) [31m=>[0m {
+
+[2m ⁃ at [3mprocess.processTicksAndRejections[23m ([3mnode:internal/process/task_queues:103:5[23m)[22m
+ ⁃ at async #wrapTestInTimeout [33m(/tmp/adonw/node_modules/@japa/core/build/index.js:680:4)[39m
+ ⁃ at async TestRunner.run [33m(/tmp/adonw/node_modules/@japa/core/build/index.js:710:4)[39m
+ ⁃ at async Test$1.exec [33m(/tmp/adonw/node_modules/@japa/core/build/index.js:918:3)[39m
+ ⁃ at async GroupRunner.run [33m(/tmp/adonw/node_modules/@japa/core/build/index.js:259:4)[39m
+ ⁃ at async Group$1.exec [33m(/tmp/adonw/node_modules/@japa/core/build/index.js:354:3)[39m
+ ⁃ at async SuiteRunner.run [33m(/tmp/adonw/node_modules/@japa/core/build/index.js:1100:4)[39m
+ ⁃ at async Suite$1.exec [33m(/tmp/adonw/node_modules/@japa/core/build/index.js:1175:3)[39m
+[1/1]─
+
+ FAILED 
+
+Tests  94 passed, 1 failed (95)
+ Time  265ms

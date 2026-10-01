@@ -1,0 +1,6 @@
+$ git rev-parse HEAD
+2ff7bfb18be3e5ccc9a7956d5326e5f4cefcb0cd
+$ go test -count=1 ./...
+ok  	github.com/go-chi/chi/v5	1.434s
+ok  	github.com/go-chi/chi/v5/middleware	26.199s
+exit=0

@@ -1,0 +1,5 @@
+E           AttributeError: 'NoneType' object has no attribute 'get'
+E           TypeError: 'NoneType' object is not iterable
+FAILED setuptools/tests/config/test_apply_pyprojecttoml.py::TestPresetField::test_not_listed_in_dynamic[long_description-readme-Some description]
+FAILED setuptools/tests/config/test_apply_pyprojecttoml.py::TestPresetField::test_not_listed_in_dynamic[python_requires-requires-python->=3.8]
+2 failed, 62 passed, 1 xfailed in 3.09s

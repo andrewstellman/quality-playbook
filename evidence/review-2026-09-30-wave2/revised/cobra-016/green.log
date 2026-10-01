@@ -1,0 +1,10 @@
+== green: fixed tree
+=== RUN   TestFlagCompletionWithNotInterspersedArgs
+--- PASS: TestFlagCompletionWithNotInterspersedArgs (0.00s)
+PASS
+ok  	github.com/spf13/cobra	0.002s
+== full suite: go test ./...
+ok  	github.com/spf13/cobra	0.179s
+ok  	github.com/spf13/cobra/doc	(cached)
+== go vet ./...
+== gofmt -l .

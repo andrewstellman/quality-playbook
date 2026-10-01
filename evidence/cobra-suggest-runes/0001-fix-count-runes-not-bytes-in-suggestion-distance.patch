@@ -1,0 +1,58 @@
+From 63a206ff48b58221ae4a8e0eb822df9ca00ed3d6 Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <andrew@stellman.com>
+Date: Wed, 30 Sep 2026 23:24:32 -0400
+Subject: [PATCH] fix: count runes, not bytes, in suggestion distance
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+ld indexed its strings byte by byte, so each non-ASCII letter counted
+as several edits and commands like "über" were not suggested for "ubr".
+Compare runes instead.
+---
+ cobra.go      | 8 +++++---
+ cobra_test.go | 7 +++++++
+ 2 files changed, 12 insertions(+), 3 deletions(-)
+
+diff --git a/cobra.go b/cobra.go
+index d9cd241..b36954a 100644
+--- a/cobra.go
++++ b/cobra.go
+@@ -189,11 +189,13 @@ func tmpl(text string) *tmplFunc {
+ }
+ 
+ // ld compares two strings and returns the levenshtein distance between them.
+-func ld(s, t string, ignoreCase bool) int {
++func ld(sStr, tStr string, ignoreCase bool) int {
+ 	if ignoreCase {
+-		s = strings.ToLower(s)
+-		t = strings.ToLower(t)
++		sStr = strings.ToLower(sStr)
++		tStr = strings.ToLower(tStr)
+ 	}
++	// Levenshtein distance counts character edits: compare runes, not UTF-8 bytes.
++	s, t := []rune(sStr), []rune(tStr)
+ 	d := make([][]int, len(s)+1)
+ 	for i := range d {
+ 		d[i] = make([]int, len(t)+1)
+diff --git a/cobra_test.go b/cobra_test.go
+index f1c5b0a..ef35f24 100644
+--- a/cobra_test.go
++++ b/cobra_test.go
+@@ -103,6 +103,13 @@ func TestLevenshteinDistance(t *testing.T) {
+ 			ignoreCase: true,
+ 			expected:   0,
+ 		},
++		{
++			name:       "Non-ASCII characters",
++			s:          "café",
++			t:          "cafe",
++			ignoreCase: false,
++			expected:   1,
++		},
+ 	}
+ 
+ 	for _, tt := range tests {
+-- 
+2.34.1
+

@@ -1,0 +1,78 @@
+/tmp/review/exec2/A/bionemo/venv/lib/python3.10/site-packages/torch/_subclasses/functional_tensor.py:368: UserWarning: Failed to initialize NumPy: No module named 'numpy' (Triggered internally at /__w/pytorch/pytorch/torch/csrc/utils/tensor_numpy.cpp:84.)
+  cpu = _conversion_method_template(device=torch.device("cpu"))
+source tree: base
+  HEAD f73a47210a05249289ac2c10287dc65c5d6fc106
+  git status --short: clean
+test tree: v2-amplify
+  HEAD a8312d1e0ded0b3c5a6c335f75947105989437f8
+  git status --short: clean
+
+== extracted from models/amplify/src/amplify/state_dict_convert.py (source tree)
+  _pad_weights: lines 85-91 sha256=0b10bbad0fd68534
+
+== extracted from models/amplify/tests/test_amplify_model.py (test tree)
+  test_pad_weights_dtype_device: lines 173-191 sha256=687fa3aedefe3bcf
+
+== extracted source function(s), exactly as written into the stand-in module
+  | import types
+  | 
+  | import torch
+  | 
+  | io = types.SimpleNamespace(TransformCTX=object)  # STUB
+  | 
+  | 
+  | def _pad_weights(ctx: io.TransformCTX, source_embed):
+  |     """Pad the embedding layer to the new input dimension."""
+  |     target_embedding_dimension = ctx.target.config.padded_vocab_size
+  |     hf_embedding_dimension = source_embed.size(0)
+  |     num_padding_rows = target_embedding_dimension - hf_embedding_dimension
+  |     padding_rows = torch.zeros(num_padding_rows, source_embed.size(1))
+  |     return torch.cat((source_embed, padding_rows), dim=0)
+
+== torch 2.14.0+cpu, cuda available: False
+
+============================= test session starts ==============================
+platform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0 -- /tmp/review/exec2/A/bionemo/venv/bin/python
+rootdir: /tmp/fix/harness-amplify-8y5kvxqh
+collecting ... collected 2 items
+
+test_extracted_amplify.py::test_pad_weights_dtype_device[cpu] FAILED     [ 50%]
+test_extracted_amplify.py::test_pad_weights_dtype_device[cuda] SKIPPED   [100%]
+
+=================================== FAILURES ===================================
+______________________ test_pad_weights_dtype_device[cpu] ______________________
+
+device = 'cpu'
+
+    @pytest.mark.parametrize(
+        "device",
+        ["cpu", pytest.param("cuda", marks=pytest.mark.skipif(not torch.cuda.is_available(), reason="requires CUDA"))],
+    )
+    def test_pad_weights_dtype_device(device):
+        """_pad_weights pads with zeros in the source embedding's dtype and on its device."""
+        from amplify.state_dict_convert import _pad_weights
+    
+        ctx_mock = MagicMock()
+        ctx_mock.target.config.padded_vocab_size = 12
+        source_embed = torch.randn(10, 4, dtype=torch.bfloat16, device=device)
+    
+        padded = _pad_weights(ctx_mock, source_embed)
+    
+        assert padded.shape == (12, 4)
+>       assert padded.dtype == torch.bfloat16
+E       assert torch.float32 == torch.bfloat16
+E        +  where torch.float32 = tensor([[ 2.3906, -1.0000, -1.5703,  0.0623],\n        [-0.8750,  0.5625,  0.5352, -1.1328],\n        [-0.1211, -0.8789,  1.5938,  0.1348],\n        [ 0.9141, -0.3672,  0.0796, -0.7617],\n        [-0.4746,  1.0078,  0.5625,  0.5117],\n        [ 0.1289, -0.6172,  0.4102,  1.4766],\n        [-1.5234, -0.7734, -0.7422,  0.6914],\n        [ 1.6250, -0.2461, -0.1465, -0.5547],\n        [-0.7773, -0.6484,  0.7305,  0.3945],\n        [ 0.3750, -0.0459,  0.8164,  1.6328],\n        [ 0.0000,  0.0000,  0.0000,  0.0000],\n        [ 0.0000,  0.0000,  0.0000,  0.0000]]).dtype
+E        +  and   torch.bfloat16 = torch.bfloat16
+
+test_extracted_amplify.py:22: AssertionError
+=============================== warnings summary ===============================
+../../review/exec2/A/bionemo/venv/lib/python3.10/site-packages/torch/_subclasses/functional_tensor.py:368
+  /tmp/review/exec2/A/bionemo/venv/lib/python3.10/site-packages/torch/_subclasses/functional_tensor.py:368: UserWarning: Failed to initialize NumPy: No module named 'numpy' (Triggered internally at /__w/pytorch/pytorch/torch/csrc/utils/tensor_numpy.cpp:84.)
+    cpu = _conversion_method_template(device=torch.device("cpu"))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+SKIPPED [1] test_extracted_amplify.py:7: requires CUDA
+=================== 1 failed, 1 skipped, 1 warning in 0.72s ====================
+
+pytest exit code: 1

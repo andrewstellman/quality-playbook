@@ -1,0 +1,87 @@
+From 558e12115ee855a2bf5350f29a6a7a33f66b62b0 Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <andrew@stellman.com>
+Date: Sun, 27 Sep 2026 16:42:48 -0400
+Subject: [PATCH] AMPLIFY: preserve dtype/device in _pad_weights padding rows
+
+_pad_weights in state_dict_convert.py built its padding rows via a bare
+torch.zeros(...) with no dtype=/device= kwargs, unlike the parallel ESM2
+_pad_weights (models/esm2/convert.py), which silently upcasts a non-default-dtype
+(e.g. bf16) or non-CPU source embedding to float32/CPU on the torch.cat, or raises
+a device-mismatch error. Add dtype=source_embed.dtype, device=source_embed.device
+to match the ESM2 sibling, plus a regression test.
+
+Finding surfaced by a Quality Playbook automated review run; reproduction and fix
+by Claude (Anthropic), reviewed by Andrew Stellman before submission.
+---
+ .../amplify/src/amplify/state_dict_convert.py |  4 +-
+ .../tests/test_pad_weights_dtype_device.py    | 43 +++++++++++++++++++
+ 2 files changed, 46 insertions(+), 1 deletion(-)
+ create mode 100644 models/amplify/tests/test_pad_weights_dtype_device.py
+
+diff --git a/models/amplify/src/amplify/state_dict_convert.py b/models/amplify/src/amplify/state_dict_convert.py
+index c4bc5b6..ef547c4 100644
+--- a/models/amplify/src/amplify/state_dict_convert.py
++++ b/models/amplify/src/amplify/state_dict_convert.py
+@@ -87,7 +87,9 @@ def _pad_weights(ctx: io.TransformCTX, source_embed):
+     target_embedding_dimension = ctx.target.config.padded_vocab_size
+     hf_embedding_dimension = source_embed.size(0)
+     num_padding_rows = target_embedding_dimension - hf_embedding_dimension
+-    padding_rows = torch.zeros(num_padding_rows, source_embed.size(1))
++    padding_rows = torch.zeros(
++        num_padding_rows, source_embed.size(1), dtype=source_embed.dtype, device=source_embed.device
++    )
+     return torch.cat((source_embed, padding_rows), dim=0)
+ 
+ 
+diff --git a/models/amplify/tests/test_pad_weights_dtype_device.py b/models/amplify/tests/test_pad_weights_dtype_device.py
+new file mode 100644
+index 0000000..e9c880d
+--- /dev/null
++++ b/models/amplify/tests/test_pad_weights_dtype_device.py
+@@ -0,0 +1,43 @@
++# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
++# SPDX-License-Identifier: LicenseRef-Apache2
++#
++# Licensed under the Apache License, Version 2.0 (the "License");
++# you may not use this file except in compliance with the License.
++# You may obtain a copy of the License at
++#
++#     http://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing, software
++# distributed under the License is distributed on an "AS IS" BASIS,
++# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++# See the License for the specific language governing permissions and
++# limitations under the License.
++
++from unittest.mock import MagicMock
++
++import torch
++
++from amplify.state_dict_convert import _pad_weights
++
++
++def test_pad_weights_preserves_dtype_and_device():
++    """_pad_weights must preserve the source tensor's dtype and device when padding.
++
++    Regression test: prior to this fix, the padding rows were created via a bare
++    `torch.zeros(num_padding_rows, source_embed.size(1))` with no dtype/device kwargs, so
++    padding a non-default-dtype (e.g. bf16) or non-CPU embedding silently upcast the result to
++    float32 (or raised a device-mismatch error on `torch.cat`). The sibling ESM2 implementation
++    (models/esm2/convert.py::_pad_weights) already passes dtype=/device=; this brings AMPLIFY's
++    copy in line with it.
++    """
++    ctx_mock = MagicMock()
++    ctx_mock.target.config.padded_vocab_size = 12
++
++    source_embed = torch.randn(10, 4, dtype=torch.bfloat16)
++
++    output = _pad_weights(ctx_mock, source_embed)
++
++    assert output.dtype == source_embed.dtype
++    assert output.device == source_embed.device
++    assert output.shape == (12, 4)
++    torch.testing.assert_close(output[:10].float(), source_embed.float())
+-- 
+2.34.1
+

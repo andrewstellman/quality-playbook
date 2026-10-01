@@ -1,0 +1,4 @@
+$ go test -race -count=1 ./...
+ok  	github.com/go-chi/chi/v5	13.985s
+ok  	github.com/go-chi/chi/v5/middleware	27.268s
+exit=0

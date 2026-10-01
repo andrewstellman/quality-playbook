@@ -1,0 +1,103 @@
+
+
+  res
+    .cookie(name, object)
+      ✔ should generate a JSON cookie
+    .cookie(name, string)
+      ✔ should set a cookie
+      ✔ should allow multiple calls
+    .cookie(name, string, options)
+      ✔ should set params
+      expires
+        ✔ should throw on invalid date
+TypeError: option expires is invalid
+    at Object.serialize (/tmp/review/exec/A/express-cookie/node_modules/cookie/index.js:235:13)
+    at res.cookie (/tmp/review/exec/A/express-cookie/lib/response.js:782:36)
+    at /tmp/review/exec/A/express-cookie/test/res.cookie.js:74:15
+    at Layer.handleRequest (/tmp/review/exec/A/express-cookie/node_modules/router/lib/layer.js:152:17)
+    at trimPrefix (/tmp/review/exec/A/express-cookie/node_modules/router/index.js:342:13)
+    at /tmp/review/exec/A/express-cookie/node_modules/router/index.js:297:9
+    at processParams (/tmp/review/exec/A/express-cookie/node_modules/router/index.js:582:12)
+    at next (/tmp/review/exec/A/express-cookie/node_modules/router/index.js:291:5)
+    at Function.handle (/tmp/review/exec/A/express-cookie/node_modules/router/index.js:186:3)
+    at Function.handle (/tmp/review/exec/A/express-cookie/lib/application.js:177:15)
+    at Server.app (/tmp/review/exec/A/express-cookie/lib/express.js:38:9)
+    at Server.emit (node:events:519:28)
+    at parserOnIncoming (node:_http_server:1186:12)
+    at HTTPParser.parserOnHeadersComplete (node:_http_common:125:17)
+      partitioned
+        ✔ should set partitioned
+      maxAge
+        ✔ should set relative expires
+        ✔ should set max-age
+        ✔ should not set Max-Age=0 for a positive sub-second maxAge
+        ✔ should set Max-Age=0 for a maxAge of 0
+        ✔ should not mutate the options object
+        ✔ should not throw on null
+        ✔ should not throw on undefined
+        ✔ should throw an error with invalid maxAge
+TypeError: option maxAge is invalid
+    at Object.serialize (/tmp/review/exec/A/express-cookie/node_modules/cookie/index.js:209:13)
+    at res.cookie (/tmp/review/exec/A/express-cookie/lib/response.js:782:36)
+    at /tmp/review/exec/A/express-cookie/test/res.cookie.js:206:15
+    at Layer.handleRequest (/tmp/review/exec/A/express-cookie/node_modules/router/lib/layer.js:152:17)
+    at trimPrefix (/tmp/review/exec/A/express-cookie/node_modules/router/index.js:342:13)
+    at /tmp/review/exec/A/express-cookie/node_modules/router/index.js:297:9
+    at processParams (/tmp/review/exec/A/express-cookie/node_modules/router/index.js:582:12)
+    at next (/tmp/review/exec/A/express-cookie/node_modules/router/index.js:291:5)
+    at Function.handle (/tmp/review/exec/A/express-cookie/node_modules/router/index.js:186:3)
+    at Function.handle (/tmp/review/exec/A/express-cookie/lib/application.js:177:15)
+    at Server.app (/tmp/review/exec/A/express-cookie/lib/express.js:38:9)
+    at Server.emit (node:events:519:28)
+    at parserOnIncoming (node:_http_server:1186:12)
+    at HTTPParser.parserOnHeadersComplete (node:_http_common:125:17)
+      priority
+        ✔ should set low priority
+        ✔ should set medium priority
+        ✔ should set high priority
+        ✔ should throw with invalid priority
+TypeError: option priority is invalid
+    at Object.serialize (/tmp/review/exec/A/express-cookie/node_modules/cookie/index.js:268:15)
+    at res.cookie (/tmp/review/exec/A/express-cookie/lib/response.js:782:36)
+    at /tmp/review/exec/A/express-cookie/test/res.cookie.js:263:15
+    at Layer.handleRequest (/tmp/review/exec/A/express-cookie/node_modules/router/lib/layer.js:152:17)
+    at trimPrefix (/tmp/review/exec/A/express-cookie/node_modules/router/index.js:342:13)
+    at /tmp/review/exec/A/express-cookie/node_modules/router/index.js:297:9
+    at processParams (/tmp/review/exec/A/express-cookie/node_modules/router/index.js:582:12)
+    at next (/tmp/review/exec/A/express-cookie/node_modules/router/index.js:291:5)
+    at Function.handle (/tmp/review/exec/A/express-cookie/node_modules/router/index.js:186:3)
+    at Function.handle (/tmp/review/exec/A/express-cookie/lib/application.js:177:15)
+    at Server.app (/tmp/review/exec/A/express-cookie/lib/express.js:38:9)
+    at Server.emit (node:events:519:28)
+    at parserOnIncoming (node:_http_server:1186:12)
+    at HTTPParser.parserOnHeadersComplete (node:_http_common:125:17)
+      signed
+        ✔ should generate a signed JSON cookie
+      signed without secret
+        ✔ should throw an error
+Error: cookieParser("secret") required for signed cookies
+    at res.cookie (/tmp/review/exec/A/express-cookie/lib/response.js:753:11)
+    at /tmp/review/exec/A/express-cookie/test/res.cookie.js:297:15
+    at Layer.handleRequest (/tmp/review/exec/A/express-cookie/node_modules/router/lib/layer.js:152:17)
+    at trimPrefix (/tmp/review/exec/A/express-cookie/node_modules/router/index.js:342:13)
+    at /tmp/review/exec/A/express-cookie/node_modules/router/index.js:297:9
+    at processParams (/tmp/review/exec/A/express-cookie/node_modules/router/index.js:582:12)
+    at next (/tmp/review/exec/A/express-cookie/node_modules/router/index.js:291:5)
+    at cookieParser (/tmp/review/exec/A/express-cookie/node_modules/cookie-parser/index.js:57:14)
+    at Layer.handleRequest (/tmp/review/exec/A/express-cookie/node_modules/router/lib/layer.js:152:17)
+    at trimPrefix (/tmp/review/exec/A/express-cookie/node_modules/router/index.js:342:13)
+    at /tmp/review/exec/A/express-cookie/node_modules/router/index.js:297:9
+    at processParams (/tmp/review/exec/A/express-cookie/node_modules/router/index.js:582:12)
+    at next (/tmp/review/exec/A/express-cookie/node_modules/router/index.js:291:5)
+    at Function.handle (/tmp/review/exec/A/express-cookie/node_modules/router/index.js:186:3)
+    at Function.handle (/tmp/review/exec/A/express-cookie/lib/application.js:177:15)
+    at Server.app (/tmp/review/exec/A/express-cookie/lib/express.js:38:9)
+    at Server.emit (node:events:519:28)
+    at parserOnIncoming (node:_http_server:1186:12)
+    at HTTPParser.parserOnHeadersComplete (node:_http_common:125:17)
+      .signedCookie(name, string)
+        ✔ should set a signed cookie
+
+
+  21 passing (45ms)
+

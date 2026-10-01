@@ -1,0 +1,4 @@
+# addr-011: changes after panel (SYNTHESIS.md bullet)
+1. Colon segment raised InvalidURIError: done. Segment is prefixed with "./" when empty or containing ":" (RFC 3986 §4.2); new spec "should have a route of './a:b' from 'http://example.com/a:b?x=1'" (red: got "", green: passes). Fixed tree: route "./a:b", joins back to http://example.com/a:b.
+2. Quadratic regex `path[/[^\/]*\z/]`: done. Replaced by `normalized_self.path.rpartition(SLASH).last`; path now assigned once per branch. Re-timed S6's case (target http://example.com/<n a's>/, base same + ?q=1): base n=10000 0.015s, n=30000 0.011s; previous patch 0.303s / 2.624s; fixed 0.015s / 0.011s.
+3. Commit message "whenever only the base had a query": done. #126 quoted as sporkmonger's own statement (verbatim from the issue comment, OWNER): done.

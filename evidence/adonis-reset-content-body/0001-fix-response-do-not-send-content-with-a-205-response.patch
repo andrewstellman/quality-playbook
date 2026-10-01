@@ -1,0 +1,65 @@
+From 15048b4fbbadf6d79e470865ddc73d8bafbf9fce Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <andrew@stellman.com>
+Date: Wed, 30 Sep 2026 13:34:29 -0400
+Subject: [PATCH] fix(response): do not send content with a 205 response
+
+writeBody only stripped content for 1xx, 204 and 304, so
+status(205).send(body) wrote the body. RFC 9110 forbids content in a
+205. Node does not treat 205 as body-less, so the response is now
+ended with an explicit Content-Length: 0 to keep keep-alive framing.
+---
+ src/response.ts        | 13 +++++++++++++
+ tests/response.spec.ts | 13 +++++++++++++
+ 2 files changed, 26 insertions(+)
+
+diff --git a/src/response.ts b/src/response.ts
+index 70fa144..575ec5d 100644
+--- a/src/response.ts
++++ b/src/response.ts
+@@ -284,6 +284,19 @@ export class HttpResponse extends Macroable {
+       return
+     }
+ 
++    /**
++     * A 205 response must not carry content. As per
++     * https://www.rfc-editor.org/rfc/rfc9110#section-15.3.6. Node does not treat
++     * 205 as body-less, so send an explicit zero length to keep the connection framed.
++     */
++    if (statusCode === ResponseStatus.ResetContent) {
++      this.removeHeader('Content-Type')
++      this.removeHeader('Transfer-Encoding')
++      this.header('Content-Length', 0)
++      this.#endResponse()
++      return
++    }
++
+     /**
+      * Body is empty and status code is not "204", "304" and neither under 200.
+      */
+diff --git a/tests/response.spec.ts b/tests/response.spec.ts
+index 745c2a7..eddf237 100644
+--- a/tests/response.spec.ts
++++ b/tests/response.spec.ts
+@@ -1491,6 +1491,19 @@ test.group('Response', (group) => {
+     assert.notProperty(header, 'content-length')
+   })
+ 
++  test('do not send body for a 205 response', async ({ assert }) => {
++    const { url } = await httpServer.create((req, res) => {
++      const response = new HttpResponseFactory().merge({ req, res, encryption, router }).create()
++      response.status(205).send('hello world')
++      response.finish()
++    })
++
++    const { header, text } = await supertest(url).get('/').expect(205)
++    assert.equal(header['content-length'], '0')
++    assert.notProperty(header, 'content-type')
++    assert.equal(text, '')
++  })
++
+   test('get response body', async ({ assert }) => {
+     assert.plan(1)
+ 
+-- 
+2.34.1
+

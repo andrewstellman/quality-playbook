@@ -1,0 +1,5 @@
+E       assert b'{"b":"hi"}' == b'{"b":"aGk="}'
+E         
+E         At index 6 diff: b'h' != b'a'
+E         Use -v to get more diff
+1 failed, 49 passed, 31 skipped in 0.26s

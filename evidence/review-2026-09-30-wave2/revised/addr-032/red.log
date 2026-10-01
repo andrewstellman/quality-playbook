@@ -1,0 +1,54 @@
+.................................................................................................................FFF.................F....................................................................................................................................................................................................
+
+Failures:
+
+  1) Expansion reserved expansion (+) behaves like expands {+pct} to %20a%2Fb
+     Failure/Error: expect(tmpl.to_str).to eq(expansion)
+
+       expected: "%20a%2Fb"
+            got: "%2520a%252Fb"
+
+       (compared using ==)
+     Shared Example Group: "expands" called from ./spec/addressable/template_spec.rb:370
+     # ./spec/addressable/template_spec.rb:29:in `block (3 levels) in <top (required)>'
+
+  2) Expansion reserved expansion (+) behaves like expands {+badpct} to %25zz%252/%2f
+     Failure/Error: expect(tmpl.to_str).to eq(expansion)
+
+       expected: "%25zz%252/%2f"
+            got: "%25zz%252/%252f"
+
+       (compared using ==)
+     Shared Example Group: "expands" called from ./spec/addressable/template_spec.rb:370
+     # ./spec/addressable/template_spec.rb:29:in `block (3 levels) in <top (required)>'
+
+  3) Expansion reserved expansion (+) behaves like expands {+pctlist*} to %20a,b%2F
+     Failure/Error: expect(tmpl.to_str).to eq(expansion)
+
+       expected: "%20a,b%2F"
+            got: "%2520a,b%252F"
+
+       (compared using ==)
+     Shared Example Group: "expands" called from ./spec/addressable/template_spec.rb:370
+     # ./spec/addressable/template_spec.rb:29:in `block (3 levels) in <top (required)>'
+
+  4) Expansion fragment expansion (#) behaves like expands {#pct} to #%20a%2Fb
+     Failure/Error: expect(tmpl.to_str).to eq(expansion)
+
+       expected: "#%20a%2Fb"
+            got: "#%2520a%252Fb"
+
+       (compared using ==)
+     Shared Example Group: "expands" called from ./spec/addressable/template_spec.rb:394
+     # ./spec/addressable/template_spec.rb:29:in `block (3 levels) in <top (required)>'
+
+Finished in 0.15732 seconds (files took 0.09918 seconds to load)
+330 examples, 4 failures
+
+Failed examples:
+
+rspec './spec/addressable/template_spec.rb[10:3:1:4]' # Expansion reserved expansion (+) behaves like expands {+pct} to %20a%2Fb
+rspec './spec/addressable/template_spec.rb[10:3:1:5]' # Expansion reserved expansion (+) behaves like expands {+badpct} to %25zz%252/%2f
+rspec './spec/addressable/template_spec.rb[10:3:1:6]' # Expansion reserved expansion (+) behaves like expands {+pctlist*} to %20a,b%2F
+rspec './spec/addressable/template_spec.rb[10:4:1:4]' # Expansion fragment expansion (#) behaves like expands {#pct} to #%20a%2Fb
+

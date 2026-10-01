@@ -1,0 +1,88 @@
+From dfcacd4e45020dc61a0ff98ac1f1be97334f1535 Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <andrew@stellman.com>
+Date: Wed, 30 Sep 2026 13:34:22 -0400
+Subject: [PATCH] fix(router): throw E_CANNOT_LOOKUP_ROUTE from findOrFail
+
+Router.findOrFail threw a plain Error when a route could not be found,
+so the documented E_CANNOT_LOOKUP_ROUTE exception was never raised and
+callers could not rely on its code, status or instanceof check. It now
+throws E_CANNOT_LOOKUP_ROUTE, keeping the existing error messages.
+---
+ src/router/main.ts          |  8 +++++---
+ tests/router/router.spec.ts | 18 ++++++++++++++++++
+ 2 files changed, 23 insertions(+), 3 deletions(-)
+
+diff --git a/src/router/main.ts b/src/router/main.ts
+index 12dd74e..9470e63 100644
+--- a/src/router/main.ts
++++ b/src/router/main.ts
+@@ -16,6 +16,7 @@ import type { Constructor, LazyImport } from '@poppinss/utils/types'
+ import Macroable from '@poppinss/macroable'
+ 
+ import debug from '../debug.ts'
++import * as errors from '../errors.ts'
+ import type { Qs } from '../qs.ts'
+ import { Route } from './route.ts'
+ import { RouteGroup } from './group.ts'
+@@ -531,7 +532,7 @@ export class Router extends Macroable {
+    * @param method - Optional HTTP method to filter by
+    * @param disableLegacyLookup - Whether to disable legacy lookup strategies
+    * @returns Found route
+-   * @throws Error when route is not found
++   * @throws E_CANNOT_LOOKUP_ROUTE when route is not found
+    */
+   findOrFail(
+     routeIdentifier: string,
+@@ -541,10 +542,11 @@ export class Router extends Macroable {
+   ): RouteJSON {
+     const route = this.find(routeIdentifier, domain, method, disableLegacyLookup)
+     if (!route) {
++      const error = new errors.E_CANNOT_LOOKUP_ROUTE([routeIdentifier])
+       if (method) {
+-        throw new Error(`Cannot lookup route "${routeIdentifier}" for method "${method}"`)
++        error.message = `Cannot lookup route "${routeIdentifier}" for method "${method}"`
+       }
+-      throw new Error(`Cannot lookup route "${routeIdentifier}"`)
++      throw error
+     }
+ 
+     return route
+diff --git a/tests/router/router.spec.ts b/tests/router/router.spec.ts
+index 8f2e398..f0c6414 100644
+--- a/tests/router/router.spec.ts
++++ b/tests/router/router.spec.ts
+@@ -11,6 +11,7 @@ import { parse } from '@poppinss/qs'
+ import { test } from '@japa/runner'
+ import { EncryptionFactory } from '@boringnode/encryption/factories'
+ 
++import * as errors from '../../src/errors.ts'
+ import { Router } from '../../src/router/main.ts'
+ import { RouterFactory } from '../../factories/router.ts'
+ 
+@@ -1625,6 +1626,23 @@ test.group('Lookup store | findByOrFail', () => {
+ 
+     assert.throws(() => router.findOrFail('/users/:id'), 'Cannot lookup route "/users/:id"')
+   })
++
++  test('raise E_CANNOT_LOOKUP_ROUTE exception when unable to lookup route', ({ assert }) => {
++    const router = new RouterFactory().create()
++    router.get('/users/:id', () => {}).as('users.show')
++    router.commit()
++
++    assert.throws(
++      () => router.findOrFail('posts.show'),
++      errors.E_CANNOT_LOOKUP_ROUTE,
++      'Cannot lookup route "posts.show"'
++    )
++    assert.throws(
++      () => router.findOrFail('users.show', undefined, 'POST'),
++      errors.E_CANNOT_LOOKUP_ROUTE,
++      'Cannot lookup route "users.show" for method "POST"'
++    )
++  })
+ })
+ 
+ test.group('Lookup store | has', () => {
+-- 
+2.34.1
+

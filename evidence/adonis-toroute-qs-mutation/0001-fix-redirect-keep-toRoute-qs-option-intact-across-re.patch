@@ -1,0 +1,72 @@
+From b4bdf49f4496f970e9bec0c2267712f1ad5690e1 Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <andrew@stellman.com>
+Date: Wed, 30 Sep 2026 13:33:48 -0400
+Subject: [PATCH] fix(redirect): keep toRoute qs option intact across redirects
+
+Redirect.toRoute consumed options.qs by setting it to undefined on the
+caller's object, so a reused options object (as captured by brisk
+router.on().redirect()) lost its query string after the first request.
+Read qs into a local copy and pass the remaining options to urlFor.
+---
+ src/redirect.ts        |  8 ++++----
+ tests/redirect.spec.ts | 23 +++++++++++++++++++++++
+ 2 files changed, 27 insertions(+), 4 deletions(-)
+
+diff --git a/src/redirect.ts b/src/redirect.ts
+index 51fd139..9652561 100644
+--- a/src/redirect.ts
++++ b/src/redirect.ts
+@@ -306,12 +306,12 @@ export class Redirect extends Macroable {
+       : []
+   ) {
+     const [identifier, params, options] = args as any[]
+-    if (options && options.qs) {
+-      this.withQs(options.qs)
+-      options.qs = undefined
++    const { qs, ...urlOptions } = options || {}
++    if (qs) {
++      this.withQs(qs)
+     }
+ 
+-    const url = (this.#router.urlBuilder.urlFor as any)(identifier, params, options)
++    const url = (this.#router.urlBuilder.urlFor as any)(identifier, params, urlOptions)
+     return this.toPath(url)
+   }
+ 
+diff --git a/tests/redirect.spec.ts b/tests/redirect.spec.ts
+index 1857197..eb5e7a1 100644
+--- a/tests/redirect.spec.ts
++++ b/tests/redirect.spec.ts
+@@ -366,6 +366,29 @@ test.group('Redirect', () => {
+     assert.equal(header.location, '/posts/1?user=virk&published=true')
+   })
+ 
++  test('reuse the same options object across multiple toRoute calls', async ({ assert }) => {
++    const route = new RouterFactory().merge({ app, encryption }).create()
++
++    route.get('posts/:id', 'PostsController.show').as('post.show')
++    route.commit()
++
++    const options = { qs: { published: true } }
++    const { url } = await httpServer.create((req, res) => {
++      const response = new HttpResponseFactory()
++        .merge({ req, res, encryption, router: route })
++        .create()
++
++      // @ts-expect-error "Because RoutesList is empty"
++      response.redirect().toRoute('post.show', { id: 1 }, options)
++      response.finish()
++    })
++
++    const first = await supertest(url).get('/')
++    const second = await supertest(url).get('/')
++    assert.equal(first.header.location, '/posts/1?published=true')
++    assert.equal(second.header.location, '/posts/1?published=true')
++  })
++
+   test('throw when given route is not found', async ({ assert }) => {
+     const { url } = await httpServer.create((req, res) => {
+       const response = new HttpResponseFactory().merge({ req, res, encryption, router }).create()
+-- 
+2.34.1
+

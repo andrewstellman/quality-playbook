@@ -1,0 +1,57 @@
+From 16cbc7d541ba08c9daa6182299ab16629b720f21 Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <andrew@stellman.com>
+Date: Wed, 30 Sep 2026 23:24:47 -0400
+Subject: [PATCH] Match ** at any depth in MANIFEST.in include
+
+FileList.include called glob() without recursive=True, so '**' matched a
+single directory level, while exclude (via translate_pattern) and the
+documentation treat '**' as matching across directory separators.
+---
+ newsfragments/+manifest-include-globstar.bugfix.rst | 2 ++
+ setuptools/command/egg_info.py                      | 2 +-
+ setuptools/tests/test_manifest.py                   | 7 +++++++
+ 3 files changed, 10 insertions(+), 1 deletion(-)
+ create mode 100644 newsfragments/+manifest-include-globstar.bugfix.rst
+
+diff --git a/newsfragments/+manifest-include-globstar.bugfix.rst b/newsfragments/+manifest-include-globstar.bugfix.rst
+new file mode 100644
+index 00000000..eb19607d
+--- /dev/null
++++ b/newsfragments/+manifest-include-globstar.bugfix.rst
+@@ -0,0 +1,2 @@
++``include`` in ``MANIFEST.in`` now matches ``**`` across any number of
++directory levels, as already documented and as ``exclude`` does.
+diff --git a/setuptools/command/egg_info.py b/setuptools/command/egg_info.py
+index de368e9c..42116b0c 100644
+--- a/setuptools/command/egg_info.py
++++ b/setuptools/command/egg_info.py
+@@ -445,7 +445,7 @@ class FileList(_FileList):
+ 
+     def include(self, pattern):
+         """Include files that match 'pattern'."""
+-        found = [f for f in glob(pattern) if not os.path.isdir(f)]
++        found = [f for f in glob(pattern, recursive=True) if not os.path.isdir(f)]
+         self.extend(found)
+         return bool(found)
+ 
+diff --git a/setuptools/tests/test_manifest.py b/setuptools/tests/test_manifest.py
+index 34931616..e6472a36 100644
+--- a/setuptools/tests/test_manifest.py
++++ b/setuptools/tests/test_manifest.py
+@@ -282,6 +282,13 @@ class TestManifestTest(TempDirTestCase):
+         }
+         assert files == self.get_files()
+ 
++    def test_include_recursive_glob(self):
++        """Include files at any depth with **."""
++        ml = make_local_path
++        self.make_manifest("include **/*.css")
++        files = default_files | {ml('app/static/app.css')}
++        assert files == self.get_files()
++
+     def test_graft(self):
+         """Include the whole app/static/ directory."""
+         ml = make_local_path
+-- 
+2.34.1
+

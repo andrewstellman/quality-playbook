@@ -1,0 +1,6 @@
+/tmp/review/exec/A/bionemo-thd/.venv/lib/python3.11/site-packages/torch/_subclasses/functional_tensor.py:368: UserWarning: Failed to initialize NumPy: No module named 'numpy' (Triggered internally at /__w/pytorch/pytorch/torch/csrc/utils/tensor_numpy.cpp:84.)
+  cpu = _conversion_method_template(device=torch.device("cpu"))
+[FAIL/INFO] rejects_non_divisible: no ValueError raised (silent data loss path)
+[PASS] accepts_divisible_no_regression: seen=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] expected=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+[PASS] silent_data_loss_demo: NO ERROR RAISED; tokens collected across all ranks=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]; MISSING (dropped) tokens=[16, 17]
+SUMMARY: {'rejects_non_divisible': False, 'accepts_divisible_no_regression': True, 'silent_data_loss_demo': True}

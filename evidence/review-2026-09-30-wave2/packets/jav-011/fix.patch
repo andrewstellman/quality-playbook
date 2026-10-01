@@ -1,0 +1,92 @@
+From ab785d22ae4b67210a70692aff43c6ef917be038 Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <andrew@stellman.com>
+Date: Wed, 30 Sep 2026 23:23:06 -0400
+Subject: [PATCH] [static-files] Treat precompressMaxSize = 0 as "all sizes"
+
+The docs say precompressMaxSize is "-1 to disable, 0 for all sizes", but
+both resource handlers only precompressed when the value was > 0, so 0
+silently disabled precompression. Precompress for any value >= 0 and
+skip the size limit when it is 0.
+---
+ .../staticfiles/JavalinStaticResourceHandler.kt    |  4 ++--
+ .../jetty/JettyPrecompressingResourceHandler.kt    |  2 +-
+ .../java/io/javalin/jetty/JettyResourceHandler.kt  |  2 +-
+ .../staticfiles/TestStaticFilesPrecompressor.kt    | 14 ++++++++++++++
+ 4 files changed, 18 insertions(+), 4 deletions(-)
+
+diff --git a/javalin/src/main/java/io/javalin/http/staticfiles/JavalinStaticResourceHandler.kt b/javalin/src/main/java/io/javalin/http/staticfiles/JavalinStaticResourceHandler.kt
+index 1101209d..046f7eea 100644
+--- a/javalin/src/main/java/io/javalin/http/staticfiles/JavalinStaticResourceHandler.kt
++++ b/javalin/src/main/java/io/javalin/http/staticfiles/JavalinStaticResourceHandler.kt
+@@ -46,7 +46,7 @@ class JavalinStaticResourceHandler : ResourceHandler {
+         val (handler, resourcePath) = findHandler(ctx) ?: return false
+         try {
+             handler.config.headers.forEach { ctx.header(it.key, it.value) }
+-            return if (handler.config.precompressMaxSize > 0) {
++            return if (handler.config.precompressMaxSize >= 0) {
+                 handlePrecompressed(resourcePath, ctx, compressionStrategy, handler)
+             } else {
+                 handler.handleResource(resourcePath, ctx)
+@@ -78,7 +78,7 @@ class JavalinStaticResourceHandler : ResourceHandler {
+         val resource = handler.getResource(resourcePath) ?: return false
+ 
+         // If file is too large for precompression, fall back to regular handling
+-        if (resource.length() > handler.config.precompressMaxSize) {
++        if (handler.config.precompressMaxSize > 0 && resource.length() > handler.config.precompressMaxSize) {
+             return handler.handleResource(resourcePath, ctx)
+         }
+ 
+diff --git a/javalin/src/main/java/io/javalin/jetty/JettyPrecompressingResourceHandler.kt b/javalin/src/main/java/io/javalin/jetty/JettyPrecompressingResourceHandler.kt
+index 6ee66bbd..352d8630 100644
+--- a/javalin/src/main/java/io/javalin/jetty/JettyPrecompressingResourceHandler.kt
++++ b/javalin/src/main/java/io/javalin/jetty/JettyPrecompressingResourceHandler.kt
+@@ -17,7 +17,7 @@ class JettyPrecompressingResourceHandler {
+ 
+     fun handle(resourcePath: String, ctx: Context, compressionStrategy: CompressionStrategy, handler: ConfigurableHandler): Boolean {
+         val resource = handler.getResource(resourcePath) ?: return false
+-        if (resource.length() > handler.config.precompressMaxSize) {
++        if (handler.config.precompressMaxSize > 0 && resource.length() > handler.config.precompressMaxSize) {
+             JavalinLogger.warn(
+                 "Static file '$resourcePath' is larger than configured max size for pre-compression (${handler.config.precompressMaxSize} bytes).\n" +
+                     "You can configure the max size in the static files config: `staticFiles.precompressMaxSize = newMaxSize`."
+diff --git a/javalin/src/main/java/io/javalin/jetty/JettyResourceHandler.kt b/javalin/src/main/java/io/javalin/jetty/JettyResourceHandler.kt
+index 80cef501..89a2ad91 100644
+--- a/javalin/src/main/java/io/javalin/jetty/JettyResourceHandler.kt
++++ b/javalin/src/main/java/io/javalin/jetty/JettyResourceHandler.kt
+@@ -46,7 +46,7 @@ class JettyResourceHandler : JavalinResourceHandler {
+         val (handler, resourcePath) = findHandler(ctx) ?: return false
+         try {
+             handler.config.headers.forEach { ctx.header(it.key, it.value) }
+-            return if (handler.config.precompressMaxSize > 0) {
++            return if (handler.config.precompressMaxSize >= 0) {
+                 precompressingHandler.handle(resourcePath, ctx, compressionStrategy, handler)
+             } else {
+                 handler.handleResource(resourcePath, ctx)
+diff --git a/javalin/src/test/java/io/javalin/staticfiles/TestStaticFilesPrecompressor.kt b/javalin/src/test/java/io/javalin/staticfiles/TestStaticFilesPrecompressor.kt
+index d01af2af..08b4a7c2 100644
+--- a/javalin/src/test/java/io/javalin/staticfiles/TestStaticFilesPrecompressor.kt
++++ b/javalin/src/test/java/io/javalin/staticfiles/TestStaticFilesPrecompressor.kt
+@@ -218,6 +218,20 @@ class TestStaticFilesPrecompressor {
+         assertThat(getPrecompressCacheSize(app)).describedAs("nothing should be cached").isEqualTo(oldSize)
+     }
+ 
++    @Test
++    fun `precompressMaxSize of zero precompresses files of any size`() = testStaticFiles({ config ->
++        config.staticFiles.add {
++            it.directory = "public"
++            it.location = Location.CLASSPATH
++            it.precompressMaxSize = 0 // documented as "0 for all sizes"
++        }
++    }) { app, http ->
++        val oldSize = getPrecompressCacheSize(app)
++        val res = http.getFile("/html.html", "gzip")
++        assertThat(res.code).describedAs("status").isEqualTo(HttpStatus.OK.code)
++        assertThat(getPrecompressCacheSize(app)).describedAs("file should be precompressed and cached").isEqualTo(oldSize + 1)
++    }
++
+     @Test
+     fun `can set headers after precompressing handler is done`() = testStaticFiles({ config ->
+         config.staticFiles.add {
+-- 
+2.34.1
+

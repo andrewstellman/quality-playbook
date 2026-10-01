@@ -1,0 +1,123 @@
+# suite-after: 591e094b5f0a77e0576107edb9ff6801b500101d, module suite selection
+# tree: HEAD=591e094b5f0a77e0576107edb9ff6801b500101d; working-tree changes vs HEAD:
+########## suite: incubator
+== harness: repo=/tmp/fix/otel-urlparser suite=incubator HEAD=591e094b5f0a77e0576107edb9ff6801b500101d dirty=0
+== javac: javac 25.0.4.1
+/tmp/fix/otel-urlparser/instrumentation-api/src/main/java/io/opentelemetry/instrumentation/api/internal/SupportabilityMetrics.java:114: warning: [removal] getSecurityManager() in System has been deprecated and marked for removal
+    if (System.getSecurityManager() == null) {
+              ^
+/tmp/fix/otel-urlparser/instrumentation-api/src/main/java/io/opentelemetry/instrumentation/api/internal/SupportabilityMetrics.java:117: warning: [removal] AccessController in java.security has been deprecated and marked for removal
+    return java.security.AccessController.doPrivileged(action);
+                        ^
+2 warnings
+== junit selection: --select-class io.opentelemetry.instrumentation.api.incubator.semconv.net.internal.UrlParserTest --select-class io.opentelemetry.instrumentation.api.incubator.semconv.service.peer.internal.ServicePeerResolverTest --select-class io.opentelemetry.instrumentation.api.incubator.semconv.service.peer.ServicePeerAttributesExtractorTest --select-class io.opentelemetry.instrumentation.api.incubator.semconv.http.HttpClientServicePeerAttributesExtractorTest
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by net.bytebuddy.dynamic.loading.ClassInjector$UsingUnsafe$Dispatcher$CreationAction (file:/tmp/deps/byte-buddy-1.18.14.jar)
+WARNING: Please consider reporting this to the maintainers of class net.bytebuddy.dynamic.loading.ClassInjector$UsingUnsafe$Dispatcher$CreationAction
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+Sep 28, 2026 1:15:16 AM io.opentelemetry.instrumentation.api.incubator.semconv.service.peer.internal.ServicePeerResolver lambda$new$0
+WARNING: Invalid service_peer_mapping entry - peer is required: Mock for DeclarativeConfigProperties, hashCode: 1022251996
+Sep 28, 2026 1:15:16 AM io.opentelemetry.instrumentation.api.incubator.semconv.service.peer.internal.ServicePeerResolver lambda$new$0
+WARNING: Invalid service_peer_mapping entry - at least one of service_name or service_namespace is required: Mock for DeclarativeConfigProperties, hashCode: 990226843
+╷
+├─ JUnit Platform Suite ✔
+├─ JUnit Jupiter ✔
+│  ├─ UrlParserTest ✔
+│  │  ├─ testGetHostWithPort() ✔
+│  │  ├─ testGetPathWithPort() ✔
+│  │  ├─ testGetHost() ✔
+│  │  ├─ testGetPath() ✔
+│  │  ├─ testGetPort() ✔
+│  │  ├─ testGetPortWithPort() ✔
+│  │  ├─ testGetHostWithNoAuthority() ✔
+│  │  ├─ testGetPathtWithNoScheme() ✔
+│  │  ├─ testGetPortWithNoAuthority() ✔
+│  │  ├─ testGetHostWithNoScheme() ✔
+│  │  ├─ testGetPortWithNoScheme() ✔
+│  │  ├─ testGetHostAndPortWithIpv6() ✔
+│  │  └─ testGetPathWithNoAuthority() ✔
+│  ├─ ServicePeerResolverTest ✔
+│  │  ├─ configuredTargetDoesNotAlsoMatchItsFirstHost() ✔
+│  │  ├─ oracleDescriptorDoesNotAlsoMatchParsedHost(String) ✔
+│  │  │  ├─ [1] oracle:thin:@(description=(address=(host=h1))(address=(host=h2))) ✔
+│  │  │  └─ [2] oracle:thin:@(DESCRIPTION=(ADDRESS = (HOST=h1))(ADDRESS = (HOST=h2))) ✔
+│  │  ├─ shouldSkipEntryWithNullPeer() ✔
+│  │  ├─ shouldSkipEntryWithNullNameAndNamespace() ✔
+│  │  ├─ commaInPathStillUsesHostAndPathMatching() ✔
+│  │  ├─ nonEmptyWithValidMapping() ✔
+│  │  ├─ shouldResolve(String, Integer, String, String, String) ✔
+│  │  │  ├─ [1] example.com, null, null, baseSvc, baseNs ✔
+│  │  │  ├─ [2] example.com, 8080, null, portSvc, null ✔
+│  │  │  ├─ [3] example.com, 8080, /api, null, apiNs ✔
+│  │  │  ├─ [4] example.com, 9090, null, baseSvc, baseNs ✔
+│  │  │  ├─ [5] example.com, 8080, /other, portSvc, null ✔
+│  │  │  ├─ [6] unknown.com, null, null, null, null ✔
+│  │  │  ├─ [7] nsonly.com, null, null, null, nsOnly ✔
+│  │  │  ├─ [8] 1.2.3.4, null, /api, ipApiSvc, null ✔
+│  │  │  ├─ [9] 1.2.3.4, 8080, /api, ipPortApi, ipPortApiNs ✔
+│  │  │  ├─ [10] 1.2.3.4, 8080, null, ipSvc, ipNs ✔
+│  │  │  ├─ [11] 1.2.3.4, 9000, /api, ipSvc, ipNs ✔
+│  │  │  ├─ [12] ::1, 8080, null, ipv6PortSvc, null ✔
+│  │  │  └─ [13] ::1, 9090, null, null, null ✔
+│  │  └─ emptyWhenNoMappings() ✔
+│  ├─ ServicePeerAttributesExtractorTest ✔
+│  │  ├─ shouldNotSetAnyValueIfPeerNameDoesNotMatch() ✔
+│  │  ├─ shouldSetPeerNameIfItMatches() ✔
+│  │  ├─ shouldMatchConfiguredTargetExactly() ✔
+│  │  └─ shouldNotSetAnyValueIfNetExtractorReturnsNulls() ✔
+│  └─ HttpClientServicePeerAttributesExtractorTest ✔
+│     ├─ shouldNotSetAnyValueIfPeerNameDoesNotMatch() ✔
+│     ├─ shouldSetPeerNameIfItMatches() ✔
+│     ├─ shouldFallbackToHostHeaderWhenServerAddressIsNull() ✔
+│     └─ shouldNotSetAnyValueIfNetExtractorReturnsNulls() ✔
+└─ JUnit Vintage ✔
+
+Test run finished after 480 ms
+[         9 containers found      ]
+[         0 containers skipped    ]
+[         9 containers started    ]
+[         0 containers aborted    ]
+[         9 containers successful ]
+[         0 containers failed     ]
+[        42 tests found           ]
+[         0 tests skipped         ]
+[        42 tests started         ]
+[         0 tests aborted         ]
+[        42 tests successful      ]
+[         0 tests failed          ]
+
+== junit exit code: 0
+########## suite: reactor
+== harness: repo=/tmp/fix/otel-urlparser suite=reactor HEAD=591e094b5f0a77e0576107edb9ff6801b500101d dirty=0
+== javac: javac 25.0.4.1
+== junit selection: --select-class io.opentelemetry.javaagent.instrumentation.reactornetty.v1_0.UrlParserTest
+╷
+├─ JUnit Platform Suite ✔
+├─ JUnit Jupiter ✔
+│  └─ UrlParserTest ✔
+│     ├─ testGetHostWithPort() ✔
+│     ├─ testGetHost() ✔
+│     ├─ testGetPort() ✔
+│     ├─ testGetPortWithPort() ✔
+│     ├─ testGetHostWithNoAuthority() ✔
+│     ├─ testGetPortWithNoAuthority() ✔
+│     ├─ testGetHostWithNoScheme() ✔
+│     ├─ testGetPortWithNoScheme() ✔
+│     └─ testGetHostAndPortWithIpv6() ✔
+└─ JUnit Vintage ✔
+
+Test run finished after 75 ms
+[         4 containers found      ]
+[         0 containers skipped    ]
+[         4 containers started    ]
+[         0 containers aborted    ]
+[         4 containers successful ]
+[         0 containers failed     ]
+[         9 tests found           ]
+[         0 tests skipped         ]
+[         9 tests started         ]
+[         0 tests aborted         ]
+[         9 tests successful      ]
+[         0 tests failed          ]
+
+== junit exit code: 0

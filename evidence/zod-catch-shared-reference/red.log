@@ -1,0 +1,60 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.11 [39m[90m/tmp/zodfix/BUG-022/packages/zod[39m
+
+ [31m❯[39m src/v4/classic/tests/catch.test.ts [2m([22m[2m32 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 133[2mms[22m[39m
+   [32m✓[39m basic catch[32m 3[2mms[22m[39m
+   [32m✓[39m catch fn does not run when parsing succeeds[32m 1[2mms[22m[39m
+   [32m✓[39m basic catch async[32m 0[2mms[22m[39m
+   [32m✓[39m catch replace wrong types[32m 1[2mms[22m[39m
+   [32m✓[39m catch with transform[32m 1[2mms[22m[39m
+   [32m✓[39m catch on existing optional[32m 0[2mms[22m[39m
+   [32m✓[39m optional on catch[32m 0[2mms[22m[39m
+   [32m✓[39m complex chain example[32m 0[2mms[22m[39m
+   [32m✓[39m removeCatch[32m 0[2mms[22m[39m
+   [32m✓[39m nested[32m 2[2mms[22m[39m
+   [32m✓[39m chained catch[32m 0[2mms[22m[39m
+   [32m✓[39m native enum[32m 1[2mms[22m[39m
+   [32m✓[39m enum[32m 1[2mms[22m[39m
+   [32m✓[39m reported issues with nested usage[32m 17[2mms[22m[39m
+   [32m✓[39m catch error[32m 3[2mms[22m[39m
+   [32m✓[39m ctx.input[32m 1[2mms[22m[39m
+   [32m✓[39m ctx.value is the input to the catch, not what the inner schema made of it[32m 8[2mms[22m[39m
+   [32m✓[39m ctx.issues outlives the callback[32m 5[2mms[22m[39m
+   [32m✓[39m catch ctx carries the rest of the payload through[32m 1[2mms[22m[39m
+   [32m✓[39m catch does not swallow an issue it did not cause[32m 9[2mms[22m[39m
+   [32m✓[39m catch does not break intersection reconciliation[32m 17[2mms[22m[39m
+   [32m✓[39m catch propagates a back-edge to whatever wraps it[32m 8[2mms[22m[39m
+   [32m✓[39m a catch that fires does not rescue an issue from outside it[32m 1[2mms[22m[39m
+   [32m✓[39m direction-aware catch[32m 1[2mms[22m[39m
+   [32m✓[39m optional clobbers catch through pipe boundaries[32m 1[2mms[22m[39m
+   [32m✓[39m catch does not resurrect issues an inner optional already resolved[32m 40[2mms[22m[39m
+   [32m✓[39m resolving an optional's failure clears the abort flag with it[32m 1[2mms[22m[39m
+   [32m✓[39m catch clears the abort flag along with the issues[32m 1[2mms[22m[39m
+   [32m✓[39m catch clears the abort flag on the async branch too[32m 3[2mms[22m[39m
+   [32m✓[39m catch resolves the issues array itself, so an outer catch does not resurrect them[32m 0[2mms[22m[39m
+   [32m✓[39m catch resolves the issues array on the async branch too[32m 0[2mms[22m[39m
+[31m   [31m×[31m a constant catch value is shallow-cloned per parse[39m[32m 2[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 1 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/v4/classic/tests/catch.test.ts[2m > [22ma constant catch value is shallow-cloned per parse
+[31m[1mAssertionError[22m: expected [ 'leak' ] not to be [ 'leak' ] // Object.is equality[39m
+
+[2mCompared values have no visual difference.[22m
+
+[36m [2m❯[22m src/v4/classic/tests/catch.test.ts:[2m611:18[22m[39m
+    [90m609|[39m   a1[33m.[39m[34mpush[39m([32m"leak"[39m)[33m;[39m
+    [90m610|[39m   [35mconst[39m a2 [33m=[39m arr[33m.[39m[34mparse[39m([34m1[39m)[33m;[39m
+    [90m611|[39m   [34mexpect[39m(a1)[33m.[39mnot[33m.[39m[34mtoBe[39m(a2)[33m;[39m
+    [90m   |[39m                  [31m^[39m
+    [90m612|[39m   [34mexpect[39m(a2)[33m.[39m[34mtoEqual[39m([])[33m;[39m
+    [90m613|[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m31 passed[39m[22m[90m (32)[39m
+[2m   Start at [22m 16:53:46
+[2m   Duration [22m 1.12s[2m (transform 723ms, setup 0ms, import 850ms, tests 133ms, environment 0ms)[22m
+

@@ -1,0 +1,16 @@
+== unpatched Percentage (main 7ca2715) ==
+
+Expecting actual:
+  100.0
+not to be close to:
+  1.0E12
+by more than 2147483647% but difference was 99.99999998999999%.
+(a difference of exactly 2147483647% being considered incorrect)
+== patched ==
+
+Expecting actual:
+  100.0
+not to be close to:
+  1.0E12
+by more than 3000000000% but difference was 99.99999998999999%.
+(a difference of exactly 3000000000% being considered incorrect)

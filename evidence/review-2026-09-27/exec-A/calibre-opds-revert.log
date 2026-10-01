@@ -1,0 +1,1 @@
+No test-only revert: patch contains no test changes (grep '^diff --git' shows one file: src/calibre/srv/opds.py). REVERT == re-running harness on base tree, already captured as red.log.

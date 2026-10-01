@@ -1,0 +1,71 @@
+
+Redirect (tests/redirect.spec.ts)
+  ✔ redirect to given url (22.79ms)
+  ✔ redirect to given url with query string (6.1ms)
+  ✔ redirect to given url without overriding global query string forwarding (3.8ms)
+  ✔ redirect to given url can disable global query string forwarding (3.71ms)
+  ✔ redirect to given url and forward current query string (4.78ms)
+  ✔ redirect to given url with custom query string (2.17ms)
+  ✔ redirect to given url with custom query string overwriting the forward rules (2.23ms)
+  ✔ redirect to given url with custom query given as object (1.78ms)
+  ✔ do not set query string when originally there was no query string (3.22ms)
+  ✔ redirect to given url and set custom statusCode (5.15ms)
+  ✔ redirect to given url and set custom statusCode using fluent API (2.54ms)
+  ✔ redirect back to referrer (2.39ms)
+  ✔ redirect back to referrer with existing query string (2.03ms)
+  ✔ redirect back to referrer with query string (1.93ms)
+  ✔ redirect back to root (/) when referrer header is not set (1.98ms)
+  ✔ redirect back to root (/) when referrer header is empty (2.22ms)
+  ✔ redirect to given route (2.89ms)
+  ✔ redirect to given route with params (2.44ms)
+  ✔ encode route params before redirecting (0.77ms)
+  ✔ redirect to given route with domain (0.67ms)
+  ✔ redirect to given route and forward query string (2.21ms)
+  ✔ redirect to given route and add qs via makeRoute (2.3ms)
+  ✔ throw when given route is not found (1.75ms)
+  ✔ merge query string values when withQs is called multiple times (2.87ms)
+  ✔ merge query string with current url qs values (1.98ms)
+  ✖ append query string to url that already has a query string (2.44ms)
+  ✔ do not set query string original url has no qs (2.2ms)
+  ✔ clear existing qs (2.15ms)
+ ERRORS 
+
+❯ Redirect / append query string to url that already has a query string
+
+- Expected  - 1
++ Received  + 1
+
+- /foo?username=virk&age=28
++ /foo?username=virk?age=28
+
+[31mℹ AssertionError: expected '/foo?username=virk?age=28' to equal '/foo?username=virk&age=28'[39m
+
+ ⁃ at Assert.equal [33m(/tmp/adonw/node_modules/@japa/assert/build/index.js:69:19)[39m
+ ⁃ at Object.executor [33m(tests/redirect.spec.ts:414:12)[39m
+
+   [2m409[22m [2m┃[22m        response[34m.[0m[35mredirect[0m()[34m.[0m[35mwithQs[0m([32m'age'[0m[34m,[0m [33m28[0m)[34m.[0m[35mtoPath[0m([32m'/foo?username=virk'[0m)
+   [2m410[22m [2m┃[22m        response[34m.[0m[35mfinish[0m()
+   [2m411[22m [2m┃[22m      })
+   [2m412[22m [2m┃[22m  
+   [2m413[22m [2m┃[22m      [31mconst[0m { header } [34m=[0m [31mawait[0m [35msupertest[0m(url)[34m.[0m[31mget[0m([32m'/'[0m)[34m.[0m[35mredirects[0m([33m1[0m)
+ [41m❯ 414 ┃      assert.equal(header.location, '/foo?username=virk&age=28')[49m
+   [2m415[22m [2m┃[22m    })
+   [2m416[22m [2m┃[22m  
+   [2m417[22m [2m┃[22m    [35mtest[0m([32m'do not set query string original url has no qs'[0m[34m,[0m [31masync[0m ({ assert }) [31m=>[0m {
+   [2m418[22m [2m┃[22m      [31mconst[0m { url } [34m=[0m [31mawait[0m httpServer[34m.[0m[35mcreate[0m((req[34m,[0m res) [31m=>[0m {
+   [2m419[22m [2m┃[22m        [31mconst[0m response [34m=[0m [31mnew[0m [33mHttpResponseFactory[0m()[34m.[0m[35mmerge[0m({ req[34m,[0m res[34m,[0m encryption[34m,[0m router })[34m.[0m[35mcreate[0m()
+
+[2m ⁃ at [3mprocess.processTicksAndRejections[23m ([3mnode:internal/process/task_queues:103:5[23m)[22m
+ ⁃ at async #wrapTestInTimeout [33m(/tmp/adonw/node_modules/@japa/core/build/index.js:680:4)[39m
+ ⁃ at async TestRunner.run [33m(/tmp/adonw/node_modules/@japa/core/build/index.js:710:4)[39m
+ ⁃ at async Test$1.exec [33m(/tmp/adonw/node_modules/@japa/core/build/index.js:918:3)[39m
+ ⁃ at async GroupRunner.run [33m(/tmp/adonw/node_modules/@japa/core/build/index.js:259:4)[39m
+ ⁃ at async Group$1.exec [33m(/tmp/adonw/node_modules/@japa/core/build/index.js:354:3)[39m
+ ⁃ at async SuiteRunner.run [33m(/tmp/adonw/node_modules/@japa/core/build/index.js:1100:4)[39m
+ ⁃ at async Suite$1.exec [33m(/tmp/adonw/node_modules/@japa/core/build/index.js:1175:3)[39m
+[1/1]─
+
+ FAILED 
+
+Tests  27 passed, 1 failed (28)
+ Time  99ms

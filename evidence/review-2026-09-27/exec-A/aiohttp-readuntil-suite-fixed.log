@@ -1,0 +1,27 @@
+============================= test session starts ==============================
+platform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0
+codspeed: 5.0.3 (disabled, mode: walltime, callgraph: not supported, timer_resolution: 1.0ns)
+rootdir: /tmp/review/exec/A/aiohttp-readuntil
+configfile: pytest.ini
+plugins: cov-7.1.0, xdist-3.8.0, codspeed-5.0.3, timeout-2.4.0, platformdirs-4.12.0, asyncio-1.4.0, mock-3.15.1
+timeout: 120.0s
+timeout method: signal
+timeout func_only: False
+asyncio: mode=auto, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 162 items
+
+tests/test_streams.py .................................................. [ 30%]
+........................................................................ [ 75%]
+........................................                                 [100%]
+
+============================= slowest 10 durations =============================
+0.21s call     tests/test_streams.py::TestStreamReader::test_readany_chunk_end_race
+0.21s call     tests/test_streams.py::TestStreamReader::test_readchunk_separate_http_chunk_tail
+0.11s call     tests/test_streams.py::TestStreamReader::test_readchunk_wait_eof
+0.10s call     tests/test_streams.py::TestStreamReader::test_wait_eof
+0.01s call     tests/test_streams.py::test_stream_reader_iter_any
+0.01s call     tests/test_streams.py::TestStreamReaderChunkHook::test_readany_fires
+0.01s call     tests/test_streams.py::TestStreamReaderChunkHook::test_readchunk_http_chunk_eof_does_not_fire
+
+(3 durations < 0.005s hidden.  Use -vv to show these durations.)
+============================= 162 passed in 1.09s ==============================

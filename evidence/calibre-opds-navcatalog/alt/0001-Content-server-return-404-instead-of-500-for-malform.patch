@@ -1,0 +1,69 @@
+From bc38468441f5b35c82fd6c528bc8b8caaff6163f Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <andrew@stellman.com>
+Date: Sun, 27 Sep 2026 16:37:19 -0400
+Subject: [PATCH] Content server: return 404 instead of 500 for malformed hex
+ ids in OPDS feeds
+
+---
+ src/calibre/srv/opds.py | 22 ++++++++++++++++++----
+ 1 file changed, 18 insertions(+), 4 deletions(-)
+
+diff --git a/src/calibre/srv/opds.py b/src/calibre/srv/opds.py
+index 4ba72c1..c9b7342 100644
+--- a/src/calibre/srv/opds.py
++++ b/src/calibre/srv/opds.py
+@@ -657,11 +657,16 @@ def opds_navcatalog(ctx: Context, rd: RequestData, which: str) -> etree.Element:
+         offset = int(rd.query.get('offset', 0))
+     except Exception:
+         raise HTTPNotFound('Not found')
++    if not which:
++        raise HTTPNotFound('Not found')
+     rc = RequestContext(ctx, rd)
+ 
+     page_url = rc.url_for('/opds/navcatalog', which=which)
+     up_url = rc.url_for('/opds')
+-    which = from_hex_unicode(which)
++    try:
++        which = from_hex_unicode(which)
++    except ValueError:
++        raise HTTPNotFound('Not found')
+     type_ = which[0]
+     which = which[1:]
+     if type_ == 'O':
+@@ -684,7 +689,10 @@ def opds_category(ctx: Context, rd: RequestData, category: str, which: str) -> e
+     page_url = rc.url_for('/opds/category', which=which, category=category)
+     up_url = rc.url_for('/opds/navcatalog', which=category)
+ 
+-    which, category = from_hex_unicode(which), from_hex_unicode(category)
++    try:
++        which, category = from_hex_unicode(which), from_hex_unicode(category)
++    except ValueError:
++        raise HTTPNotFound('Not found')
+     type_ = which[0]
+     which = which[1:]
+     if type_ == 'I':
+@@ -736,13 +744,19 @@ def opds_categorygroup(ctx: Context, rd: RequestData, category: str, which: str)
+     categories = rc.get_categories()
+     page_url = rc.url_for('/opds/categorygroup', category=category, which=which)
+ 
+-    category = from_hex_unicode(category)
++    try:
++        category = from_hex_unicode(category)
++    except ValueError:
++        raise HTTPNotFound('Not found')
+     if category not in categories:
+         raise HTTPNotFound(f'Category {which!r} not found')
+     category_meta = rc.db.field_metadata
+     meta = category_meta.get(category, {})
+     category_name = meta.get('name', which)
+-    which = from_hex_unicode(which)
++    try:
++        which = from_hex_unicode(which)
++    except ValueError:
++        raise HTTPNotFound('Not found')
+     feed_title = default_feed_title + ' :: ' + (_('By {0} :: {1}').format(category_name, which))
+     owhich = as_hex_unicode('N' + category)
+     up_url = rc.url_for('/opds/navcatalog', which=owhich)
+-- 
+2.34.1
+

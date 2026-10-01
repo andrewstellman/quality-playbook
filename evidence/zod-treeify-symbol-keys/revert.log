@@ -1,0 +1,69 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.11 [39m[90m/tmp/zodfix/BUG-005/packages/zod[39m
+
+ [31m❯[39m src/v4/classic/tests/error-utils.test.ts [2m([22m[2m37 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 37[2mms[22m[39m
+   [32m✓[39m regular error[32m 8[2mms[22m[39m
+   [32m✓[39m .flatten()[32m 2[2mms[22m[39m
+   [32m✓[39m custom .flatten()[32m 1[2mms[22m[39m
+   [32m✓[39m .format()[32m 1[2mms[22m[39m
+   [32m✓[39m custom .format()[32m 1[2mms[22m[39m
+   [32m✓[39m all errors[32m 3[2mms[22m[39m
+   [32m✓[39m z.treeifyError[32m 1[2mms[22m[39m
+   [32m✓[39m z.treeifyError 2[32m 1[2mms[22m[39m
+[31m   [31m×[31m z.treeifyError symbol key[39m[32m 2[2mms[22m[39m
+   [32m✓[39m z.prettifyError[32m 1[2mms[22m[39m
+   [32m✓[39m z.toDotPath[32m 2[2mms[22m[39m
+   [32m✓[39m inheritance[32m 0[2mms[22m[39m
+   [32m✓[39m disc union treeify/format[32m 1[2mms[22m[39m
+   [32m✓[39m update message after adding issues[32m 0[2mms[22m[39m
+   [32m✓[39m z.formatError nested union preserves parent path[32m 1[2mms[22m[39m
+   [32m✓[39m z.treeifyError nested union preserves parent path[32m 0[2mms[22m[39m
+   [32m✓[39m z.treeifyError deeply nested union (4 levels) preserves full path[32m 1[2mms[22m[39m
+   [32m✓[39m z.treeifyError nested union with real schema[32m 2[2mms[22m[39m
+   [32m✓[39m z.formatError handles Object.prototype property path: __proto__[32m 1[2mms[22m[39m
+   [32m✓[39m z.formatError handles Object.prototype property path: constructor[32m 0[2mms[22m[39m
+   [32m✓[39m z.formatError handles Object.prototype property path: toString[32m 0[2mms[22m[39m
+   [32m✓[39m z.formatError handles Object.prototype property path: hasOwnProperty[32m 0[2mms[22m[39m
+   [32m✓[39m z.formatError handles Object.prototype property path: valueOf[32m 0[2mms[22m[39m
+   [32m✓[39m z.treeifyError handles Object.prototype property path: __proto__[32m 0[2mms[22m[39m
+   [32m✓[39m z.treeifyError handles Object.prototype property path: constructor[32m 0[2mms[22m[39m
+   [32m✓[39m z.treeifyError handles Object.prototype property path: toString[32m 0[2mms[22m[39m
+   [32m✓[39m z.treeifyError handles Object.prototype property path: hasOwnProperty[32m 0[2mms[22m[39m
+   [32m✓[39m z.treeifyError handles Object.prototype property path: valueOf[32m 0[2mms[22m[39m
+   [32m✓[39m z.flattenError handles Object.prototype property path: __proto__[32m 0[2mms[22m[39m
+   [32m✓[39m z.flattenError handles Object.prototype property path: constructor[32m 0[2mms[22m[39m
+   [32m✓[39m z.flattenError handles Object.prototype property path: toString[32m 0[2mms[22m[39m
+   [32m✓[39m z.flattenError handles Object.prototype property path: hasOwnProperty[32m 2[2mms[22m[39m
+   [32m✓[39m z.flattenError handles Object.prototype property path: valueOf[32m 0[2mms[22m[39m
+   [32m✓[39m error formatters merge sibling issues under a __proto__ path[32m 0[2mms[22m[39m
+   [32m✓[39m error formatting leaves Object.prototype untouched for input-derived keys[32m 1[2mms[22m[39m
+   [32m✓[39m formatError handles an input-derived _errors path[32m 1[2mms[22m[39m
+   [32m✓[39m error walkers handle path elements named after inherited methods[32m 1[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 1 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/v4/classic/tests/error-utils.test.ts[2m > [22mz.treeifyError symbol key
+[31m[1mAssertionError[22m: expected [] to be undefined[39m
+
+[32m- Expected:[39m
+undefined
+
+[31m+ Received:[39m
+[]
+
+[36m [2m❯[22m src/v4/classic/tests/error-utils.test.ts:[2m456:22[22m[39m
+    [90m454|[39m   [35mconst[39m tree[33m:[39m any [33m=[39m z[33m.[39m[34mtreeifyError[39m(result[33m.[39merror[33m![39m)[33m;[39m
+    [90m455|[39m
+    [90m456|[39m   [34mexpect[39m(tree[33m.[39mitems)[33m.[39m[34mtoBeUndefined[39m()[33m;[39m
+    [90m   |[39m                      [31m^[39m
+    [90m457|[39m   expect(tree.properties[k].errors).toEqual(["Invalid input: expected …
+    [90m458|[39m })[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m36 passed[39m[22m[90m (37)[39m
+[2m   Start at [22m 16:54:22
+[2m   Duration [22m 1.44s[2m (transform 1.11s, setup 0ms, import 1.28s, tests 37ms, environment 0ms)[22m
+

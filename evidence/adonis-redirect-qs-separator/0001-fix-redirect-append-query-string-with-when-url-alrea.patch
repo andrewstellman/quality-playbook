@@ -1,0 +1,54 @@
+From 10522c58876b23ba2d0748d3b05b76413fd33c03 Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <andrew@stellman.com>
+Date: Wed, 30 Sep 2026 13:33:23 -0400
+Subject: [PATCH] fix(redirect): append query string with & when url already
+ has one
+
+Redirect#sendResponse always joined the query string with "?", so
+withQs().toPath('/foo?a=1') produced "/foo?a=1?b=2". It now uses "&"
+when the target url already contains a query string.
+---
+ src/redirect.ts        |  4 +++-
+ tests/redirect.spec.ts | 11 +++++++++++
+ 2 files changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/src/redirect.ts b/src/redirect.ts
+index 51fd139..619b19a 100644
+--- a/src/redirect.ts
++++ b/src/redirect.ts
+@@ -129,7 +129,9 @@ export class Redirect extends Macroable {
+   #sendResponse(url: string, query: Record<string, any>) {
+     const stringified = this.#qs.stringify(query)
+ 
+-    url = stringified ? `${url}?${stringified}` : url
++    if (stringified) {
++      url = `${url}${url.includes('?') ? '&' : '?'}${stringified}`
++    }
+     debug('redirecting to url "%s"', url)
+ 
+     this.#response.location(encodeUrl(url))
+diff --git a/tests/redirect.spec.ts b/tests/redirect.spec.ts
+index 1857197..a3c341d 100644
+--- a/tests/redirect.spec.ts
++++ b/tests/redirect.spec.ts
+@@ -403,6 +403,17 @@ test.group('Redirect', () => {
+     assert.equal(header.location, '/foo?username=virk&age=28')
+   })
+ 
++  test('append query string to url that already has a query string', async ({ assert }) => {
++    const { url } = await httpServer.create((req, res) => {
++      const response = new HttpResponseFactory().merge({ req, res, encryption, router }).create()
++      response.redirect().withQs('age', 28).toPath('/foo?username=virk')
++      response.finish()
++    })
++
++    const { header } = await supertest(url).get('/').redirects(1)
++    assert.equal(header.location, '/foo?username=virk&age=28')
++  })
++
+   test('do not set query string original url has no qs', async ({ assert }) => {
+     const { url } = await httpServer.create((req, res) => {
+       const response = new HttpResponseFactory().merge({ req, res, encryption, router }).create()
+-- 
+2.34.1
+

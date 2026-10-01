@@ -1,0 +1,32 @@
+Real project pytest suite (models/esm2/tests/test_cp_thd_divisibility_guard.py) cannot
+collect on EITHER tree: models/esm2/collator.py does `import datasets` at module level (line 26),
+then (if datasets were installed) `import nvtx` (line 27) and
+`from transformer_engine.pytorch.attention...` (line 29) -- transformer_engine has no CPU wheel
+and requires CUDA, so the real module is unimportable in this sandbox regardless of patch state.
+Verified independently: pytest collection fails with ModuleNotFoundError: No module named 'datasets'
+on the unpatched tree exactly as on the patched tree (same blocker, not a regression).
+
+Used instead: my own ast-based extraction of the real, unmodified function bodies
+(_find_seq_dim, _process_tensor_thd, _process_tensor_bshd, _split_batch_by_cp_rank) directly from
+each tree's collator.py (not the validator's hardcoded copy), executed with torch installed
+(CPU wheel) and the patch's own three assertions reproduced faithfully. This is a stubbed
+extraction of real source, not a project test run and not an opaque hardcoded harness.
+
+Cross-check: diffed the validator's hardcoded harness_thd_sharding.py against the actual pinned
+source (sed-extracted lines 733-868 and 930-996 of models/esm2/collator.py) -- the shared helpers
+(_find_seq_dim, _process_tensor_thd, _process_tensor_bshd) are byte-identical aside from a trailing
+comment boundary artifact of my own sed extraction; the buggy _split_batch_by_cp_rank logic matches
+via ast.unparse() comparison (same control flow, same floor-division bug line). The validator's
+"fixed" variant's guard is logically equivalent to the patch's guard (same condition, same
+ValueError trigger), though its error message text ("for THD context parallelism" only) is a
+paraphrase, not verbatim -- the actual patch's message additionally says "matching the guard
+already enforced by the BSHD branch (_process_tensor_bshd)". This is a harness wording
+simplification, not a functional discrepancy.
+
+Cross-file propagation check: confirmed via patch text that the same collator.py hunk (with only
+the file-path header differing) is applied identically to models/llama3/collator.py,
+models/mixtral/collator.py, and models/qwen/collator.py (22-23 line hunks, same guard logic) --
+consistent with the commit message's claim of running ci/scripts/check_copied_files.py --fix to
+propagate to enforced byte-identical copies. Did not independently execute the harness against
+all 9 copies (only esm2, llama3, mixtral, qwen hunks were text-diffed); recipes/* copies were not
+separately verified beyond confirming their diff hunks exist in the patch.

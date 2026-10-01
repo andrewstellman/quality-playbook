@@ -1,0 +1,23 @@
+C1 DoubleComparator compare(NaN,1.0)=1 compare(1.0,NaN)=1 compare(NaN,NaN)=1
+C1 FloatComparator compare(NaN,1f)=1 compare(1f,NaN)=1 compare(NaN,NaN)=1
+C1 assertThat(1.0).usingComparator(dc).isGreaterThan(NaN): passed/no exception
+C1 assertThat(NaN).usingComparator(dc).isGreaterThan(1.0): passed/no exception
+   sorted=[3.0, NaN, 1.0, 2.0, NaN, 0.0]
+C1 sort List<Double> with NaN via DoubleComparator: passed/no exception
+C1 recursive comparison of {NaN} vs {NaN} (default): java.lang.AssertionError: \nExpecting actual:\n  Probe$1A@4eec7777\nto be equal to:\n  Probe$1A@3b07d329\nwhen recursively comparing field by field, but found the following difference:\n\nfield/property 'd' differ:\n- actual value  : NaN (Double@34c45dca)\n- expected value: NaN (Double@52cc8049)\n\nThe recursive comparison was performed with this configuration:\n- no equals methods were used in the comparison EXCEPT for java JDK types since introspecting JDK types is forbidden in java 17+ (use withEqualsForType to register a specific way to compare a JDK type if you need it)\n- these types were compared with the following comparators:\n  - java.lang.Double -> DoubleComparator[precision=1.0E-15]\n  - java.lang.Float -> FloatComparator[precision=1.0E-6]\n  - java.nio.file.Path -> lexicographic comparator (Path natural order)\n- actual and expected objects and their fields were compared field by field recursively even if their types are not equal, this allows for example to compare a Person to a PersonDto (call strictTypeChecking(true) to change that behavior).\n- the introspection strategy used was: comparing fields\n
+C2 contains-with-null standard strategy: passed/no exception
+C2 containsExactlyInAnyOrder usingElementComparator(naturalOrder): java.lang.NullPointerException: Cannot invoke "java.lang.Comparable.compareTo(Object)" because "c1" is null
+C2 containsOnly (array) usingElementComparator(naturalOrder): java.lang.NullPointerException: Cannot invoke "java.lang.Comparable.compareTo(Object)" because "c1" is null
+C2 contains usingElementComparator(naturalOrder): passed/no exception
+C2 isEqualTo list usingElementComparator(naturalOrder): java.lang.NullPointerException: Cannot invoke "java.lang.Comparable.compareTo(Object)" because "c1" is null
+   ->true
+C2 strategy.iterableContains([1,null,2],1): passed/no exception
+C2 strategy.iterableRemoves([1,null,2],1): java.lang.NullPointerException: Cannot invoke "java.lang.Comparable.compareTo(Object)" because "c1" is null
+C2 strategy.iterablesRemoveFirst([1,null,2],2): java.lang.NullPointerException: Cannot invoke "java.lang.Comparable.compareTo(Object)" because "c1" is null
+C3 withPercentage(3e9).toString()=2147483647%
+C3 isCloseTo failure message: passed/no exception
+C4 hex repr 0x7FFFFFFF=0x7FFF_FFFF bytes=[0x01, 0x02] str="['0x0061', '0x0062', '0x007C', '0x0063']"
+C5 Float.NaN=NaNf Double.NaN=NaN
+C5 assertThat((Object)Float.NaN).isEqualTo(Double.NaN): java.lang.AssertionError: \nexpected: NaN\n but was: NaNf
+first failure trial 0: java.lang.IllegalArgumentException: Comparison method violates its general contract!
+TimSort IllegalArgumentException in 197/200 trials (200 elems, ~20% NaN, integer values 0..999 so epsilon never merges distinct values)

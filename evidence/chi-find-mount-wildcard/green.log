@@ -1,0 +1,6 @@
+$ go test -count=1 -v -run 'TestMuxFindMountResetsWildcardParam' .
+=== RUN   TestMuxFindMountResetsWildcardParam
+--- PASS: TestMuxFindMountResetsWildcardParam (0.00s)
+PASS
+ok  	github.com/go-chi/chi/v5	0.003s
+exit=0

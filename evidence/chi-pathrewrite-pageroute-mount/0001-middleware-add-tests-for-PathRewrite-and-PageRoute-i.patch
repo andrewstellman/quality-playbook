@@ -1,0 +1,61 @@
+From f1cd2933ef97dd50a3a3ec7468e6fc1c8d544e03 Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <andrew@stellman.com>
+Date: Sun, 27 Sep 2026 15:56:01 -0400
+Subject: [PATCH] middleware: add tests for PathRewrite and PageRoute in a
+ mounted router
+
+---
+ middleware/path_rewrite_test.go | 40 +++++++++++++++++++++++++++++++++
+ 1 file changed, 40 insertions(+)
+
+diff --git a/middleware/path_rewrite_test.go b/middleware/path_rewrite_test.go
+index cb227f6..b6bd92a 100644
+--- a/middleware/path_rewrite_test.go
++++ b/middleware/path_rewrite_test.go
+@@ -24,3 +24,43 @@ func TestPathRewrite(t *testing.T) {
+ 		t.Errorf("path rewrite: unexpected response code: %v", w.Result().StatusCode)
+ 	}
+ }
++
++func TestPathRewriteInMountedRouter(t *testing.T) {
++	sub := chi.NewRouter()
++	sub.Use(PathRewrite("/endpoint", "/v1/endpoint"))
++	sub.Get("/v1/endpoint", func(w http.ResponseWriter, r *http.Request) {
++		w.Write([]byte("OK"))
++	})
++
++	r := chi.NewRouter()
++	r.Mount("/api", sub)
++
++	w := httptest.NewRecorder()
++	req, _ := http.NewRequest("GET", "/api/endpoint", nil)
++	r.ServeHTTP(w, req)
++
++	if w.Result().StatusCode != http.StatusOK {
++		t.Errorf("path rewrite in mounted router: unexpected response code: %v (r.URL.Path after rewrite: %q)", w.Result().StatusCode, req.URL.Path)
++	}
++}
++
++func TestPageRouteInMountedRouter(t *testing.T) {
++	sub := chi.NewRouter()
++	sub.Use(PageRoute("/about", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++		w.Write([]byte("about"))
++	})))
++	sub.Get("/*", func(w http.ResponseWriter, r *http.Request) {
++		w.Write([]byte("catch-all"))
++	})
++
++	r := chi.NewRouter()
++	r.Mount("/site", sub)
++
++	w := httptest.NewRecorder()
++	req, _ := http.NewRequest("GET", "/site/about", nil)
++	r.ServeHTTP(w, req)
++
++	if body := w.Body.String(); body != "about" {
++		t.Errorf("PageRoute(\"/about\") in router mounted at /site: GET /site/about got %q", body)
++	}
++}
+-- 
+2.34.1
+

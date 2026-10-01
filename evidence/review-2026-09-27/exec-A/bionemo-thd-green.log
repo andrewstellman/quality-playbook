@@ -1,0 +1,6 @@
+/tmp/review/exec/A/bionemo-thd/.venv/lib/python3.11/site-packages/torch/_subclasses/functional_tensor.py:368: UserWarning: Failed to initialize NumPy: No module named 'numpy' (Triggered internally at /__w/pytorch/pytorch/torch/csrc/utils/tensor_numpy.cpp:84.)
+  cpu = _conversion_method_template(device=torch.device("cpu"))
+[PASS] rejects_non_divisible: raised ValueError: Padded sequence length(s) [10] must be divisible by 4 (2 * cp_world_size) for THD context parallelism, matching the guard already enforced by the BSHD branch (_process_tensor_bshd).
+[PASS] accepts_divisible_no_regression: seen=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] expected=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+[FAIL/INFO] silent_data_loss_demo: raised ValueError (guard present): Padded sequence length(s) [10] must be divisible by 4 (2 * cp_world_size) for THD context parallelism, matching the guard already enforced by the BSHD branch (_process_tensor_bshd).
+SUMMARY: {'rejects_non_divisible': True, 'accepts_divisible_no_regression': True, 'silent_data_loss_demo': False}

@@ -1,0 +1,150 @@
+# v1-code-v2-tests: v1 main code (tag v1 16cbaf774dbac1bfc1c25f7a35098f059b88deaf) with v2 tests
+# tree: HEAD=591e094b5f0a77e0576107edb9ff6801b500101d; working-tree changes vs HEAD:
+#   M  instrumentation-api-incubator/src/main/java/io/opentelemetry/instrumentation/api/incubator/semconv/net/internal/UrlParser.java
+#   M  instrumentation/reactor/reactor-netty/reactor-netty-1.0/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/reactornetty/v1_0/UrlParser.java
+########## suite: incubator
+== harness: repo=/tmp/fix/otel-urlparser suite=incubator HEAD=591e094b5f0a77e0576107edb9ff6801b500101d dirty=2
+== javac: javac 25.0.4.1
+/tmp/fix/otel-urlparser/instrumentation-api/src/main/java/io/opentelemetry/instrumentation/api/internal/SupportabilityMetrics.java:114: warning: [removal] getSecurityManager() in System has been deprecated and marked for removal
+    if (System.getSecurityManager() == null) {
+              ^
+/tmp/fix/otel-urlparser/instrumentation-api/src/main/java/io/opentelemetry/instrumentation/api/internal/SupportabilityMetrics.java:117: warning: [removal] AccessController in java.security has been deprecated and marked for removal
+    return java.security.AccessController.doPrivileged(action);
+                        ^
+2 warnings
+== junit selection: --select-method io.opentelemetry.instrumentation.api.incubator.semconv.net.internal.UrlParserTest#testGetHostAndPortWithIpv6 --select-class io.opentelemetry.instrumentation.api.incubator.semconv.service.peer.internal.ServicePeerResolverTest
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by net.bytebuddy.dynamic.loading.ClassInjector$UsingUnsafe$Dispatcher$CreationAction (file:/tmp/deps/byte-buddy-1.18.14.jar)
+WARNING: Please consider reporting this to the maintainers of class net.bytebuddy.dynamic.loading.ClassInjector$UsingUnsafe$Dispatcher$CreationAction
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+Sep 28, 2026 1:15:30 AM io.opentelemetry.instrumentation.api.incubator.semconv.service.peer.internal.ServicePeerResolver lambda$new$0
+WARNING: Invalid service_peer_mapping entry - peer is required: Mock for DeclarativeConfigProperties, hashCode: 1628305283
+Sep 28, 2026 1:15:30 AM io.opentelemetry.instrumentation.api.incubator.semconv.service.peer.internal.ServicePeerResolver lambda$new$0
+WARNING: Invalid service_peer_mapping entry - at least one of service_name or service_namespace is required: Mock for DeclarativeConfigProperties, hashCode: 475024998
+╷
+├─ JUnit Platform Suite ✔
+├─ JUnit Jupiter ✔
+│  ├─ ServicePeerResolverTest ✔
+│  │  ├─ configuredTargetDoesNotAlsoMatchItsFirstHost() ✔
+│  │  ├─ oracleDescriptorDoesNotAlsoMatchParsedHost(String) ✔
+│  │  │  ├─ [1] oracle:thin:@(description=(address=(host=h1))(address=(host=h2))) ✔
+│  │  │  └─ [2] oracle:thin:@(DESCRIPTION=(ADDRESS = (HOST=h1))(ADDRESS = (HOST=h2))) ✔
+│  │  ├─ shouldSkipEntryWithNullPeer() ✔
+│  │  ├─ shouldSkipEntryWithNullNameAndNamespace() ✔
+│  │  ├─ commaInPathStillUsesHostAndPathMatching() ✔
+│  │  ├─ nonEmptyWithValidMapping() ✔
+│  │  ├─ shouldResolve(String, Integer, String, String, String) ✔
+│  │  │  ├─ [1] example.com, null, null, baseSvc, baseNs ✔
+│  │  │  ├─ [2] example.com, 8080, null, portSvc, null ✔
+│  │  │  ├─ [3] example.com, 8080, /api, null, apiNs ✔
+│  │  │  ├─ [4] example.com, 9090, null, baseSvc, baseNs ✔
+│  │  │  ├─ [5] example.com, 8080, /other, portSvc, null ✔
+│  │  │  ├─ [6] unknown.com, null, null, null, null ✔
+│  │  │  ├─ [7] nsonly.com, null, null, null, nsOnly ✔
+│  │  │  ├─ [8] 1.2.3.4, null, /api, ipApiSvc, null ✔
+│  │  │  ├─ [9] 1.2.3.4, 8080, /api, ipPortApi, ipPortApiNs ✔
+│  │  │  ├─ [10] 1.2.3.4, 8080, null, ipSvc, ipNs ✔
+│  │  │  ├─ [11] 1.2.3.4, 9000, /api, ipSvc, ipNs ✔
+│  │  │  ├─ [12] ::1, 8080, null, ipv6PortSvc, null ✔
+│  │  │  └─ [13] ::1, 9090, null, null, null ✔
+│  │  └─ emptyWhenNoMappings() ✔
+│  └─ UrlParserTest ✔
+│     └─ testGetHostAndPortWithIpv6() ✘ 
+│              expected: null
+│               but was: "::1/path"
+└─ JUnit Vintage ✔
+
+Failures (1):
+  JUnit Jupiter:UrlParserTest:testGetHostAndPortWithIpv6()
+    MethodSource [className = 'io.opentelemetry.instrumentation.api.incubator.semconv.net.internal.UrlParserTest', methodName = 'testGetHostAndPortWithIpv6', methodParameterTypes = '']
+    => org.opentest4j.AssertionFailedError: 
+expected: null
+ but was: "::1/path"
+       io.opentelemetry.instrumentation.api.incubator.semconv.net.internal.UrlParserTest.testGetHostAndPortWithIpv6(UrlParserTest.java:257)
+       java.base/java.lang.reflect.Method.invoke(Method.java:565)
+       java.base/java.util.ArrayList.forEach(ArrayList.java:1604)
+       java.base/java.util.ArrayList.forEach(ArrayList.java:1604)
+
+Test run finished after 455 ms
+[         7 containers found      ]
+[         0 containers skipped    ]
+[         7 containers started    ]
+[         0 containers aborted    ]
+[         7 containers successful ]
+[         0 containers failed     ]
+[        22 tests found           ]
+[         0 tests skipped         ]
+[        22 tests started         ]
+[         0 tests aborted         ]
+[        21 tests successful      ]
+[         1 tests failed          ]
+
+== junit exit code: 1
+########## suite: reactor
+== harness: repo=/tmp/fix/otel-urlparser suite=reactor HEAD=591e094b5f0a77e0576107edb9ff6801b500101d dirty=2
+== javac: javac 25.0.4.1
+== junit selection: --select-method io.opentelemetry.javaagent.instrumentation.reactornetty.v1_0.UrlParserTest#testGetHostAndPortWithIpv6
+╷
+├─ JUnit Platform Suite ✔
+├─ JUnit Jupiter ✔
+│  └─ UrlParserTest ✔
+│     └─ testGetHostAndPortWithIpv6() ✘ 
+│              expected: null
+│               but was: "::1/path"
+└─ JUnit Vintage ✔
+
+Failures (1):
+  JUnit Jupiter:UrlParserTest:testGetHostAndPortWithIpv6()
+    MethodSource [className = 'io.opentelemetry.javaagent.instrumentation.reactornetty.v1_0.UrlParserTest', methodName = 'testGetHostAndPortWithIpv6', methodParameterTypes = '']
+    => org.opentest4j.AssertionFailedError: 
+expected: null
+ but was: "::1/path"
+       io.opentelemetry.javaagent.instrumentation.reactornetty.v1_0.UrlParserTest.testGetHostAndPortWithIpv6(UrlParserTest.java:165)
+       java.base/java.lang.reflect.Method.invoke(Method.java:565)
+       java.base/java.util.ArrayList.forEach(ArrayList.java:1604)
+       java.base/java.util.ArrayList.forEach(ArrayList.java:1604)
+
+Test run finished after 71 ms
+[         4 containers found      ]
+[         0 containers skipped    ]
+[         4 containers started    ]
+[         0 containers aborted    ]
+[         4 containers successful ]
+[         0 containers failed     ]
+[         1 tests found           ]
+[         0 tests skipped         ]
+[         1 tests started         ]
+[         0 tests aborted         ]
+[         0 tests successful      ]
+[         1 tests failed          ]
+
+== junit exit code: 1
+
+########## direct probe of incubator UrlParser.getHost/getPort/getPath (javac + java, no JUnit)
+# probe source:
+#   import io.opentelemetry.instrumentation.api.incubator.semconv.net.internal.UrlParser;
+#   public class Probe {
+#     public static void main(String[] a) {
+#       for (String u : new String[] {"http://[::1/path]", "http://[x/p?token=abc]", "http://[::1]:8080/p?q=1", "http://[::1]?q=]", "http://[::1#f]"}) {
+#         System.out.println(u + " -> host=" + UrlParser.getHost(u) + " port=" + UrlParser.getPort(u) + " path=" + UrlParser.getPath(u));
+#       }
+#     }
+#   }
+## UrlParser.java from v1~1 (78d71b58)
+http://[::1/path] -> host=[ port=null path=/path]
+http://[x/p?token=abc] -> host=[x port=null path=/p
+http://[::1]:8080/p?q=1 -> host=[ port=null path=/p
+http://[::1]?q=] -> host=[ port=null path=null
+http://[::1#f] -> host=[ port=null path=null
+## UrlParser.java from v1 (16cbaf77)
+http://[::1/path] -> host=::1/path port=null path=null
+http://[x/p?token=abc] -> host=x/p?token=abc port=null path=null
+http://[::1]:8080/p?q=1 -> host=::1 port=8080 path=/p
+http://[::1]?q=] -> host=::1 port=null path=null
+http://[::1#f] -> host=::1#f port=null path=null
+## UrlParser.java from fix (591e094b)
+http://[::1/path] -> host=null port=null path=null
+http://[x/p?token=abc] -> host=null port=null path=null
+http://[::1]:8080/p?q=1 -> host=::1 port=8080 path=/p
+http://[::1]?q=] -> host=::1 port=null path=null
+http://[::1#f] -> host=null port=null path=null

@@ -1,0 +1,140 @@
+
+Response (tests/response.spec.ts)
+  ✔ set http response headers (24.98ms)
+  ✔ get recently set headers (7.75ms)
+  ✔ get header from http res object (8.82ms)
+  ✔ set x-request-id header (3.63ms)
+  ✔ set x-request-id header when the response has no body (3.54ms)
+  ✔ get merged from http res object (3.69ms)
+  ✔ append header to existing header (2.26ms)
+  ✔ add header via append when header doesn't exists already (2.59ms)
+  ✔ append to the header value when it's an array (4.64ms)
+  ✔ do not set header when already exists (2.41ms)
+  ✔ remove existing response header (2.16ms)
+  ✔ set HTTP status (1.4ms)
+  ✔ parse buffer and set correct response header (2.32ms)
+  ✔ parse Uint8Array and set correct response header (1.54ms)
+  ✔ parse string and set correct response header (1.79ms)
+  ✔ parse HTML string and return correct response header (1.89ms)
+  ✔ get regex in response (1.76ms)
+  ✖ get error in response (7.3ms)
+  ✔ parse array and set correct response type (2.03ms)
+  ✔ parse object and set correct response type (1.97ms)
+  ✔ do not set content type for empty strings (1.58ms)
+  ✔ do not set content-type for null (1.78ms)
+  ✔ do not write send body and headers unless finish is called explicitly (1.41ms)
+  ✔ write send body and headers when finish is called explicitly (1.66ms)
+  ✔ do not write response twice if finish is called twice (1.82ms)
+  ✔ hasContent must return true after send has been called (1.4ms)
+  ✔ hasLazyBody must return true after send has been called (1.34ms)
+  ✔ hasLazyBody and hasFileToStream must return true after download has been called (1.34ms)
+  ✔ hasContent must return false after download has been called (1.29ms)
+  ✔ hasLazyBody and hasStream must return true after stream has been called (1.75ms)
+  ✔ hasContent must return false after stream has been called (1.62ms)
+  ✔ write jsonp response (1.69ms)
+  ✔ use explicit value for callback name (2.21ms)
+  ✔ use config value when explicit value is not defined and their is no query string (2.11ms)
+  ✔ stream response (43.77ms)
+  ✔ raise error when we try to stream a non-existing file (4.62ms)
+  ✔ raise error when input is not a stream (12.63ms)
+  ✔ raise error when input is a writable stream (3.25ms)
+  ✔ should not hit the maxListeners when making more than 10 calls (21.38ms)
+  ✔ raise error when stream raises one (3.11ms)
+  ✔ send stream errors vs raising them (2.76ms)
+  ✔ download file with correct content type (3.4ms)
+  ✔ write errors as response when downloading folder (2.49ms)
+  ✔ write errors as response when file is missing (2.86ms)
+  ✔ return custom message and status when file is missing (2.22ms)
+  ✔ do not stream file on HEAD calls (2.55ms)
+  ✔ do not stream file when cache is fresh (3.39ms)
+  ✔ set HTTP status to 304 when cache is fresh and request is HEAD (2.67ms)
+  ✔ set HTTP status to 304 when cache is fresh and request is GET (2.53ms)
+  ✔ serve actual response when cache is fresh but request method is POST (2.8ms)
+  ✔ do not override status when cache is fresh but redirect status code is set (2.77ms)
+  ✔ download file with correct content disposition (3.46ms)
+  ✔ download file with custom file name (3.28ms)
+  ✔ download file with custom disposition (3.36ms)
+  ✔ add multiple vary fields (2ms)
+  ✔ add multiple vary fields as an array (1.67ms)
+  ✔ set status code to 204 when body is empty (2.47ms)
+  ✔ do not override explicit status even when body is empty (1.24ms)
+  ✔ remove previously set content headers when status code is 304 (1.41ms)
+  ✔ generate etag when set to true (3.06ms)
+  ✔ set HTTP status to 304 when cache is fresh and request is GET (2.07ms)
+  ✔ convert number to string when sending as response (1.54ms)
+  ✔ convert boolean to string when sending as response (1.42ms)
+  ✔ convert date to string when sending as response (1.61ms)
+  ✔ raise error when response data type is not valid (1.65ms)
+  ✔ convert serializable objects to JSON representation (1.43ms)
+  ✔ send response as 200 when request method is HEAD and cache is not fresh (2.37ms)
+  ✔ stream the file when request method is GET and cache is not fresh (2.79ms)
+  ✔ set response type with custom charset (1.62ms)
+  ✔ set signed cookie (2.78ms)
+  ✔ set plain cookie (1.81ms)
+  ✔ set encrypted cookie (2.07ms)
+  ✔ do not send cookies with null or undefined values (1.33ms)
+  ✔ set cookie with custom domain (1.61ms)
+  ✔ clear cookie by setting expiry and maxAge in past (1.43ms)
+  ✔ abort request by raising exception (1.33ms)
+  ✔ abort request with json body (1.49ms)
+  ✔ abort request with custom status code (1.36ms)
+  ✔ abortIf: abort request when condition is truthy (1.89ms)
+  ✔ abortIf: do not abort request when condition is falsy (1.67ms)
+  ✔ abortUnless: abort request when condition is falsy (1.5ms)
+  ✔ abortUnless: do not abort request when condition is truthy (1.27ms)
+  ✔ set appropriate status from the description methods (1.23ms)
+  ✔ send null in body with an explicit http status code (1.28ms)
+  ✔ do not send body or calculate content-length for a 304 response (1.48ms)
+  ✔ get response body (1.48ms)
+  ✔ return null when body is a stream (2.69ms)
+  ✔ return response status when not defined explicitly (1.46ms)
+  ✔ return response status when defined explicitly (1.36ms)
+  ✔ listen for the event when response finishes (1.46ms)
+  ✔ send JSON using web-native Response (3.54ms)
+  ✔ redirect using web-native Response (1.89ms)
+  ✔ set headers set by the web-native Response (2.15ms)
+  ✔ preserve multiple Set-Cookie headers from a web-native Response (1.9ms)
+  ✔ merge Set-Cookie headers from a web-native Response with existing headers (1.7ms)
+ ERRORS 
+
+❯ Response / get error in response
+
+[31mℹ Error: expected "content-type" of "text/plain; charset=utf-8", got "application/json; charset=utf-8"[39m
+
+ ⁃ at Object.executor [33m(tests/response.spec.ts:328:8)[39m
+
+   [2m323[22m [2m┃[22m        response[34m.[0m[35mfinish[0m()
+   [2m324[22m [2m┃[22m      })
+   [2m325[22m [2m┃[22m  
+   [2m326[22m [2m┃[22m      [31mconst[0m { text } [34m=[0m [31mawait[0m [35msupertest[0m(url)
+   [2m327[22m [2m┃[22m        [34m.[0m[31mget[0m([32m'/'[0m)
+ [41m❯ 328 ┃        .expect('content-type', 'text/plain; charset=utf-8')[49m
+   [2m329[22m [2m┃[22m      assert[34m.[0m[35mequal[0m(text[34m,[0m [32m'Error: boom'[0m)
+   [2m330[22m [2m┃[22m    })
+   [2m331[22m [2m┃[22m  
+   [2m332[22m [2m┃[22m    [35mtest[0m([32m'parse array and set correct response type'[0m[34m,[0m [31masync[0m ({ assert }) [31m=>[0m {
+   [2m333[22m [2m┃[22m      [31mconst[0m { url } [34m=[0m [31mawait[0m httpServer[34m.[0m[35mcreate[0m((req[34m,[0m res) [31m=>[0m {
+
+[2m ⁃ at [3mprocess.processTicksAndRejections[23m ([3mnode:internal/process/task_queues:103:5[23m)[22m
+ ⁃ at async #wrapTestInTimeout [33m(/tmp/adonw/node_modules/@japa/core/build/index.js:680:4)[39m
+ ⁃ at async TestRunner.run [33m(/tmp/adonw/node_modules/@japa/core/build/index.js:710:4)[39m
+ ⁃ at async Test$1.exec [33m(/tmp/adonw/node_modules/@japa/core/build/index.js:918:3)[39m
+ ⁃ at async GroupRunner.run [33m(/tmp/adonw/node_modules/@japa/core/build/index.js:259:4)[39m
+ ⁃ at async Group$1.exec [33m(/tmp/adonw/node_modules/@japa/core/build/index.js:354:3)[39m
+ ⁃ at async SuiteRunner.run [33m(/tmp/adonw/node_modules/@japa/core/build/index.js:1100:4)[39m
+ ⁃ at Test._assertHeader [33m(/tmp/adonw/node_modules/supertest/lib/test.js:360:14)[39m
+ ⁃ [33m(/tmp/adonw/node_modules/supertest/lib/test.js:432:13)[39m
+ ⁃ at Test._assertFunction [33m(/tmp/adonw/node_modules/supertest/lib/test.js:409:13)[39m
+ ⁃ at Test.assert [33m(/tmp/adonw/node_modules/supertest/lib/test.js:274:23)[39m
+ ⁃ at localAssert [33m(/tmp/adonw/node_modules/supertest/lib/test.js:196:38)[39m
+ ⁃ at finish [33m(/tmp/adonw/node_modules/supertest/lib/test.js:209:7)[39m
+ ⁃ at Test.callback [33m(/tmp/adonw/node_modules/superagent/src/node/index.js:1184:12)[39m
+ ⁃ at <anonymous> [33m(/tmp/adonw/node_modules/superagent/src/node/index.js:1552:18)[39m
+ ⁃ at IncomingMessage.<anonymous> [33m(/tmp/adonw/node_modules/superagent/src/node/parsers/json.js:24:7)[39m
+[2m ⁃ at [3mIncomingMessage.emit[23m ([3mnode:events:531:35[23m)[22m
+[1/1]─
+
+ FAILED 
+
+Tests  94 passed, 1 failed (95)
+ Time  325ms

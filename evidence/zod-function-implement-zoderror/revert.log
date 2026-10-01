@@ -1,0 +1,66 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.11 [39m[90m/tmp/zodfix/BUG-015/packages/zod[39m
+
+ [31m❯[39m src/v4/classic/tests/function.test.ts [2m([22m[2m22 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 22[2mms[22m[39m
+   [32m✓[39m function parsing[32m 2[2mms[22m[39m
+   [32m✓[39m parsed function fail 1[32m 1[2mms[22m[39m
+   [32m✓[39m parsed function fail 2[32m 0[2mms[22m[39m
+[31m   [31m×[31m implemented function throws ZodError[39m[32m 5[2mms[22m[39m
+   [32m✓[39m function inference 1[32m 0[2mms[22m[39m
+   [32m✓[39m method parsing[32m 2[2mms[22m[39m
+   [32m✓[39m async method parsing[32m 1[2mms[22m[39m
+   [32m✓[39m args method[32m 0[2mms[22m[39m
+   [32m✓[39m function inference 2[32m 0[2mms[22m[39m
+   [32m✓[39m valid function run[32m 1[2mms[22m[39m
+   [32m✓[39m function inference 3[32m 0[2mms[22m[39m
+   [32m✓[39m valid function run[32m 0[2mms[22m[39m
+   [32m✓[39m input validation error[32m 3[2mms[22m[39m
+   [32m✓[39m array inputs[32m 1[2mms[22m[39m
+   [32m✓[39m output validation error[32m 1[2mms[22m[39m
+   [32m✓[39m function with async refinements[32m 1[2mms[22m[39m
+   [32m✓[39m implement async with transforms[32m 1[2mms[22m[39m
+   [32m✓[39m non async function with async refinements should fail[32m 1[2mms[22m[39m
+   [32m✓[39m extra parameters with rest[32m 0[2mms[22m[39m
+   [32m✓[39m implement exposes the function schema at runtime[32m 1[2mms[22m[39m
+   [32m✓[39m implementAsync exposes the function schema at runtime[32m 1[2mms[22m[39m
+   [32m✓[39m parsing through a function schema exposes it the same way[32m 0[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 1 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/v4/classic/tests/function.test.ts[2m > [22mimplemented function throws ZodError
+[31m[1mAssertionError[22m: expected error to be instance of ZodError[39m
+
+[32m- Expected:[39m
+[Function ZodError]
+
+[31m+ Received:[39m
+$ZodError {
+  "message": "[
+  {
+    \"expected\": \"string\",
+    \"code\": \"invalid_type\",
+    \"path\": [
+      0
+    ],
+    \"message\": \"Invalid input: expected string, received number\"
+  }
+]",
+  "name": "$ZodError",
+}
+
+[36m [2m❯[22m src/v4/classic/tests/function.test.ts:[2m37:35[22m[39m
+    [90m 35|[39m   const badReturnAsync = schema.implementAsync(async () => "nope" as a…
+    [90m 36|[39m
+    [90m 37|[39m   [34mexpect[39m(() [33m=>[39m [34mbadArg[39m([34m13[39m [35mas[39m any))[33m.[39m[34mtoThrow[39m(z[33m.[39m[33mZodError[39m)[33m;[39m
+    [90m   |[39m                                   [31m^[39m
+    [90m 38|[39m   [34mexpect[39m(() [33m=>[39m [34mbadReturn[39m([32m"asdf"[39m))[33m.[39m[34mtoThrow[39m(z[33m.[39m[33mZodError[39m)[33m;[39m
+    [90m 39|[39m   [35mawait[39m [34mexpect[39m([34mbadArgAsync[39m([34m13[39m [35mas[39m any))[33m.[39mrejects[33m.[39m[34mtoThrow[39m(z[33m.[39m[33mZodError[39m)[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m21 passed[39m[22m[90m (22)[39m
+[2m   Start at [22m 16:56:03
+[2m   Duration [22m 716ms[2m (transform 508ms, setup 0ms, import 605ms, tests 22ms, environment 0ms)[22m
+

@@ -1,0 +1,13 @@
+$ go test -count=1 -v -run 'TestPathRewrite|TestPageRoute' ./middleware/
+=== RUN   TestPathRewrite
+--- PASS: TestPathRewrite (0.00s)
+=== RUN   TestPathRewriteInMountedRouter
+    path_rewrite_test.go:43: path rewrite in mounted router: unexpected response code: 404 (r.URL.Path after rewrite: "/api/v1/endpoint")
+--- FAIL: TestPathRewriteInMountedRouter (0.00s)
+=== RUN   TestPageRouteInMountedRouter
+    path_rewrite_test.go:64: PageRoute("/about") in router mounted at /site: GET /site/about got "catch-all"
+--- FAIL: TestPageRouteInMountedRouter (0.00s)
+FAIL
+FAIL	github.com/go-chi/chi/v5/middleware	0.003s
+FAIL
+exit=1

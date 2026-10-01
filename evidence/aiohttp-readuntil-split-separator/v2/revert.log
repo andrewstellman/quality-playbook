@@ -1,0 +1,526 @@
+# REVERT: full patch with aiohttp/streams.py restored to base (tests, CHANGES, CONTRIBUTORS kept)
+# aiohttp base: e11d2836203a21bec59095498e578d37801027e7 (copied tree, local git: base=aace596)
+# worktree: /tmp/fix/revert  HEAD=a284956 Fix readuntil() missing a separator split across chunks
+# uncommitted changes vs HEAD:
+#   M  aiohttp/streams.py
+# date: 2026-09-28T05:13:46Z  python: Python 3.10.12
+$ cd /tmp/fix/revert && AIOHTTP_NO_EXTENSIONS=1 PYTHONPATH=. /tmp/aiohttp-venv/bin/python -m pytest -p no:cacheprovider -n0 --no-cov tests/test_streams.py -k readuntil_separator_split\ or\ readuntil_partial_separator
+============================= test session starts ==============================
+platform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0
+codspeed: 5.0.3 (disabled, mode: walltime, callgraph: not supported, timer_resolution: 1.0ns)
+rootdir: /tmp/fix/revert
+configfile: pytest.ini
+plugins: cov-7.1.0, xdist-3.8.0, codspeed-5.0.3, timeout-2.4.0, asyncio-1.4.0, platformdirs-4.12.1, mock-3.15.1
+timeout: 120.0s
+timeout method: signal
+timeout func_only: False
+asyncio: mode=auto, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 160 items / 136 deselected / 24 selected
+
+tests/test_streams.py .F..FFF..FFFF.FFFF.F..F.                           [100%]
+
+=================================== FAILURES ===================================
+____ TestStreamReader.test_readuntil_separator_split_between_chunks[\r\n-1] ____
+
+self = <test_streams.TestStreamReader object at 0xe3400ff800d0>
+separator = b'\r\n', split = 1
+
+    @pytest.mark.parametrize(
+        ("separator", "split"),
+        [
+            (separator, split)
+            for separator in (b"\r\n", b"\r\n\r\n", b"--xyz")
+            for split in range(len(separator) + 1)
+        ],
+    )
+    async def test_readuntil_separator_split_between_chunks(
+        self, separator: bytes, split: int
+    ) -> None:
+        stream = self._make_one()
+        stream.feed_data(b"line1" + separator[:split])
+        stream.feed_data(separator[split:] + b"line2")
+        stream.feed_eof()
+    
+        line = await stream.readuntil(separator)
+>       assert b"line1" + separator == line
+E       AssertionError: assert b'line1\r\n' == b'line1\r\nline2'
+E         
+E         Use -v to get more diff
+
+line       = b'line1\r\nline2'
+self       = <test_streams.TestStreamReader object at 0xe3400ff800d0>
+separator  = b'\r\n'
+split      = 1
+stream     = <StreamReader eof>
+
+tests/test_streams.py:524: AssertionError
+__ TestStreamReader.test_readuntil_separator_split_between_chunks[\r\n\r\n-1] __
+
+self = <test_streams.TestStreamReader object at 0xe3400ff80310>
+separator = b'\r\n\r\n', split = 1
+
+    @pytest.mark.parametrize(
+        ("separator", "split"),
+        [
+            (separator, split)
+            for separator in (b"\r\n", b"\r\n\r\n", b"--xyz")
+            for split in range(len(separator) + 1)
+        ],
+    )
+    async def test_readuntil_separator_split_between_chunks(
+        self, separator: bytes, split: int
+    ) -> None:
+        stream = self._make_one()
+        stream.feed_data(b"line1" + separator[:split])
+        stream.feed_data(separator[split:] + b"line2")
+        stream.feed_eof()
+    
+        line = await stream.readuntil(separator)
+>       assert b"line1" + separator == line
+E       AssertionError: assert b'line1\r\n\r\n' == b'line1\r\n\r\nline2'
+E         
+E         Use -v to get more diff
+
+line       = b'line1\r\n\r\nline2'
+self       = <test_streams.TestStreamReader object at 0xe3400ff80310>
+separator  = b'\r\n\r\n'
+split      = 1
+stream     = <StreamReader eof>
+
+tests/test_streams.py:524: AssertionError
+__ TestStreamReader.test_readuntil_separator_split_between_chunks[\r\n\r\n-2] __
+
+self = <test_streams.TestStreamReader object at 0xe3400ff80430>
+separator = b'\r\n\r\n', split = 2
+
+    @pytest.mark.parametrize(
+        ("separator", "split"),
+        [
+            (separator, split)
+            for separator in (b"\r\n", b"\r\n\r\n", b"--xyz")
+            for split in range(len(separator) + 1)
+        ],
+    )
+    async def test_readuntil_separator_split_between_chunks(
+        self, separator: bytes, split: int
+    ) -> None:
+        stream = self._make_one()
+        stream.feed_data(b"line1" + separator[:split])
+        stream.feed_data(separator[split:] + b"line2")
+        stream.feed_eof()
+    
+        line = await stream.readuntil(separator)
+>       assert b"line1" + separator == line
+E       AssertionError: assert b'line1\r\n\r\n' == b'line1\r\n\r\nline2'
+E         
+E         Use -v to get more diff
+
+line       = b'line1\r\n\r\nline2'
+self       = <test_streams.TestStreamReader object at 0xe3400ff80430>
+separator  = b'\r\n\r\n'
+split      = 2
+stream     = <StreamReader eof>
+
+tests/test_streams.py:524: AssertionError
+__ TestStreamReader.test_readuntil_separator_split_between_chunks[\r\n\r\n-3] __
+
+self = <test_streams.TestStreamReader object at 0xe3400ff804c0>
+separator = b'\r\n\r\n', split = 3
+
+    @pytest.mark.parametrize(
+        ("separator", "split"),
+        [
+            (separator, split)
+            for separator in (b"\r\n", b"\r\n\r\n", b"--xyz")
+            for split in range(len(separator) + 1)
+        ],
+    )
+    async def test_readuntil_separator_split_between_chunks(
+        self, separator: bytes, split: int
+    ) -> None:
+        stream = self._make_one()
+        stream.feed_data(b"line1" + separator[:split])
+        stream.feed_data(separator[split:] + b"line2")
+        stream.feed_eof()
+    
+        line = await stream.readuntil(separator)
+>       assert b"line1" + separator == line
+E       AssertionError: assert b'line1\r\n\r\n' == b'line1\r\n\r\nline2'
+E         
+E         Use -v to get more diff
+
+line       = b'line1\r\n\r\nline2'
+self       = <test_streams.TestStreamReader object at 0xe3400ff804c0>
+separator  = b'\r\n\r\n'
+split      = 3
+stream     = <StreamReader eof>
+
+tests/test_streams.py:524: AssertionError
+___ TestStreamReader.test_readuntil_separator_split_between_chunks[--xyz-1] ____
+
+self = <test_streams.TestStreamReader object at 0xe3400ff80700>
+separator = b'--xyz', split = 1
+
+    @pytest.mark.parametrize(
+        ("separator", "split"),
+        [
+            (separator, split)
+            for separator in (b"\r\n", b"\r\n\r\n", b"--xyz")
+            for split in range(len(separator) + 1)
+        ],
+    )
+    async def test_readuntil_separator_split_between_chunks(
+        self, separator: bytes, split: int
+    ) -> None:
+        stream = self._make_one()
+        stream.feed_data(b"line1" + separator[:split])
+        stream.feed_data(separator[split:] + b"line2")
+        stream.feed_eof()
+    
+        line = await stream.readuntil(separator)
+>       assert b"line1" + separator == line
+E       AssertionError: assert b'line1--xyz' == b'line1--xyzline2'
+E         
+E         Use -v to get more diff
+
+line       = b'line1--xyzline2'
+self       = <test_streams.TestStreamReader object at 0xe3400ff80700>
+separator  = b'--xyz'
+split      = 1
+stream     = <StreamReader eof>
+
+tests/test_streams.py:524: AssertionError
+___ TestStreamReader.test_readuntil_separator_split_between_chunks[--xyz-2] ____
+
+self = <test_streams.TestStreamReader object at 0xe3400ff807c0>
+separator = b'--xyz', split = 2
+
+    @pytest.mark.parametrize(
+        ("separator", "split"),
+        [
+            (separator, split)
+            for separator in (b"\r\n", b"\r\n\r\n", b"--xyz")
+            for split in range(len(separator) + 1)
+        ],
+    )
+    async def test_readuntil_separator_split_between_chunks(
+        self, separator: bytes, split: int
+    ) -> None:
+        stream = self._make_one()
+        stream.feed_data(b"line1" + separator[:split])
+        stream.feed_data(separator[split:] + b"line2")
+        stream.feed_eof()
+    
+        line = await stream.readuntil(separator)
+>       assert b"line1" + separator == line
+E       AssertionError: assert b'line1--xyz' == b'line1--xyzline2'
+E         
+E         Use -v to get more diff
+
+line       = b'line1--xyzline2'
+self       = <test_streams.TestStreamReader object at 0xe3400ff807c0>
+separator  = b'--xyz'
+split      = 2
+stream     = <StreamReader eof>
+
+tests/test_streams.py:524: AssertionError
+___ TestStreamReader.test_readuntil_separator_split_between_chunks[--xyz-3] ____
+
+self = <test_streams.TestStreamReader object at 0xe3400ff80880>
+separator = b'--xyz', split = 3
+
+    @pytest.mark.parametrize(
+        ("separator", "split"),
+        [
+            (separator, split)
+            for separator in (b"\r\n", b"\r\n\r\n", b"--xyz")
+            for split in range(len(separator) + 1)
+        ],
+    )
+    async def test_readuntil_separator_split_between_chunks(
+        self, separator: bytes, split: int
+    ) -> None:
+        stream = self._make_one()
+        stream.feed_data(b"line1" + separator[:split])
+        stream.feed_data(separator[split:] + b"line2")
+        stream.feed_eof()
+    
+        line = await stream.readuntil(separator)
+>       assert b"line1" + separator == line
+E       AssertionError: assert b'line1--xyz' == b'line1--xyzline2'
+E         
+E         Use -v to get more diff
+
+line       = b'line1--xyzline2'
+self       = <test_streams.TestStreamReader object at 0xe3400ff80880>
+separator  = b'--xyz'
+split      = 3
+stream     = <StreamReader eof>
+
+tests/test_streams.py:524: AssertionError
+___ TestStreamReader.test_readuntil_separator_split_between_chunks[--xyz-4] ____
+
+self = <test_streams.TestStreamReader object at 0xe3400ff80940>
+separator = b'--xyz', split = 4
+
+    @pytest.mark.parametrize(
+        ("separator", "split"),
+        [
+            (separator, split)
+            for separator in (b"\r\n", b"\r\n\r\n", b"--xyz")
+            for split in range(len(separator) + 1)
+        ],
+    )
+    async def test_readuntil_separator_split_between_chunks(
+        self, separator: bytes, split: int
+    ) -> None:
+        stream = self._make_one()
+        stream.feed_data(b"line1" + separator[:split])
+        stream.feed_data(separator[split:] + b"line2")
+        stream.feed_eof()
+    
+        line = await stream.readuntil(separator)
+>       assert b"line1" + separator == line
+E       AssertionError: assert b'line1--xyz' == b'line1--xyzline2'
+E         
+E         Use -v to get more diff
+
+line       = b'line1--xyzline2'
+self       = <test_streams.TestStreamReader object at 0xe3400ff80940>
+separator  = b'--xyz'
+split      = 4
+stream     = <StreamReader eof>
+
+tests/test_streams.py:524: AssertionError
+_ TestStreamReader.test_readuntil_separator_split_one_byte_per_chunk[\r\n\r\n] _
+
+self = <test_streams.TestStreamReader object at 0xe3400ff43a00>
+separator = b'\r\n\r\n'
+
+    @pytest.mark.parametrize("separator", [b"\r\n\r\n", b"--xyz"])
+    async def test_readuntil_separator_split_one_byte_per_chunk(
+        self, separator: bytes
+    ) -> None:
+        stream = self._make_one()
+        for byte in b"line1" + separator + b"line2":
+            stream.feed_data(bytes([byte]))
+        stream.feed_eof()
+    
+        line = await stream.readuntil(separator)
+>       assert b"line1" + separator == line
+E       AssertionError: assert b'line1\r\n\r\n' == b'line1\r\n\r\nline2'
+E         
+E         Use -v to get more diff
+
+byte       = 50
+line       = b'line1\r\n\r\nline2'
+self       = <test_streams.TestStreamReader object at 0xe3400ff43a00>
+separator  = b'\r\n\r\n'
+stream     = <StreamReader eof>
+
+tests/test_streams.py:537: AssertionError
+__ TestStreamReader.test_readuntil_separator_split_one_byte_per_chunk[--xyz] ___
+
+self = <test_streams.TestStreamReader object at 0xe3400ff816c0>
+separator = b'--xyz'
+
+    @pytest.mark.parametrize("separator", [b"\r\n\r\n", b"--xyz"])
+    async def test_readuntil_separator_split_one_byte_per_chunk(
+        self, separator: bytes
+    ) -> None:
+        stream = self._make_one()
+        for byte in b"line1" + separator + b"line2":
+            stream.feed_data(bytes([byte]))
+        stream.feed_eof()
+    
+        line = await stream.readuntil(separator)
+>       assert b"line1" + separator == line
+E       AssertionError: assert b'line1--xyz' == b'line1--xyzline2'
+E         
+E         Use -v to get more diff
+
+byte       = 50
+line       = b'line1--xyzline2'
+self       = <test_streams.TestStreamReader object at 0xe3400ff816c0>
+separator  = b'--xyz'
+stream     = <StreamReader eof>
+
+tests/test_streams.py:537: AssertionError
+_ TestStreamReader.test_readuntil_separator_split_partial_overlap[chunks0-xaab] _
+
+self = <test_streams.TestStreamReader object at 0xe3400ff81d80>
+chunks = (b'xa', b'a', b'b', b'rest'), expected = b'xaab'
+
+    @pytest.mark.parametrize(
+        ("chunks", "expected"),
+        [
+            ((b"xa", b"a", b"b", b"rest"), b"xaab"),
+            ((b"xaa", b"ab", b"rest"), b"xaaab"),
+            ((b"xa", b"aab", b"rest"), b"xaaab"),
+        ],
+    )
+    async def test_readuntil_separator_split_partial_overlap(
+        self, chunks: tuple[bytes, ...], expected: bytes
+    ) -> None:
+        stream = self._make_one()
+        for data in chunks:
+            stream.feed_data(data)
+        stream.feed_eof()
+    
+        line = await stream.readuntil(b"aab")
+>       assert expected == line
+E       AssertionError: assert b'xaab' == b'xaabrest'
+E         
+E         Use -v to get more diff
+
+chunks     = (b'xa', b'a', b'b', b'rest')
+data       = b'rest'
+expected   = b'xaab'
+line       = b'xaabrest'
+self       = <test_streams.TestStreamReader object at 0xe3400ff81d80>
+stream     = <StreamReader eof>
+
+tests/test_streams.py:557: AssertionError
+_ TestStreamReader.test_readuntil_separator_split_partial_overlap[chunks1-xaaab] _
+
+self = <test_streams.TestStreamReader object at 0xe3400ff82050>
+chunks = (b'xaa', b'ab', b'rest'), expected = b'xaaab'
+
+    @pytest.mark.parametrize(
+        ("chunks", "expected"),
+        [
+            ((b"xa", b"a", b"b", b"rest"), b"xaab"),
+            ((b"xaa", b"ab", b"rest"), b"xaaab"),
+            ((b"xa", b"aab", b"rest"), b"xaaab"),
+        ],
+    )
+    async def test_readuntil_separator_split_partial_overlap(
+        self, chunks: tuple[bytes, ...], expected: bytes
+    ) -> None:
+        stream = self._make_one()
+        for data in chunks:
+            stream.feed_data(data)
+        stream.feed_eof()
+    
+        line = await stream.readuntil(b"aab")
+>       assert expected == line
+E       AssertionError: assert b'xaaab' == b'xaaabrest'
+E         
+E         Use -v to get more diff
+
+chunks     = (b'xaa', b'ab', b'rest')
+data       = b'rest'
+expected   = b'xaaab'
+line       = b'xaaabrest'
+self       = <test_streams.TestStreamReader object at 0xe3400ff82050>
+stream     = <StreamReader eof>
+
+tests/test_streams.py:557: AssertionError
+_______ TestStreamReader.test_readuntil_separator_split_with_false_start _______
+
+self = <test_streams.TestStreamReader object at 0xe3400ff82980>
+
+    async def test_readuntil_separator_split_with_false_start(self) -> None:
+        stream = self._make_one()
+        stream.feed_data(b"a\r\n\r")
+        stream.feed_data(b"b\r\n\r")
+        stream.feed_data(b"\nrest")
+        stream.feed_eof()
+    
+        line = await stream.readuntil(b"\r\n\r\n")
+>       assert b"a\r\n\rb\r\n\r\n" == line
+E       AssertionError: assert b'a\r\n\rb\r\n\r\n' == b'a\r\n\rb\r\n\r\nrest'
+E         
+E         Use -v to get more diff
+
+line       = b'a\r\n\rb\r\n\r\nrest'
+self       = <test_streams.TestStreamReader object at 0xe3400ff82980>
+stream     = <StreamReader eof>
+
+tests/test_streams.py:568: AssertionError
+___________ TestStreamReader.test_readuntil_separator_split_max_size ___________
+
+self = <test_streams.TestStreamReader object at 0xe3400ff83c10>
+
+    async def test_readuntil_separator_split_max_size(self) -> None:
+        stream = self._make_one()
+        stream.feed_data(b"12\r")
+        stream.feed_data(b"\n3456")
+        stream.feed_eof()
+    
+>       line = await stream.readuntil(b"\r\n", max_size=4)
+
+self       = <test_streams.TestStreamReader object at 0xe3400ff83c10>
+stream     = <StreamReader eof>
+
+tests/test_streams.py:596: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <StreamReader eof>, separator = b'\r\n', max_size = 4
+
+    async def readuntil(
+        self, separator: bytes = b"\n", *, max_size: int | None = None
+    ) -> bytes:
+        seplen = len(separator)
+        if seplen == 0:
+            raise ValueError("Separator should be at least one-byte string")
+    
+        if self._exception is not None:
+            raise self._exception
+    
+        chunk = b""
+        chunk_size = 0
+        not_enough = True
+        max_size = max_size or self._high_water
+    
+        while not_enough:
+            while self._buffer and not_enough:
+                offset = self._buffer_offset
+                ichar = self._buffer[0].find(separator, offset) + 1
+                # Read from current offset to found separator or to the end.
+                data = self._read_nowait_chunk(
+                    ichar - offset + seplen - 1 if ichar else -1
+                )
+                chunk += data
+                chunk_size += len(data)
+                if ichar:
+                    not_enough = False
+    
+                if chunk_size > max_size:
+>                   raise LineTooLong(chunk[:100] + b"...", max_size)
+E                   aiohttp.http_exceptions.LineTooLong: 400, message:
+E                     Got more than 4 bytes when reading: b'12\r\n3456...'.
+
+chunk      = b'12\r\n3456'
+chunk_size = 8
+data       = b'\n3456'
+ichar      = 0
+max_size   = 4
+not_enough = True
+offset     = 0
+self       = <StreamReader eof>
+separator  = b'\r\n'
+seplen     = 2
+
+aiohttp/streams.py:410: LineTooLong
+============================= slowest 10 durations =============================
+0.01s call     tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_with_false_start
+
+(9 durations < 0.005s hidden.  Use -vv to show these durations.)
+=========================== short test summary info ============================
+FAILED tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[\r\n-1]
+FAILED tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[\r\n\r\n-1]
+FAILED tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[\r\n\r\n-2]
+FAILED tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[\r\n\r\n-3]
+FAILED tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[--xyz-1]
+FAILED tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[--xyz-2]
+FAILED tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[--xyz-3]
+FAILED tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_between_chunks[--xyz-4]
+FAILED tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_one_byte_per_chunk[\r\n\r\n]
+FAILED tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_one_byte_per_chunk[--xyz]
+FAILED tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_partial_overlap[chunks0-xaab]
+FAILED tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_partial_overlap[chunks1-xaaab]
+FAILED tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_with_false_start
+FAILED tests/test_streams.py::TestStreamReader::test_readuntil_separator_split_max_size
+================ 14 failed, 10 passed, 136 deselected in 0.43s =================
+# exit status: 1

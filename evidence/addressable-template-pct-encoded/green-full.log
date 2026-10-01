@@ -1,0 +1,29 @@
+Could not load native IDN implementation.
+....................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................*................................................................................................................................................**.............................................................................................................................................................................................................................................................................................................................*.....................................................................................................................................................................................................*.............<internal:ractor>:267: warning: Ractor is experimental, and the behavior may change in future versions of Ruby! Also there are many implementation issues.
+.....
+
+Pending: (Failures listed here are expected and do not affect your suite's status)
+
+  1) Addressable::URI when assigning IPv6 address should not allow to set bare IPv6 address as host
+     # not checked
+     # ./spec/addressable/uri_spec.rb:2179
+
+  2) Addressable::URI when parsed from 'http://example.com/%2E/' should be considered to be in normal form
+     # path segment normalization should happen before percent escaping normalization
+     # ./spec/addressable/uri_spec.rb:3058
+
+  3) Addressable::URI when parsed from 'http://example.com/%2E/' should normalize to 'http://example.com/%2E/'
+     # path segment normalization should happen before percent escaping normalization
+     # ./spec/addressable/uri_spec.rb:3066
+
+  4) Addressable::URI when parsed from '?one=two&one=three' should have correct hash query values
+     # This is probably more desirable behavior.
+     # ./spec/addressable/uri_spec.rb:5103
+
+  5) Addressable::URI when assigning query values when a hash with mixed types is assigned to query_values should not raise an error
+     # Issue #94
+     # ./spec/addressable/uri_spec.rb:6702
+
+Finished in 0.73958 seconds (files took 0.17229 seconds to load)
+1437 examples, 0 failures, 5 pending
+

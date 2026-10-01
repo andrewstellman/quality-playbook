@@ -1,0 +1,2 @@
+$ python ci/scripts/check_copied_files.py
+exit code: 0

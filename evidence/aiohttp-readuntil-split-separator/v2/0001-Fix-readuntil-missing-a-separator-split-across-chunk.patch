@@ -1,0 +1,188 @@
+From a28495657d81fd41faf999e4708dc6337aa3e5da Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <andrew@stellman.com>
+Date: Mon, 28 Sep 2026 01:12:47 -0400
+Subject: [PATCH] Fix readuntil() missing a separator split across chunks
+
+readuntil() searched each buffered chunk separately, so a multi-byte
+separator split across two chunks was never found. Also search the last
+len(separator) - 1 bytes already read together with the next chunk.
+---
+ CHANGES/PRNUMBER.bugfix.rst |   3 ++
+ CONTRIBUTORS.txt            |   1 +
+ aiohttp/streams.py          |  21 ++++++--
+ tests/test_streams.py       | 102 ++++++++++++++++++++++++++++++++++++
+ 4 files changed, 122 insertions(+), 5 deletions(-)
+ create mode 100644 CHANGES/PRNUMBER.bugfix.rst
+
+diff --git a/CHANGES/PRNUMBER.bugfix.rst b/CHANGES/PRNUMBER.bugfix.rst
+new file mode 100644
+index 0000000..c1d6e2c
+--- /dev/null
++++ b/CHANGES/PRNUMBER.bugfix.rst
+@@ -0,0 +1,3 @@
++Fixed :py:meth:`~aiohttp.StreamReader.readuntil` not finding a multi-byte
++separator whose bytes arrived in different chunks, which made it return data
++past the separator -- by :user:`andrewstellman`.
+diff --git a/CONTRIBUTORS.txt b/CONTRIBUTORS.txt
+index e9e7225..1921899 100644
+--- a/CONTRIBUTORS.txt
++++ b/CONTRIBUTORS.txt
+@@ -45,6 +45,7 @@ Andrei Ursulenko
+ Andrej Antonov
+ Andrew Leech
+ Andrew Lytvyn
++Andrew Stellman
+ Andrew Svetlov
+ Andrew Top
+ Andrew Zhou
+diff --git a/aiohttp/streams.py b/aiohttp/streams.py
+index cdd365c..f4b3438 100644
+--- a/aiohttp/streams.py
++++ b/aiohttp/streams.py
+@@ -396,14 +396,25 @@ class StreamReader:
+         while not_enough:
+             while self._buffer and not_enough:
+                 offset = self._buffer_offset
+-                ichar = self._buffer[0].find(separator, offset) + 1
++                n = -1
++                if chunk and seplen > 1:
++                    # The separator may straddle data already read and this chunk.
++                    # tail and head are each shorter than the separator, so a match
++                    # in tail + head must span both; n counts its bytes in head.
++                    tail = chunk[1 - seplen :]
++                    head = self._buffer[0][offset : offset + seplen - 1]
++                    ichar = (tail + head).find(separator)
++                    if ichar != -1:
++                        n = ichar + seplen - len(tail)
++                if n == -1:
++                    ichar = self._buffer[0].find(separator, offset)
++                    if ichar != -1:
++                        n = ichar - offset + seplen
+                 # Read from current offset to found separator or to the end.
+-                data = self._read_nowait_chunk(
+-                    ichar - offset + seplen - 1 if ichar else -1
+-                )
++                data = self._read_nowait_chunk(n)
+                 chunk += data
+                 chunk_size += len(data)
+-                if ichar:
++                if n != -1:
+                     not_enough = False
+ 
+                 if chunk_size > max_size:
+diff --git a/tests/test_streams.py b/tests/test_streams.py
+index eef6dfe..118cf99 100644
+--- a/tests/test_streams.py
++++ b/tests/test_streams.py
+@@ -504,6 +504,108 @@ class TestStreamReader:
+         with pytest.raises(ValueError, match="Another exception"):
+             await stream.readuntil(separator)
+ 
++    @pytest.mark.parametrize(
++        ("separator", "split"),
++        [
++            (separator, split)
++            for separator in (b"\r\n", b"\r\n\r\n", b"--xyz")
++            for split in range(len(separator) + 1)
++        ],
++    )
++    async def test_readuntil_separator_split_between_chunks(
++        self, separator: bytes, split: int
++    ) -> None:
++        stream = self._make_one()
++        stream.feed_data(b"line1" + separator[:split])
++        stream.feed_data(separator[split:] + b"line2")
++        stream.feed_eof()
++
++        line = await stream.readuntil(separator)
++        assert b"line1" + separator == line
++        assert b"line2" == await stream.read()
++
++    @pytest.mark.parametrize("separator", [b"\r\n\r\n", b"--xyz"])
++    async def test_readuntil_separator_split_one_byte_per_chunk(
++        self, separator: bytes
++    ) -> None:
++        stream = self._make_one()
++        for byte in b"line1" + separator + b"line2":
++            stream.feed_data(bytes([byte]))
++        stream.feed_eof()
++
++        line = await stream.readuntil(separator)
++        assert b"line1" + separator == line
++        assert b"line2" == await stream.read()
++
++    @pytest.mark.parametrize(
++        ("chunks", "expected"),
++        [
++            ((b"xa", b"a", b"b", b"rest"), b"xaab"),
++            ((b"xaa", b"ab", b"rest"), b"xaaab"),
++            ((b"xa", b"aab", b"rest"), b"xaaab"),
++        ],
++    )
++    async def test_readuntil_separator_split_partial_overlap(
++        self, chunks: tuple[bytes, ...], expected: bytes
++    ) -> None:
++        stream = self._make_one()
++        for data in chunks:
++            stream.feed_data(data)
++        stream.feed_eof()
++
++        line = await stream.readuntil(b"aab")
++        assert expected == line
++        assert b"rest" == await stream.read()
++
++    async def test_readuntil_separator_split_with_false_start(self) -> None:
++        stream = self._make_one()
++        stream.feed_data(b"a\r\n\r")
++        stream.feed_data(b"b\r\n\r")
++        stream.feed_data(b"\nrest")
++        stream.feed_eof()
++
++        line = await stream.readuntil(b"\r\n\r\n")
++        assert b"a\r\n\rb\r\n\r\n" == line
++        assert b"rest" == await stream.read()
++
++    async def test_readuntil_separator_split_eof(self) -> None:
++        stream = self._make_one()
++        stream.feed_data(b"line1\r\n\r")
++        stream.feed_data(b"\n")
++        stream.feed_eof()
++
++        line = await stream.readuntil(b"\r\n\r\n")
++        assert b"line1\r\n\r\n" == line
++        assert b"" == await stream.readuntil(b"\r\n\r\n")
++
++    async def test_readuntil_partial_separator_eof(self) -> None:
++        stream = self._make_one()
++        stream.feed_data(b"line1\r")
++        stream.feed_data(b"\n\r")
++        stream.feed_eof()
++
++        line = await stream.readuntil(b"\r\n\r\n")
++        assert b"line1\r\n\r" == line
++
++    async def test_readuntil_separator_split_max_size(self) -> None:
++        stream = self._make_one()
++        stream.feed_data(b"12\r")
++        stream.feed_data(b"\n3456")
++        stream.feed_eof()
++
++        line = await stream.readuntil(b"\r\n", max_size=4)
++        assert b"12\r\n" == line
++        assert b"3456" == await stream.read()
++
++    async def test_readuntil_separator_split_line_too_long(self) -> None:
++        stream = self._make_one()
++        stream.feed_data(b"123\r")
++        stream.feed_data(b"\nrest")
++        stream.feed_eof()
++
++        with pytest.raises(LineTooLong):
++            await stream.readuntil(b"\r\n", max_size=4)
++
+     async def test_readexactly_zero_or_less(self) -> None:
+         # Read exact number of bytes (zero or less).
+         stream = self._make_one()
+-- 
+2.34.1
+

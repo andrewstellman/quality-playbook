@@ -1,0 +1,7 @@
+# probe against unmodified upstream 78d71b585a77d7f2312c1b8751ff6c95a72722d7 UrlParser classes (javac of the two upstream UrlParser.java files + a 6-line main in each package)
+io.opentelemetry.instrumentation.api.incubator.semconv.net.internal.UrlParser getHost("http://[::1]:8080/") = "["  getPort = null
+io.opentelemetry.instrumentation.api.incubator.semconv.net.internal.UrlParser getHost("https://[2001:db8::1]:8443/path") = "[2001"  getPort = null
+io.opentelemetry.instrumentation.api.incubator.semconv.net.internal.UrlParser getHost("http://[2001:db8::1]/") = "[2001"  getPort = null
+io.opentelemetry.javaagent.instrumentation.reactornetty.v1_0.UrlParser getHost("http://[::1]:8080/") = "["  getPort = null
+io.opentelemetry.javaagent.instrumentation.reactornetty.v1_0.UrlParser getHost("https://[2001:db8::1]:8443/path") = "[2001"  getPort = null
+io.opentelemetry.javaagent.instrumentation.reactornetty.v1_0.UrlParser getHost("http://[2001:db8::1]/") = "[2001"  getPort = null
