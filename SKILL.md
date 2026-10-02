@@ -543,7 +543,7 @@ After the main spec audit triage, each Council member runs a per-REQ verdict aga
 
 4. **Reviewer identifier stability.** Use fixed strings like `"claude-opus-4.7"`, `"gpt-5.5"`, `"claude-sonnet-4.6"` (the default Council roster). The majority computation `quality_gate.py` runs groups on this field — a typo silently becomes a fourth reviewer and breaks the 2-of-3 majority check.
 
-5. **Output.** Concatenate all Council members' responses into `quality/citation_semantic_check.json` using the standard manifest wrapper, except the record array is named `reviews` rather than `records`. One file per run, regenerated on every audit pass.
+5. **Output.** Assemble `quality/citation_semantic_check.json` with `python3 -m bin.quality_playbook semantic-check assemble` (see `phase_prompts/phase4.md`), not by hand: the assembler stamps each review with `req_hash`, which the gate uses to reject a review that predates a rewrite of its REQ. Standard manifest wrapper, record array named `reviews`. One file per run, regenerated on every audit pass.
 
 **Majority rule (gate-enforced).** For each Tier 1/2 REQ, the gate groups reviews by `req_id` and fails the run when ≥2 of 3 reviewers recorded `verdict == "overreaches"`. A single-member `overreaches` or `unclear` verdict surfaces as a warning but does not fail the gate. A REQ with fewer than three reviewer entries (missing reviewer, skipped batch) has insufficient evidence — the gate treats that as a fail.
 

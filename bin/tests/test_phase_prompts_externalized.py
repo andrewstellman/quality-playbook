@@ -518,7 +518,7 @@ class PhasePromptByteEqualityTests(unittest.TestCase):
         # v1.5.7 191 FINDING-50: schemas.md prose citations stripped/rewritten.
         # v1.6.1 [G]: phase6.md gained the fourth gate state (PASS WITH
         # DECISIONS NEEDED) and the BUG EVIDENCE witness line.
-        "phase6":                (10274, "f68b30e1bcb673d333dcaeb7f361c30c333839d1c3bdf8ea59294461efebc0b1"),
+        "phase6":                (10678, "7abbb7475346c34f3785b990da3bd5d5bf1af4eceb38c8d75b38da98235916e1"),
         # v1.5.6 BUG-008: SKILL_FALLBACK_GUIDE grew from 4 to 6
         # documented install paths (added .cursor + .continue), so
         # every prompt that interpolates the guide grows by ~86 bytes.
