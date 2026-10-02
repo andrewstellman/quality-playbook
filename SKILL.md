@@ -624,7 +624,12 @@ After generating and verifying, present the results clearly and give the user co
 
 See `references/phase7_guide.md` for the full Phase 7 detail (Part 1 the summary table, Part 2 drill-down on demand, Part 3 the improvement menu, executing each improvement path, and iteration).
 
-**Prepare upstream submissions** is menu path 5, operator-invoked only: policy check, shortlist (stop for the operator's pick), confirm, fix, review panel, then one bug at a time with a `REVIEW.md` and an operator-run `submit.sh`. The skill never submits, marks ready, or comments upstream. See `references/upstream_submission.md`.
+**Prepare upstream submissions** is menu path 5, operator-invoked only: policy check, shortlist (stop for the operator's pick), confirm, fix, review panel, then one bug at a time with a `REVIEW.md` and an operator-run `submit.sh`. See `references/upstream_submission.md`. Binding guardrails:
+- The skill never submits, marks a PR ready, comments upstream, or merges; it never runs a `submit.sh` unless the operator asks in this session.
+- One bug at a time; no schedules, no batches. The project's contribution policy is checked first and wins (stop if AI contributions are banned).
+- A finding with a security angle never becomes a public PR or issue; note it for private disclosure and set it aside.
+- Every submission carries the disclosure line ("Found by Quality Playbook, an AI code-review tool, with Claude; I reviewed the change."), extended as the project's policy requires.
+- No agent `Signed-off-by` or `Co-Authored-By`; the operator authors the commit.
 
 ---
 

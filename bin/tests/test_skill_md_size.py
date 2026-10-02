@@ -48,6 +48,10 @@ History:
   test_mode_a_b_parity_documented and cannot be moved. 18,478 is the
   realistic floor.) Ratchets-down follow the same rule as bumps-up:
   one-line history bullet + mutation-evidence refresh.
+- **v1.6.1 (2026-10-02, owner decision)** widened 20,000 → 21,000 BPE
+  to carry all six upstream-submission guardrails inline in SKILL.md
+  (Phase 7 path 5) instead of only in references/; the owner: the
+  ceiling is arbitrary, include them.
 
 If a future SKILL.md edit legitimately grows the file past
 20,000, update the pin to match, add a one-line rationale here
@@ -135,10 +139,12 @@ class SkillMdSizeTests(unittest.TestCase):
         # baseline (the ~12K design target is unreachable: the
         # ~6.5K "How to run" section is pinned inline by
         # test_skill_md_self_encoding and cannot be moved).
+        # v1.6.1 (owner decision): 20,000 → 21,000 so the six
+        # upstream-submission guardrails live in SKILL.md itself.
         self.assertLess(
-            token_count, 20000,
+            token_count, 21000,
             f"SKILL.md is {token_count} BPE tokens — exceeds the "
-            f"v1.5.10 size ceiling (20000 — an arbitrary, owner-"
+            f"v1.6.1 size ceiling (21000 — an arbitrary, owner-"
             f"chosen soft tripwire, not a hard technical limit). "
             f"If the SKILL.md growth is intentional and worth the "
             f"tokens, bump the ceiling here with a one-line "

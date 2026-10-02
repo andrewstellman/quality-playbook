@@ -110,6 +110,14 @@ Carried from the v1.6.0 plan, Track 2 items only:
 
 ---
 
+## Decisions recorded 2026-10-02 (Andrew)
+
+- **SKILL.md size ceiling raised 20,000 → 21,000 BPE.** This puts all six upstream-submission guardrails inline in SKILL.md (Phase 7 path 5). Andrew: "it's arbitrary."
+- **The "35%" claim is unchanged for now, and gets re-measured after the open-source runs.** The SKILL.md description and both agent files say QPB "Finds the 35% of real defects that structural code review alone cannot catch".
+  - **Where it comes from:** `benchmarks/EXPERIMENT.md`, commit `209c4bc` (2026-04-03). One repo (NSQ), 58 known defects, GPT-5.4; the no-playbook control missed 20 of 58 (34.5%).
+  - **What was never measured:** "finds the 35%". The playbook was not run on those missed defects.
+  - **What replaces it:** after the 1.6.1 open-source runs, replace the sentence with a claim measured on them, e.g. QPB-found bugs merged upstream and the control-arm hit rate from `docs/research/control-*`.
+
 ## Backlog — additional 1.6.1 candidates (not Track 2)
 
 - **End-of-Phase-2 must ALWAYS disclose the agent (Feature H) review in full AND present the opt-in human-interview offer.** *(Flagged 2026-07-26 from a sonnet chi run.)* Observed: the Phase 2 end-of-phase message surfaced *some* of the persona-pass disclosure but did **not** present the requirements-validation interview offer, even though `phase_prompts/phase2.md` designates it "its primary offer" and the interview is opt-in / never-auto-starts — so an operator who is never shown the offer cannot take it, and the human-in-the-loop pass silently never happens. This is a **compliance/robustness gap** (the model omitted a mandated end-of-phase element), not a defect in the interview itself. Fix candidates: strengthen the mandate in `phase2.md` / `references/phase2_generation_guide.md` / the State-P2 template in `references/what_just_happened.md` so the end-of-phase block MUST carry (a) the full `persona_review_disclosure(...)` result — every persona that ran, every change applied, where to read it — and (b) the interview offer text, together; and evaluate whether `validate_phase_artifacts`/the gate can assert their presence (hard to mechanically check a chat-output element, so at minimum a hardened prompt-level requirement, ideally a witness the operator can see). Root cause is the same class as the Phase-6 "operator chat carries the truth" guardrail — a mandated disclosure that a weak or hurried model can skip.
