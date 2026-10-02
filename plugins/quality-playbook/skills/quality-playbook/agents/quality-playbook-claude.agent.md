@@ -17,7 +17,7 @@ model: inherit
 Use this orchestrator pattern when per-phase context-window isolation helps: a large target, a headless CI or batch run, or an interactive session that wants one sub-agent per phase. It is allowed in an interactive session under the **parent-witness rule** (v1.6.1; SKILL.md Mode A):
 
 1. You — this top-level session — run each phase in its own sub-agent.
-2. After every Phase 6, YOU run `python3 <install_root>/bin/qpb_gate_witness.py <target-repo>` yourself and paste its `Total:` and `RESULT:` lines verbatim in your own chat. The script re-runs `quality_gate.py` and compares those lines with `quality/results/quality-gate.log`.
+2. After every Phase 6, YOU run `python3 <install_root>/bin/qpb_gate_witness.py <target-repo>` yourself and paste its `Total:` and `RESULT:` lines verbatim in your own chat. The script re-runs `quality_gate.py` and compares those lines with `quality/results/quality-gate.log`. Run it before you write AGENTS.md.
 3. If it prints `MISMATCH` (exit 1) or reports the log missing (exit 2), stop and report to the operator. Do not start iterations.
 
 Why: on 2026-05-16 an interactive session spawned this orchestrator as a sub-skill; the sub-skill hand-wrote `quality/results/quality-gate.log` reading PASS against an actual 14-FAIL gate, and the parent trusted the log. A sub-agent can write any log, but it cannot change what the gate prints when you run it, so step 2 catches that failure.

@@ -120,6 +120,93 @@ class GateWitnessScriptTests(unittest.TestCase):
                          ("Total: 0 FAIL, 1 WARN", "RESULT: GATE PASSED"))
         self.assertEqual(w.verdict_lines("nothing"), (None, None))
 
+    # v1.6.1 [council-1] (Council A1, B gaps 1-2).
+    def _real_log(self, target: Path) -> str:
+        g = subprocess.run([sys.executable, str(_GATE), "."],
+                           cwd=str(target), capture_output=True,
+                           text=True, timeout=600)
+        text = g.stdout + g.stderr + f"exit={g.returncode}\n"
+        (target / "quality" / "results" / "quality-gate.log").write_text(
+            text, encoding="utf-8")
+        return text
+
+    def test_agents_md_written_after_log_is_match(self) -> None:
+        """Council A1: the orchestrator writes AGENTS.md after the gate
+        passes; that drops the WARN count by one. The witness must not
+        report MISMATCH for it."""
+        with tempfile.TemporaryDirectory() as td:
+            target = _make_target(Path(td))
+            log_text = self._real_log(target)
+            self.assertIn("AGENTS.md not written yet", log_text)
+            (target / "AGENTS.md").write_text("# Agents\n", encoding="utf-8")
+            r = _run_witness(target)
+            self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+            self.assertIn("MATCH:", r.stdout)
+            self.assertNotIn("MISMATCH", r.stdout)
+            self.assertIn("the WARN count differs", r.stdout)
+            # Both full Total: lines are still printed, and they differ.
+            totals = [ln.strip() for ln in r.stdout.splitlines()
+                      if ln.strip().startswith("Total:")]
+            self.assertEqual(len(totals), 2, r.stdout)
+            self.assertNotEqual(totals[0], totals[1])
+
+    def test_copied_total_with_fabricated_result_is_mismatch(self) -> None:
+        """Council B gap 1: a hand-written log that copies the real
+        Total: line but claims RESULT: GATE PASSED (the 2026-05-16
+        shape) is caught by the RESULT comparison alone."""
+        with tempfile.TemporaryDirectory() as td:
+            target = _make_target(Path(td))
+            real = self._real_log(target)
+            total = [ln for ln in real.splitlines()
+                     if ln.startswith("Total:")][-1]
+            log = target / "quality" / "results" / "quality-gate.log"
+            log.write_text(f"{total}\nRESULT: GATE PASSED\nexit=0\n",
+                           encoding="utf-8")
+            r = _run_witness(target)
+            self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+            self.assertIn("MISMATCH: RESULT: line(s) differ", r.stdout)
+
+    def test_gate_with_no_verdict_lines_is_mismatch(self) -> None:
+        """Council B gap 2: the gate crashed or printed nothing ->
+        exit 1 with the no-verdict MISMATCH, even if the log looks
+        fine."""
+        sys.path.insert(0, str(_WITNESS.parent))
+        try:
+            import qpb_gate_witness as w  # type: ignore[import]
+        finally:
+            sys.path.pop(0)
+        import io
+        from contextlib import redirect_stdout
+        from unittest import mock
+        with tempfile.TemporaryDirectory() as td:
+            target = _make_target(Path(td))
+            (target / "quality" / "results" / "quality-gate.log").write_text(
+                _FAKE_PASS_LOG, encoding="utf-8")
+            buf = io.StringIO()
+            with mock.patch.object(w, "run_gate",
+                                   return_value="Traceback: boom\n"), \
+                    redirect_stdout(buf):
+                rc = w.main([str(target)])
+            self.assertEqual(rc, 1, buf.getvalue())
+            self.assertIn("MISMATCH: the gate printed no Total:/RESULT: "
+                          "verdict lines", buf.getvalue())
+
+    def test_total_without_warn_keeps_fail_counts(self) -> None:
+        sys.path.insert(0, str(_WITNESS.parent))
+        try:
+            import qpb_gate_witness as w  # type: ignore[import]
+        finally:
+            sys.path.pop(0)
+        self.assertEqual(
+            w.total_without_warn(
+                "Total: 3 FAIL (1 substantive, 2 record-keeping), 7 WARN"),
+            "Total: 3 FAIL (1 substantive, 2 record-keeping)")
+        self.assertEqual(w.total_without_warn("Total: 1 DECISION, 8 WARN"),
+                         "Total: 1 DECISION")
+        self.assertNotEqual(w.total_without_warn("Total: 1 FAIL, 6 WARN"),
+                            w.total_without_warn("Total: 2 FAIL, 6 WARN"))
+        self.assertIsNone(w.total_without_warn(None))
+
     def test_witness_ships_in_install_bundle(self) -> None:
         from bin.install_skill import _bundle_files
         dests = {str(d) for _s, d in _bundle_files(_SKILL_DIR)}
@@ -167,6 +254,16 @@ class ParentWitnessRuleTextTests(unittest.TestCase):
         self.assertIn("not required for the gate to pass", text,
                       "AGENTS.md must be described as written after the "
                       "gate passes and not required by it")
+
+    def test_witness_runs_before_agents_md(self) -> None:
+        """v1.6.1 [council-1] (Council A1): every surface that tells the
+        parent to run the witness says to run it before AGENTS.md."""
+        for path in (_AGENT_CLAUDE, _AGENT_GENERAL):
+            self.assertIn("Run it before you write AGENTS.md.",
+                          path.read_text(encoding="utf-8"), path.name)
+        orch = _ORCH.read_text(encoding="utf-8")
+        self.assertIn("Run the witness before you write AGENTS.md.", orch)
+        self.assertIn("AFTER the parent's witness run", orch)
 
     def test_old_automation_only_ban_is_gone(self) -> None:
         for p in (_AGENT_CLAUDE, _AGENT_GENERAL, _SKILL_MD):

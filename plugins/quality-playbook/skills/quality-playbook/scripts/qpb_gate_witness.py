@@ -16,9 +16,18 @@ Usage:
   qpb_gate_witness <target-repo>
 
 Exit codes:
-  0  the gate's ``Total:`` and ``RESULT:`` lines equal the log's
+  0  the gate's ``RESULT:`` line equals the log's, and its ``Total:``
+     line equals the log's once the trailing ``, N WARN`` part is
+     removed from both
   1  they differ (a ``MISMATCH`` line names which), or the gate printed
      no verdict lines
+
+v1.6.1 [council-1]: the WARN count is left out of the comparison
+because it can change between the subagent's gate run and the
+parent's: the orchestrator writes AGENTS.md after the gate passes, and
+a missing AGENTS.md is one WARN. FAIL / DECISION / CLEANUP counts and
+the RESULT line are still compared exactly. Both full lines are
+printed.
   2  ``quality/results/quality-gate.log`` is missing, or the target /
      ``quality_gate.py`` cannot be found
 
@@ -28,6 +37,7 @@ banner via the same 3-step anchored fallback qpb_phase.py uses.
 """
 from __future__ import annotations
 
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -115,6 +125,18 @@ def verdict_lines(text: str) -> "tuple[Optional[str], Optional[str]]":
     return total, result
 
 
+_WARN_TAIL_RE = re.compile(r",\s*\d+\s+WARN\s*$")
+
+
+def total_without_warn(total: Optional[str]) -> Optional[str]:
+    """v1.6.1 [council-1]: the ``Total:`` line with its trailing
+    ``, N WARN`` part removed (WARN counts may legitimately change
+    after the gate passes, e.g. AGENTS.md written later)."""
+    if total is None:
+        return None
+    return _WARN_TAIL_RE.sub("", total)
+
+
 def run_gate(gate: Path, target: Path) -> str:
     """Run the gate exactly as adopters do: ``python3 <gate> .`` with
     the target repo root as cwd. Returns combined stdout+stderr."""
@@ -170,7 +192,7 @@ def main(argv: "list[str] | None" = None) -> int:
               "lines; stop and report.")
         return 1
     diffs = []
-    if gate_total != log_total:
+    if total_without_warn(gate_total) != total_without_warn(log_total):
         diffs.append("Total:")
     if gate_result != log_result:
         diffs.append("RESULT:")
@@ -178,6 +200,11 @@ def main(argv: "list[str] | None" = None) -> int:
         print(f"MISMATCH: {' and '.join(diffs)} line(s) differ between "
               "the gate and quality-gate.log; stop and report.")
         return 1
+    if gate_total != log_total:
+        print("MATCH: the log's RESULT: line and its Total: counts other "
+              "than WARN equal the gate's (the WARN count differs; WARNs "
+              "do not change the verdict).")
+        return 0
     print("MATCH: the log's Total: and RESULT: lines equal the gate's.")
     return 0
 

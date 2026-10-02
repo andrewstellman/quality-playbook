@@ -170,6 +170,10 @@ _VALID_VERDICT_CATEGORIES = (
 # with the counters. main() splits this for the three-state verdict.
 _FAIL_RECORDS = []
 
+# v1.6.1 [council-1]: the repo each _FAIL_RECORDS entry came from (same
+# index), so a multi-repo verdict can say which repo a line is about.
+_FAIL_REPOS: list = []
+
 # v1.5.7 090v: every warn() message recorded for the operator verdict-
 # explanation layer (additive presentation only — see
 # ``_emit_operator_verdict``). The WARN counter (`WARN`) remains the
@@ -228,6 +232,13 @@ def _new_bug_evidence(repo_name, q=None):
         "questioned_reqs": {},
         # REQ ids one reviewer flagged (1/3 overreach WARN).
         "noted_reqs": set(),
+        # v1.6.1 [council-1]: True once check_bugs_heading counted
+        # BUGS.md (including zero bugs); _bug_req_map then keeps only
+        # the bugs BUGS.md confirms.
+        "bugs_counted": False,
+        # v1.6.1 [council-1]: confirmed bugs with no req_id, recorded
+        # when an overreach FAIL could not rule them out.
+        "unlinked_bugs": [],
     }
     _BUG_EVIDENCE.append(entry)
     return entry
@@ -267,8 +278,11 @@ def _bug_req_map(q):
             continue
         out[bid] = rid
     entry = _bug_evidence_current(q)
-    if entry.get("q") == str(q) and entry.get("bug_ids"):
-        confirmed = set(entry["bug_ids"])
+    # v1.6.1 [council-1] (Council A3): filter whenever BUGS.md was
+    # counted, including zero bugs — a stale manifest record is not a
+    # confirmed bug.
+    if entry.get("q") == str(q) and entry.get("bugs_counted"):
+        confirmed = set(entry.get("bug_ids") or [])
         out = {b: r for b, r in out.items() if b in confirmed}
     return out
 
@@ -315,11 +329,30 @@ def verdict_category(category):
     return _decorate
 
 
+def _has_shallow_signal(fail_records, warn_records, zero_bug_repos):
+    """v1.6.1 [council-1]: the shallow-pass tells (zero-bug repo, no
+    test functions, weak-model signal), split out so a decisions pass
+    can still print the shallow narration."""
+    weak_model = _has_weak_model_signal(
+        fail_records, zero_bug_repos, warn_records
+    )
+    return (
+        bool(zero_bug_repos)
+        or any("no test functions found" in w for w in warn_records)
+        or weak_model
+    )
+
+
 def _compute_verdict_state(exit_code, fail_records,
                              warn_records, zero_bug_repos):
     """v1.5.7 109 — pure helper that returns the verdict-state
-    slug ("solid" | "shallow" | "failed") matching the operator-
-    verdict lead line in ``_emit_operator_verdict``.
+    slug ("solid" | "shallow" | "decisions" | "failed") matching the
+    operator-verdict lead line in ``_emit_operator_verdict``.
+
+    v1.6.1 [council-1]: "decisions" = exit 0 with at least one
+    operator_decision FAIL (RESULT: GATE PASSED WITH DECISIONS NEEDED);
+    the lead line for that state is the decisions marker, so the
+    sentinel says "decisions" too.
 
     Extracted so the 109 ``::QPB::`` gate-result sentinel can
     emit the same state without re-running the lead-line
@@ -331,15 +364,11 @@ def _compute_verdict_state(exit_code, fail_records,
     """
     if exit_code != 0:
         return "failed"
-    weak_model = _has_weak_model_signal(
-        fail_records, zero_bug_repos, warn_records
-    )
-    is_shallow_pass = (
-        bool(zero_bug_repos)
-        or any("no test functions found" in w for w in warn_records)
-        or weak_model
-    )
-    return "shallow" if is_shallow_pass else "solid"
+    if any(cat == VERDICT_OPERATOR_DECISION for cat, _m in fail_records):
+        return "decisions"
+    if _has_shallow_signal(fail_records, warn_records, zero_bug_repos):
+        return "shallow"
+    return "solid"
 
 
 def _resolve_phase_identity():
@@ -907,6 +936,12 @@ def _summarize_bug_evidence(fail_records, ledger=None):
     fired = {_classify_fail(msg) for _cat, msg in fail_records}
     total = reproduced = logs_ok = 0
     unreproduced = []
+    # v1.6.1 [council-1] (Council A4): red and green logs accepted, but
+    # no regression-test patch.
+    patch_missing_only = []
+    # v1.6.1 [council-1] (Council A2): confirmed bugs with no req_id
+    # that an overreach FAIL could not rule out.
+    unlinked = []
     on_flagged = []
     on_noted = []
     flagged_bids_all_ok = True
@@ -921,6 +956,10 @@ def _summarize_bug_evidence(fail_records, ledger=None):
         ok_ids = {b for b in ids if tdd_ok.get(b) and b not in no_patch}
         reproduced += len(ok_ids)
         unreproduced.extend(prefix + b for b in ids if b not in ok_ids)
+        patch_missing_only.extend(
+            prefix + b for b in ids if tdd_ok.get(b) and b in no_patch
+        )
+        unlinked.extend(prefix + b for b in entry.get("unlinked_bugs") or [])
         bug_req = entry.get("bug_req") or {}
         questioned = entry.get("questioned_reqs") or {}
         for rid in sorted(questioned):
@@ -951,6 +990,8 @@ def _summarize_bug_evidence(fail_records, ledger=None):
         "logs_ok": logs_ok,
         "logs_expected": 2 * total,
         "unreproduced": unreproduced,
+        "patch_missing_only": patch_missing_only,
+        "unlinked": unlinked,
         "on_flagged": on_flagged,
         "on_noted": on_noted,
         "all_flagged_reproduced": flagged_bids_all_ok,
@@ -997,24 +1038,37 @@ def _bug_evidence_lines(summary, *, other_checks_failed):
                 "is about these logs."
             )
     elif state == "partial":
-        missing = summary["unreproduced"]
-        shown = ", ".join(missing[:_VERDICT_LINE_LIMIT])
-        more = (
-            f" (+{len(missing) - _VERDICT_LINE_LIMIT} more)"
-            if len(missing) > _VERDICT_LINE_LIMIT else ""
-        )
+        # v1.6.1 [council-1] (Council A4): a bug whose red and green logs
+        # were accepted but which has no regression-test patch is named
+        # for the missing patch, not for missing logs.
+        no_patch = set(summary.get("patch_missing_only") or [])
+        missing_logs = [b for b in summary["unreproduced"] if b not in no_patch]
+        missing_patch = [b for b in summary["unreproduced"] if b in no_patch]
+
+        def _shown(ids):
+            more = (
+                f" (+{len(ids) - _VERDICT_LINE_LIMIT} more)"
+                if len(ids) > _VERDICT_LINE_LIMIT else ""
+            )
+            return ", ".join(ids[:_VERDICT_LINE_LIMIT]) + more
+
         lines.append(
             f"Partly reproduced: {r} of {n} bugs have a regression test "
             f"that fails on the current code and passes with its fix."
         )
-        if missing:
+        if missing_logs:
             lines.append(
                 f"No red and green evidence the gate accepted: "
-                f"{shown}{more}."
+                f"{_shown(missing_logs)}."
+            )
+        if missing_patch:
+            lines.append(
+                f"Red and green logs accepted, but no regression-test patch "
+                f"in quality/patches/: {_shown(missing_patch)}."
             )
         lines.append(
-            f"For the {r} reproduced bugs, this shows each fix changes the "
-            f"behaviour its test checks. {caveat}"
+            f"For the {r} reproduced bug{'s' if r != 1 else ''}, this shows "
+            f"each fix changes the behaviour its test checks. {caveat}"
         )
     else:
         lines.append(
@@ -1047,6 +1101,21 @@ def _bug_evidence_lines(summary, *, other_checks_failed):
     return lines
 
 
+_CHECK_NAME_STOP_RE = re.compile(r" missing\b| \(| — | - |;|,")
+
+
+def _check_name(msg):
+    """v1.6.1 [council-1] (Council C5): a short name for the check a FAIL
+    line came from. With a ``path:`` prefix, the path; otherwise the
+    leading words before " missing" / " (" / " — " (at most four), so
+    a whole message is never repeated as a "file" name."""
+    first = msg.strip()
+    if ":" in first:
+        return first.split(":", 1)[0].strip()
+    head = _CHECK_NAME_STOP_RE.split(first, 1)[0].strip() or first
+    return " ".join(head.split()[:4])
+
+
 def _narrate_fail_category(category, msgs, summary):
     """v1.6.1 [G] (G3): plain-English narration for one FAIL category.
     Static texts come from ``_FAIL_NARRATION``; the requirement and
@@ -1058,6 +1127,21 @@ def _narrate_fail_category(category, msgs, summary):
             if rid.split(":")[-1] in reqs
         ]
         bugs_text = _format_req_bug_groups(dependent) if dependent else "none"
+        # v1.6.1 [council-1] (Council A2): confirmed bugs with no req_id
+        # make "none" unprovable; say how many the gate cannot rule out.
+        unlinked = summary.get("unlinked") or []
+        if unlinked:
+            k = len(unlinked)
+            unknown = (
+                f"{k} confirmed bug{'s' if k != 1 else ''} "
+                f"{'have' if k != 1 else 'has'} no req_id in "
+                f"bugs_manifest.json, so the gate cannot rule "
+                f"{'them' if k != 1 else 'it'} out"
+            )
+            bugs_text = (
+                f"{bugs_text}; {unknown}" if dependent
+                else f"unknown — {unknown}"
+            )
         return (
             f"{len(reqs)} requirement(s) say more than the passage they "
             f"quote; at least two of three reviewers agreed. This is about "
@@ -1103,8 +1187,7 @@ def _narrate_fail_category(category, msgs, summary):
     # files were reported as "This check failed: requirements_manifest.json").
     files = []
     for msg in msgs:
-        first = msg.strip()
-        short = first.split(":", 1)[0] if ":" in first else first
+        short = _check_name(msg)
         if short not in files:
             files.append(short)
     lead = "This check failed" if len(files) == 1 else "These checks failed"
@@ -1142,7 +1225,8 @@ def _group_reviewer_warns(actionable):
 
 
 def _emit_operator_verdict(fail_records, warn_records, zero_bug_repos,
-                            exit_code, run_provenance=None):
+                            exit_code, run_provenance=None,
+                            fail_repos=None):
     """v1.5.7 090v — print the operator-facing verdict-explanation
     block AFTER ``total_line`` + ``result_line``.
 
@@ -1175,13 +1259,19 @@ def _emit_operator_verdict(fail_records, warn_records, zero_bug_repos,
     verdict_state = _compute_verdict_state(
         exit_code, fail_records, warn_records, zero_bug_repos,
     )
-    is_shallow_pass = (verdict_state == "shallow")
     # v1.6.1 [G] (G4): decisions-only pass (no substantive FAIL, at
-    # least one operator_decision FAIL).
+    # least one operator_decision FAIL). v1.6.1 [council-1]: read from
+    # the shared verdict_state so the lead line and the sentinel agree;
+    # a decisions pass still prints the shallow narration when a
+    # shallow tell is present (as before).
     n_decisions = sum(
         1 for cat, _m in fail_records if cat == VERDICT_OPERATOR_DECISION
     )
-    decisions_pass = exit_code == 0 and n_decisions > 0
+    decisions_pass = verdict_state == "decisions"
+    is_shallow_pass = verdict_state == "shallow" or (
+        decisions_pass
+        and _has_shallow_signal(fail_records, warn_records, zero_bug_repos)
+    )
     evidence = _summarize_bug_evidence(fail_records)
 
     # === Section 1: lead verdict line ===
@@ -1199,6 +1289,8 @@ def _emit_operator_verdict(fail_records, warn_records, zero_bug_repos,
         lead = "[FAIL] GATE FAILED"
     elif decisions_pass:
         # v1.6.1 [G] (G4): same [WARN] marker family as the shallow pass.
+        # Checked before is_shallow_pass: the lead line follows
+        # verdict_state ("decisions").
         lead = (
             f"[WARN] GATE PASSED -- {n_decisions} requirement "
             f"decision(s) need you"
@@ -1226,14 +1318,30 @@ def _emit_operator_verdict(fail_records, warn_records, zero_bug_repos,
         # checks fired.
         seen: list[str] = []
         per_category_msgs: dict[str, list[str]] = {}
-        for _cat, msg in fail_records:
+        # v1.6.1 [council-1] (Council A7): in a multi-repo run each
+        # listed line says which repo it came from.
+        repos = (
+            list(fail_repos)
+            if fail_repos is not None and len(fail_repos) == len(fail_records)
+            else [None] * len(fail_records)
+        )
+        multi_repo = len({r for r in repos if r}) > 1 or len(_BUG_EVIDENCE) > 1
+        per_category_lines: dict[str, list[str]] = {}
+        for (_cat, msg), repo in zip(fail_records, repos):
             classified = _classify_fail(msg)
             if classified not in per_category_msgs:
                 per_category_msgs[classified] = []
+                per_category_lines[classified] = []
                 seen.append(classified)
             per_category_msgs[classified].append(msg)
+            per_category_lines[classified].append(
+                f"[{repo}] {msg.strip()}" if multi_repo and repo
+                else msg.strip()
+            )
         print("")
-        print("Why it failed:")
+        # v1.6.1 [council-1] (Council A5): a decisions pass did not fail.
+        print("What needs your decision:" if decisions_pass
+              else "Why it failed:")
         for category in seen:
             msgs = per_category_msgs[category]
             label = (
@@ -1246,7 +1354,7 @@ def _emit_operator_verdict(fail_records, warn_records, zero_bug_repos,
             # (deduped, capped) so the operator need not grep. The
             # per-check lines carry no "FAIL:" prefix by design (see
             # fail()); this list is where they are gathered.
-            unique = list(dict.fromkeys(m.strip() for m in msgs))
+            unique = list(dict.fromkeys(per_category_lines[category]))
             for m in unique[:_VERDICT_LINE_LIMIT]:
                 print(f"      - {m}")
             if len(unique) > _VERDICT_LINE_LIMIT:
@@ -1431,7 +1539,7 @@ def _failure_reason(fail_records, evidence):
     if other:
         files = []
         for msg in other:
-            short = msg.split(":", 1)[0].strip() if ":" in msg else msg.strip()
+            short = _check_name(msg)
             if short not in files:
                 files.append(short)
         shown = ", ".join(files[:3]) + (
@@ -1520,8 +1628,9 @@ def _emit_what_happened_what_next(*, fail_records, warn_records,
     if decisions_pass:
         print(
             f"Result: it passed the checkpoint; {n_decisions} "
-            f"requirement decision(s) need you (see 'Why it failed' "
-            f"above). No confirmed bug rests on those requirements."
+            f"requirement decision(s) need you (see 'What needs your "
+            f"decision' above). No confirmed bug rests on those "
+            f"requirements."
         )
     elif cleanup_only and exit_code == 0:
         # CLEANUP path — must read as a pass, not a fail.
@@ -1586,8 +1695,9 @@ def _emit_what_happened_what_next(*, fail_records, warn_records,
     print("── What to do next ──")
     if decisions_pass:
         print(
-            f"Decide the {n_decisions} requirement(s) listed in 'Why it "
-            f"failed' above: quality/OPERATOR_DECISIONS.md gives each "
+            f"Decide the {n_decisions} requirement(s) listed in 'What "
+            f"needs your decision' above: quality/OPERATOR_DECISIONS.md "
+            f"gives each "
             f"one with its quoted passage, the reviewers' notes and "
             f"ready-to-apply options. The bug findings in "
             f"quality/BUGS.md do not depend on them."
@@ -2087,6 +2197,7 @@ def _reset_counters():
     # category context stack so a fresh main()/check_repo run starts
     # clean (tests that call check_repo directly must reset too).
     _FAIL_RECORDS.clear()
+    _FAIL_REPOS.clear()
     _CHECK_CATEGORY_STACK.clear()
     # v1.5.7 090s Task B: also clear the zero-bug-repos tracker so
     # the verdict qualifier doesn't carry stale state across runs.
@@ -2152,6 +2263,7 @@ def fail(msg, reason=None, *, line=None, category=None):
             f"{_VALID_VERDICT_CATEGORIES}"
         )
     _FAIL_RECORDS.append((category, rendered.strip()))
+    _FAIL_REPOS.append(_BUG_EVIDENCE[-1]["repo"] if _BUG_EVIDENCE else None)
 
 
 def pass_(msg):
@@ -3613,6 +3725,7 @@ def check_bugs_heading(q):
     _ev = _bug_evidence_current(q)
     _ev["bug_count"] = bug_count
     _ev["bug_ids"] = list(bug_ids) if bug_count > 0 else []
+    _ev["bugs_counted"] = True
     _ev["bug_req"] = _bug_req_map(q) if bug_count > 0 else {}
 
     return bug_count, bug_ids
@@ -6388,6 +6501,8 @@ def check_v1_5_0_semantic_check(q):
             # the classifier needle — keep it contiguous.
             _ev["questioned_reqs"][rid] = "overreach"
             dependents = _bugs_resting_on(rid, bug_req)
+            if unlinked_bugs:
+                _ev["unlinked_bugs"] = list(unlinked_bugs)
             if dependents:
                 tail = (
                     f"; confirmed bug(s) resting on {rid}: "
@@ -9236,7 +9351,7 @@ def main(argv=None):
     # docs/design/QPB_v1.6.x_Verdict_Explanation_Proposal.md.
     _emit_operator_verdict(
         _FAIL_RECORDS, _WARN_RECORDS, _ZERO_BUG_REPOS, exit_code,
-        run_provenance=_RUN_PROVENANCE,
+        run_provenance=_RUN_PROVENANCE, fail_repos=_FAIL_REPOS,
     )
     # v1.5.10 058 (D2): multi-language disclosure block(s) — additive,
     # AFTER the load-bearing RESULT/verdict lines and BEFORE the trailing

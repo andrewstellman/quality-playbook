@@ -310,6 +310,130 @@ class DecisionsNeededTests(_GateFixture):
         self.assertNotIn("OPERATOR_DECISIONS.md missing", out)
 
 
+class Council1GateTests(_GateFixture):
+    """v1.6.1 [council-1]: Council round-1 findings A2, A3, A5, A6, A7
+    and B gaps 3-4, end to end through the real gate."""
+
+    def _stale_manifest_zero_bug_tree(self):
+        """BUGS.md has zero bugs; bugs_manifest.json still carries a
+        BUG-001 -> REQ-001 record; REQ-001 overreaches (2/3)."""
+        tree = minimal_zero_bug_tree("1.4.4")
+        tree["formal_docs/virtio-excerpt.txt"] = V150_VIRTIO_EXCERPT_TEXT
+        tree["quality/formal_docs_manifest.json"] = _wrap([{
+            "source_path": "formal_docs/virtio-excerpt.txt",
+            "document_sha256": V150_VIRTIO_SHA, "tier": 2,
+        }])
+        rec = _req_record("REQ-001")
+        tree["quality/requirements_manifest.json"] = _wrap([rec])
+        tree["quality/citation_semantic_check.json"] = _wrap([{
+            "req_id": "REQ-001", "reviewer": m,
+            "verdict": "overreaches" if i < 2 else "supports",
+            "notes": "n", "req_hash": quality_gate.req_review_hash(rec),
+        } for i, m in enumerate(REVIEWERS)], "reviews")
+        tree["quality/INDEX.md"] = build_reproduced_tree(
+            {"BUG-001": "REQ-001"}, [])["quality/INDEX.md"]
+        tree["quality/bugs_manifest.json"] = _wrap([{
+            "id": "BUG-001", "title": "t", "severity": "LOW",
+            "divergence_description": "d", "documented_intent": "i",
+            "code_behavior": "c", "disposition": "code-fix",
+            "disposition_rationale": "r", "req_id": "REQ-001",
+            "proposed_fix": "f", "fix_type": "code",
+        }])
+        return tree
+
+    def test_zero_bugs_stale_manifest_is_operator_decision(self):
+        """Council A3: with zero confirmed bugs, a stale bugs_manifest
+        record is not a confirmed bug resting on the REQ."""
+        out, code = self.gate(self._stale_manifest_zero_bug_tree())
+        self.assertEqual(code, 0, out)
+        self.assertIn("No confirmed bugs in this run.", out)
+        self.assertIn("no confirmed bug rests on REQ-001 — operator "
+                      "decision", out)
+        self.assertNotIn("confirmed bug(s) resting on", out)
+        self.assertIn("RESULT: GATE PASSED WITH DECISIONS NEEDED", out)
+
+    def test_decisions_pass_heading_and_verdict_state(self):
+        """Council A5 + A6 / C2: a decisions pass is headed 'What needs
+        your decision:' (never 'Why it failed') and its sentinel says
+        verdict_state "decisions", matching the lead line."""
+        tree = build_reproduced_tree({"BUG-001": "REQ-001"}, ["REQ-003"])
+        out, code = self.gate(tree)
+        self.assertEqual(code, 0, out)
+        self.assertIn("[WARN] GATE PASSED -- 1 requirement decision(s) "
+                      "need you", out)
+        self.assertIn("\nWhat needs your decision:\n", out)
+        self.assertNotIn("Why it failed", out)
+        self.assertIn("(see 'What needs your decision' above)", out)
+        payload = _sentinel(out)
+        self.assertEqual(payload["gate_result"], "DECISIONS")
+        self.assertEqual(payload["verdict_state"], "decisions")
+
+    def test_bug_to_req_linkage_filters(self):
+        """Council B gap 3 (+ A2): a known-issue record pointing at a
+        flagged REQ is not listed; a manifest record for a bug BUGS.md
+        does not confirm is not listed; a tier-3 REQ carrying a citation
+        counts as questioned in the Bug evidence block. The known-issue
+        bug has no usable req_id, so the overreach narration says the
+        gate cannot rule it out instead of "none"."""
+        tree = build_reproduced_tree(
+            {"BUG-001": "REQ-001", "BUG-002": "REQ-004",
+             "BUG-003": "REQ-002"},
+            ["REQ-002"],
+        )
+        manifest = json.loads(tree["quality/bugs_manifest.json"])
+        for rec in manifest["records"]:
+            if rec["id"] == "BUG-003":
+                rec["classification"] = "known-issue"
+        manifest["records"].append(
+            dict(manifest["records"][0], id="BUG-009", req_id="REQ-002"))
+        tree["quality/bugs_manifest.json"] = json.dumps(manifest)
+        reqs = json.loads(tree["quality/requirements_manifest.json"])
+        for rec in reqs["records"]:
+            if rec["id"] == "REQ-004":
+                rec["tier"] = 3
+        tree["quality/requirements_manifest.json"] = json.dumps(reqs)
+        reviews = json.loads(tree["quality/citation_semantic_check.json"])
+        reviews["reviews"] = [r for r in reviews["reviews"]
+                              if r["req_id"] != "REQ-004"]
+        tree["quality/citation_semantic_check.json"] = json.dumps(reviews)
+        out, code = self.gate(tree)
+        self.assertEqual(code, 1, out)
+        block = out[out.index("── Bug evidence ──"):out.index("\n\n",
+                    out.index("── Bug evidence ──"))]
+        self.assertIn(
+            "1 bug rest on a requirement the reviewers questioned (still "
+            "reproduced; read the requirement note before relying on the "
+            "expected behaviour): BUG-002 (REQ-004)", block)
+        self.assertNotIn("BUG-003", block)
+        self.assertNotIn("BUG-009", block)
+        self.assertNotIn("confirmed bug(s) resting on REQ-002", out)
+        # Council A2: narration does not claim "none".
+        self.assertNotIn("Bugs that rest on these requirements: none.", out)
+        self.assertIn(
+            "Bugs that rest on these requirements: unknown — 1 confirmed "
+            "bug has no req_id in bugs_manifest.json, so the gate cannot "
+            "rule it out.", out)
+
+    def test_multi_repo_lines_name_their_repo(self):
+        """Council A7 / B gap 4: with two repos, each listed FAIL line
+        is prefixed with its repo."""
+        with tempfile.TemporaryDirectory() as td:
+            dirs = []
+            for name in ("alpha", "beta"):
+                d = Path(td) / name
+                d.mkdir()
+                write_tree(d, build_reproduced_tree(
+                    {"BUG-001": "REQ-001"}, ["REQ-003"]))
+                dirs.append(d)
+            out, code = run_gate(dirs[1], args=(str(dirs[0]),))
+        self.assertEqual(code, 0, out)
+        for name in ("alpha", "beta"):
+            self.assertIn(
+                f"      - [{name}] citation_semantic_check.json: "
+                f"record_id=REQ-003: semantic check majority overreaches",
+                out)
+
+
 class FinalVerdictUnitTests(unittest.TestCase):
     def test_decisions_only(self):
         total, result, code = quality_gate._compute_final_verdict(
@@ -452,6 +576,95 @@ class VerdictPresentationUnitTests(unittest.TestCase):
         self.assertNotIn(
             "The gate result below is about other checks; none of them is "
             "about these logs.", lines)
+
+    def test_patch_missing_named_not_logs(self):
+        """Council A4: red and green logs accepted, no regression-test
+        patch -> the line names the missing patch; singular agreement."""
+        summary = quality_gate._summarize_bug_evidence([], ledger=self._ledger(
+            no_regression_patch={"BUG-002"}))
+        self.assertEqual(summary["state"], "partial")
+        lines = quality_gate._bug_evidence_lines(
+            summary, other_checks_failed=True)
+        self.assertIn(
+            "Red and green logs accepted, but no regression-test patch in "
+            "quality/patches/: BUG-002.", lines)
+        self.assertFalse(
+            any(ln.startswith("No red and green evidence") for ln in lines),
+            lines)
+        self.assertTrue(any(ln.startswith(
+            "For the 1 reproduced bug, this shows") for ln in lines), lines)
+
+    def test_two_repo_ledger_prefixes_ids(self):
+        """Council B gap 4: two repos' BUG-001 stay apart."""
+        a = self._ledger(repo="alpha", bug_req={"BUG-001": "REQ-002"},
+                         questioned_reqs={"REQ-002": "overreach"},
+                         tdd_ok={"BUG-001": True, "BUG-002": False})
+        b = self._ledger(repo="beta", bug_req={"BUG-001": "REQ-002"},
+                         questioned_reqs={"REQ-002": "overreach"})
+        summary = quality_gate._summarize_bug_evidence([], ledger=a + b)
+        self.assertEqual(summary["unreproduced"], ["alpha:BUG-002"])
+        self.assertEqual(summary["on_flagged"], [
+            ("alpha:REQ-002", ["alpha:BUG-001"]),
+            ("beta:REQ-002", ["beta:BUG-001"]),
+        ])
+
+    def test_failing_lines_repo_prefix_only_when_multi_repo(self):
+        """Council A7: [repo] prefix only when more than one repo ran."""
+        records = [(quality_gate.VERDICT_SUBSTANTIVE, "x.json: broke")] * 2
+        quality_gate._new_bug_evidence("alpha")
+        quality_gate._new_bug_evidence("beta")
+        out = _capture(quality_gate._emit_operator_verdict, records, [], [],
+                       1, run_provenance=[], fail_repos=["alpha", "beta"])
+        self.assertIn("      - [alpha] x.json: broke\n", out)
+        self.assertIn("      - [beta] x.json: broke\n", out)
+        quality_gate._reset_counters()
+        quality_gate._new_bug_evidence("alpha")
+        out = _capture(quality_gate._emit_operator_verdict, records[:1], [],
+                       [], 1, run_provenance=[], fail_repos=["alpha"])
+        self.assertIn("      - x.json: broke\n", out)
+        self.assertNotIn("[alpha]", out)
+
+    def test_cleanup_heading_unchanged(self):
+        """Council A5: only the decisions pass changes heading; CLEANUP
+        keeps 'Why it failed:'."""
+        records = [(quality_gate.VERDICT_RECORD_KEEPING, "x.json: gap")]
+        out = _capture(quality_gate._emit_operator_verdict, records, [], [],
+                       0, run_provenance=[])
+        self.assertIn("\nWhy it failed:\n", out)
+        self.assertNotIn("What needs your decision", out)
+        self.assertIn("(see 'Why it failed' above — these are audit "
+                      "record-keeping issues", out)
+
+    def test_verdict_state_decisions(self):
+        """Council A6 / C2: verdict_state has a "decisions" value, also
+        when a shallow tell is present (the lead line is the decisions
+        marker either way)."""
+        dec = [(quality_gate.VERDICT_OPERATOR_DECISION, "x")]
+        cvs = quality_gate._compute_verdict_state
+        self.assertEqual(cvs(0, dec, [], []), "decisions")
+        self.assertEqual(cvs(0, dec, [], ["proj"]), "decisions")
+        self.assertEqual(cvs(1, dec, [], []), "failed")
+        self.assertEqual(cvs(0, [], [], ["proj"]), "shallow")
+        self.assertEqual(cvs(0, [], [], []), "solid")
+
+    def test_generic_fallback_names_checks_without_colon(self):
+        """Council C5: messages with no ':' are named by their leading
+        words, deduped, never repeated whole."""
+        msgs = [
+            "BUGS.md missing",
+            "functional test file missing (test_functional.*, "
+            "functional_test.*, FunctionalSpec.*)",
+            "BUGS.md missing",
+            "spec_audits/ directory missing",
+        ]
+        text = quality_gate._narrate_fail_category(
+            quality_gate._FAIL_GENERIC, msgs,
+            quality_gate._summarize_bug_evidence([], ledger=[]),
+        )
+        self.assertIn(
+            "These checks failed: BUGS.md, functional test file, "
+            "spec_audits/ directory.", text)
+        self.assertNotIn("test_functional.*", text)
 
     def test_noted_reqs_listed_separately(self):
         summary = quality_gate._summarize_bug_evidence([], ledger=self._ledger(
