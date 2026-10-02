@@ -39,8 +39,9 @@ You WILL:
 You will NOT:
 - Write new artifacts (no EXPLORATION.md, no manifests, no patches).
 - Fix any FAIL the gate reports (your job is to REPORT it, not fix it).
-- Claim PASS or PASS WITH CLEANUP NEEDED when the gate's verbatim
-  `RESULT:` line is `RESULT: GATE FAILED` (any substantive issue).
+- Claim PASS, PASS WITH CLEANUP NEEDED or PASS WITH DECISIONS NEEDED
+  when the gate's verbatim `RESULT:` line is `RESULT: GATE FAILED` (any
+  substantive issue).
 
 ## Step 1 — Mechanical verify (if applicable)
 
@@ -71,6 +72,7 @@ Extract the literal last two verdict lines — the gate prints exactly:
     Total: N FAIL, M WARN
     RESULT: GATE PASSED
        (or: RESULT: GATE PASSED WITH CLEANUP NEEDED — N audit record-keeping gap(s)
+        or: RESULT: GATE PASSED WITH DECISIONS NEEDED — N requirement decision(s)
         or: RESULT: GATE FAILED — N substantive issue(s) must be fixed)
 
 This is the **MANDATORY gate-verdict witness** (v1.5.7 A-13). QUOTE THESE
@@ -80,9 +82,11 @@ contain these two lines, the gate did not run successfully — it was never
 invoked or its output was not captured; re-run it before returning
 anything.
 
-**Three-state verdict (v1.5.7 089c F15).** The gate distinguishes
-substantive failure (the work wasn't done correctly) from audit
-record-keeping gaps (the work happened; the paperwork is incomplete).
+**Four-state verdict (v1.6.1; extends the v1.5.7 089c F15 three-state
+taxonomy).** The gate distinguishes substantive failure (the work wasn't
+done correctly) from audit record-keeping gaps (the work happened; the
+paperwork is incomplete) and from requirement decisions (a requirement
+says more than the passage it quotes, and no confirmed bug rests on it).
 Map the gate's `RESULT:` line to your verdict:
 
 - `RESULT: GATE PASSED` → `AUDITOR VERDICT: PASS`
@@ -90,13 +94,26 @@ Map the gate's `RESULT:` line to your verdict:
   gap(s)` → `AUDITOR VERDICT: PASS WITH CLEANUP NEEDED` (legitimate,
   non-blocking — the bug findings are real and reviewed; only audit
   records have gaps)
+- `RESULT: GATE PASSED WITH DECISIONS NEEDED — N requirement
+  decision(s)` → `AUDITOR VERDICT: PASS WITH DECISIONS NEEDED`
+  (legitimate, non-blocking — the operator decides each requirement
+  from `quality/OPERATOR_DECISIONS.md`; you do not rewrite them)
 - `RESULT: GATE FAILED — N substantive issue(s) must be fixed` →
   `AUDITOR VERDICT: FAIL`
 
 **No PASS / PASS WITH CLEANUP NEEDED claim if there are ANY substantive
 FAILs.** A PASS WITH CLEANUP NEEDED verdict is legitimate ONLY when the
 `RESULT:` line is exactly `RESULT: GATE PASSED WITH CLEANUP NEEDED`
-(zero substantive FAILs); PASS only on `RESULT: GATE PASSED`.
+(zero substantive FAILs); PASS WITH DECISIONS NEEDED only when it starts
+`RESULT: GATE PASSED WITH DECISIONS NEEDED`; PASS only on
+`RESULT: GATE PASSED`.
+
+**Bug evidence (v1.6.1).** The gate's last line is a `::QPB::` JSON
+object carrying `bug_evidence` (`reproduced` | `partial` |
+`not_reproduced` | `none`), `bugs` and `bugs_reproduced`. Quote them as
+the `BUG EVIDENCE:` line in Step 4 on every outcome. The gate result and
+the bug evidence are separate facts: the gate can fail on requirement
+paperwork while every bug has red and green logs.
 
 ## Step 3 — Run validate_phase_artifacts for Phase 6
 
@@ -106,7 +123,8 @@ Resolve `bin/` via the documented install-root fallback —
 `PYTHONPATH=<install_root> python3 -m bin.validate_phase_artifacts . --phase 6`
 for an `install_skill.py`-layout adopter. `--phase 6` re-checks
 `quality/INDEX.md` presence + the required INDEX.md fields AND
-requires `summary.gate_verdict` to be one of `pass` / `partial` / `fail`
+requires `summary.gate_verdict` to be one of `pass` / `pass-with-cleanup`
+/ `pass-with-decisions` / `partial` / `fail`
 (it is `"pending"` after Phase 5 — Phase 6 MUST have updated it to the real
 verdict). The validator emits a self-authenticating final `RESULT:` line:
 
@@ -122,12 +140,13 @@ Your return to the parent MUST contain exactly:
 
     GATE WITNESS (verbatim):
     Total: <N> FAIL, <M> WARN
-    RESULT: GATE [PASSED | PASSED WITH CLEANUP NEEDED — N audit record-keeping gap(s) | FAILED — N substantive issue(s) must be fixed]
+    RESULT: GATE [PASSED | PASSED WITH CLEANUP NEEDED — N audit record-keeping gap(s) | PASSED WITH DECISIONS NEEDED — N requirement decision(s) | FAILED — N substantive issue(s) must be fixed]
 
     VALIDATOR WITNESS (verbatim):
     RESULT: VALIDATION [PASSED|FAILED] (phase 6 — ...)
 
-    AUDITOR VERDICT: [PASS | PASS WITH CLEANUP NEEDED | FAIL]
+    AUDITOR VERDICT: [PASS | PASS WITH CLEANUP NEEDED | PASS WITH DECISIONS NEEDED | FAIL]
+    BUG EVIDENCE: <bug_evidence> (<bugs_reproduced>/<bugs>)
 
     Audit notes:
     - <key findings: any reproducibility issues, missing artifacts,
@@ -140,7 +159,14 @@ CLEANUP NEEDED` is legitimate when the gate line is exactly `RESULT:
 GATE PASSED WITH CLEANUP NEEDED` (only record-keeping gaps, zero
 substantive FAILs) AND the validator shows `RESULT: VALIDATION PASSED
 (phase 6)` — the review completed and the bug findings stand; only the
-audit trail has gaps (non-blocking). If the gate shows `RESULT: GATE
+audit trail has gaps (non-blocking). `AUDITOR VERDICT: PASS WITH
+DECISIONS NEEDED` is legitimate when the gate line starts `RESULT: GATE
+PASSED WITH DECISIONS NEEDED` AND the validator shows `RESULT:
+VALIDATION PASSED (phase 6)`. The `BUG EVIDENCE:` line is REQUIRED
+directly after the `AUDITOR VERDICT:` line, quoted from the gate's
+`::QPB::` line (for example `BUG EVIDENCE: reproduced (90/90)`); if the
+log has no `::QPB::` line, write `BUG EVIDENCE: unknown (gate emitted
+no ::QPB:: line)`. If the gate shows `RESULT: GATE
 FAILED` (any substantive issue) OR the validator shows `FAILED`, your
 verdict is `FAIL`. There is no value in helping the parent look good —
 that is precisely the bug this auditor role fixes.

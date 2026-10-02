@@ -16,7 +16,10 @@ Usage:
 Exit codes:
     0 — GATE PASSED, or GATE PASSED WITH CLEANUP NEEDED (only audit
         record-keeping gaps remain; the review completed and its
-        findings stand — see the v1.5.7 089c F15 taxonomy block below)
+        findings stand — see the v1.5.7 089c F15 taxonomy block below),
+        or GATE PASSED WITH DECISIONS NEEDED (v1.6.1 [G]: only
+        requirement-wording decisions that no confirmed bug rests on,
+        plus any record-keeping gaps)
     1 — GATE FAILED (one or more substantive issues — the work itself
         wasn't done correctly)
 
@@ -24,6 +27,7 @@ Runs on Python 3.8+ with only the standard library.
 """
 
 import functools
+import hashlib
 import json
 import os
 import re
@@ -153,7 +157,14 @@ WARN = 0
 
 VERDICT_SUBSTANTIVE = "substantive"
 VERDICT_RECORD_KEEPING = "record_keeping"
-_VALID_VERDICT_CATEGORIES = (VERDICT_SUBSTANTIVE, VERDICT_RECORD_KEEPING)
+# v1.6.1 [G]: a FAIL only the operator can resolve — a requirement the
+# Council says overreaches its citation, with NO confirmed bug resting
+# on it. It does not block (exit 0, GATE PASSED WITH DECISIONS NEEDED);
+# the same FAIL on a REQ a bug depends on stays substantive.
+VERDICT_OPERATOR_DECISION = "operator_decision"
+_VALID_VERDICT_CATEGORIES = (
+    VERDICT_SUBSTANTIVE, VERDICT_RECORD_KEEPING, VERDICT_OPERATOR_DECISION,
+)
 
 # (category, rendered_message) for every fail() emitted this run. Reset
 # with the counters. main() splits this for the three-state verdict.
@@ -188,6 +199,83 @@ _WARN_RECORDS: list[str] = []
 # explicit confidence labels (verified vs self-reported); a
 # self-report vs gate mismatch is flagged informationally.
 _RUN_PROVENANCE: list[dict] = []
+
+# v1.6.1 [G]: per-repo bug-evidence ledger for the "── Bug evidence ──"
+# block. The 2026-10-01 icalendar run had red and green logs for all 90
+# bugs, yet the verdict said the run "can't be trusted" because the
+# failing checks were about requirement wording and a post-gate file.
+# The ledger records what the TDD checks already established per bug so
+# the verdict can say so. Filled by check_bugs_heading / check_tdd_logs
+# / check_patches / the requirement checks; reset with the counters.
+_BUG_EVIDENCE: list[dict] = []
+
+
+def _new_bug_evidence(repo_name, q=None):
+    """v1.6.1 [G]: start a fresh ledger entry for one repo."""
+    entry = {
+        "repo": repo_name,
+        "q": str(q) if q is not None else None,
+        "bug_ids": [],
+        "bug_count": 0,
+        # bug id -> True when its red log is RED and its green log is
+        # GREEN and no 090p / 089o / 089q / sidecar check rejected it.
+        "tdd_ok": {},
+        "logs_ok": 0,
+        "no_regression_patch": set(),
+        # bug id -> primary req_id from bugs_manifest.json.
+        "bug_req": {},
+        # REQ id -> "overreach" | "tier" (a FAIL questioned it).
+        "questioned_reqs": {},
+        # REQ ids one reviewer flagged (1/3 overreach WARN).
+        "noted_reqs": set(),
+    }
+    _BUG_EVIDENCE.append(entry)
+    return entry
+
+
+def _bug_evidence_current(q=None):
+    """v1.6.1 [G]: the ledger entry for the repo being checked. Check
+    functions called directly (tests) get a scratch entry so recording
+    never raises."""
+    if _BUG_EVIDENCE:
+        entry = _BUG_EVIDENCE[-1]
+        if q is None or entry.get("q") in (None, str(q)):
+            return entry
+    return _new_bug_evidence("<repo>", q)
+
+
+def _bug_req_map(q):
+    """v1.6.1 [G]: {bug_id: primary req_id} from bugs_manifest.json.
+
+    Defensive: an absent / malformed manifest, a record without a
+    string ``req_id``, or a ``known-issue`` record yields no entry.
+    When the gate already counted this repo's BUGS.md ids, only those
+    ids are kept (a manifest record for a bug BUGS.md does not confirm
+    is not a confirmed bug)."""
+    path = Path(q) / "bugs_manifest.json"
+    data = load_json(path) if path.is_file() else None
+    if not isinstance(data, dict) or not isinstance(data.get("records"), list):
+        return {}
+    out = {}
+    for rec in data["records"]:
+        if not isinstance(rec, dict):
+            continue
+        bid, rid = rec.get("id"), rec.get("req_id")
+        if not isinstance(bid, str) or not isinstance(rid, str) or not rid:
+            continue
+        if rec.get("classification") == "known-issue":
+            continue
+        out[bid] = rid
+    entry = _bug_evidence_current(q)
+    if entry.get("q") == str(q) and entry.get("bug_ids"):
+        confirmed = set(entry["bug_ids"])
+        out = {b: r for b, r in out.items() if b in confirmed}
+    return out
+
+
+def _bugs_resting_on(req_id, bug_req):
+    """v1.6.1 [G]: sorted bug ids whose primary req_id is ``req_id``."""
+    return sorted(b for b, r in bug_req.items() if r == req_id)
 
 # Category context stack. @verdict_category pushes on call entry and
 # pops on exit; fail() reads the top (or an explicit category= override;
@@ -295,7 +383,8 @@ def _resolve_phase_identity():
 
 def _format_gate_sentinel(*, gate_result: str,
                             verdict_state: str,
-                            ts: "str | None" = None) -> str:
+                            ts: "str | None" = None,
+                            extra: "dict | None" = None) -> str:
     """v1.5.7 109 — return the single ``::QPB:: {json}`` line
     for the gate-result sentinel. Unit-testable; the gate calls
     this once at the end of main(), after the operator-verdict
@@ -324,6 +413,11 @@ def _format_gate_sentinel(*, gate_result: str,
         "verdict_state": verdict_state,
         "ts": ts or _utc_now_iso(),
     }
+    # v1.6.1 [G]: additive machine fields (bug_evidence, bugs, ...).
+    # Never overrides an existing key.
+    if extra:
+        for key, value in extra.items():
+            payload.setdefault(key, value)
     return _resolve_phase_identity().format_qpb_envelope(payload)
 
 
@@ -345,6 +439,9 @@ def _compute_final_verdict(fail_records, warn_count):
 
       - zero fails                  -> GATE PASSED                  exit 0
       - any substantive fail        -> GATE FAILED                  exit 1
+      - operator_decision fails, no
+        substantive (v1.6.1 [G])    -> GATE PASSED WITH DECISIONS
+                                       NEEDED                       exit 0
       - only record_keeping fails   -> GATE PASSED WITH CLEANUP
                                        NEEDED                       exit 0
 
@@ -359,6 +456,10 @@ def _compute_final_verdict(fail_records, warn_count):
     n_clean = sum(
         1 for r in fail_records if r[0] == VERDICT_RECORD_KEEPING
     )
+    # v1.6.1 [G]: requirement decisions no confirmed bug rests on.
+    n_dec = sum(
+        1 for r in fail_records if r[0] == VERDICT_OPERATOR_DECISION
+    )
     if n_total == 0:
         return (
             f"Total: 0 FAIL, {warn_count} WARN",
@@ -368,13 +469,30 @@ def _compute_final_verdict(fail_records, warn_count):
     if n_sub > 0:
         # Any substantive failure blocks. Break out the cleanup count
         # so the operator sees how much of the total is record-keeping.
+        # v1.6.1 [G]: the decision count is appended only when non-zero
+        # so the pre-1.6.1 Total line stays byte-identical otherwise.
+        dec_part = f", {n_dec} operator-decision" if n_dec else ""
         return (
             f"Total: {n_total} FAIL "
-            f"({n_sub} substantive, {n_clean} record-keeping), "
+            f"({n_sub} substantive, {n_clean} record-keeping{dec_part}), "
             f"{warn_count} WARN",
             f"RESULT: GATE FAILED — {n_sub} substantive "
             f"issue(s) must be fixed",
             1,
+        )
+    if n_dec > 0:
+        # v1.6.1 [G]: only requirement decisions (and maybe cleanup)
+        # remain. No confirmed bug rests on these REQs, so the run's
+        # findings stand; the operator owns the wording call (exit 0).
+        clean_total = f", {n_clean} CLEANUP" if n_clean else ""
+        clean_result = (
+            f", {n_clean} audit record-keeping gap(s)" if n_clean else ""
+        )
+        return (
+            f"Total: {n_dec} DECISION{clean_total}, {warn_count} WARN",
+            f"RESULT: GATE PASSED WITH DECISIONS NEEDED — "
+            f"{n_dec} requirement decision(s){clean_result}",
+            0,
         )
     # Only record-keeping fails remain: the review completed and its
     # findings stand on their own; the audit trail just has gaps. This
@@ -429,7 +547,18 @@ _FAIL_SETUP_FAILURE_RED = "setup_failure_red"
 # motivating shape.
 _FAIL_BUGS_UNVERIFIED = "bugs_unverified"
 _FAIL_MISSING_ARTIFACT = "missing_artifact"
+# v1.6.1 [G] (G3): requirement-wording FAILs. Neither says anything about
+# the code or the bug evidence; before 1.6.1 both fell to the generic
+# fallback, which named only the first failing file.
+_FAIL_REQ_OVERREACH = "requirement_overreach"
+_FAIL_REQ_TIER_MISMATCH = "requirement_tier_mismatch"
 _FAIL_GENERIC = "generic"
+
+# v1.6.1 [G]: FAIL categories that are about the bug evidence itself.
+# Only these may make the verdict say the bugs are unverified.
+_BUG_EVIDENCE_FAIL_CATEGORIES = frozenset({
+    _FAIL_BUGS_UNVERIFIED, _FAIL_TDD_OVERCLAIM, _FAIL_SETUP_FAILURE_RED,
+})
 
 # Substring-match table; first match wins.
 #
@@ -444,6 +573,13 @@ _FAIL_GENERIC = "generic"
 #   * check_patches         — test_regression.* / regression-test
 #                              patch missing
 _FAIL_CLASSIFIER: "tuple[tuple[str, str], ...]" = (
+    # v1.6.1 [G] (G3) — requirement wording. Keyed to the emit strings
+    # in check_v1_5_0_semantic_check (invariant #17) and
+    # check_v1_5_0_requirements_manifest / _check_citation_block
+    # (invariants #1 and #14).
+    ("semantic check majority overreaches", _FAIL_REQ_OVERREACH),
+    ("but carries a citation block", _FAIL_REQ_TIER_MISMATCH),
+    ("does not match cited FORMAL_DOC", _FAIL_REQ_TIER_MISMATCH),
     # 090s — no-op / all-trivial functional test.
     ("trivial / no-assertion stubs", _FAIL_NOOP_FUNCTIONAL),
     # 089o / 090p — TDD claimed RED/GREEN over a by-inspection body.
@@ -728,6 +864,283 @@ _FAIL_NARRATION = {
 }
 
 
+# ============================================================
+# v1.6.1 [G] — Bug evidence + requirement-decision presentation.
+#
+# The 2026-10-01 icalendar run (QPB 1.6.0): 90 bugs, each with a
+# regression test, a fix, and executed red and green logs. The gate
+# printed GATE FAILED and the verdict said the run "can't be trusted",
+# because 7 FAILs about requirement wording and one about a post-gate
+# file went to the generic fallback. These helpers state what the TDD
+# checks established about the bugs, separately from the other checks.
+# ============================================================
+
+_REQ_ID_IN_MSG_RE = re.compile(r"record_id=(REQ-[A-Za-z0-9_.-]+)")
+_TIER_CARRIES_CITATION_RE = re.compile(
+    r"is tier (\d+) but carries a citation block"
+)
+_TIER_LABELS = {3: "code-derived", 4: "informal-doc", 5: "inferred"}
+_VERDICT_LINE_LIMIT = 10
+
+
+def _req_ids_in(msgs):
+    """Distinct REQ ids named by ``record_id=`` in ``msgs``, in order."""
+    seen = []
+    for msg in msgs:
+        for rid in _REQ_ID_IN_MSG_RE.findall(msg):
+            if rid not in seen:
+                seen.append(rid)
+    return seen
+
+
+def _summarize_bug_evidence(fail_records, ledger=None):
+    """v1.6.1 [G] (G1): fold the per-repo ledger into one summary.
+
+    Returns a dict: ``state`` ("reproduced" | "partial" |
+    "not_reproduced" | "none"), ``bugs``, ``reproduced``, ``logs_ok``,
+    ``logs_expected``, ``unreproduced`` (bug ids), ``on_flagged`` /
+    ``on_noted`` (lists of (req_id, [bug ids])), ``all_flagged_reproduced``
+    and ``evidence_fail`` (a bug-evidence FAIL category fired)."""
+    if ledger is None:
+        ledger = _BUG_EVIDENCE
+    multi = len(ledger) > 1
+    fired = {_classify_fail(msg) for _cat, msg in fail_records}
+    total = reproduced = logs_ok = 0
+    unreproduced = []
+    on_flagged = []
+    on_noted = []
+    flagged_bids_all_ok = True
+    for entry in ledger:
+        prefix = f"{entry.get('repo')}:" if multi else ""
+        ids = list(entry.get("bug_ids") or [])
+        count = len(ids) if ids else int(entry.get("bug_count") or 0)
+        total += count
+        logs_ok += int(entry.get("logs_ok") or 0)
+        tdd_ok = entry.get("tdd_ok") or {}
+        no_patch = entry.get("no_regression_patch") or set()
+        ok_ids = {b for b in ids if tdd_ok.get(b) and b not in no_patch}
+        reproduced += len(ok_ids)
+        unreproduced.extend(prefix + b for b in ids if b not in ok_ids)
+        bug_req = entry.get("bug_req") or {}
+        questioned = entry.get("questioned_reqs") or {}
+        for rid in sorted(questioned):
+            bids = _bugs_resting_on(rid, bug_req)
+            if bids:
+                on_flagged.append((prefix + rid, [prefix + b for b in bids]))
+                if any(b not in ok_ids for b in bids):
+                    flagged_bids_all_ok = False
+        for rid in sorted(entry.get("noted_reqs") or set()):
+            if rid in questioned:
+                continue
+            bids = _bugs_resting_on(rid, bug_req)
+            if bids:
+                on_noted.append((prefix + rid, [prefix + b for b in bids]))
+    evidence_fail = bool(fired & _BUG_EVIDENCE_FAIL_CATEGORIES)
+    if total == 0:
+        state = "none"
+    elif _FAIL_BUGS_UNVERIFIED in fired or reproduced == 0:
+        state = "not_reproduced"
+    elif reproduced == total and not evidence_fail:
+        state = "reproduced"
+    else:
+        state = "partial"
+    return {
+        "state": state,
+        "bugs": total,
+        "reproduced": reproduced,
+        "logs_ok": logs_ok,
+        "logs_expected": 2 * total,
+        "unreproduced": unreproduced,
+        "on_flagged": on_flagged,
+        "on_noted": on_noted,
+        "all_flagged_reproduced": flagged_bids_all_ok,
+        "evidence_fail": evidence_fail,
+    }
+
+
+def _format_req_bug_groups(groups):
+    """'BUG-012 (REQ-013); BUG-016, BUG-031 (REQ-021)'."""
+    return "; ".join(
+        f"{', '.join(bids)} ({rid})" for rid, bids in groups
+    )
+
+
+def _bug_evidence_lines(summary, *, other_checks_failed):
+    """v1.6.1 [G] (G1): the lines under '── Bug evidence ──'.
+
+    ``other_checks_failed``: the gate failed or needs decisions; when no
+    bug-evidence FAIL fired the block says the result is about other
+    checks."""
+    n, r = summary["bugs"], summary["reproduced"]
+    state = summary["state"]
+    lines = []
+    caveat = (
+        "It does not show the expected behaviour is right or that the bug "
+        "is unreported upstream; that is the job of a confirmation step."
+    )
+    if state == "none":
+        return ["No confirmed bugs in this run."]
+    if state == "reproduced":
+        lines.append(
+            f"Reproduced: {r} of {n} bugs. Each has a regression test that "
+            f"fails on the current code and passes with its fix (red and "
+            f"green logs checked: {summary['logs_ok']} of "
+            f"{summary['logs_expected']})."
+        )
+        lines.append(
+            f"This shows each fix changes the behaviour its test checks. "
+            f"{caveat}"
+        )
+        if other_checks_failed and not summary["evidence_fail"]:
+            lines.append(
+                "The gate result below is about other checks; none of them "
+                "is about these logs."
+            )
+    elif state == "partial":
+        missing = summary["unreproduced"]
+        shown = ", ".join(missing[:_VERDICT_LINE_LIMIT])
+        more = (
+            f" (+{len(missing) - _VERDICT_LINE_LIMIT} more)"
+            if len(missing) > _VERDICT_LINE_LIMIT else ""
+        )
+        lines.append(
+            f"Partly reproduced: {r} of {n} bugs have a regression test "
+            f"that fails on the current code and passes with its fix."
+        )
+        if missing:
+            lines.append(
+                f"No red and green evidence the gate accepted: "
+                f"{shown}{more}."
+            )
+        lines.append(
+            f"For the {r} reproduced bugs, this shows each fix changes the "
+            f"behaviour its test checks. {caveat}"
+        )
+    else:
+        lines.append(
+            f"Not reproduced: {r} of {n} bugs have red and green test "
+            f"evidence the gate accepted. Treat the findings in "
+            f"quality/BUGS.md as candidates until their tests run."
+        )
+    flagged = summary["on_flagged"]
+    if flagged:
+        k = sum(len(b) for _r, b in flagged)
+        note = (
+            "still reproduced; read the requirement note before relying "
+            "on the expected behaviour"
+            if summary["all_flagged_reproduced"] and state != "not_reproduced"
+            else "read the requirement note before relying on the "
+                 "expected behaviour"
+        )
+        lines.append(
+            f"{k} bug{'s' if k != 1 else ''} rest on a requirement the "
+            f"reviewers questioned ({note}): "
+            f"{_format_req_bug_groups(flagged)}"
+        )
+    noted = summary["on_noted"]
+    if noted:
+        k = sum(len(b) for _r, b in noted)
+        lines.append(
+            f"{k} bug{'s' if k != 1 else ''} rest on a requirement noted by "
+            f"one reviewer: {_format_req_bug_groups(noted)}"
+        )
+    return lines
+
+
+def _narrate_fail_category(category, msgs, summary):
+    """v1.6.1 [G] (G3): plain-English narration for one FAIL category.
+    Static texts come from ``_FAIL_NARRATION``; the requirement and
+    generic categories are built from the messages themselves."""
+    if category == _FAIL_REQ_OVERREACH:
+        reqs = _req_ids_in(msgs)
+        dependent = [
+            (rid, bids) for rid, bids in summary["on_flagged"]
+            if rid.split(":")[-1] in reqs
+        ]
+        bugs_text = _format_req_bug_groups(dependent) if dependent else "none"
+        return (
+            f"{len(reqs)} requirement(s) say more than the passage they "
+            f"quote; at least two of three reviewers agreed. This is about "
+            f"how the requirement is written, not about the code. Each "
+            f"needs your decision: narrow it to what the passage says, "
+            f"quote a passage that covers the rest, or keep it and accept "
+            f"the note. See quality/OPERATOR_DECISIONS.md. Bugs that rest "
+            f"on these requirements: {bugs_text}."
+        )
+    if category == _FAIL_REQ_TIER_MISMATCH:
+        carries = [m for m in msgs if _TIER_CARRIES_CITATION_RE.search(m)]
+        differs = [m for m in msgs if m not in carries]
+        parts = []
+        if carries:
+            tiers = sorted({
+                int(t) for m in carries
+                for t in _TIER_CARRIES_CITATION_RE.findall(m)
+            })
+            if len(tiers) == 1 and tiers[0] in _TIER_LABELS:
+                marked = f"{_TIER_LABELS[tiers[0]]} (tier {tiers[0]})"
+            else:
+                marked = "tier " + "/".join(str(t) for t in tiers)
+            parts.append(
+                f"{len(_req_ids_in(carries))} requirement(s) quote a "
+                f"document but are still marked as {marked}. This usually "
+                f"comes from the expert-review (Feature H) step."
+            )
+        if differs:
+            parts.append(
+                f"{len(_req_ids_in(differs))} requirement(s) carry a tier "
+                f"that differs from the tier of the document they cite."
+            )
+        parts.append(
+            "Fix: set the tier to the cited document's tier, or remove "
+            "the citation."
+        )
+        return " ".join(parts)
+    narration = _FAIL_NARRATION.get(category)
+    if narration is not None:
+        return narration
+    # Generic fallback — v1.6.1 [G] (G3): name EVERY distinct failing
+    # check file, not only the first (icalendar: 7 FAILs across two
+    # files were reported as "This check failed: requirements_manifest.json").
+    files = []
+    for msg in msgs:
+        first = msg.strip()
+        short = first.split(":", 1)[0] if ":" in first else first
+        if short not in files:
+            files.append(short)
+    lead = "This check failed" if len(files) == 1 else "These checks failed"
+    return (
+        f"{lead}: {', '.join(files)}. The failing lines are listed below."
+    )
+
+
+def _group_reviewer_warns(actionable):
+    """v1.6.1 [G] (G10): collapse the per-REQ single-reviewer
+    `overreaches` WARNs and the `unclear` WARNs into one line each
+    (count + REQ ids). Returns the list of lines to print."""
+    over, unclear, rest = [], [], []
+    for w in actionable:
+        if "flagged as `overreaches`" in w:
+            over.append(w)
+        elif "flagged as `unclear`" in w:
+            unclear.append(w)
+        else:
+            rest.append(w.strip().splitlines()[0][:120])
+    lines = list(rest)
+    if over:
+        reqs = _req_ids_in(over)
+        lines.append(
+            f"{len(reqs)} requirement(s) flagged as `overreaches` by one "
+            f"reviewer (not a gate failure): {', '.join(reqs)}"
+        )
+    if unclear:
+        reqs = _req_ids_in(unclear)
+        lines.append(
+            f"{len(reqs)} requirement(s) flagged as `unclear` by a "
+            f"reviewer (not a gate failure): {', '.join(reqs)}"
+        )
+    return lines
+
+
 def _emit_operator_verdict(fail_records, warn_records, zero_bug_repos,
                             exit_code, run_provenance=None):
     """v1.5.7 090v — print the operator-facing verdict-explanation
@@ -763,6 +1176,13 @@ def _emit_operator_verdict(fail_records, warn_records, zero_bug_repos,
         exit_code, fail_records, warn_records, zero_bug_repos,
     )
     is_shallow_pass = (verdict_state == "shallow")
+    # v1.6.1 [G] (G4): decisions-only pass (no substantive FAIL, at
+    # least one operator_decision FAIL).
+    n_decisions = sum(
+        1 for cat, _m in fail_records if cat == VERDICT_OPERATOR_DECISION
+    )
+    decisions_pass = exit_code == 0 and n_decisions > 0
+    evidence = _summarize_bug_evidence(fail_records)
 
     # === Section 1: lead verdict line ===
     # v1.5.7 185 FINDING-27: ASCII verdict markers
@@ -777,11 +1197,26 @@ def _emit_operator_verdict(fail_records, warn_records, zero_bug_repos,
     print("--- Operator Verdict ---")
     if exit_code != 0:
         lead = "[FAIL] GATE FAILED"
+    elif decisions_pass:
+        # v1.6.1 [G] (G4): same [WARN] marker family as the shallow pass.
+        lead = (
+            f"[WARN] GATE PASSED -- {n_decisions} requirement "
+            f"decision(s) need you"
+        )
     elif is_shallow_pass:
         lead = "[WARN] GATE PASSED -- but this run looks shallow"
     else:
         lead = "[PASS] GATE PASSED -- this run looks solid"
     print(lead)
+
+    # === Section 1b (v1.6.1 [G], G1): bug evidence, on every outcome ===
+    # Directly under the lead line; the block ends at the next blank
+    # line (references/what_just_happened.md tells agents to copy it).
+    print("── Bug evidence ──")
+    for line in _bug_evidence_lines(
+        evidence, other_checks_failed=(exit_code != 0 or decisions_pass),
+    ):
+        print(line)
 
     # === Section 2: plain-English "why + what to do" for FAILs ===
     if fail_records:
@@ -805,20 +1240,17 @@ def _emit_operator_verdict(fail_records, warn_records, zero_bug_repos,
                 f"  • [{category}] ({len(msgs)} FAIL{'s' if len(msgs) > 1 else ''})"
             )
             print(label)
-            narration = _FAIL_NARRATION.get(category)
-            if narration is None:
-                # Generic fallback — name the failing check from
-                # the first message so the operator has a pointer.
-                first = msgs[0].strip()
-                # Strip leading line-number prefix if present.
-                short = first.split(":", 1)[0] if ":" in first else first
-                narration = (
-                    f"This check failed: {short}. See the line "
-                    f"above for the specific check output; the "
-                    f"v1.6.x verdict-explanation expansion will "
-                    f"add a curated message for this code."
-                )
+            narration = _narrate_fail_category(category, msgs, evidence)
             print(f"    {narration}")
+            # v1.6.1 [G] (G3): list the failing lines themselves
+            # (deduped, capped) so the operator need not grep. The
+            # per-check lines carry no "FAIL:" prefix by design (see
+            # fail()); this list is where they are gathered.
+            unique = list(dict.fromkeys(m.strip() for m in msgs))
+            for m in unique[:_VERDICT_LINE_LIMIT]:
+                print(f"      - {m}")
+            if len(unique) > _VERDICT_LINE_LIMIT:
+                print(f"      +{len(unique) - _VERDICT_LINE_LIMIT} more")
 
     # === Section 3: shallow-PASS narration + three-bucket attribution ===
     #
@@ -884,7 +1316,7 @@ def _emit_operator_verdict(fail_records, warn_records, zero_bug_repos,
             "Do NOT swap models; the model is not the problem."
         )
     if (not weak_model and not env_failure and not is_shallow_pass
-            and exit_code == 0):
+            and exit_code == 0 and not decisions_pass):
         print("")
         print(
             "Attribution: no shallow / fabrication signals "
@@ -909,9 +1341,9 @@ def _emit_operator_verdict(fail_records, warn_records, zero_bug_repos,
             print("")
             print(f"{n} actionable {warn_word} above — review:")
             # Quote a short prefix of each so the operator can
-            # spot the topic without scrolling.
-            for w in actionable:
-                excerpt = w.strip().splitlines()[0][:120]
+            # spot the topic without scrolling. v1.6.1 [G] (G10):
+            # per-REQ reviewer WARNs collapse to one line per kind.
+            for excerpt in _group_reviewer_warns(actionable):
                 print(f"  • {excerpt}")
 
     # === Section 5: run provenance (v1.5.7 090w) ===
@@ -963,15 +1395,73 @@ def _emit_operator_verdict(fail_records, warn_records, zero_bug_repos,
         weak_model=weak_model,
         env_failure=env_failure,
         run_provenance=run_provenance,
+        evidence=evidence,
     )
 
     print("───────────────────────────────────────────")
 
 
+def _failure_reason(fail_records, evidence):
+    """v1.6.1 [G] (G2): one-clause reason built from the FAIL categories
+    that actually fired, e.g. "the bugs are reproduced; what failed is
+    the paperwork behind 7 requirements and 1 other check
+    (requirements_manifest.json)". Never says the bugs are untrustworthy
+    unless a bug-evidence category fired (the callers route those
+    before reaching this helper)."""
+    per_cat = {}
+    for _cat, msg in fail_records:
+        per_cat.setdefault(_classify_fail(msg), []).append(msg)
+    parts = []
+    req_msgs = (per_cat.get(_FAIL_REQ_OVERREACH, [])
+                + per_cat.get(_FAIL_REQ_TIER_MISMATCH, []))
+    if req_msgs:
+        n = len(_req_ids_in(req_msgs)) or len(req_msgs)
+        parts.append(
+            f"the paperwork behind {n} requirement{'s' if n != 1 else ''}"
+        )
+    if per_cat.get(_FAIL_MISSING_ARTIFACT):
+        n = len(per_cat[_FAIL_MISSING_ARTIFACT])
+        parts.append(f"{n} missing file{'s' if n != 1 else ''}")
+    other = []
+    for cat, msgs in per_cat.items():
+        if cat in (_FAIL_REQ_OVERREACH, _FAIL_REQ_TIER_MISMATCH,
+                   _FAIL_MISSING_ARTIFACT):
+            continue
+        other.extend(msgs)
+    if other:
+        files = []
+        for msg in other:
+            short = msg.split(":", 1)[0].strip() if ":" in msg else msg.strip()
+            if short not in files:
+                files.append(short)
+        shown = ", ".join(files[:3]) + (
+            f", +{len(files) - 3} more" if len(files) > 3 else ""
+        )
+        parts.append(
+            f"{len(other)} other check{'s' if len(other) != 1 else ''} "
+            f"({shown})"
+        )
+    if not parts:
+        parts.append("the checks listed in 'Why it failed' above")
+    what = parts[0] if len(parts) == 1 else (
+        ", ".join(parts[:-1]) + " and " + parts[-1]
+    )
+    state = (evidence or {}).get("state", "none")
+    if state == "reproduced":
+        return f"the bugs are reproduced; what failed is {what}"
+    if state == "none":
+        return f"what failed is {what}"
+    return (
+        f"{evidence['reproduced']} of {evidence['bugs']} bugs are "
+        f"reproduced; what failed is {what}"
+    )
+
+
 def _emit_what_happened_what_next(*, fail_records, warn_records,
                                     zero_bug_repos, exit_code,
                                     is_shallow_pass, weak_model,
-                                    env_failure, run_provenance):
+                                    env_failure, run_provenance,
+                                    evidence=None):
     """v1.5.7 090y — emit the "What happened" + "What to do next"
     newcomer-oriented sections at the END of the operator verdict
     block.
@@ -987,6 +1477,13 @@ def _emit_what_happened_what_next(*, fail_records, warn_records,
     for _cat, msg in fail_records:
         fired_categories.add(_classify_fail(msg))
     bugs_unverified_fired = _FAIL_BUGS_UNVERIFIED in fired_categories
+    if evidence is None:
+        evidence = _summarize_bug_evidence(fail_records)
+    # v1.6.1 [G] (G4): decisions-only pass.
+    n_decisions = sum(
+        1 for cat, _msg in fail_records if cat == VERDICT_OPERATOR_DECISION
+    )
+    decisions_pass = exit_code == 0 and n_decisions > 0
     # Detect CLEANUP path (only record-keeping fails exist).
     cleanup_only = False
     if fail_records:
@@ -994,7 +1491,7 @@ def _emit_what_happened_what_next(*, fail_records, warn_records,
             1 for cat, _msg in fail_records
             if cat == VERDICT_SUBSTANTIVE
         )
-        cleanup_only = substantive_count == 0
+        cleanup_only = substantive_count == 0 and not decisions_pass
     # Bug counts (gate-counted) — used to enrich the solid path.
     total_bug_count = 0
     if run_provenance:
@@ -1012,12 +1509,21 @@ def _emit_what_happened_what_next(*, fail_records, warn_records,
         "do, reviewing the code against that, and verifying "
         "findings with tests."
     )
+    # v1.6.1 [G] (G2): say what the gate checks, not that it decides
+    # whether the results are "trustworthy".
     print(
-        "The gate is the final quality checkpoint that decides "
-        "whether this run's results are trustworthy."
+        "The gate checks the run's evidence (the bug tests and their "
+        "red and green logs) and its paperwork (requirements, "
+        "citations, manifests and required files)."
     )
     # State-specific summary line.
-    if cleanup_only and exit_code == 0:
+    if decisions_pass:
+        print(
+            f"Result: it passed the checkpoint; {n_decisions} "
+            f"requirement decision(s) need you (see 'Why it failed' "
+            f"above). No confirmed bug rests on those requirements."
+        )
+    elif cleanup_only and exit_code == 0:
         # CLEANUP path — must read as a pass, not a fail.
         # (Instruction 090y Task A: "It passed, with some
         # bookkeeping gaps to tidy up".)
@@ -1045,10 +1551,8 @@ def _emit_what_happened_what_next(*, fail_records, warn_records,
                 "complete its checks"
             )
         else:
-            reason = (
-                "the gate flagged quality issues that need "
-                "fixing before this run can be trusted"
-            )
+            # v1.6.1 [G] (G2): built from the categories that fired.
+            reason = _failure_reason(fail_records, evidence)
         print(f"Result: it did not pass the checkpoint — {reason}.")
     elif is_shallow_pass:
         # ⚠️ shallow — name the why.
@@ -1080,7 +1584,15 @@ def _emit_what_happened_what_next(*, fail_records, warn_records,
     # ===== Section 6.2: "What to do next" =====
     print("")
     print("── What to do next ──")
-    if cleanup_only and exit_code == 0:
+    if decisions_pass:
+        print(
+            f"Decide the {n_decisions} requirement(s) listed in 'Why it "
+            f"failed' above: quality/OPERATOR_DECISIONS.md gives each "
+            f"one with its quoted passage, the reviewers' notes and "
+            f"ready-to-apply options. The bug findings in "
+            f"quality/BUGS.md do not depend on them."
+        )
+    elif cleanup_only and exit_code == 0:
         # CLEANUP — "Mostly good — a few bookkeeping artifacts
         # need tidying; see 'Why it failed' for which."
         print(
@@ -1588,6 +2100,8 @@ def _reset_counters():
     # v1.5.10 058 (D2): clear the per-repo multi-language disclosure
     # ledger so the post-RESULT disclosure block reads only this run.
     _LANGUAGE_DISCLOSURES.clear()
+    # v1.6.1 [G]: clear the bug-evidence ledger (one entry per repo).
+    _BUG_EVIDENCE.clear()
 
 
 def fail(msg, reason=None, *, line=None, category=None):
@@ -2978,7 +3492,13 @@ def check_file_existence(repo_dir, q, strictness):
     if (repo_dir / "AGENTS.md").is_file():
         pass_("AGENTS.md exists")
     else:
-        fail("AGENTS.md missing (required at project root)")
+        # v1.6.1 [G] (G7): WARN, not FAIL. AGENTS.md is a post-gate
+        # orientation file — run_playbook.py writes it only after the
+        # gate passed — so requiring it before the gate is circular.
+        warn(
+            "AGENTS.md not written yet — the orchestrator writes it after "
+            "the gate passes; it does not affect the findings."
+        )
 
     if (q / "EXPLORATION.md").is_file():
         pass_("EXPLORATION.md exists")
@@ -3088,6 +3608,12 @@ def check_bugs_heading(q):
     raw = re.findall(r"BUG-(?:[HML][0-9]+|[0-9]+)", bugs_content)
     filtered = [b for b in raw if re.fullmatch(r"BUG-(?:[HML][0-9]+|[0-9]+)", b)]
     bug_ids = sorted(set(filtered))
+
+    # v1.6.1 [G]: record the confirmed bugs for the Bug evidence block.
+    _ev = _bug_evidence_current(q)
+    _ev["bug_count"] = bug_count
+    _ev["bug_ids"] = list(bug_ids) if bug_count > 0 else []
+    _ev["bug_req"] = _bug_req_map(q) if bug_count > 0 else {}
 
     return bug_count, bug_ids
 
@@ -3238,6 +3764,10 @@ def check_tdd_logs(q, bug_count, bug_ids, tdd_data):
     # when the Phase 5 probe shows the runner available, a RED/
     # GREEN receipt with no signature is an overclaim-by-omission.
     red_green_receipts = []
+    # v1.6.1 [G]: per-bug tags for the Bug evidence ledger.
+    _ev_red_tag = {}
+    _ev_green_tag = {}
+    _ev_bad_bids = set()
 
     for bid in bug_ids:
         red_log = results_dir / f"{bid}.red.log"
@@ -3283,6 +3813,8 @@ def check_tdd_logs(q, bug_count, bug_ids, tdd_data):
                     )
             else:
                 green_missing += 1
+        _ev_red_tag[bid] = red_tag
+        _ev_green_tag[bid] = green_tag
 
         # 089m: a bug counts as "TDD-not-executed" if either its
         # red receipt OR its green receipt (when expected) is
@@ -3559,6 +4091,7 @@ def check_tdd_logs(q, bug_count, bug_ids, tdd_data):
             (b, p) for b, p, has_sig in red_green_receipts
             if not has_sig and (b, p) not in _d1_flagged
         ]
+        _ev_bad_bids.update(b for b, _p in omission_receipts)
         for bid, phase in omission_receipts:
             tag = "RED" if phase == "red" else "GREEN"
             fail(
@@ -3692,9 +4225,11 @@ def check_tdd_logs(q, bug_count, bug_ids, tdd_data):
                 xv_checked += 1
                 if sidecar_red == "fail" and log_tag != "RED":
                     xv_mismatch += 1
+                    _ev_bad_bids.add(bid)
                     fail(f"{bid}: sidecar red_phase='{sidecar_red}' but log first-line is '{log_tag}' (expected RED)")
                 elif sidecar_red == "pass" and log_tag != "GREEN":
                     xv_mismatch += 1
+                    _ev_bad_bids.add(bid)
                     fail(f"{bid}: sidecar red_phase='{sidecar_red}' but log first-line is '{log_tag}' (expected GREEN)")
 
             green_log = results_dir / f"{bid}.green.log"
@@ -3703,15 +4238,33 @@ def check_tdd_logs(q, bug_count, bug_ids, tdd_data):
                 xv_checked += 1
                 if sidecar_green == "pass" and log_tag != "GREEN":
                     xv_mismatch += 1
+                    _ev_bad_bids.add(bid)
                     fail(f"{bid}: sidecar green_phase='{sidecar_green}' but log first-line is '{log_tag}' (expected GREEN)")
                 elif sidecar_green == "fail" and log_tag != "RED":
                     xv_mismatch += 1
+                    _ev_bad_bids.add(bid)
                     fail(f"{bid}: sidecar green_phase='{sidecar_green}' but log first-line is '{log_tag}' (expected RED)")
 
         if xv_checked > 0 and xv_mismatch == 0:
             pass_(f"Sidecar-to-log cross-validation passed ({xv_checked} checks)")
         elif xv_checked == 0:
             info("Sidecar-to-log cross-validation: no matching pairs to check")
+
+    # v1.6.1 [G]: record per-bug red/green evidence. A bug counts only
+    # when its red log is tagged RED, its green log is tagged GREEN, and
+    # no 090p (setup-failure / untied), 089o / 089q (overclaim) or
+    # sidecar cross-validation check rejected it.
+    _ev_bad_bids.update(bugs_invalidated_by_090p)
+    _ev_bad_bids.update(b for b, _p, _m in overclaim_receipts)
+    _ev = _bug_evidence_current(q)
+    _ev["logs_ok"] = 0
+    for bid in bug_ids:
+        red_ok = _ev_red_tag.get(bid) == "RED"
+        green_ok = _ev_green_tag.get(bid) == "GREEN"
+        _ev["logs_ok"] += int(red_ok) + int(green_ok)
+        _ev["tdd_ok"][bid] = (
+            red_ok and green_ok and bid not in _ev_bad_bids
+        )
 
     # TDD_TRACEABILITY.md
     if red_found > 0:
@@ -4454,11 +5007,14 @@ def check_patches(q, bug_count, bug_ids, strictness):
     reg_patch_count = 0
     fix_patch_count = 0
     reg_patch_missing = 0
+    _ev = _bug_evidence_current(q)
     for bid in bug_ids:
         if first_file_matching(patches_dir, [f"{bid}-regression*.patch"]) is not None:
             reg_patch_count += 1
         else:
             reg_patch_missing += 1
+            # v1.6.1 [G]: no regression test -> not reproduced.
+            _ev["no_regression_patch"].add(bid)
         if first_file_matching(patches_dir, [f"{bid}-fix*.patch"]) is not None:
             fix_patch_count += 1
 
@@ -4734,7 +5290,10 @@ _V150_ILLEGAL_FIX_PAIRS = {
     ("upstream-spec-issue", "code"),
     ("mis-read", "both"),
 }
-_V150_SUPPORTED_EXTENSIONS = (".txt", ".md")
+# v1.6.1 [G] (G8): `.rst` added to match reference_docs_ingest.py's
+# SUPPORTED_EXTENSIONS (accepted since v1.5.7 instruction 060, A-12);
+# the gate had kept FAILing files the ingest step accepts.
+_V150_SUPPORTED_EXTENSIONS = (".txt", ".md", ".rst")
 # v1.5.4 Part 1 / Round 1 Council finding C2-1: INDEX schema is now
 # version-routed. New runs MUST emit schema_version "2.0" with
 # target_role_breakdown; legacy archives carry schema_version "1.0"
@@ -4892,7 +5451,7 @@ def _v150_manifest(q, name):
 
 @verdict_category(VERDICT_SUBSTANTIVE)
 def check_v1_5_0_cite_extensions(repo_dir):
-    """§10 invariant #9 — reference_docs/cite/ contains only .txt/.md.
+    """§10 invariant #9 — reference_docs/cite/ contains only .txt/.md/.rst.
 
     v1.5.2 collapsed the old formal_docs/+informal_docs/ split into a single
     reference_docs/ tree with reference_docs/cite/ holding citable material.
@@ -4923,7 +5482,7 @@ def check_v1_5_0_cite_extensions(repo_dir):
             rel = path.relative_to(repo_dir).as_posix()
             fail(
                 f"{rel}: unsupported extension {ext or '(none)'} under reference_docs/cite/ "
-                "(schemas.md §2 allows only .txt, .md; §10 invariant #9)"
+                "(schemas.md §2 allows only .txt, .md, .rst; §10 invariant #9)"
             )
     if any_file:
         pass_("reference_docs/cite/: all files use supported extensions")
@@ -5021,6 +5580,10 @@ def _check_citation_block(repo_dir, req_id, citation, formal_docs_by_path, req_t
         return
     fd_tier = fd_rec.get("tier")
     if fd_tier != req_tier:
+        # v1.6.1 [G]: the REQ's tier is questioned (Bug evidence block).
+        _bug_evidence_current().setdefault(
+            "questioned_reqs", {}
+        ).setdefault(req_id, "tier")
         fail(
             "requirements_manifest.json",
             f"record_id={req_id}: tier={req_tier} does not match cited FORMAL_DOC "
@@ -5124,6 +5687,10 @@ def check_v1_5_0_requirements_manifest(repo_dir, q):
             _check_citation_block(repo_dir, req_id, citation, formal_docs_by_path, tier)
         elif tier in (3, 4, 5):
             if citation is not None:
+                # v1.6.1 [G]: the REQ's tier is questioned.
+                _bug_evidence_current(q)["questioned_reqs"].setdefault(
+                    req_id, "tier"
+                )
                 fail(
                     "requirements_manifest.json",
                     f"record_id={req_id}: is tier {tier} but carries a citation block "
@@ -5584,6 +6151,44 @@ def check_v1_5_0_index_md(q):
 _V150_VALID_VERDICTS = ("supports", "overreaches", "unclear")
 
 
+def req_review_hash(rec):
+    """v1.6.1 [G] (G6): the canonical hash of the REQ content a Council
+    semantic review judged — the ONE definition shared by the writer
+    (council_semantic_check.write_semantic_check stamps it on every
+    review entry as ``req_hash``) and this gate (which treats an entry
+    whose ``req_hash`` no longer matches as stale).
+
+    Canonical serialization: sha256 hex of the UTF-8 JSON object
+    ``{"citation_excerpt", "conditions_of_satisfaction", "title"}``
+    with sorted keys, ``separators=(",", ":")``, ``ensure_ascii=False``.
+    Missing / non-string fields serialize as "". A REQ without
+    ``conditions_of_satisfaction`` uses its ``description`` in that
+    slot (older manifests carry only ``description``)."""
+    if not isinstance(rec, dict):
+        rec = {}
+
+    def _s(value):
+        return value if isinstance(value, str) else ""
+
+    citation = rec.get("citation")
+    if not isinstance(citation, dict):
+        citation = {}
+    cos = rec.get("conditions_of_satisfaction")
+    if not isinstance(cos, str):
+        cos = _s(rec.get("description"))
+    canonical = json.dumps(
+        {
+            "title": _s(rec.get("title")),
+            "conditions_of_satisfaction": cos,
+            "citation_excerpt": _s(citation.get("citation_excerpt")),
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    )
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
 @verdict_category(VERDICT_SUBSTANTIVE)
 def check_v1_5_0_semantic_check(q):
     """§10 invariant #17 — Council-of-Three majority-overreaches rule.
@@ -5597,6 +6202,14 @@ def check_v1_5_0_semantic_check(q):
       - <3 reviews for any Tier 1/2 REQ → FAIL (schemas.md §9.4).
       - review entry for a Tier 3/4/5 REQ → FAIL (only Tier 1/2 are
         semantically reviewable since they carry citations).
+      - v1.6.1 [G] (G6): an entry whose ``req_hash`` no longer matches
+        ``req_review_hash`` of the current REQ is stale — it reviewed
+        an earlier wording — and is treated as missing. Entries with
+        no ``req_hash`` (pre-1.6.1 writers) count, with one WARN.
+      - v1.6.1 [G] (G4): a majority-overreach FAIL on a REQ that no
+        confirmed bug's primary ``req_id`` names is an operator
+        decision (VERDICT_OPERATOR_DECISION — non-blocking); on a REQ
+        a bug rests on it stays substantive and names the bugs.
 
     When requirements_manifest.json has zero Tier 1/2 REQs the
     citation_semantic_check.json file is still expected (emitted with
@@ -5605,6 +6218,8 @@ def check_v1_5_0_semantic_check(q):
     """
     req_data = _v150_manifest(q, "requirements_manifest.json")
     tier_by_req = {}
+    # v1.6.1 [G] (G6): current content hash per REQ.
+    hash_by_req = {}
     if req_data and isinstance(req_data.get("records"), list):
         for rec in req_data["records"]:
             if isinstance(rec, dict):
@@ -5612,6 +6227,7 @@ def check_v1_5_0_semantic_check(q):
                 tier = rec.get("tier")
                 if isinstance(rid, str) and isinstance(tier, int) and not isinstance(tier, bool):
                     tier_by_req[rid] = tier
+                    hash_by_req[rid] = req_review_hash(rec)
     tier_12_req_ids = {rid for rid, t in tier_by_req.items() if t in (1, 2)}
 
     sc_path = q / "citation_semantic_check.json"
@@ -5642,6 +6258,9 @@ def check_v1_5_0_semantic_check(q):
 
     by_req = {}
     seen_reviewers = {}
+    # v1.6.1 [G] (G6): stale reviews per REQ, and pre-1.6.1 entries.
+    stale_by_req = {}
+    unhashed_entries = 0
     for idx, entry in enumerate(reviews):
         if not isinstance(entry, dict):
             fail(
@@ -5705,17 +6324,53 @@ def check_v1_5_0_semantic_check(q):
             )
             continue
         pair_key.add(reviewer)
+        # v1.6.1 [G] (G6): a review of an earlier REQ wording is stale.
+        if "req_hash" not in entry:
+            unhashed_entries += 1
+        elif entry.get("req_hash") != hash_by_req.get(rid):
+            stale_by_req.setdefault(rid, []).append(reviewer)
+            continue
         by_req.setdefault(rid, []).append(entry)
+
+    if unhashed_entries:
+        _entries_word = (
+            "entry carries" if unhashed_entries == 1 else "entries carry"
+        )
+        warn(
+            f"citation_semantic_check.json: {unhashed_entries} review "
+            f"{_entries_word} no req_hash (written before v1.6.1) — the "
+            "gate cannot tell whether a review predates a rewrite of its "
+            "REQ; re-run the semantic check to stamp req_hash "
+            "(schemas.md §9.2)"
+        )
+    # v1.6.1 [G] (G4): which confirmed bugs rest on each REQ. Confirmed
+    # bugs with no req_id in bugs_manifest.json make "no bug rests on
+    # this REQ" unprovable, so their overreach FAILs stay substantive
+    # (the gate's ambiguous -> substantive default).
+    bug_req = _bug_req_map(q)
+    _ev = _bug_evidence_current(q)
+    unlinked_bugs = sorted(
+        b for b in (_ev.get("bug_ids") or [])
+        if _ev.get("q") == str(q) and b not in bug_req
+    )
 
     # §9.4: every Tier 1/2 REQ needs at least 3 reviews.
     for rid in sorted(tier_12_req_ids):
         entries = by_req.get(rid, [])
         if len(entries) < 3:
+            stale = stale_by_req.get(rid, [])
+            stale_note = (
+                f"; review predates a rewrite of {rid} "
+                f"({len(stale)} stale review(s) from: "
+                f"{', '.join(sorted(stale))}) — re-run the semantic "
+                f"check for {rid}"
+                if stale else ""
+            )
             fail(
                 "citation_semantic_check.json",
                 f"record_id={rid}: fewer than 3 reviews ({len(entries)} present) "
                 "— schemas.md §9.4 requires one entry per council member for "
-                "every Tier 1/2 REQ",
+                f"every Tier 1/2 REQ{stale_note}",
             )
             continue
         overreach_count = sum(1 for e in entries if e.get("verdict") == "overreaches")
@@ -5728,13 +6383,40 @@ def check_v1_5_0_semantic_check(q):
                     if e.get("verdict") == "overreaches"
                 )
             )
+            # v1.6.1 [G] (G4): route by whether a confirmed bug rests on
+            # this REQ. The "semantic check majority overreaches" text is
+            # the classifier needle — keep it contiguous.
+            _ev["questioned_reqs"][rid] = "overreach"
+            dependents = _bugs_resting_on(rid, bug_req)
+            if dependents:
+                tail = (
+                    f"; confirmed bug(s) resting on {rid}: "
+                    f"{', '.join(dependents)}"
+                )
+                category = VERDICT_SUBSTANTIVE
+            elif unlinked_bugs:
+                tail = (
+                    f"; {len(unlinked_bugs)} confirmed bug(s) have no req_id "
+                    f"in bugs_manifest.json, so the gate cannot rule out a "
+                    f"bug resting on {rid}"
+                )
+                category = VERDICT_SUBSTANTIVE
+            else:
+                tail = (
+                    f"; no confirmed bug rests on {rid} — operator "
+                    "decision (see quality/OPERATOR_DECISIONS.md)"
+                )
+                category = VERDICT_OPERATOR_DECISION
             fail(
                 "citation_semantic_check.json",
                 f"record_id={rid}: semantic check majority overreaches "
                 f"({overreach_count}/{len(entries)} reviewers flagged: "
-                f"{reviewers_flagged}) — schemas.md §10 invariant #17",
+                f"{reviewers_flagged}) — schemas.md §10 invariant #17"
+                f"{tail}",
+                category=category,
             )
         elif overreach_count == 1:
+            _ev["noted_reqs"].add(rid)
             flagged = next(
                 str(e.get("reviewer"))
                 for e in entries
@@ -8320,6 +9002,32 @@ def check_requirements_review(q):
     pass_("REQUIREMENTS_REVIEW.md present, organized by Wiegers attribute")
 
 
+@verdict_category(VERDICT_SUBSTANTIVE)
+def check_operator_decisions_file(q):
+    """v1.6.1 [G] (G5): when the requirement checks questioned a REQ
+    (majority overreach or tier mismatch), Phase 5 writes
+    quality/OPERATOR_DECISIONS.md with one entry per REQ and ready-to-
+    apply options (references/phase5_reconciliation_guide.md). Missing
+    file -> WARN, never FAIL: the decisions are the operator's, the file
+    only hands them over."""
+    questioned = _bug_evidence_current(q).get("questioned_reqs") or {}
+    if not questioned:
+        return
+    print("[Operator Decisions]")
+    if (q / "OPERATOR_DECISIONS.md").is_file():
+        pass_(
+            f"OPERATOR_DECISIONS.md present ({len(questioned)} questioned "
+            "requirement(s))"
+        )
+        return
+    warn(
+        f"OPERATOR_DECISIONS.md missing — {len(questioned)} requirement(s) "
+        f"were questioned ({', '.join(sorted(questioned))}); Phase 5 writes "
+        "this file so the operator can decide each one "
+        "(references/phase5_reconciliation_guide.md)"
+    )
+
+
 def check_repo(repo_dir, version_arg, strictness, language=None):
     """Run all checks for one repo. Writes output via pass_/fail_/warn/info.
 
@@ -8335,6 +9043,8 @@ def check_repo(repo_dir, version_arg, strictness, language=None):
     print("")
     print(f"=== {repo_name} ===")
 
+    # v1.6.1 [G]: one bug-evidence ledger entry per repo.
+    _new_bug_evidence(repo_name, q)
     check_file_existence(repo_dir, q, strictness)
     bug_count, bug_ids = check_bugs_heading(q)
     tdd_data = check_tdd_sidecar(q, bug_count)
@@ -8380,6 +9090,9 @@ def check_repo(repo_dir, version_arg, strictness, language=None):
     check_run_metadata(q)
     check_compensation_asymmetry_promotion(q)
     check_v1_5_0_gate_invariants(repo_dir, q)
+    # v1.6.1 [G] (G5): Phase 5 owes the operator a decisions file when
+    # requirement-wording FAILs fired (WARN, never FAIL).
+    check_operator_decisions_file(q)
 
     # v1.5.10 058 (D2): record the per-repo multi-language disclosure (if
     # >=2 testable languages clear the threshold) for emission after the
@@ -8539,16 +9252,29 @@ def main(argv=None):
     # their specific line patterns, unaffected by this additive
     # line. For live display only: the harness's authoritative
     # gate result for grading stays facts.rerun_installed_gate.
+    # v1.6.1 [G] (G4): "DECISIONS" for GATE PASSED WITH DECISIONS NEEDED
+    # (checked first — that RESULT line may also mention record-keeping).
     _gate_result = (
         "FAIL" if exit_code != 0
-        else ("CLEANUP" if "CLEANUP NEEDED" in result_line
-              else "PASS")
+        else ("DECISIONS" if "DECISIONS NEEDED" in result_line
+              else ("CLEANUP" if "CLEANUP NEEDED" in result_line
+                    else "PASS"))
     )
     _verdict_state = _compute_verdict_state(
         exit_code, _FAIL_RECORDS, _WARN_RECORDS, _ZERO_BUG_REPOS,
     )
+    # v1.6.1 [G] (G1): additive bug-evidence machine fields.
+    _evidence = _summarize_bug_evidence(_FAIL_RECORDS)
     print(_format_gate_sentinel(
         gate_result=_gate_result, verdict_state=_verdict_state,
+        extra={
+            "bug_evidence": _evidence["state"],
+            "bugs": _evidence["bugs"],
+            "bugs_reproduced": _evidence["reproduced"],
+            "bugs_on_flagged_reqs": sum(
+                len(b) for _r, b in _evidence["on_flagged"]
+            ),
+        },
     ))
     return exit_code
 

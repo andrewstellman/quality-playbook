@@ -669,12 +669,19 @@ class TestFileExistence(FixtureBase):
         self.assertEqual(code, 1)
 
     def test_missing_agents_md(self):
+        # v1.6.1 [G] (G7): AGENTS.md is written by the orchestrator only
+        # after the gate passes, so its absence is a WARN, not a FAIL.
         tree = minimal_zero_bug_tree()
         del tree["AGENTS.md"]
         self.write(tree)
         stdout, code = self.gate()
-        self.assertIn("AGENTS.md missing (required at project root)", stdout)
-        self.assertEqual(code, 1)
+        self.assertIn(
+            "WARN: AGENTS.md not written yet — the orchestrator writes it "
+            "after the gate passes; it does not affect the findings.",
+            stdout,
+        )
+        self.assertNotIn("AGENTS.md missing (required at project root)", stdout)
+        self.assertEqual(code, 0)
 
     def test_missing_exploration_md(self):
         tree = minimal_zero_bug_tree()
@@ -3504,8 +3511,26 @@ class V150SemanticCheckFixtureBase(V150FixtureBase):
             })
         self.write_manifest("requirements_manifest.json", "records", records)
 
-    def write_reviews(self, reviews):
-        """Seed citation_semantic_check.json with the given reviews list."""
+    def write_reviews(self, reviews, *, stamp_hash=True):
+        """Seed citation_semantic_check.json with the given reviews list.
+
+        v1.6.1 [G] (G6): entries are stamped with the current
+        ``req_hash`` (as the 1.6.1 writer does) unless they already
+        carry one or ``stamp_hash=False`` (pre-1.6.1 shape)."""
+        if stamp_hash:
+            manifest = self.q / "requirements_manifest.json"
+            recs = {}
+            if manifest.is_file():
+                for rec in json.loads(manifest.read_text()).get("records", []):
+                    if isinstance(rec, dict):
+                        recs[rec.get("id")] = rec
+            stamped = []
+            for r in reviews:
+                if isinstance(r, dict) and "req_hash" not in r:
+                    r = dict(r, req_hash=quality_gate.req_review_hash(
+                        recs.get(r.get("req_id"), {})))
+                stamped.append(r)
+            reviews = stamped
         payload = {
             "schema_version": "1.4.6",
             "generated_at": "2026-04-19T14:30:22Z",

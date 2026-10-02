@@ -117,6 +117,8 @@ _PHASE_CHECK_PATTERN = re.compile(r"^-\s*\[x\]\s*Phase\s*([0-9a-zA-Z]+)", re.MUL
 # three lines:
 #     RESULT: GATE PASSED
 #     RESULT: GATE PASSED WITH CLEANUP NEEDED — N audit record-keeping gap(s)
+#     RESULT: GATE PASSED WITH DECISIONS NEEDED — N requirement decision(s)
+#       (v1.6.1 [G]: a fourth line; maps to "pass-with-decisions")
 #     RESULT: GATE FAILED — N substantive issue(s) must be fixed
 # Group 1 captures the verdict tail; _GATE_RESULT_TO_VERDICT maps it
 # to the schemas.md §11 gate_verdict enum value (incl. the F17
@@ -127,7 +129,8 @@ _PHASE_CHECK_PATTERN = re.compile(r"^-\s*\[x\]\s*Phase\s*([0-9a-zA-Z]+)", re.MUL
 # Mode B archive wrote gate_verdict: "unknown" for every run, which
 # the validator then rejected).
 _GATE_RESULT_PATTERN = re.compile(
-    r"^RESULT:\s+GATE\s+(PASSED WITH CLEANUP NEEDED|PASSED|FAILED)\b",
+    r"^RESULT:\s+GATE\s+(PASSED WITH CLEANUP NEEDED|PASSED WITH DECISIONS NEEDED"
+    r"|PASSED|FAILED)\b",
     re.MULTILINE,
 )
 
@@ -148,6 +151,8 @@ _GATE_RESULT_TO_VERDICT = {
     # v1.5.7 (089d F18) — quality-gate.log shapes:
     "PASSED": "pass",
     "PASSED WITH CLEANUP NEEDED": "pass-with-cleanup",
+    # v1.6.1 [G]: requirement decisions only, no substantive FAIL.
+    "PASSED WITH DECISIONS NEEDED": "pass-with-decisions",
     "FAILED": "fail",
     # Legacy (pre-v1.5.7) — run-*.json key=value shapes:
     "PASS": "pass",
@@ -563,7 +568,11 @@ def build_index_payload(
     """
     start, end, duration = _resolve_bounds(repo, run_folder)
     verdict = gate_verdict_override or _extract_gate_verdict(run_folder)
-    if verdict not in ("pass", "fail", "partial"):
+    # v1.6.1 [G]: keep the two pass-with-* gate states (schemas.md §11
+    # enum) instead of demoting them to "partial" — "partial" means an
+    # aborted or WARN-only run, which neither of them is.
+    if verdict not in ("pass", "pass-with-cleanup", "pass-with-decisions",
+                       "fail", "partial"):
         verdict = "partial"
     merged_flags: Dict[str, object] = {"no_formal_docs": False}
     if invocation_flags:

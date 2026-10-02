@@ -159,7 +159,12 @@ _INDEX_REQUIRED_SUMMARY_KEYS = ("requirements", "bugs", "gate_verdict")
 # audit record-keeping is incomplete; non-blocking, exit 0). Mirrors
 # schemas.md §11 + SKILL.md + references/run_state_schema.md +
 # references/phase6_verify_guide.md.
-_INDEX_VALID_VERDICTS = ("pass", "pass-with-cleanup", "partial", "fail")
+# v1.6.1 [G]: "pass-with-decisions" added — the INDEX value for the gate's
+# `RESULT: GATE PASSED WITH DECISIONS NEEDED` line (no substantive FAIL;
+# only requirement decisions no confirmed bug rests on; exit 0).
+_INDEX_VALID_VERDICTS = (
+    "pass", "pass-with-cleanup", "pass-with-decisions", "partial", "fail",
+)
 
 _RECORD_SHAPED_MANIFESTS = (
     "formal_docs_manifest.json",

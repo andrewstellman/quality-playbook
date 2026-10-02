@@ -400,6 +400,65 @@ def _schema_version(qpb_root: Optional[Path] = None) -> str:
     return version or "unknown"
 
 
+def _req_review_hash_fn():
+    """v1.6.1 [G] (G6): the gate's canonical REQ hash helper — one
+    definition (quality_gate.req_review_hash) shared by writer and gate.
+    Imported lazily so loading this module does not load the gate.
+
+    Resolution: the package sibling (source clone, where bin/ re-exports
+    scripts/), a top-level ``quality_gate`` on sys.path, then a path-load
+    of ``quality_gate.py`` beside this file or one directory up (the
+    installed layout keeps the gate at the install root and this module
+    under ``<install>/bin/``). Returns None when none resolves; the
+    writer then omits ``req_hash`` and the gate WARNs (back-compat)."""
+    try:
+        from . import quality_gate as _qg  # type: ignore[attr-defined]
+        return _qg.req_review_hash
+    except ImportError:
+        pass
+    try:
+        import quality_gate as _qg  # type: ignore[no-redef]
+        return _qg.req_review_hash
+    except ImportError:
+        pass
+    import importlib.util as _ilu
+    here = Path(__file__).resolve().parent
+    for cand in (here / "quality_gate.py", here.parent / "quality_gate.py"):
+        if cand.is_file():
+            spec = _ilu.spec_from_file_location("_csc_quality_gate", cand)
+            if spec is not None and spec.loader is not None:
+                mod = _ilu.module_from_spec(spec)
+                spec.loader.exec_module(mod)
+                return mod.req_review_hash
+    return None
+
+
+def current_req_hashes(quality_dir: Path) -> Dict[str, str]:
+    """v1.6.1 [G] (G6): {req_id: req_hash} for every REQ record in
+    quality/requirements_manifest.json (empty when absent/unparseable)."""
+    path = Path(quality_dir) / "requirements_manifest.json"
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError):
+        return {}
+    records = data.get("records") if isinstance(data, dict) else None
+    if not isinstance(records, list):
+        return {}
+    req_hash = _req_review_hash_fn()
+    if req_hash is None:
+        print(
+            "semantic_check: quality_gate.req_review_hash not found — "
+            "writing reviews without req_hash (the gate will WARN)",
+            file=sys.stderr,
+        )
+        return {}
+    out: Dict[str, str] = {}
+    for rec in records:
+        if isinstance(rec, dict) and isinstance(rec.get("id"), str):
+            out[rec["id"]] = req_hash(rec)
+    return out
+
+
 def write_semantic_check(
     repo_dir: Path,
     reviews: List[ReviewEntry],
@@ -412,21 +471,32 @@ def write_semantic_check(
 
     Returns the written path. Overwrites an existing file (one emission
     per run).
+
+    v1.6.1 [G] (G6): each entry carries ``req_hash`` — the hash of the
+    REQ's title, conditions of satisfaction and citation excerpt at
+    write time — so the gate can tell a review of an earlier wording
+    (stale) from a current one. An entry whose REQ is not in the
+    manifest gets no ``req_hash``.
     """
     quality_dir = Path(repo_dir) / "quality"
     quality_dir.mkdir(parents=True, exist_ok=True)
+    hashes = current_req_hashes(quality_dir)
+
+    def _entry(e: ReviewEntry) -> dict:
+        row = {
+            "req_id": e.req_id,
+            "reviewer": e.reviewer,
+            "verdict": e.verdict,
+            "notes": e.notes,
+        }
+        if e.req_id in hashes:
+            row["req_hash"] = hashes[e.req_id]
+        return row
+
     payload = {
         "schema_version": schema_version or _schema_version(qpb_root),
         "generated_at": archive_lib.utc_extended_timestamp(now),
-        "reviews": [
-            {
-                "req_id": e.req_id,
-                "reviewer": e.reviewer,
-                "verdict": e.verdict,
-                "notes": e.notes,
-            }
-            for e in reviews
-        ],
+        "reviews": [_entry(e) for e in reviews],
     }
     path = quality_dir / "citation_semantic_check.json"
     path.write_text(

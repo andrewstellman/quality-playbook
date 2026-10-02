@@ -4352,6 +4352,10 @@ def _log_phase_completion(
             # schemas.md §11 / _INDEX_VALID_VERDICTS.
             if "WITH CLEANUP NEEDED" in gate_result:
                 verdict = "pass-with-cleanup"
+            elif "WITH DECISIONS NEEDED" in gate_result:
+                # v1.6.1 [G]: the fourth gate state — requirement
+                # decisions only (exit 0); see _INDEX_VALID_VERDICTS.
+                verdict = "pass-with-decisions"
             else:
                 verdict = "pass"
         elif finalizer_status == "pass" and "warn" in gate_result.lower():

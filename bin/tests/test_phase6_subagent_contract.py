@@ -164,7 +164,16 @@ class Phase6SubAgentContractTests(unittest.TestCase):
         # FAILs" rule is retired; pin the three-state contract +
         # the substantive-FAILs-block rule + the AUDITOR VERDICT
         # cleanup state instead.
-        self.assertIn("Three-state verdict (v1.5.7 089c F15)", auditor)
+        # v1.6.1 [G]: four states (adds PASS WITH DECISIONS NEEDED)
+        # and the required BUG EVIDENCE line after AUDITOR VERDICT.
+        self.assertIn(
+            "Four-state verdict (v1.6.1; extends the v1.5.7 089c F15 "
+            "three-state", auditor)
+        self.assertIn("AUDITOR VERDICT: PASS WITH DECISIONS NEEDED", auditor)
+        self.assertIn(
+            "    AUDITOR VERDICT: [PASS | PASS WITH CLEANUP NEEDED | PASS "
+            "WITH DECISIONS NEEDED | FAIL]\n    BUG EVIDENCE: "
+            "<bug_evidence> (<bugs_reproduced>/<bugs>)", auditor)
         self.assertIn(
             "No PASS / PASS WITH CLEANUP NEEDED claim if there are "
             "ANY substantive", auditor,
