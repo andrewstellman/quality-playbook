@@ -234,6 +234,8 @@ def _bundle_files_soft(
             "qpb_heartbeat.py",
             # v1.5.7 090k: qpb_validate is bundled adopter-side.
             "qpb_validate.py",
+            # v1.6.1 [S]: parent-session gate witness.
+            "qpb_gate_witness.py",
         ):
             p = source_root / scripts_dir / _mod
             if p.is_file():
@@ -674,6 +676,15 @@ def _bundle_files(source_root: Path) -> list[tuple[Path, Path]]:
     files.append((
         _require_bundle_file(source_root / scripts_dir / "qpb_heartbeat.py"),
         Path("bin") / "qpb_heartbeat.py",
+    ))
+    # v1.6.1 [S]: ship bin/qpb_gate_witness.py — the parent session runs
+    # it after every Phase 6 when phases ran in subagents (SKILL.md Mode
+    # A). It re-runs <install_root>/quality_gate.py and compares the
+    # verdict lines with quality/results/quality-gate.log. Import
+    # closure: stdlib + _purpose (bundled). Mandatory-bundle pattern.
+    files.append((
+        _require_bundle_file(source_root / scripts_dir / "qpb_gate_witness.py"),
+        Path("bin") / "qpb_gate_witness.py",
     ))
     return files
 

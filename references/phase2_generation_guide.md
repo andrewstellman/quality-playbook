@@ -354,6 +354,8 @@ Pass 3 catches contradictions where two individually-correct pieces of code disa
 
 **BUGS.md:** After all review and audit phases, generate `quality/BUGS.md` — a consolidated bug report with full reproduction details for each confirmed bug. For each bug, include: bug ID, source (code review or spec audit), file:line, description, severity, minimal reproduction scenario (what input or sequence triggers the bug), expected vs actual behavior, references to the regression test and any proposed fix patch, and **spec basis**.
 
+**Claims (v1.6.1 [W]).** Apply `references/claims_rules.md` before writing any BUGS.md entry.
+
 **BUGS.md — v1.5.3 BUG record fields.** Every BUGS.md entry (and every `quality/writeups/BUG-NNN.md`) corresponds to a BUG record written to `quality/bugs_manifest.json`. In addition to the narrative conventions above, every BUG carries:
 
 - `id` — `BUG-NNN` zero-padded three-digit sequence.
@@ -822,6 +824,8 @@ The generated protocol must include:
 
 7. **Bug writeup generation (for all confirmed bugs).** After a successful red→green cycle (`verdict: "TDD verified"`) or confirmation without a fix (`verdict: "confirmed open"`), generate a self-contained writeup at `quality/writeups/BUG-NNN.md`. This file is designed to be emailed to a maintainer, attached to a Jira ticket, or reviewed outside the repository — it must stand alone without requiring the reader to navigate the rest of the quality artifacts.
 
+   **Claims (v1.6.1 [W]).** Apply `references/claims_rules.md` before writing each writeup.
+
    **Template (sections 1–4, 6, 7 are required in every writeup; add 5 when the depth judgment fires; add 8 when related bugs exist):**
 
    1. **Summary** — One paragraph: what's wrong, where (file:line), what breaks in practice.
@@ -884,7 +888,7 @@ Or say "keep going" to continue automatically.
 
 **After printing this message, continue automatically to Phase 3 unless the operator invoked you for the current phase only (e.g., they typed `Run quality playbook phase 2.` for a single-phase run). The Mode A default per AGENTS.md is the full six-phase pipeline; per-phase STOP applies only to incremental operator-driven invocations (v1.5.7 089b F11).**
 
-**Feature H persona validation pass at this boundary (v1.6.0).** At the Phase 2→3 boundary — after the requirements finalize and before Phase 3 builds on them — the Feature H persona validation pass (`bin/persona_apply.run_feature_h`; `references/requirements_pipeline.md` § E.9, Design §8b) runs **automatically unless disabled**. **Spawning its fresh-context, tool-restricted personas is a sanctioned exception to the no-sub-agent guardrail** (SKILL.md Mode A "EXCEPTION: the Feature H persona validation pass may spawn its personas", sibling to the Phase 6 verification exception, v1.6.0 instruction 029): the general no-sub-agent rule still holds for Phases 1–5, but this bounded, operator-visible validation remediation (mandatory `quality/expert_review_summary.json`, `agent-validation`-tagged + revertible, opt-out) is not a delegated phase. Run the pass here — do **not** disable Feature H over a perceived guardrail conflict; the carve-out is explicit.
+**Feature H persona validation pass at this boundary (v1.6.0).** At the Phase 2→3 boundary — after the requirements finalize and before Phase 3 builds on them — the Feature H persona validation pass (`bin/persona_apply.run_feature_h`; `references/requirements_pipeline.md` § E.9, Design §8b) runs **automatically unless disabled**. **Spawning its fresh-context, tool-restricted personas is a sanctioned exception to the sub-agent guardrail** (SKILL.md Mode A "EXCEPTION: the Feature H persona validation pass may spawn its personas", sibling to the Phase 6 verification exception, v1.6.0 instruction 029): delegating Phases 1–5 still requires the parent-witness rule (v1.6.1 [S]), but this bounded, operator-visible validation remediation (mandatory `quality/expert_review_summary.json`, `agent-validation`-tagged + revertible, opt-out) is not a delegated phase. Run the pass here — do **not** disable Feature H over a perceived guardrail conflict; the carve-out is explicit.
 
 **Disclose the pass in the end-of-phase message (v1.6.0 instruction 031).** The pass auto-applies changes to the operator's requirements, so the operator-facing message at this boundary must say that it ran and what it did — otherwise the only trace is a JSON file they have no reason to open. Run the pass first, then emit the `## What just happened` block (State P2) with `bin.persona_apply.persona_review_disclosure(review_summary)` rendered into it: expert reviewers checked the requirements, what they changed, where every change and its backing is recorded, and that it can be undone. It renders nothing when the pass did not run.
 

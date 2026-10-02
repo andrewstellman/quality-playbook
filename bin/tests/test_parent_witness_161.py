@@ -1,0 +1,206 @@
+"""v1.6.1 [S] + [W] — parent-witness rule for per-phase subagents, and
+the claims rules reference.
+
+[S] Why: on 2026-05-16 a delegated run hand-wrote
+``quality/results/quality-gate.log`` reading PASS while the real gate
+failed, and the parent trusted it. v1.6.1 allows per-phase subagents
+only if the PARENT re-runs the gate after every Phase 6 with
+``qpb_gate_witness.py`` and stops on a mismatch. These tests pin:
+
+  * the witness script's behaviour on a fabricated log (exit 1,
+    ``MISMATCH``), a matching log (exit 0), and a missing log (exit 2);
+  * the conditional rule text in SKILL.md (Mode A), the Claude agent
+    file, the general agent file, and references/orchestrator_protocol.md;
+  * the witness script ships in the install bundle.
+
+[W] pins that references/claims_rules.md exists, carries its rules, and
+is referenced from SKILL.md and the BUGS.md / writeup guidance.
+
+Mutation-bite evidence (executed during v1.6.1 [S] development):
+  M1: in qpb_gate_witness.main, replace ``if diffs:`` with
+      ``if False:`` → test_fabricated_pass_log_is_mismatch FAILS
+      (rc 0, no MISMATCH). Restored → PASS.
+  M2: in SKILL.md, rename "Parent-witness rule" to "Subagent rule" →
+      test_skill_md_mode_a_carries_conditional_rule FAILS. Restored →
+      PASS.
+"""
+
+from __future__ import annotations
+
+import subprocess
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+_REPO = Path(__file__).resolve().parents[2]
+_SKILL_DIR = _REPO / "plugins" / "quality-playbook" / "skills" / "quality-playbook"
+_WITNESS = _SKILL_DIR / "scripts" / "qpb_gate_witness.py"
+_GATE = _SKILL_DIR / "scripts" / "quality_gate.py"
+_SKILL_MD = _REPO / "SKILL.md"
+_AGENT_CLAUDE = _SKILL_DIR / "agents" / "quality-playbook-claude.agent.md"
+_AGENT_GENERAL = _SKILL_DIR / "agents" / "quality-playbook.agent.md"
+_ORCH = _REPO / "references" / "orchestrator_protocol.md"
+_CLAIMS = _REPO / "references" / "claims_rules.md"
+_PHASE2_GUIDE = _REPO / "references" / "phase2_generation_guide.md"
+
+_FAKE_PASS_LOG = "Total: 0 FAIL, 0 WARN\nRESULT: GATE PASSED\nexit=0\n"
+
+
+def _run_witness(target: Path) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        [sys.executable, str(_WITNESS), str(target)],
+        capture_output=True, text=True, timeout=600,
+    )
+
+
+def _make_target(tmp: Path) -> Path:
+    """A minimal target whose real gate FAILs (empty quality/)."""
+    target = tmp / "target"
+    (target / "quality" / "results").mkdir(parents=True)
+    subprocess.run(["git", "init", "-q", str(target)], check=False,
+                   capture_output=True)
+    return target
+
+
+def _slice(text: str, header: str, stop: str) -> str:
+    start = text.index(header)
+    end = text.find(stop, start + len(header))
+    return text[start:] if end == -1 else text[start:end]
+
+
+class GateWitnessScriptTests(unittest.TestCase):
+
+    def test_fabricated_pass_log_is_mismatch(self) -> None:
+        """Log claims RESULT: GATE PASSED; the real gate FAILs on this
+        fixture → exit 1 with a MISMATCH line."""
+        with tempfile.TemporaryDirectory() as td:
+            target = _make_target(Path(td))
+            log = target / "quality" / "results" / "quality-gate.log"
+            log.write_text(_FAKE_PASS_LOG, encoding="utf-8")
+            r = _run_witness(target)
+            self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+            self.assertIn("MISMATCH", r.stdout)
+            self.assertIn("RESULT: GATE FAILED", r.stdout)
+            # The witness must not rewrite the subagent's log.
+            self.assertEqual(log.read_text(encoding="utf-8"), _FAKE_PASS_LOG)
+
+    def test_matching_log_is_exit_0(self) -> None:
+        """Log produced by the real gate (the phase6_auditor.md
+        invocation form) → exit 0, MATCH."""
+        with tempfile.TemporaryDirectory() as td:
+            target = _make_target(Path(td))
+            g = subprocess.run([sys.executable, str(_GATE), "."],
+                               cwd=str(target), capture_output=True,
+                               text=True, timeout=600)
+            log = target / "quality" / "results" / "quality-gate.log"
+            log.write_text(g.stdout + g.stderr + f"exit={g.returncode}\n",
+                           encoding="utf-8")
+            r = _run_witness(target)
+            self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+            self.assertIn("MATCH:", r.stdout)
+            self.assertNotIn("MISMATCH", r.stdout)
+
+    def test_missing_log_is_exit_2(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            target = _make_target(Path(td))
+            r = _run_witness(target)
+            self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+            self.assertIn("LOG MISSING", r.stdout)
+
+    def test_verdict_lines_takes_last_occurrence(self) -> None:
+        sys.path.insert(0, str(_WITNESS.parent))
+        try:
+            import qpb_gate_witness as w  # type: ignore[import]
+        finally:
+            sys.path.pop(0)
+        text = ("Total: 9 FAIL, 0 WARN\nRESULT: GATE FAILED — 9\n"
+                "noise\n  Total: 0 FAIL, 1 WARN\nRESULT: GATE PASSED\n")
+        self.assertEqual(w.verdict_lines(text),
+                         ("Total: 0 FAIL, 1 WARN", "RESULT: GATE PASSED"))
+        self.assertEqual(w.verdict_lines("nothing"), (None, None))
+
+    def test_witness_ships_in_install_bundle(self) -> None:
+        from bin.install_skill import _bundle_files
+        dests = {str(d) for _s, d in _bundle_files(_SKILL_DIR)}
+        self.assertIn("bin/qpb_gate_witness.py", dests)
+
+
+class ParentWitnessRuleTextTests(unittest.TestCase):
+    """The conditional rule appears in every surface an orchestrating
+    agent reads."""
+
+    def _assert_rule(self, text: str, label: str) -> None:
+        self.assertIn("parent-witness rule", text.lower(),
+                      f"{label}: missing the parent-witness rule")
+        self.assertIn("qpb_gate_witness.py", text,
+                      f"{label}: must name the witness script")
+        self.assertIn("MISMATCH", text,
+                      f"{label}: must say to stop on MISMATCH")
+        self.assertRegex(text.lower(), r"cannot spawn sub-?agents",
+                         f"{label}: must carry the nesting rule")
+
+    def test_skill_md_mode_a_carries_conditional_rule(self) -> None:
+        mode_a = _slice(_SKILL_MD.read_text(encoding="utf-8"),
+                        "### Mode A — skill-direct walkthrough (UI-context)",
+                        "\n### Mode B —")
+        self.assertIn("**Parent-witness rule (per-phase subagents).**", mode_a)
+        self._assert_rule(mode_a, "SKILL.md Mode A")
+        self.assertIn("2026-05-16", mode_a,
+                      "the why-text must still cite the 2026-05-16 failure")
+
+    def test_claude_agent_file_carries_conditional_rule(self) -> None:
+        self._assert_rule(_AGENT_CLAUDE.read_text(encoding="utf-8"),
+                          "quality-playbook-claude.agent.md")
+
+    def test_general_agent_file_carries_conditional_rule(self) -> None:
+        self._assert_rule(_AGENT_GENERAL.read_text(encoding="utf-8"),
+                          "quality-playbook.agent.md")
+
+    def test_orchestrator_protocol_carries_rule_in_phase6_gate(self) -> None:
+        text = _ORCH.read_text(encoding="utf-8")
+        self._assert_rule(text, "orchestrator_protocol.md")
+        phase6 = _slice(text, "- **Phase 6 (Verify):**", "\n### ")
+        self.assertIn("qpb_gate_witness.py", phase6,
+                      "the witness run must be part of the Phase 6 "
+                      "post-phase verification gate")
+        self.assertIn("not required for the gate to pass", text,
+                      "AGENTS.md must be described as written after the "
+                      "gate passes and not required by it")
+
+    def test_old_automation_only_ban_is_gone(self) -> None:
+        for p in (_AGENT_CLAUDE, _AGENT_GENERAL, _SKILL_MD):
+            text = p.read_text(encoding="utf-8")
+            self.assertNotIn("AUTOMATION ONLY", text, str(p))
+            self.assertNotIn(
+                "DO NOT use this file for interactive coding sessions",
+                text, str(p))
+
+
+class ClaimsRulesTests(unittest.TestCase):
+
+    def test_claims_rules_exists_with_rules(self) -> None:
+        text = _CLAIMS.read_text(encoding="utf-8")
+        for marker in ("Tangible", "Objective", "R1.", "R2.", "R3.",
+                       "R6.", "R7.", "R8.", "Pre-output checklist",
+                       "significantly", "ensure",
+                       "supplied by Andrew Stellman (2026-10-01)"):
+            self.assertIn(marker, text, marker)
+
+    def test_claims_rules_referenced_from_skill_md_table(self) -> None:
+        text = _SKILL_MD.read_text(encoding="utf-8")
+        table = text[text.index("## Reference Files"):]
+        self.assertIn("| `references/claims_rules.md` |", table)
+
+    def test_claims_rules_referenced_from_bugs_and_writeup_guidance(self) -> None:
+        text = _PHASE2_GUIDE.read_text(encoding="utf-8")
+        self.assertIn(
+            "Apply `references/claims_rules.md` before writing any "
+            "BUGS.md entry.", text)
+        self.assertIn(
+            "Apply `references/claims_rules.md` before writing each "
+            "writeup.", text)
+
+
+if __name__ == "__main__":
+    unittest.main()

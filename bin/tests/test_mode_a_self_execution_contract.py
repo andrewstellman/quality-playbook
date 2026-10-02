@@ -40,9 +40,17 @@ _AGENTS_MD = _QPB_ROOT / "AGENTS.md"
 _AGENT_GENERAL = _SKILL_DIR / "agents" / "quality-playbook.agent.md"
 _AGENT_CLAUDE = _SKILL_DIR / "agents" / "quality-playbook-claude.agent.md"
 
-_AUTOMATION_ONLY_DESC_PREFIX = (
-    'description: "AUTOMATION ONLY — DO NOT INVOKE FROM AN '
-    'INTERACTIVE CODING SESSION.'
+# v1.6.1 [S]: the "AUTOMATION ONLY — DO NOT INVOKE FROM AN INTERACTIVE
+# CODING SESSION" description prefix was replaced by the parent-witness
+# rule (per-phase subagents allowed if the parent re-runs the gate after
+# every Phase 6 with qpb_gate_witness.py). The description now carries
+# the rule instead.
+_PARENT_WITNESS_DESC = (
+    "Allowed in interactive sessions under the parent-witness rule"
+)
+_GUARDRAIL_1_HEADER = (
+    "1. **Synchronous execution, or per-phase subagents under the "
+    "parent-witness rule**"
 )
 
 
@@ -133,14 +141,21 @@ class ModeASelfExecutionContractTests(unittest.TestCase):
             "Mode A intro must forbid Task/Agent-tool sub-agent "
             "dispatch (A-17)",
         )
+        # v1.6.1 [S]: the Task/Agent ban is now conditional on the
+        # parent-witness rule.
+        self.assertIn(
+            "unless you follow the parent-witness rule below", section,
+            "Mode A Task/Agent bullet must name the parent-witness "
+            "condition (v1.6.1 [S])",
+        )
         self.assertIn(
             "Invoke `python3 -m bin.run_playbook`", section,
             "Mode A intro must point run_playbook.py at Mode B, not "
             "the interactive path (A-17)",
         )
-        self.assertIn(
-            "agents/quality-playbook.agent.md", section,
-        )
+        # v1.6.1 [S]: the Mode A section now points at the Claude
+        # orchestrator file as the per-phase-subagent pattern (the
+        # general-agent "AUTOMATION ONLY" bullet was removed).
         self.assertIn(
             "agents/quality-playbook-claude.agent.md", section,
         )
@@ -166,7 +181,7 @@ class ModeASelfExecutionContractTests(unittest.TestCase):
         """
         guardrail_1 = _slice(
             _SKILL_MD.read_text(encoding="utf-8"),
-            "1. **Synchronous execution — no sub-agent delegation.**",
+            _GUARDRAIL_1_HEADER,
             "\n2. **Don't patch QPB source",
         )
         self.assertIn(
@@ -197,11 +212,16 @@ class ModeASelfExecutionContractTests(unittest.TestCase):
             "forbidden for execution)",
         )
 
-    def test_agents_md_orchestrator_rows_marked_automation_only(self) -> None:
+    def test_agents_md_orchestrator_rows_carry_parent_witness_rule(self) -> None:
         """Both orchestrator-agent rows in AGENTS.md's pointing table
-        (the doc adopter agents read FIRST) carry the AUTOMATION ONLY
-        / NOT-for-interactive constraint, so an adopter sees it before
-        it would dispatch to the orchestrator."""
+        (the doc adopter agents read FIRST) carry the condition under
+        which the orchestrator may be used, so an adopter sees it before
+        it would dispatch to the orchestrator.
+
+        v1.6.1 [S]: was "AUTOMATION ONLY — NOT for interactive
+        sessions"; now the parent-witness rule (per-phase subagents
+        allowed if the parent re-runs the gate with
+        qpb_gate_witness.py after every Phase 6)."""
         rows = _table_rows_for_agent_files(
             _AGENTS_MD.read_text(encoding="utf-8")
         )
@@ -213,33 +233,35 @@ class ModeASelfExecutionContractTests(unittest.TestCase):
                       "quality-playbook-claude.agent.md row")
         for key, row in rows.items():
             self.assertIn(
-                "AUTOMATION ONLY", row,
-                f"AGENTS.md {key} orchestrator row must be marked "
-                f"AUTOMATION ONLY (A-17)",
+                "parent-witness rule", row,
+                f"AGENTS.md {key} orchestrator row must name the "
+                f"parent-witness rule (v1.6.1 [S])",
             )
             self.assertIn(
-                "NOT for interactive sessions", row,
-                f"AGENTS.md {key} orchestrator row must say NOT for "
-                f"interactive sessions (A-17)",
+                "qpb_gate_witness.py", row,
+                f"AGENTS.md {key} orchestrator row must name the "
+                f"witness script (v1.6.1 [S])",
             )
         # The Claude row carries the express reproduction citation
         # (it's the file the express run actually followed).
         self.assertIn("2026-05-16", rows["claude"])
 
-    def test_orchestrator_agent_files_carry_automation_only_header(self) -> None:
+    def test_orchestrator_agent_files_carry_parent_witness_header(self) -> None:
         """Both agents/quality-playbook*.agent.md files carry the
-        AUTOMATION-ONLY frontmatter description prefix AND a "When to
-        use this file" section that excludes interactive coding
-        sessions."""
+        parent-witness rule in the frontmatter description AND a "When
+        to use this file" section that states the rule and keeps Mode A
+        valid. v1.6.1 [S]: replaces the AUTOMATION-ONLY ban."""
         for label, path in (
             ("general", _AGENT_GENERAL),
             ("claude", _AGENT_CLAUDE),
         ):
             text = path.read_text(encoding="utf-8")
+            desc = next(l for l in text.splitlines()
+                        if l.startswith("description:"))
             self.assertIn(
-                _AUTOMATION_ONLY_DESC_PREFIX, text,
+                _PARENT_WITNESS_DESC, desc,
                 f"{label} agent file frontmatter description must "
-                f"begin with the AUTOMATION ONLY warning (A-17)",
+                f"carry the parent-witness rule (v1.6.1 [S])",
             )
             section = _slice(
                 text, "## When to use this file", "\n## ",
@@ -250,15 +272,17 @@ class ModeASelfExecutionContractTests(unittest.TestCase):
                 f"file' section (A-17)",
             )
             self.assertIn(
-                "DO NOT use this file for interactive coding sessions",
-                section,
+                "qpb_gate_witness.py", section,
                 f"{label} agent file 'When to use' section must "
-                f"exclude interactive coding sessions (A-17)",
+                f"require the parent's witness run (v1.6.1 [S])",
             )
             self.assertIn(
-                "Execute Mode A in your own chat session", section,
-                f"{label} agent file must redirect interactive "
-                f"sessions to Mode A (A-17)",
+                "MISMATCH", section,
+                f"{label} agent file must say to stop on MISMATCH",
+            )
+            self.assertIn(
+                "Driving Mode A yourself", section,
+                f"{label} agent file must keep Mode A valid (A-17)",
             )
 
 

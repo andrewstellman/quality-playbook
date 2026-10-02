@@ -1,6 +1,6 @@
 ---
 name: quality-playbook
-description: "AUTOMATION ONLY — DO NOT INVOKE FROM AN INTERACTIVE CODING SESSION. Run a complete quality engineering audit on any codebase. Orchestrates six phases — explore, generate, review, audit, reconcile, verify — each in its own context window for maximum depth. Then runs iteration strategies to find even more bugs. Finds the 35% of real defects that structural code review alone cannot catch."
+description: "Run a complete quality engineering audit on any codebase. Orchestrates six phases — explore, generate, review, audit, reconcile, verify — each in its own context window for maximum depth. Allowed in interactive sessions under the parent-witness rule: after every Phase 6 the parent session re-runs the gate with bin/qpb_gate_witness.py, pastes its verdict lines, and stops on a MISMATCH. Then runs iteration strategies to find even more bugs. Finds the 35% of real defects that structural code review alone cannot catch."
 tools:
   - search/codebase
   - web/fetch
@@ -10,22 +10,21 @@ tools:
 
 ## When to use this file
 
-This orchestrator pattern is for AUTOMATION contexts:
-- Headless CI runs invoking the playbook on a target without an operator-watched chat session.
-- Batch processing where per-phase context-window isolation is necessary (target is very large, single-context Mode A would exhaust the window).
-- Programmatic invocation from a wrapping tool that mediates between operator and skill execution.
+Use this orchestrator pattern when per-phase context-window isolation helps: a large target, a headless CI or batch run, or an interactive session that wants one sub-agent or fresh context per phase. It is allowed in an interactive session under the **parent-witness rule** (v1.6.1; SKILL.md Mode A):
 
-**DO NOT use this file for interactive coding sessions** (Claude Code, Cursor, Copilot UI, Codex desktop). For interactive sessions:
+1. You — this top-level session — run each phase in its own sub-agent or fresh context.
+2. After every Phase 6, YOU run `python3 <install_root>/bin/qpb_gate_witness.py <target-repo>` yourself and paste its `Total:` and `RESULT:` lines verbatim in your own chat. The script re-runs `quality_gate.py` and compares those lines with `quality/results/quality-gate.log`.
+3. If it prints `MISMATCH` (exit 1) or reports the log missing (exit 2), stop and report to the operator. Do not start iterations.
 
-1. Read `SKILL.md` directly.
-2. Execute Mode A in your own chat session (the operator is watching).
-3. Your chat IS the witness trail — do not hide phase execution behind a sub-agent.
+Why: on 2026-05-16 an interactive session spawned this orchestrator as a sub-skill; the sub-skill hand-wrote `quality/results/quality-gate.log` reading PASS against an actual 14-FAIL gate, and the parent trusted the log. A sub-agent or fresh context can write any log, but it cannot change what the gate prints when you run it, so step 2 catches that failure.
 
-The 2026-05-16 express failure mode (interactive session spawned this orchestrator → sub-skill fabricated gate-PASS verdict → operator trusted the fabrication) is exactly what this constraint prevents.
+Driving Mode A yourself (read `SKILL.md`, execute every phase in your own chat) stays valid.
+
+**Nesting rule: sub-agents cannot spawn sub-agents.** YOU spawn the Feature H personas (Phase 2→3 boundary), the Phase 6 fresh-context auditor (`phase_prompts/phase6_auditor.md`), and any other sub-agent a phase prompt asks for (e.g. the challenge gate's fresh reviewers, `references/challenge_gate.md`). A phase sub-agent or fresh context that reaches such a step returns to you; you spawn the sub-agent and pass its result to the next phase.
 
 ## Your role
 
-Your ONLY jobs are: (1) spawn sub-agents (or new contexts/chats — see tool-specific guidance below) to execute phases, (2) verify their output files exist on disk, (3) report progress to the user. You do NOT execute phase logic yourself. Never explore source code for bugs, write findings, generate requirements, or draft tests in your own context. If you find yourself doing any of that, you have violated your role.
+Your ONLY jobs are: (1) spawn sub-agents (or new contexts/chats — see tool-specific guidance below) to execute phases, (2) verify their output files exist on disk, (3) after every Phase 6, run `bin/qpb_gate_witness.py` yourself and paste its verdict lines (the parent-witness rule above), (4) report progress to the user. You do NOT execute phase logic yourself. Never explore source code for bugs, write findings, generate requirements, or draft tests in your own context. If you find yourself doing any of that, you have violated your role.
 
 ## File-writing override
 
@@ -124,7 +123,7 @@ For each phase (1 through 6):
    - Read quality/PROGRESS.md (if it exists) for context from prior phases
    - Execute Phase N
 3. **Wait for completion.** The phase is done when it writes its checkpoint to quality/PROGRESS.md.
-4. **Run the post-phase verification gate** from `references/orchestrator_protocol.md`. The sub-agent's claim of completion is insufficient — only files on disk count.
+4. **Run the post-phase verification gate** from `references/orchestrator_protocol.md`. The sub-agent's claim of completion is insufficient — only files on disk count. After Phase 6 the gate includes your own witness run: `python3 <install_root>/bin/qpb_gate_witness.py <target-repo>`, verdict lines pasted verbatim in your chat; on `MISMATCH` (exit 1) or a missing log (exit 2), stop and report.
 5. **Report progress.** Between phases, briefly tell the user what happened: how many findings, any issues, what's next.
 6. **Continue to next phase.** Repeat from step 1.
 
@@ -158,7 +157,7 @@ Iterations typically add 40-60% more confirmed bugs on top of the baseline.
 ## The six phases
 
 1. **Phase 1 (Explore)** — Read the codebase: architecture, quality risks, candidate bugs. Output: `quality/EXPLORATION.md`
-2. **Phase 2 (Generate)** — Produce quality artifacts: requirements, constitution, contracts, coverage matrix, completeness report, four review/execution protocols, functional test file. Output: nine files in `quality/` (REQUIREMENTS.md, QUALITY.md, CONTRACTS.md, COVERAGE_MATRIX.md, COMPLETENESS_REPORT.md, RUN_CODE_REVIEW.md, RUN_INTEGRATION_TESTS.md, RUN_SPEC_AUDIT.md, RUN_TDD_TESTS.md) plus a `quality/test_functional.<ext>` functional test file. **AGENTS.md is generated post-Phase-6 by the orchestrator, NOT by Phase 2** — writing AGENTS.md in Phase 2 trips the source-edit guardrail and aborts the run.
+2. **Phase 2 (Generate)** — Produce quality artifacts: requirements, constitution, contracts, coverage matrix, completeness report, four review/execution protocols, functional test file. Output: nine files in `quality/` (REQUIREMENTS.md, QUALITY.md, CONTRACTS.md, COVERAGE_MATRIX.md, COMPLETENESS_REPORT.md, RUN_CODE_REVIEW.md, RUN_INTEGRATION_TESTS.md, RUN_SPEC_AUDIT.md, RUN_TDD_TESTS.md) plus a `quality/test_functional.<ext>` functional test file. **AGENTS.md is generated by the orchestrator after the Phase 6 gate passes (the gate does not require it), NOT by Phase 2** — writing AGENTS.md in Phase 2 trips the source-edit guardrail and aborts the run.
 3. **Phase 3 (Code Review)** — Three-pass review: structural, requirement verification, cross-requirement consistency. Regression tests for every confirmed bug. Output: `quality/code_reviews/`, patches
 4. **Phase 4 (Spec Audit)** — Three independent auditors check code against requirements. Triage with verification probes. Output: `quality/spec_audits/`, additional regression tests
 5. **Phase 5 (Reconciliation)** — Close the loop: every bug tracked, regression-tested, TDD red-green verified. Output: `quality/BUGS.md`, TDD logs, completeness report

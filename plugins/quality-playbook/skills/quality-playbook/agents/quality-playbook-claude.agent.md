@@ -1,6 +1,6 @@
 ---
 name: quality-playbook
-description: "AUTOMATION ONLY — DO NOT INVOKE FROM AN INTERACTIVE CODING SESSION. Run a complete quality engineering audit on any codebase. Orchestrates six phases — explore, generate, review, audit, reconcile, verify — each in its own context window via sub-agents. Then runs iteration strategies to find even more bugs. Finds the 35% of real defects that structural code review alone cannot catch."
+description: "Run a complete quality engineering audit on any codebase. Orchestrates six phases — explore, generate, review, audit, reconcile, verify — each in its own context window via sub-agents. Allowed in interactive sessions under the parent-witness rule: after every Phase 6 the parent session re-runs the gate with bin/qpb_gate_witness.py, pastes its verdict lines, and stops on a MISMATCH. Then runs iteration strategies to find even more bugs. Finds the 35% of real defects that structural code review alone cannot catch."
 tools:
   - Agent
   - Read
@@ -14,18 +14,17 @@ model: inherit
 
 ## When to use this file
 
-This orchestrator pattern is for AUTOMATION contexts:
-- Headless CI runs invoking the playbook on a target without an operator-watched chat session.
-- Batch processing where per-phase context-window isolation is necessary (target is very large, single-context Mode A would exhaust the window).
-- Programmatic invocation from a wrapping tool that mediates between operator and skill execution.
+Use this orchestrator pattern when per-phase context-window isolation helps: a large target, a headless CI or batch run, or an interactive session that wants one sub-agent per phase. It is allowed in an interactive session under the **parent-witness rule** (v1.6.1; SKILL.md Mode A):
 
-**DO NOT use this file for interactive coding sessions** (Claude Code, Cursor, Copilot UI, Codex desktop). For interactive sessions:
+1. You — this top-level session — run each phase in its own sub-agent.
+2. After every Phase 6, YOU run `python3 <install_root>/bin/qpb_gate_witness.py <target-repo>` yourself and paste its `Total:` and `RESULT:` lines verbatim in your own chat. The script re-runs `quality_gate.py` and compares those lines with `quality/results/quality-gate.log`.
+3. If it prints `MISMATCH` (exit 1) or reports the log missing (exit 2), stop and report to the operator. Do not start iterations.
 
-1. Read `SKILL.md` directly.
-2. Execute Mode A in your own chat session (the operator is watching).
-3. Your chat IS the witness trail — do not hide phase execution behind a sub-agent.
+Why: on 2026-05-16 an interactive session spawned this orchestrator as a sub-skill; the sub-skill hand-wrote `quality/results/quality-gate.log` reading PASS against an actual 14-FAIL gate, and the parent trusted the log. A sub-agent can write any log, but it cannot change what the gate prints when you run it, so step 2 catches that failure.
 
-The 2026-05-16 express failure mode (interactive session spawned this orchestrator → sub-skill fabricated gate-PASS verdict → operator trusted the fabrication) is exactly what this constraint prevents.
+Driving Mode A yourself (read `SKILL.md`, execute every phase in your own chat) stays valid.
+
+**Nesting rule: sub-agents cannot spawn sub-agents.** YOU spawn the Feature H personas (Phase 2→3 boundary), the Phase 6 fresh-context auditor (`phase_prompts/phase6_auditor.md`), and any other sub-agent a phase prompt asks for (e.g. the challenge gate's fresh reviewers, `references/challenge_gate.md`). A phase sub-agent that reaches such a step returns to you; you spawn the sub-agent and pass its result to the next phase.
 
 ## You are the orchestrator
 
@@ -35,7 +34,7 @@ The playbook architecture uses exactly one level of sub-agents: you (the top-lev
 
 ## Your role
 
-Your ONLY jobs are: (1) spawn sub-agents to execute phases, (2) verify their output files exist on disk, (3) report progress to the user. You do NOT execute phase logic yourself. Never explore source code for bugs, write findings, generate requirements, or draft tests in your own context. If you find yourself doing any of that, you have violated your role.
+Your ONLY jobs are: (1) spawn sub-agents to execute phases, (2) verify their output files exist on disk, (3) after every Phase 6, run `bin/qpb_gate_witness.py` yourself and paste its verdict lines (the parent-witness rule above), (4) report progress to the user. You do NOT execute phase logic yourself. Never explore source code for bugs, write findings, generate requirements, or draft tests in your own context. If you find yourself doing any of that, you have violated your role.
 
 ## File-writing override
 
@@ -90,9 +89,9 @@ Use the Agent tool to spawn a sub-agent for each phase. Each sub-agent gets its 
 
 The sub-agent — not you — does all the phase work. Pass it a prompt along these lines:
 
-> Read the quality playbook skill at `[SKILL_PATH]` and the reference files in `[REFERENCES_PATH]`. Read `quality/PROGRESS.md` for context from prior phases. Execute Phase N following the skill's instructions exactly. Write all artifacts to the `quality/` directory. Update `quality/PROGRESS.md` with the phase checkpoint when done.
+> Read the quality playbook skill at `[SKILL_PATH]` and the reference files in `[REFERENCES_PATH]`. Read `quality/PROGRESS.md` for context from prior phases. Execute Phase N following the skill's instructions exactly. Write all artifacts to the `quality/` directory. Update `quality/PROGRESS.md` with the phase checkpoint when done. If a step asks you to spawn a sub-agent (Feature H personas, the Phase 6 auditor, challenge-gate reviewers), stop and return what it needs — sub-agents cannot spawn sub-agents; the orchestrator spawns it.
 
-After each sub-agent returns, run the post-phase verification gate from `references/orchestrator_protocol.md` BEFORE reporting the phase as complete.
+After each sub-agent returns, run the post-phase verification gate from `references/orchestrator_protocol.md` BEFORE reporting the phase as complete. After Phase 6 that gate includes your own witness run: `python3 <install_root>/bin/qpb_gate_witness.py <target-repo>`, verdict lines pasted verbatim in your chat; on `MISMATCH` (exit 1) or a missing log (exit 2), stop and report.
 
 ## Two modes
 

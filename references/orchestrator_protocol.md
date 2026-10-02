@@ -4,9 +4,25 @@ Shared rules for all orchestrator agent files (Claude Code, Copilot, Cursor, Win
 
 ## Role Definition
 
-Your ONLY jobs are: (1) spawn sub-agents to execute phases, (2) verify their output files exist on disk, (3) report progress to the user. You do NOT execute phase logic yourself. Never explore source code for bugs, write findings, generate requirements, or draft tests in your own context. If you find yourself doing any of that, you have violated your role.
+Your ONLY jobs are: (1) spawn sub-agents to execute phases, (2) verify their output files exist on disk, (3) after every Phase 6, run the gate witness yourself (below), (4) report progress to the user. You do NOT execute phase logic yourself. Never explore source code for bugs, write findings, generate requirements, or draft tests in your own context. If you find yourself doing any of that, you have violated your role.
 
 **Why this is strict.** The Quality Playbook is intentionally multi-session: each phase needs the full context window for deep analysis. Running phases in the orchestrator's context is the single most common failure mode — the orchestrator collapses into single-context execution, produces shallow summaries, and writes zero files to disk. This happened on a real casbin run and is why this protocol was hardened.
+
+## Parent-Witness Rule (v1.6.1)
+
+Phases may run in per-phase sub-agents in any session, interactive or headless, on one condition: after every Phase 6, the PARENT session — you, not a sub-agent — runs the gate itself and compares it with the log the sub-agent left. This is the Phase 6 step of the post-phase verification gate below. Driving every phase yourself (SKILL.md Mode A default) stays valid.
+
+Why: on 2026-05-16 a delegated run hand-wrote `quality/results/quality-gate.log` reading PASS while the real gate reported 14 FAIL, and the parent trusted the log. A sub-agent can write any log; it cannot change what the gate prints in the parent's session. On 2026-10-01 a cloud run of QPB 1.6.0 with one sub-agent per phase had the parent re-run the gate after both Phase 6 runs; both matched the sub-agent's log.
+
+## Nesting Rule
+
+Sub-agents cannot spawn sub-agents. The parent spawns:
+
+- the Feature H personas (Phase 2→3 boundary, `bin/persona_apply.run_feature_h`);
+- the Phase 6 fresh-context auditor (`phase_prompts/phase6_auditor.md`);
+- any other sub-agent a phase prompt asks for (e.g. the challenge gate's fresh reviewers, `references/challenge_gate.md`).
+
+A phase sub-agent that reaches such a step returns to the parent with what the step needs. The parent spawns the sub-agent and passes its result to the next phase sub-agent.
 
 ## File-Writing Override
 
@@ -39,11 +55,12 @@ Express each check as content criteria ("verify that `quality/EXPLORATION.md` ex
 Cross-reference SKILL.md's Complete Artifact Contract for the authoritative list.
 
 - **Phase 1 (Explore):** `quality/EXPLORATION.md` exists with at least 120 lines of substantive content; `quality/PROGRESS.md` exists with Phase 1 marked complete.
-- **Phase 2 (Generate):** All of these exist: `quality/REQUIREMENTS.md`, `quality/QUALITY.md`, `quality/CONTRACTS.md`, `quality/COVERAGE_MATRIX.md`, `quality/COMPLETENESS_REPORT.md`, `quality/RUN_CODE_REVIEW.md`, `quality/RUN_INTEGRATION_TESTS.md`, `quality/RUN_SPEC_AUDIT.md`, `quality/RUN_TDD_TESTS.md`. A functional test file exists in `quality/` (naming varies by language: `quality/test_functional.<ext>`). **AGENTS.md is NOT a Phase 2 output** — it is generated post-Phase-6 by the orchestrator (see SKILL.md Phase 2 source-modification guardrail). Phase 2 writes ONLY into `quality/`.
+- **Phase 2 (Generate):** All of these exist: `quality/REQUIREMENTS.md`, `quality/QUALITY.md`, `quality/CONTRACTS.md`, `quality/COVERAGE_MATRIX.md`, `quality/COMPLETENESS_REPORT.md`, `quality/RUN_CODE_REVIEW.md`, `quality/RUN_INTEGRATION_TESTS.md`, `quality/RUN_SPEC_AUDIT.md`, `quality/RUN_TDD_TESTS.md`. A functional test file exists in `quality/` (naming varies by language: `quality/test_functional.<ext>`). **AGENTS.md is NOT a Phase 2 output** — the orchestrator writes it after the Phase 6 gate passes (see SKILL.md Phase 2 source-modification guardrail). Phase 2 writes ONLY into `quality/`.
 - **Phase 3 (Code Review):** `quality/code_reviews/` contains at least one review file. If bugs were confirmed: `quality/BUGS.md` has at least one `### BUG-` entry, `quality/patches/` contains a regression-test patch per confirmed bug, and `quality/test_regression.*` exists.
 - **Phase 4 (Spec Audit):** `quality/spec_audits/` contains at least one triage file AND at least one individual auditor file.
 - **Phase 5 (Reconciliation):** If bugs were confirmed: `quality/results/tdd-results.json` exists, a writeup at `quality/writeups/BUG-NNN.md` exists for every confirmed bug, and a red-phase log exists at `quality/results/BUG-NNN.red.log` for every confirmed bug.
-- **Phase 6 (Verify):** `quality/results/quality-gate.log` exists and PROGRESS.md marks Phase 6 complete with a Terminal Gate Verification section.
+- **Phase 6 (Verify):** `quality/results/quality-gate.log` exists and PROGRESS.md marks Phase 6 complete with a Terminal Gate Verification section. Then the parent's witness run (mandatory): run `python3 <install_root>/bin/qpb_gate_witness.py <target-repo>` yourself and paste its output verbatim in your own chat. It re-runs `quality_gate.py` the way adopters do and compares the gate's `Total:` and `RESULT:` lines with the log's. Exit 0 prints `MATCH`. Exit 1 prints `MISMATCH`: stop, report both pairs of lines to the operator, and start nothing else. Exit 2 means the log is missing: the phase failed.
+- **AGENTS.md (target repo root):** written by the orchestrator AFTER the Phase 6 gate passes. It is not required for the gate to pass, and no phase sub-agent writes it.
 
 ### After verification passes
 

@@ -219,7 +219,9 @@ class Phase6SubAgentContractTests(unittest.TestCase):
         # Guardrail #1 must distinguish execution vs verification.
         guardrail_1 = _slice(
             skill,
-            "1. **Synchronous execution — no sub-agent delegation.**",
+            # v1.6.1 [S]: guardrail #1 renamed for the parent-witness rule.
+            "1. **Synchronous execution, or per-phase subagents under "
+            "the parent-witness rule**",
             "\n2. **Don't patch QPB source",
         )
         self.assertIn(

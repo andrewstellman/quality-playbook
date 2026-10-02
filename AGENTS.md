@@ -49,8 +49,8 @@ The Quality Playbook is a skill for AI coding agents that explores any codebase 
 | `bin/qpb_config.py` | v1.5.7 D6 — `python3 -m bin.qpb_config show|set|unset <key>` manages `~/.qpb/config.json`. | When showing/setting the adopter's Council override |
 | `ai_context/TOOLKIT.md` | User-facing interactive documentation | When helping a user set up or run the playbook |
 | `ai_context/DEVELOPMENT_CONTEXT.md` | Maintainer context (architecture, benchmarking, known issues) | When working on the skill itself |
-| `agents/quality-playbook.agent.md` | Orchestrator agent (Copilot / general format). **AUTOMATION ONLY — NOT for interactive sessions.** Spawns a sub-agent per phase, hiding per-step output from the operator's chat. Use only for headless CI / batch contexts where per-phase context-window isolation is necessary. For interactive coding sessions (Claude Code, Cursor, Copilot UI, Codex desktop), do NOT read this file — read `SKILL.md` and execute Mode A directly; your chat IS the witness trail. | Automated batch invocation only — never for an operator-watched interactive session |
-| `agents/quality-playbook-claude.agent.md` | Orchestrator agent (Claude Code format). **AUTOMATION ONLY — NOT for interactive sessions.** Same automation-only constraint as the row above. The 2026-05-16 express opus-4.6 Mode-A run reproduced the failure mode this constraint prevents: an interactive Claude Code session spawned this orchestrator, the sub-skill hid the gate invocation from the parent's witness chat, and a PASS verdict was fabricated against an actual 14-FAIL gate. For interactive sessions: read `SKILL.md`, execute Mode A in your own context. | Automated batch invocation only — never for an operator-watched interactive session |
+| `agents/quality-playbook.agent.md` | Orchestrator agent (Copilot / general format). Spawns a sub-agent (or fresh context) per phase. **Allowed under the parent-witness rule** (v1.6.1): after every Phase 6 the parent session runs `bin/qpb_gate_witness.py <target>` itself, pastes its verdict lines, and stops on `MISMATCH`. Driving Mode A from `SKILL.md` directly stays valid. | Per-phase context isolation (large targets, CI/batch, or an interactive session following the parent-witness rule) |
+| `agents/quality-playbook-claude.agent.md` | Orchestrator agent (Claude Code format). **Allowed under the parent-witness rule** (v1.6.1), same as the row above: the parent runs `bin/qpb_gate_witness.py <target>` after every Phase 6 and stops on `MISMATCH`. The rule exists because of the 2026-05-16 express opus-4.6 Mode-A run: an interactive Claude Code session spawned this orchestrator, the sub-skill hid the gate invocation from the parent's chat, and a PASS verdict was fabricated against an actual 14-FAIL gate. | Per-phase context isolation (large targets, CI/batch, or an interactive session following the parent-witness rule) |
 
 ### Where logs go (v1.5.7+ centralized layout)
 
@@ -112,6 +112,7 @@ cp "$QPB_SKILL_SRC"/scripts/validate_phase_artifacts.py          .github/skills/
 cp "$QPB_SKILL_SRC"/scripts/qpb_validate.py                      .github/skills/bin/qpb_validate.py
 cp "$QPB_SKILL_SRC"/scripts/qpb_phase.py                         .github/skills/bin/qpb_phase.py
 cp "$QPB_SKILL_SRC"/scripts/qpb_heartbeat.py                     .github/skills/bin/qpb_heartbeat.py
+cp "$QPB_SKILL_SRC"/scripts/qpb_gate_witness.py                  .github/skills/bin/qpb_gate_witness.py
 # v1.5.2+: single reference_docs/ tree at the target repo root.
 # Place adopter docs here — citable specs/RFCs in reference_docs/cite/.
 # (v1.5.7 090h retired informal_docs/; reference_docs/ is the sole
@@ -159,6 +160,7 @@ cp "$QPB_SKILL_SRC"/scripts/council_semantic_check.py    .claude/skills/quality-
 cp "$QPB_SKILL_SRC"/scripts/migrate_v1_5_0_layout.py     .claude/skills/quality-playbook/bin/migrate_v1_5_0_layout.py
 cp "$QPB_SKILL_SRC"/scripts/phase_identity.py            .claude/skills/quality-playbook/bin/phase_identity.py
 cp "$QPB_SKILL_SRC"/scripts/qpb_heartbeat.py            .claude/skills/quality-playbook/bin/qpb_heartbeat.py
+cp "$QPB_SKILL_SRC"/scripts/qpb_gate_witness.py         .claude/skills/quality-playbook/bin/qpb_gate_witness.py
 cp "$QPB_SKILL_SRC"/scripts/qpb_config.py                .claude/skills/quality-playbook/bin/qpb_config.py
 cp "$QPB_SKILL_SRC"/scripts/quality_playbook.py          .claude/skills/quality-playbook/bin/quality_playbook.py
 cp "$QPB_SKILL_SRC"/scripts/reference_docs_ingest.py     .claude/skills/quality-playbook/bin/reference_docs_ingest.py
