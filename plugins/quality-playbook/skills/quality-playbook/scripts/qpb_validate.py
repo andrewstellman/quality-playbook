@@ -206,6 +206,8 @@ INSTALL_CLOSURE = [
     {"path": "references/functional_tests.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "references/iteration.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "references/orchestrator_protocol.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},
+    # v1.6.1 [H5]: the shipped Feature H persona brief.
+    {"path": "references/persona_brief.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "references/phase1_exploration_guide.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "references/phase2_generation_guide.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "references/phase5_reconciliation_guide.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},

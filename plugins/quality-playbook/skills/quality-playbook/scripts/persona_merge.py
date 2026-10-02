@@ -11,6 +11,21 @@ moves (slice 3). This slice combines them under the load-bearing §8b rule:
   `correct`s, a `confirm` vs a `drop` — that pair is an operator-facing conflict
   flag carrying both moves, both personas, and both reasons. Conflicting moves are
   HELD OUT of the applied set; no heuristic picks a winner.
+- **A `confirm` beside a grounded `correct` is a dissent, not a conflict**
+  (v1.6.1 [H3]). The `correct` is byte-verified against a cited document; the
+  `confirm` cites nothing. Holding both out left a REQ wider than its excerpt
+  (QPB 1.6.0 on collective/icalendar, 2026-10-01). The `correct` applies; the
+  `confirm` is recorded in ``MergeResult.dissents`` for the review summary.
+- **Adds citing the same passage are one cluster** (v1.6.1 [H4]). Adds in the
+  same section whose citations name the same document and the same or an
+  overlapping excerpt line range (or byte-identical excerpt text) state the same
+  requirement. The first in input order applies; the rest go to
+  ``MergeResult.duplicates``. The icalendar run applied seven overlapping
+  "RECUR range" adds from three personas because only identical content collapsed.
+- **A `correct` replaces every prose field it supplies** (v1.6.1 [H2]). Any
+  claim-bearing prose field (``PROSE_FIELDS``) the record carries and the move
+  does not supply is listed in the record's ``needs_text_review`` and on the
+  applied move, so the review summary names it.
 - **Exactly one terminal renumber, after the merge.** The union + hold-out is
   applied to the base manifest, then ``requirements_render.renumber_to_document_
   order`` runs ONCE (personas do not each renumber) — the §6 "renumber once after
@@ -72,6 +87,21 @@ class MergeResult:
     held_out: List[dict] = field(default_factory=list)   # moves in a conflict
     remap: Dict[str, str] = field(default_factory=dict)
     renumber_calls: int = 0
+    # v1.6.1 [H3]: confirms overruled by a grounded correct on the same REQ.
+    # Each: {"target", "confirm": <move>, "corrected_by": [persona ids]}.
+    dissents: List[dict] = field(default_factory=list)
+    # v1.6.1 [H4]: adds not applied because an earlier add cites the same
+    # passage. Each: {"move": <move>, "duplicate_of": <the applied move>}.
+    duplicates: List[dict] = field(default_factory=list)
+
+
+# v1.6.1 [H2]: the REQ prose fields that state the claim. A `correct` that
+# narrows the claim must narrow each one the record carries. Field set read
+# from the requirements_manifest.json records of the 2026-09-29 campaign runs
+# (schemas.md §6.1 `description` plus the Phase 2 narrative fields).
+# `implementation_note` is a code locator, not a claim, so it is not listed.
+PROSE_FIELDS = ("title", "description", "summary", "user_story",
+                "conditions_of_satisfaction", "alternative_paths")
 
 
 def _move_target(move: dict) -> Optional[str]:
@@ -116,15 +146,15 @@ def _group_conflict(moves: Sequence[dict]) -> Optional[str]:
 
     Only moves from >=2 distinct personas can conflict (a persona does not
     conflict with itself). Agreement (two confirms, two identical corrects/adds,
-    two drops) is not a conflict."""
+    two drops) is not a conflict. A confirm beside a correct is not a conflict
+    either (v1.6.1 [H3]): the grounded correct applies and the confirm becomes a
+    dissent (see ``_split_dissents``)."""
     personas = {m.get("persona_id") for m in moves}
     if len(personas) < 2:
         return None
     types = {m.get("move") for m in moves}
     if "drop" in types and (types - {"drop"}):
         return "a drop disagrees with another persona's move on the same target"
-    if "confirm" in types and ("correct" in types):
-        return "one persona confirms the REQ while another corrects it"
     for t in ("correct", "add"):
         contents = {_content(m) for m in moves if m.get("move") == t}
         if len(contents) > 1:
@@ -132,7 +162,74 @@ def _group_conflict(moves: Sequence[dict]) -> Optional[str]:
     return None
 
 
-def _apply_move(manifest: dict, move: dict) -> None:
+def _split_dissents(tgt: str, moves: Sequence[dict]):
+    """v1.6.1 [H3]: on a non-conflicting target that carries a `correct`, every
+    `confirm` from a persona that did not issue that correct is a dissent.
+    Returns ``(moves_to_apply, dissents)``."""
+    correctors = sorted({m.get("persona_id") for m in moves
+                         if m.get("move") == "correct" and m.get("persona_id")})
+    if not correctors:
+        return list(moves), []
+    keep: List[dict] = []
+    dissents: List[dict] = []
+    for m in moves:
+        if m.get("move") == "confirm" and m.get("persona_id") not in correctors:
+            dissents.append({"target": tgt, "confirm": m, "corrected_by": correctors})
+        else:
+            keep.append(m)
+    return keep, dissents
+
+
+def _line_span(citation: dict):
+    """The 1-based line range an excerpt covers, or None without a `line`."""
+    line = citation.get("line")
+    if not isinstance(line, int):
+        return None
+    excerpt = citation.get("citation_excerpt") or ""
+    return (line, line + excerpt.rstrip("\n").count("\n"))
+
+
+def _same_passage(a: dict, b: dict) -> bool:
+    """v1.6.1 [H4]: two add moves cite the same passage — same functional
+    section, same document, and overlapping excerpt line ranges or
+    byte-identical excerpt text. Keys on citation identity only (no NLP)."""
+    if (a.get("section") or "").strip() != (b.get("section") or "").strip():
+        return False
+    ca, cb = a.get("citation"), b.get("citation")
+    if not isinstance(ca, dict) or not isinstance(cb, dict):
+        return False
+    da = ca.get("document") or ca.get("document_sha256")
+    db = cb.get("document") or cb.get("document_sha256")
+    if not da or da != db:
+        return False
+    ea = (ca.get("citation_excerpt") or "").strip()
+    eb = (cb.get("citation_excerpt") or "").strip()
+    if ea and ea == eb:
+        return True
+    sa, sb = _line_span(ca), _line_span(cb)
+    return bool(sa and sb and sa[0] <= sb[1] and sb[0] <= sa[1])
+
+
+def _cluster_adds(moves: Sequence[dict]):
+    """v1.6.1 [H4]: keep the first add of each same-passage cluster (input
+    order), return ``(kept_moves, duplicates)``. Non-add moves pass through."""
+    kept: List[dict] = []
+    duplicates: List[dict] = []
+    kept_adds: List[dict] = []
+    for m in moves:
+        if m.get("move") == "add":
+            first = next((k for k in kept_adds if _same_passage(k, m)), None)
+            if first is not None:
+                duplicates.append({"move": m, "duplicate_of": first})
+                continue
+            kept_adds.append(m)
+        kept.append(m)
+    return kept, duplicates
+
+
+def _apply_move(manifest: dict, move: dict) -> List[str]:
+    """Apply one move. Returns the prose fields a `correct` left unreplaced
+    (v1.6.1 [H2]); empty for every other move."""
     records = manifest.setdefault("records", [])
     mv = move.get("move")
     if mv == "add":
@@ -151,16 +248,31 @@ def _apply_move(manifest: dict, move: dict) -> None:
     elif mv == "correct":
         for r in records:
             if r.get("id") == move.get("req_id"):
-                if move.get("conditions_of_satisfaction"):
-                    r["conditions_of_satisfaction"] = move["conditions_of_satisfaction"]
-                if move.get("title"):
-                    r["title"] = move["title"]
+                # v1.6.1 [H2]: replace every claim-bearing prose field the move
+                # supplies; list the ones the record carries but the move left
+                # alone, because they may still state the wider claim.
+                stale: List[str] = []
+                for f in PROSE_FIELDS:
+                    if move.get(f):
+                        r[f] = move[f]
+                    elif r.get(f):
+                        stale.append(f)
+                if stale:
+                    r["needs_text_review"] = stale
+                else:
+                    r.pop("needs_text_review", None)
                 r["source_type"] = "agent-validation"
                 r["citation"] = move.get("citation")
-                break
+                # v1.6.1 [H1]: backfill the cited document's tier, as `add` does
+                # (instruction 028 fix 2). Without it a tier-3 REQ kept tier 3
+                # and gained a citation block, which the gate FAILs.
+                if move.get("tier") is not None:
+                    r["tier"] = move["tier"]
+                return stale
     elif mv == "drop":
         manifest["records"] = [r for r in records if r.get("id") != move.get("req_id")]
     # confirm: no structural change (records that a persona validated the REQ).
+    return []
 
 
 def merge_personas(grounded_by_persona: Sequence[dict], base_manifest: dict) -> MergeResult:
@@ -198,6 +310,7 @@ def merge_personas(grounded_by_persona: Sequence[dict], base_manifest: dict) -> 
 
     conflicts: List[Conflict] = []
     held_out: List[dict] = []
+    dissents: List[dict] = []
     to_apply: List[dict] = list(solo)
     for tgt, moves in by_target.items():
         reason = _group_conflict(moves)
@@ -208,17 +321,23 @@ def merge_personas(grounded_by_persona: Sequence[dict], base_manifest: dict) -> 
             ))
             held_out.extend(moves)   # surface, do NOT resolve — hold all of them out
         else:
-            to_apply.extend(moves)
+            keep, group_dissents = _split_dissents(tgt, moves)
+            to_apply.extend(keep)
+            dissents.extend(group_dissents)
 
     # Collapse agreement — identical moves from different personas apply ONCE
     # (two blind personas proposing the same missing REQ is agreement, not two
     # duplicate REQ records — self-Council Panelist C).
     to_apply = _dedup(to_apply)
+    # v1.6.1 [H4]: then collapse adds that cite the same passage.
+    to_apply, duplicates = _cluster_adds(to_apply)
 
     # Apply the non-conflicting moves to the base manifest.
     manifest = base_manifest
     for m in to_apply:
-        _apply_move(manifest, m)
+        stale = _apply_move(manifest, m)
+        if stale:
+            m["needs_text_review"] = stale   # v1.6.1 [H2]: for the review summary
 
     # Exactly ONE terminal renumber over the merged manifest.
     remap = requirements_render.renumber_to_document_order(manifest)
@@ -226,4 +345,5 @@ def merge_personas(grounded_by_persona: Sequence[dict], base_manifest: dict) -> 
     return MergeResult(
         manifest=manifest, conflicts=conflicts, applied=to_apply,
         held_out=held_out, remap=remap, renumber_calls=1,
+        dissents=dissents, duplicates=duplicates,
     )

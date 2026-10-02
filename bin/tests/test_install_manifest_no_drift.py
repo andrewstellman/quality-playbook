@@ -107,8 +107,10 @@ class InstallClosureNoDriftTests(unittest.TestCase):
         # persona_catalog/orchestration/grounding/merge/apply + requirements_render;
         # genuine bundle growth so an adopter install actually ships Feature H, not
         # a fixture dodge).
+        # v1.6.1 [H5]: 69 → 70 (+references/persona_brief.md, the persona
+        # prompt Feature H now ships instead of letting the agent compose one).
         from bin.qpb_validate import INSTALL_CLOSURE
-        self.assertEqual(len(INSTALL_CLOSURE), 69)
+        self.assertEqual(len(INSTALL_CLOSURE), 70)
         paths = [e["path"] for e in INSTALL_CLOSURE]
         self.assertEqual(len(paths), len(set(paths)),
                          "duplicate path in INSTALL_CLOSURE")

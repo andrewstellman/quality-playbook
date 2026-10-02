@@ -32,6 +32,7 @@ from __future__ import annotations
 import copy
 import json
 import re
+from datetime import datetime, timezone
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Sequence
 
@@ -92,6 +93,11 @@ PRE_REVIEW_MANIFEST_NAME = "requirements_manifest.pre_review.json"
 # was told they are "listed for you to judge" (instr 031 self-Council round 2,
 # Panelist B).
 UNDONE_REVIEW_SUMMARY_NAME = "expert_review_summary.undone.json"
+# v1.6.1 [H6]: the terminal renumber's old->new map, persisted so artifacts that
+# quote REQ ids outside the files run_feature_h rewrites can be fixed or audited.
+REQ_ID_REMAP_NAME = "req_id_remap.json"
+BUGS_MANIFEST_NAME = "bugs_manifest.json"
+CITATION_SEMANTIC_CHECK_NAME = "citation_semantic_check.json"
 
 # v1.6.0 Feature H slice 6 (§8b "Honesty about maturity"). A persona finding that
 # rests on the readability rubric — the Well-organized / readable dimension the
@@ -138,14 +144,25 @@ def _remap_cover(cover: str, remap: Dict[str, str]) -> str:
 
 
 def apply_remap_to_bugs(remap: Dict[str, str], bugs_manifest: dict) -> None:
-    """Update every BUG REQ cross-reference (``req_id``, ``covers[]``) via the
-    renumber remap, so a renumber never orphans a BUG→REQ link (traceability)."""
+    """Update every BUG REQ cross-reference via the renumber remap, so a
+    renumber never orphans a BUG→REQ link (traceability): ``req_id``,
+    ``covers[]``, and (v1.6.1 [H6]) the ``requirement`` / ``requirements[]``
+    spellings that requirements_pipeline.md § E.6 names for BUG records. Prose
+    fields that quote a REQ id are not rewritten; ``req_id_remap.json`` is the
+    record for fixing those."""
     if not remap or not bugs_manifest:
         return
     for bug in bugs_manifest.get("records", []):
-        rid = bug.get("req_id")
-        if rid in remap:
-            bug["req_id"] = remap[rid]
+        if not isinstance(bug, dict):
+            continue
+        for key in ("req_id", "requirement"):
+            rid = bug.get(key)
+            if isinstance(rid, str) and rid in remap:
+                bug[key] = remap[rid]
+        reqs = bug.get("requirements")
+        if isinstance(reqs, list):
+            bug["requirements"] = [remap.get(x, x) if isinstance(x, str) else x
+                                   for x in reqs]
         covers = bug.get("covers")
         if isinstance(covers, list):
             bug["covers"] = [_remap_cover(c, remap) for c in covers]
@@ -154,10 +171,16 @@ def apply_remap_to_bugs(remap: Dict[str, str], bugs_manifest: dict) -> None:
 # ---------------------------------------------------------------------------
 # Review summary.
 # ---------------------------------------------------------------------------
-def build_review_summary(merge_result, candidate_bucket: Optional[Sequence[dict]] = None) -> dict:
+def build_review_summary(merge_result, candidate_bucket: Optional[Sequence[dict]] = None,
+                         personas: Optional[Sequence[dict]] = None) -> dict:
     """Operator-visible: every applied agent-validation change with grounding,
     plus the surfaced conflicts and the candidate bucket. Nothing applied is
-    omitted."""
+    omitted.
+
+    v1.6.1: also the personas that ran (``personas``, [H7]), the confirms
+    overruled by a grounded correct (``dissents``, [H3]), the adds dropped as
+    same-passage duplicates (``duplicates``, [H4]), and the corrected REQs whose
+    other prose may still state the wider claim (``needs_text_review``, [H2])."""
     # instruction 028 fix 4: the terminal renumber remaps REQ ids, but the moves
     # recorded in the review summary still carry PRE-renumber `req_id`s (a confirm
     # move points at a stale id after persona adds shift the numbering). Apply the
@@ -183,8 +206,39 @@ def build_review_summary(merge_result, candidate_bucket: Optional[Sequence[dict]
             "dimension": m.get("dimension"),
             "rubric_dependent": bool(m.get("rubric_dependent") or
                                      (m.get("dimension") or "").strip().lower() in _RUBRIC_DIMENSIONS),
+            # v1.6.1 [H2]: prose fields this correct did not replace.
+            **({"needs_text_review": list(m["needs_text_review"])}
+               if m.get("needs_text_review") else {}),
         }
         for m in merge_result.applied
+    ]
+    # v1.6.1 [H2]: one entry per corrected REQ whose other prose still needs a
+    # read, keyed on the post-renumber id the record now carries.
+    needs_text_review = [
+        {"req_id": r.get("id"), "fields": list(r.get("needs_text_review") or [])}
+        for r in (getattr(merge_result, "manifest", None) or {}).get("records", [])
+        if r.get("needs_text_review")
+    ]
+    dissents = [
+        {"req_id": _rid(d.get("target")),
+         "confirmed_by": (d.get("confirm") or {}).get("persona_id"),
+         "confirm_reason": (d.get("confirm") or {}).get("reason"),
+         "corrected_by": list(d.get("corrected_by") or [])}
+        for d in (getattr(merge_result, "dissents", None) or [])
+    ]
+    duplicates = [
+        {"persona_id": d["move"].get("persona_id"),
+         "section": d["move"].get("section"),
+         "title": d["move"].get("title"),
+         "citation": d["move"].get("citation"),
+         "duplicate_of": {"persona_id": d["duplicate_of"].get("persona_id"),
+                          "title": d["duplicate_of"].get("title")}}
+        for d in (getattr(merge_result, "duplicates", None) or [])
+    ]
+    ran = [
+        {"id": p.get("id"), "title": p.get("title"),
+         **({"specialization": p["specialization"]} if p.get("specialization") else {})}
+        for p in (personas or [])
     ]
     conflicts = [
         {"target": _rid(c.target), "reason": c.reason, "personas": c.personas,
@@ -198,14 +252,20 @@ def build_review_summary(merge_result, candidate_bucket: Optional[Sequence[dict]
     all_items = applied + candidates
     for c in conflicts:
         all_items.extend(c.get("moves", []))
-    return {
+    summary = {
         "applied": applied,
         "applied_count": len(applied),
         "conflicts": conflicts,
         "conflict_count": len(conflicts),
         "candidates": candidates,
+        "dissents": dissents,
+        "duplicates": duplicates,
+        "needs_text_review": needs_text_review,
         "maturity_disclosure": maturity_disclosure(all_items),
     }
+    if personas is not None:
+        summary["personas"] = ran
+    return summary
 
 
 # ---------------------------------------------------------------------------
@@ -235,6 +295,62 @@ def _plural(n: int, singular: str, plural: str) -> str:
     return f"{n} {singular if n == 1 else plural}"
 
 
+# v1.6.1 [H7]: plain-language names for the catalog lenses. The 1.6.0 text
+# hardcoded "one who knows this kind of system and one who reviews for
+# security" while the icalendar run (2026-10-01) ran three.
+_REVIEWER_PHRASES = {
+    "domain-expert": "one who knows this kind of system",
+    "security-reviewer": "one who reviews for security",
+    "api-consumer": "one who looks at it as a developer calling its API",
+    "operator-sre": "one who runs services like it in production",
+    "data-privacy": "one who reviews how it handles sensitive data",
+    "accessibility": "one who reviews accessibility",
+    "performance": "one who reviews performance",
+    "reliability": "one who reviews how it behaves when things fail",
+    "adopter": "one who looks at it as a new user setting it up",
+}
+
+_NUMBER_WORDS = {2: "two", 3: "three", 4: "four", 5: "five", 6: "six",
+                 7: "seven", 8: "eight", 9: "nine"}
+
+
+def _reviewers_sentence(review_summary: dict) -> str:
+    """The "who reviewed" sentence, built from the personas the summary says
+    ran. A summary without a ``personas`` list (written before v1.6.1) names no
+    count, because the count is not on record."""
+    ran = review_summary.get("personas")
+    if not isinstance(ran, list) or not ran:
+        return ("Before moving on, I brought in expert reviewers to read your "
+                "requirements against the documents you gave me.")
+    phrases = []
+    for p in ran:
+        pid = p.get("id") if isinstance(p, dict) else None
+        phrase = _REVIEWER_PHRASES.get(pid)
+        if phrase is None:
+            title = (p.get("title") if isinstance(p, dict) else None) or "another specialist"
+            phrase = f"one with a {title.lower()} focus"
+        phrases.append(phrase)
+    n = len(phrases)
+    if n == 1:
+        who = f"one expert reviewer, {phrases[0]},"
+    else:
+        listed = (" and ".join(phrases) if n == 2
+                  else ", ".join(phrases[:-1]) + ", and " + phrases[-1])
+        who = f"{_NUMBER_WORDS.get(n, str(n))} expert reviewers — {listed} —"
+    return (f"Before moving on, I brought in {who} to read your requirements "
+            "against the documents you gave me.")
+
+
+# v1.6.1 [H7]: revert_from_disk refuses once quality/bugs_manifest.json holds
+# BUG records (or cannot be read), so the offer says when it stops working.
+_UNDO_OFFER = (
+    "If you would rather not keep any of this, say **undo the expert review "
+    "changes** and I will put your requirements back exactly as they were "
+    "before this step. That undo works only until I record the first bug "
+    "against these requirements; after that, the changes stay."
+)
+
+
 def persona_review_disclosure(review_summary: Optional[dict]) -> Optional[str]:
     """The plain-language end-of-Phase-2 disclosure that the expert-reviewer pass
     ran and what it did — or ``None`` when it did not run.
@@ -262,14 +378,10 @@ def persona_review_disclosure(review_summary: Optional[dict]) -> Optional[str]:
         # over there, and it can be undone.
         return "\n".join([
             "### I had expert reviewers check your requirements", "",
-            "Before moving on, I brought in expert reviewers — one who knows this "
-            "kind of system and one who reviews for security — to read your "
-            "requirements against the documents you gave me.", "",
+            _reviewers_sentence(review_summary), "",
             "**The record of what they did is incomplete here, so I won't "
             f"summarize it.** Open `{REVIEW_SUMMARY_PATH}` to see what they "
-            "changed. If you would rather not keep their changes, say **undo the "
-            "expert review changes** and I will put your requirements back "
-            "exactly as they were before this step.",
+            f"changed. {_UNDO_OFFER}",
         ])
 
     moves = [str(m.get("move") or "").lower() for m in applied]
@@ -280,17 +392,19 @@ def persona_review_disclosure(review_summary: Optional[dict]) -> Optional[str]:
     set_aside = len(review_summary.get("candidates") or [])
     disagreements = len(review_summary.get("conflicts") or [])
     changed = added + reworded + removed
+    # v1.6.1 [H2]/[H3]: rewrites whose other wording still needs a read, and
+    # rewrites applied over another reviewer's "leave it as written".
+    to_reread = len(review_summary.get("needs_text_review") or [])
+    overruled = len(review_summary.get("dissents") or [])
 
     lines: List[str] = ["### I had expert reviewers check your requirements", ""]
     lines.append(
-        "Before moving on, I brought in expert reviewers — one who knows this kind "
-        "of system and one who reviews for security — to read your requirements "
-        "against the documents you gave me. They only add or rewrite a "
+        _reviewers_sentence(review_summary) + " They only add or rewrite a "
         "requirement when they can point to the documentation that backs it up."
     )
     lines.append("")
 
-    if not (changed or confirmed or set_aside or disagreements):
+    if not (changed or confirmed or set_aside or disagreements or overruled):
         lines.append(
             "They read through your requirements and did not change anything. "
             f"Their notes are in `{REVIEW_SUMMARY_PATH}` if you want to see them."
@@ -314,6 +428,16 @@ def persona_review_disclosure(review_summary: Optional[dict]) -> Optional[str]:
                      f"they judged {'does' if removed == 1 else 'do'} not belong. "
                      "(A removal isn't checked against your documents the way an "
                      "addition is — worth a look.)")
+    if to_reread:
+        lines.append(
+            f"- Left other wording unchanged on {_plural(to_reread, 'rewritten requirement', 'rewritten requirements')}. "
+            f"That wording may still say more than the documentation does — "
+            f"{'it is' if to_reread == 1 else 'those are'} marked in the record "
+            "for you to read.")
+    if overruled:
+        lines.append(
+            f"- Applied {_plural(overruled, 'rewrite', 'rewrites')} that another "
+            "reviewer would have left as written. Both views are in the record.")
     if confirmed:
         lines.append(f"- Read {_plural(confirmed, 'requirement', 'requirements')} "
                      f"and agreed with {'it' if confirmed == 1 else 'them'} as "
@@ -339,9 +463,7 @@ def persona_review_disclosure(review_summary: Optional[dict]) -> Optional[str]:
             f"in all.** Every one of them is listed in `{REVIEW_SUMMARY_PATH}` with "
             "what it is based on, so you can check the reasoning. Requirement "
             "numbers were put back in order afterwards, so some of them shifted. "
-            "If you would rather not keep any of this, say **undo the expert "
-            "review changes** and I will put your requirements back exactly as "
-            "they were before this step."
+            f"{_UNDO_OFFER}"
         )
     else:
         lines.append(
@@ -372,6 +494,7 @@ def run_persona_pass(
     *,
     candidate_bucket: Optional[Sequence[dict]] = None,
     enabled: bool = True,
+    personas: Optional[Sequence[dict]] = None,
 ) -> PersonaPass:
     """Apply the merged grounded moves + build the review summary + propagate the
     remap. **Off-switch:** ``enabled=False`` does NOTHING — no merge, no
@@ -386,7 +509,7 @@ def run_persona_pass(
     mr = persona_merge.merge_personas(grounded_by_persona, base_manifest)
     if bugs_manifest is not None:
         apply_remap_to_bugs(mr.remap, bugs_manifest)
-    summary = build_review_summary(mr, candidate_bucket)
+    summary = build_review_summary(mr, candidate_bucket, personas)
 
     return PersonaPass(
         enabled=True, manifest=base_manifest, review_summary=summary,
@@ -505,8 +628,19 @@ def run_feature_h(
     # 2. Stage isolated inputs + spawn the tool-restricted persona sub-agents.
     #    run_personas enforces prevention-by-absence staging + Read-rooted config
     #    and returns each persona's RAW candidate diff-set.
+    #    v1.6.1 [H5]: every persona also gets the shipped brief
+    #    (references/persona_brief.md), staged as persona_brief.md; the
+    #    running agent's spawn prompt is persona_orchestration.persona_prompt.
+    brief = persona_orchestration.persona_brief_input()
+
+    def _provision_with_brief(persona):
+        inputs = list(provision(persona))
+        if not any(Path(it.name).name == brief.name for it in inputs):
+            inputs.append(brief)
+        return inputs
+
     runs = persona_orchestration.run_personas(
-        selected, provision, spawn_persona, Path(staging_root))
+        selected, _provision_with_brief, spawn_persona, Path(staging_root))
 
     # 3. Ground each raw diff-set (guard 1): grounded vs candidate. Forward the
     #    grounded add/correct moves AND the ungated pass-through moves
@@ -529,7 +663,7 @@ def run_feature_h(
     #      snapshots for revert and honors provenance.
     result = run_persona_pass(
         base_manifest, grounded_by_persona, bugs_manifest,
-        candidate_bucket=candidates, enabled=True)
+        candidate_bucket=candidates, enabled=True, personas=selected)
 
     # 6. Persist the updated requirements manifest (the source of truth) + write
     #    the operator-visible review summary as run artifacts.
@@ -560,7 +694,68 @@ def run_feature_h(
             (quality_dir / PRE_REVIEW_MANIFEST_NAME).write_text(
                 json.dumps(result._pre_requirements, indent=2, sort_keys=True) + "\n",
                 encoding="utf-8")
+        # v1.6.1 [H6]: carry the terminal renumber to the REQ-id-bearing files
+        # on disk and record the map itself.
+        propagate_remap_on_disk(quality_dir, result.remap)
     return result
+
+
+def _remap_json_file(path: Path, remap: Dict[str, str], apply) -> str:
+    """Load ``path``, apply ``apply(remap, data)``, write it back. Returns
+    ``"updated"``, ``"absent"`` or ``"unreadable"``; an unreadable or
+    wrongly-shaped file is left untouched rather than guessed at."""
+    if not path.is_file():
+        return "absent"
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return "unreadable"
+    if not isinstance(data, dict):
+        return "unreadable"
+    apply(remap, data)
+    path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+    return "updated"
+
+
+def _apply_remap_to_semantic_check(remap: Dict[str, str], data: dict) -> None:
+    for review in data.get("reviews") or []:
+        if isinstance(review, dict) and review.get("req_id") in remap:
+            review["req_id"] = remap[review["req_id"]]
+
+
+def propagate_remap_on_disk(quality_dir, remap: Dict[str, str], *,
+                            generated_at: Optional[str] = None) -> dict:
+    """v1.6.1 [H6]: apply the renumber remap to ``quality/bugs_manifest.json``
+    (``apply_remap_to_bugs``) and ``quality/citation_semantic_check.json``
+    (``reviews[].req_id``) when they exist, then write
+    ``quality/req_id_remap.json`` (old→new, timestamp, per-file outcome).
+
+    1.6.0 remapped only an in-memory bugs manifest and wrote neither file, so
+    an iteration run's BUG records kept pre-renumber ids. Each file is
+    remapped from its own on-disk content exactly once. The remap record is
+    written even when the remap is empty, so an auditor can tell "no ids
+    moved" from "the pass never recorded it". Returns the record."""
+    quality_dir = Path(quality_dir)
+    remap = dict(remap or {})
+    files = {}
+    if remap:
+        files[BUGS_MANIFEST_NAME] = _remap_json_file(
+            quality_dir / BUGS_MANIFEST_NAME, remap, apply_remap_to_bugs)
+        files[CITATION_SEMANTIC_CHECK_NAME] = _remap_json_file(
+            quality_dir / CITATION_SEMANTIC_CHECK_NAME, remap,
+            _apply_remap_to_semantic_check)
+    record = {
+        "generated_at": generated_at or datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "remap": dict(sorted(remap.items())),
+        "files": files,
+        "note": ("REQ ids quoted in prose (REQUIREMENTS.md, BUGS.md, writeups, "
+                 "COVERAGE_MATRIX.md) are not rewritten by this step; use this "
+                 "map to fix or audit them."),
+    }
+    quality_dir.mkdir(parents=True, exist_ok=True)
+    (quality_dir / REQ_ID_REMAP_NAME).write_text(
+        json.dumps(record, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return record
 
 
 def revert_from_disk(target_repo, *, write: bool = True) -> dict:

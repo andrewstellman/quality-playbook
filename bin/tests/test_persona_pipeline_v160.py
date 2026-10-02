@@ -121,8 +121,10 @@ class ComposedPassTests(PipelineBase):
             provision=self._provision, spawn_persona=self._spawn(seen),
             formal_docs=self.formal_docs, staging_root=self.root / "_staging")
         for pid, names, denies_bash, denies_fetch in seen:
-            # Each spawn got ONLY the staged inputs and a tool-restricted config.
-            self.assertEqual(names, {"REQUIREMENTS.md", "spec.txt", "rubric.md"})
+            # Each spawn got ONLY the staged inputs and a tool-restricted config
+            # (v1.6.1 [H5]: plus the shipped persona brief).
+            self.assertEqual(names, {"REQUIREMENTS.md", "spec.txt", "rubric.md",
+                                     "persona_brief.md"})
             self.assertTrue(denies_bash and denies_fetch)
 
     def test_ungrounded_move_is_candidate_not_applied(self):

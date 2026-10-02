@@ -290,6 +290,60 @@ def _iter_candidates(root: Path) -> Iterable[Path]:
     return candidates
 
 
+# v1.6.1 [I1]: how many skipped paths the WARN names before summarising.
+_NESTED_WARN_LIST_MAX = 50
+
+
+def nested_skipped_files(target_repo: Path) -> List[str]:
+    """Files ``_iter_candidates`` does not read: anything inside a subfolder of
+    ``reference_docs/`` (other than ``cite/``'s own top level) or inside a
+    subfolder of ``reference_docs/cite/``. Repo-relative POSIX paths, sorted;
+    dotfiles and dot-directories excluded.
+
+    v1.6.1 [I1]: the flat layout stays (BUG-003 / fix-up 067 C-7 made
+    non-recursion the contract, pinned by test_reference_docs_ingest), but the
+    skip is no longer silent. A 2026-10-01 run ingested 1 of 122 documents
+    because 121 sat in nested folders and nothing said so.
+    """
+    target_repo = Path(target_repo)
+    ref_dir = target_repo / REFERENCE_DIR_NAME
+    if not ref_dir.is_dir():
+        return []
+    cite_dir = ref_dir / CITE_DIR_NAME
+    skipped: List[str] = []
+    for top in (ref_dir, cite_dir):
+        if not top.is_dir():
+            continue
+        for sub in sorted(top.iterdir()):
+            if not sub.is_dir() or sub == cite_dir or sub.name.startswith("."):
+                continue
+            for p in sorted(sub.rglob("*")):
+                if not p.is_file():
+                    continue
+                rel_parts = p.relative_to(sub).parts
+                if any(part.startswith(".") for part in rel_parts):
+                    continue
+                skipped.append(_rel(p, target_repo))
+    return sorted(skipped)
+
+
+def nested_skip_warning(skipped: Sequence[str]) -> Optional[str]:
+    """The WARN text for ``nested_skipped_files`` output, or None if empty."""
+    if not skipped:
+        return None
+    shown = list(skipped[:_NESTED_WARN_LIST_MAX])
+    lines = [
+        f"WARN: reference_docs_ingest skipped {len(skipped)} file(s) in nested "
+        f"folders. Only files directly in {REFERENCE_DIR_NAME}/ and "
+        f"{REFERENCE_DIR_NAME}/{CITE_DIR_NAME}/ are read. Move a file up one "
+        f"level to have it ingested:",
+    ]
+    lines += [f"  {p}" for p in shown]
+    if len(skipped) > len(shown):
+        lines.append(f"  ... and {len(skipped) - len(shown)} more")
+    return "\n".join(lines)
+
+
 def _rel(path: Path, target_repo: Path) -> str:
     return str(path.relative_to(target_repo)).replace("\\", "/")
 
@@ -574,6 +628,11 @@ def ingest(target_repo: Path, *, llm_classifier=None) -> dict:
 
     ref_dir = target_repo / REFERENCE_DIR_NAME
     cite_dir = ref_dir / CITE_DIR_NAME
+
+    # v1.6.1 [I1]: say which nested files this flat-layout ingest skips.
+    warning = nested_skip_warning(nested_skipped_files(target_repo))
+    if warning:
+        print(warning, file=sys.stderr)
 
     # Prefer an installed SKILL.md under .github/skills or .claude/skills; fall
     # back to a root-level SKILL.md (used by the QPB self-audit bootstrap).

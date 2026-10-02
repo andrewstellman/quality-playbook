@@ -227,6 +227,50 @@ def staging_fingerprint(inputs: Sequence[StagedInput]) -> str:
     return hashlib.sha256(material.encode("utf-8")).hexdigest()
 
 
+# ---------------------------------------------------------------------------
+# v1.6.1 [H5]: the shipped persona brief. QPB 1.6.0 shipped no persona prompt,
+# so the running agent composed its own; on collective/icalendar (2026-10-01)
+# those prompts produced multi-part REQs quoting one passage that supported one
+# part. references/persona_brief.md is now the prompt every persona receives.
+# ---------------------------------------------------------------------------
+PERSONA_BRIEF_REFERENCE = "references/persona_brief.md"
+PERSONA_BRIEF_STAGED_NAME = "persona_brief.md"
+
+
+def persona_brief_path() -> Path:
+    """Locate references/persona_brief.md beside this scripts/ (or bin/) dir:
+    the skill bundle and the pip/npm _bundle both put references/ one level up."""
+    here = Path(__file__).resolve().parent
+    for base in (here.parent, here.parent.parent):
+        cand = base / PERSONA_BRIEF_REFERENCE
+        if cand.is_file():
+            return cand
+    raise FileNotFoundError(
+        f"persona_orchestration: {PERSONA_BRIEF_REFERENCE} not found next to {here}")
+
+
+def load_persona_brief() -> str:
+    return persona_brief_path().read_text(encoding="utf-8")
+
+
+def persona_brief_input() -> StagedInput:
+    """The brief as a StagedInput, for a Feature H ``provision`` to stage."""
+    return StagedInput(PERSONA_BRIEF_STAGED_NAME, load_persona_brief())
+
+
+def persona_prompt(persona: dict) -> str:
+    """The sub-agent prompt for one persona: its lens, then the shipped brief.
+    The running agent passes this verbatim; it does not write its own."""
+    pid = persona.get("id", "persona")
+    title = persona.get("title") or pid
+    head = [f"Your lens: {title} (persona_id: {pid})."]
+    if persona.get("specialization"):
+        head.append(f"Specialization: {persona['specialization']}.")
+    if persona.get("justification"):
+        head.append(f"Why this lens was selected: {persona['justification']}")
+    return "\n".join(head) + "\n\n" + load_persona_brief()
+
+
 _SAFE_RE = re.compile(r"[^A-Za-z0-9._-]+")
 
 

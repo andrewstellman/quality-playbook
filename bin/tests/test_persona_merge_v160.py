@@ -85,13 +85,19 @@ class UnionTests(unittest.TestCase):
         self.assertEqual(len(r.applied), 1)
 
     def test_different_adds_to_same_section_both_land(self):
+        # v1.6.1 [H4]: the two adds cite DIFFERENT passages. Two adds citing the
+        # same passage are one cluster (see SamePassageClusterTests).
         grounded = [
             {"persona_id": "a", "moves": [
                 {"move": "add", "section": "Routing", "title": "one",
-                 "conditions_of_satisfaction": "x", "citation": _cit()}]},
+                 "conditions_of_satisfaction": "x",
+                 "citation": {"document": "reference_docs/spec.txt",
+                              "citation_excerpt": "passage one", "line": 3}}]},
             {"persona_id": "b", "moves": [
                 {"move": "add", "section": "Routing", "title": "two",
-                 "conditions_of_satisfaction": "y", "citation": _cit()}]},
+                 "conditions_of_satisfaction": "y",
+                 "citation": {"document": "reference_docs/spec.txt",
+                              "citation_excerpt": "passage two", "line": 9}}]},
         ]
         r = pm.merge_personas(grounded, _base())
         titles = [rec.get("title") for rec in r.manifest["records"]]
