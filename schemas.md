@@ -962,6 +962,7 @@ instead of `records`:
 | `reviewer` | string | yes      | Identifier of the council member, e.g. `"claude-opus-4.7"`, `"gpt-5.5"`, `"claude-sonnet-4.6"`. Free-form but stable across entries from the same reviewer. The canonical roster lives at `bin/council_config.DEFAULT_COUNCIL_MEMBERS`. |
 | `verdict`  | string | yes      | Member of the `verdict` enum (§3.5).                                   |
 | `notes`    | string | yes      | Reviewer's reasoning for the verdict. May be empty string. Not gate-enforced for content. |
+| `req_hash` | string | no (v1.6.1+; written by `council_semantic_check.write_semantic_check`) | sha256 hex of the reviewed REQ's content at review time, computed by `quality_gate.req_review_hash` (the one definition writer and gate share): the UTF-8 JSON object `{"citation_excerpt", "conditions_of_satisfaction", "title"}` with sorted keys, `separators=(",", ":")`, `ensure_ascii=False`; missing fields serialize as `""`, and a REQ without `conditions_of_satisfaction` uses its `description` in that slot. The gate treats an entry whose `req_hash` differs from the current REQ's hash as **stale** ("review predates a rewrite of REQ-NNN") and does not count it toward the three reviews §9.4 requires. Entries without `req_hash` still count; the gate WARNs once per file. |
 
 ### 9.3 Example
 
@@ -1160,7 +1161,8 @@ Layer 1 (mechanical checks):
    `functional_section` string.
 
 9. **No orphan reference docs.** Every file under `reference_docs/cite/` whose
-   extension is in the supported list MUST appear as a `FORMAL_DOC` record
+   extension is in the supported list (§2: `.txt`, `.md`, `.rst`; the gate
+   accepts all three since v1.6.1) MUST appear as a `FORMAL_DOC` record
    (ingest ran and was complete). Files with unsupported extensions MUST
    cause ingest to fail with a clear error, not be silently skipped.
 
@@ -1206,6 +1208,12 @@ Layer 1 (mechanical checks):
     if any Tier 1/2 REQ has two or more reviews with
     `verdict == "overreaches"`. Single-member `unclear` or `overreaches`
     verdicts are surfaced as warnings but do not fail the gate.
+    v1.6.1: a majority-overreach FAIL on a REQ that no confirmed BUG's
+    `req_id` names is an operator decision — the gate reports
+    `RESULT: GATE PASSED WITH DECISIONS NEEDED` (exit 0) when no
+    substantive FAIL remains; on a REQ a confirmed BUG rests on, the FAIL
+    stays substantive and names the BUGs. Reviews whose `req_hash` (§9.2)
+    no longer matches the REQ are stale and do not count.
 
 18. **Array value uniqueness.** Values within `REQ.use_cases` MUST be
     unique. Values within `UC.formal_doc_refs` MUST be unique. Duplicate
@@ -1272,7 +1280,7 @@ every required field below is present and non-empty.
 | `phases_executed`        | array of object | yes      | One entry per phase run. Each: `{phase_id, model, start, end, exit_status}`.                                                  |
 | `summary.requirements`   | object          | yes      | Counts by tier — keys `"1"`..`"5"`, integer values.                                                                          |
 | `summary.bugs`           | object          | yes      | Counts by severity and disposition. Keys include every enum value from §3.2 and §3.3; integer values.                        |
-| `summary.gate_verdict`   | string          | yes      | One of `"pass"`, `"pass-with-cleanup"`, `"fail"`, `"partial"`. The `"pass-with-cleanup"` value (v1.5.7 089d F17) corresponds to the gate's `RESULT: GATE PASSED WITH CLEANUP NEEDED` line — the review completed and the bug findings stand; only audit record-keeping is incomplete (non-blocking outcome, exit 0). |
+| `summary.gate_verdict`   | string          | yes      | One of `"pass"`, `"pass-with-cleanup"`, `"pass-with-decisions"`, `"fail"`, `"partial"`. The `"pass-with-cleanup"` value (v1.5.7 089d F17) corresponds to the gate's `RESULT: GATE PASSED WITH CLEANUP NEEDED` line — the review completed and the bug findings stand; only audit record-keeping is incomplete (non-blocking outcome, exit 0). The `"pass-with-decisions"` value (v1.6.1) corresponds to `RESULT: GATE PASSED WITH DECISIONS NEEDED` — no substantive FAIL; the only blocking-class FAILs are requirements the Council said overreach their citation and that no confirmed bug rests on (exit 0; see `quality/OPERATOR_DECISIONS.md`). |
 | `summary.languages_detected` | object \| array | **conditional** (v1.5.10 058) | The testable code languages detected in the target, as `{lang: file_count}` (or a ranked list). **Required only when ≥2 testable languages clear the disclosure threshold** (≥10% of the testable file total AND ≥5 files); omit otherwise. Markdown / shell / non-code content is never listed (non-testable). No `schema_version` bump — additive, conditional. |
 | `summary.ran_on`         | string          | **conditional** (v1.5.10 058) | The single testable language this run actually targeted (the detected winner, or the `--language` override). Required under the same ≥2-testable-language condition as `languages_detected`. |
 | `summary.untested_testable_languages` | array of string | **conditional** (v1.5.10 058) | The over-threshold testable languages this run did NOT test (the disclosure list shown to the operator). Required under the same condition; an empty array is not a valid value when the condition fires (there is always at least one untested language when ≥2 clear the threshold and one was tested). |

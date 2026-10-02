@@ -570,9 +570,10 @@ The gate script validates all artifacts mechanically. It is the sole mechanical 
 python3 <resolved_quality_gate_path> .
 ```
 
-The gate reports one of **three verdicts** (the v1.5.7 F15 three-state taxonomy), not a bare pass/fail:
+The gate reports one of **four verdicts** (the v1.5.7 F15 three-state taxonomy plus the v1.6.1 decisions state), not a bare pass/fail:
 - **PASSED** — all checks clean; the run is complete and conformant.
 - **PASSED WITH CLEANUP NEEDED** — the substantive checks passed but a non-blocking hygiene issue remains (e.g. a stray `workspace/` directory left behind); the findings are trustworthy, just tidy up before archiving.
+- **PASSED WITH DECISIONS NEEDED** — no substantive check failed; two or more Council reviewers said N requirements say more than the passage they quote, and no confirmed bug rests on them. Decide each one from `quality/OPERATOR_DECISIONS.md` (narrow, re-cite, keep with a note, or split). Exit code 0.
 - **FAILED** — a blocking check failed; the artifact set is non-conformant (see causes below).
 
 If it reports FAIL results, the most common causes:

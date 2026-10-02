@@ -205,7 +205,7 @@ The playbook runs in **six phases**, each in its own context window. After each 
 | 3 — Code review | Three-pass review: structural, requirement verification, cross-requirement consistency. Each confirmed bug gets a regression test. |
 | 4 — Spec audit | Three independent AI models audit the code against requirements (Council of Three). Triage uses verification probes ("is this actually true?") rather than majority vote. |
 | 5 — Reconciliation | Every bug from code review + spec audit tracked, regression-tested or explicitly exempted. |
-| 6 — Verify | 45 self-check benchmarks validate generated artifacts. Final gate: GATE PASSED / GATE PASSED WITH CLEANUP NEEDED / GATE FAILED. |
+| 6 — Verify | 45 self-check benchmarks validate generated artifacts. Final gate: GATE PASSED / GATE PASSED WITH CLEANUP NEEDED / GATE PASSED WITH DECISIONS NEEDED / GATE FAILED. |
 
 After the baseline, **iterations** find more bugs: gap → unfiltered → parity → adversarial. Each strategy explores different classes of bug; running all four typically adds 40-60% on top of the baseline. Say *"Run the next iteration using the gap strategy"* to start.
 
@@ -249,7 +249,7 @@ The six phases are summarized in the *[Running the playbook](#running-the-playbo
 
 > *"Read TOOLKIT.md. Walk me through Phase N in detail. What's the input, what's the output, what can go wrong?"*
 
-The final gate produces one of **three verdicts**: `GATE PASSED` (review complete, nothing to do), `GATE PASSED WITH CLEANUP NEEDED` (bug findings are real and stand on their own; only the audit trail is incomplete), or `GATE FAILED` (substantive problem — review didn't complete, specs missing, or verdict was fabricated). The split lets you distinguish *"your code is broken in N ways"* from *"your audit trail is incomplete in N ways"*.
+The final gate produces one of **four verdicts**: `GATE PASSED` (review complete, nothing to do), `GATE PASSED WITH CLEANUP NEEDED` (bug findings are real and stand on their own; only the audit trail is incomplete), `GATE PASSED WITH DECISIONS NEEDED` (no substantive problem; N requirements say more than the passage they quote, no confirmed bug rests on them, and `quality/OPERATOR_DECISIONS.md` lists your options for each), or `GATE FAILED` (substantive problem — review didn't complete, specs missing, or verdict was fabricated). The split lets you distinguish *"your code is broken in N ways"* from *"your audit trail is incomplete in N ways"*. Every verdict starts with a `── Bug evidence ──` block that says how many bugs have red and green test logs, separately from the gate result.
 
 ### Why documentation matters
 
@@ -293,7 +293,7 @@ Most adopter questions are answered by loading `TOOLKIT.md` into your AI tool an
 
 **Understanding the gate verdicts:**
 
-> *"Read TOOLKIT.md. What's the difference between GATE PASSED, GATE PASSED WITH CLEANUP NEEDED, and GATE FAILED?"*
+> *"Read TOOLKIT.md. What's the difference between GATE PASSED, GATE PASSED WITH CLEANUP NEEDED, GATE PASSED WITH DECISIONS NEEDED, and GATE FAILED?"*
 
 If `TOOLKIT.md` doesn't answer your question, file an issue at https://github.com/andrewstellman/quality-playbook/issues.
 

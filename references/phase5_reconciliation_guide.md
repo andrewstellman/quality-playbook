@@ -4,6 +4,8 @@
 
 ## Phase 5 reconciliation procedure
 
+Apply `references/claims_rules.md` before writing operator-facing text.
+
 **Phase 5 entry gate (mandatory — HARD STOP).** Before proceeding, verify ALL of the following Phase 4 artifacts exist:
 
 1. `quality/spec_audits/` directory exists and contains at least one `*triage*` file (the triage synthesis)
@@ -97,7 +99,35 @@ For each missing file, create it now. Do not mark Phase 5 complete with missing 
 
 **Sidecar JSON post-write validation (mandatory).** After writing `quality/results/tdd-results.json` and/or `quality/results/integration-results.json`, immediately reopen each file and verify it contains all required keys. For `tdd-results.json`, the required root keys are: `schema_version`, `skill_version`, `date`, `project`, `bugs`, `summary`. Each entry in `bugs` must have: `id`, `requirement`, `red_phase`, `green_phase`, `verdict`, `fix_patch_present`, `writeup_path`. The `summary` object must include `confirmed_open` alongside `verified`, `red_failed`, `green_failed`. For `integration-results.json`, the required root keys are: `schema_version`, `skill_version`, `date`, `project`, `recommendation`, `groups`, `summary`, `uc_coverage`. Both files must have `schema_version: "1.1"`. If any key is missing, add it now — do not leave a non-conformant JSON file on disk. This validation exists because agents frequently emit non-conformant sidecar JSON (invented alternate schemas, legacy shapes, omitted `summary` fields, invalid enum values) — the post-write check is the cheap way to catch and correct before the gate.
 
-**Script-verified closure gate (mandatory, final step before marking Phase 5 complete).** Locate `quality_gate.py` using the same fallback as reference files — walk these ten canonical install layouts in order, taking the first hit: `quality_gate.py`, `.claude/skills/quality-playbook/quality_gate.py`, `.github/skills/quality_gate.py`, `.cursor/skills/quality-playbook/quality_gate.py`, `.continue/skills/quality-playbook/quality_gate.py`, `.github/skills/quality-playbook/quality_gate.py`, `.codex/skills/quality-playbook/quality_gate.py`, `.windsurf/skills/quality-playbook/quality_gate.py`, `.cline/skills/quality-playbook/quality_gate.py`, `.aider/skills/quality-playbook/quality_gate.py`. Run it from the project root directory. This script mechanically validates: file existence, BUGS.md heading format, sidecar JSON required keys AND per-bug field names (`id`, `requirement`, `red_phase`, `green_phase`, `verdict`, `fix_patch_present`, `writeup_path`) AND enum values AND summary consistency, use case identifiers, terminal gate section, mechanical verification receipts, version stamps, writeup completeness, **regression-test patch presence for every confirmed bug**, and **inline fix diffs in every writeup** (every `quality/writeups/BUG-NNN.md` must contain a ` ```diff ` block). If the script reports any FAIL results, fix each failing check before proceeding — the most common FAILs are: (1) missing `quality/patches/BUG-NNN-regression-test.patch` files, (2) non-canonical JSON field names like `bug_id` instead of `id`, (3) missing `confirmed_open` in the TDD summary, (4) writeups without inline fix diffs (section 6 must include a concrete diff, not just "see patch file"). Do not mark Phase 5 complete until `quality_gate.py` exits 0. Append the script's full output to `quality/results/quality-gate.log`.
+**Script-verified closure gate (mandatory, final step before marking Phase 5 complete).** Locate `quality_gate.py` using the same fallback as reference files — walk these ten canonical install layouts in order, taking the first hit: `quality_gate.py`, `.claude/skills/quality-playbook/quality_gate.py`, `.github/skills/quality_gate.py`, `.cursor/skills/quality-playbook/quality_gate.py`, `.continue/skills/quality-playbook/quality_gate.py`, `.github/skills/quality-playbook/quality_gate.py`, `.codex/skills/quality-playbook/quality_gate.py`, `.windsurf/skills/quality-playbook/quality_gate.py`, `.cline/skills/quality-playbook/quality_gate.py`, `.aider/skills/quality-playbook/quality_gate.py`. Run it from the project root directory. This script mechanically validates: file existence, BUGS.md heading format, sidecar JSON required keys AND per-bug field names (`id`, `requirement`, `red_phase`, `green_phase`, `verdict`, `fix_patch_present`, `writeup_path`) AND enum values AND summary consistency, use case identifiers, terminal gate section, mechanical verification receipts, version stamps, writeup completeness, **regression-test patch presence for every confirmed bug**, and **inline fix diffs in every writeup** (every `quality/writeups/BUG-NNN.md` must contain a ` ```diff ` block). If the script reports any FAIL results, fix each failing check before proceeding — the most common FAILs are: (1) missing `quality/patches/BUG-NNN-regression-test.patch` files, (2) non-canonical JSON field names like `bug_id` instead of `id`, (3) missing `confirmed_open` in the TDD summary, (4) writeups without inline fix diffs (section 6 must include a concrete diff, not just "see patch file"). Do not mark Phase 5 complete until `quality_gate.py` exits 0 — or until every FAIL that remains is operator-owned or record-keeping (see "Requirement decisions the operator owns" below); in that case Phase 5 closes and says how many FAILs remain for the operator. Append the script's full output to `quality/results/quality-gate.log`.
+
+**Requirement decisions the operator owns (v1.6.1).** Two kinds of gate FAIL are about how a requirement is written, not about the code:
+
+- **Overreach** — `citation_semantic_check.json: record_id=REQ-NNN: semantic check majority overreaches (...)`: two or more Council reviewers said the requirement says more than the passage it quotes.
+- **Tier mismatch** — `requirements_manifest.json: record_id=REQ-NNN: is tier 3 but carries a citation block` (or `tier=N does not match cited FORMAL_DOC tier`): the requirement quotes a document but its tier says otherwise.
+
+Phase 5 must NOT rewrite these requirements, change their tier, or delete their citations to make the gate pass. Narrowing a requirement can quietly drop the expectation a bug rests on; that call is the operator's. Instead, write `quality/OPERATOR_DECISIONS.md` with one section per REQ in this fixed structure:
+
+```
+## REQ-NNN — <title>
+
+- Kind: overreach (K of 3 reviewers) | tier mismatch (tier T, cites a tier-U document)
+- Requirement text: <title + conditions of satisfaction / description, verbatim from requirements_manifest.json>
+- Cited excerpt: <citation_excerpt, verbatim> (<document>, <section/line>)
+- Reviewer notes:
+  - <reviewer>: <verdict> — <notes, verbatim from citation_semantic_check.json>
+  - ...
+- Bugs that rest on this requirement: BUG-NNN, ... (from bugs_manifest.json req_id) | none
+- Options (ready to apply — the operator picks one):
+  1. Narrow: <replacement conditions text that says only what the excerpt says>
+  2. Re-cite: <a passage (document, section/line, quoted) that covers the rest>, or "no covering passage found"
+  3. Keep with a note: keep the text; record the reviewers' note beside it
+  4. Split: keep the cited part here; move the uncovered conditions into a new tier-3 requirement REQ-<next> with text: <...>
+```
+
+For a tier mismatch, options 1–2 become "set the tier to the cited document's tier (U)" and "remove the citation and keep tier T". Option 4 (split) is applied only by the operator, or by an agent that gives the new REQ explicit `source_type: agent-validation` provenance (never coalesced with operator confirmation); never as a silent default. When a bug rests on the requirement, say in its section which option would change that bug's expected behaviour.
+
+Phase 5 may close with these FAILs open when every remaining FAIL is an overreach, a tier mismatch, or record-keeping. The gate reports `RESULT: GATE PASSED WITH DECISIONS NEEDED` (exit 0) when the overreach REQs have no dependent bug; an overreach on a REQ a bug rests on stays a substantive FAIL, and Phase 5 still closes on it once `OPERATOR_DECISIONS.md` lists it. The gate WARNs when such FAILs exist and `quality/OPERATOR_DECISIONS.md` does not.
 
 **Layer-1 mechanical checks.** Beyond the legacy gate checks above, `quality_gate.py` also enforces a numbered set of structural invariants (#1–#18). A compact map of what each invariant covers:
 
