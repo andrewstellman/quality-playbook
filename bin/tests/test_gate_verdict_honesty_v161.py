@@ -411,8 +411,17 @@ class Council1GateTests(_GateFixture):
         self.assertNotIn("Bugs that rest on these requirements: none.", out)
         self.assertIn(
             "Bugs that rest on these requirements: unknown — 1 confirmed "
-            "bug has no req_id in bugs_manifest.json, so the gate cannot "
-            "rule it out.", out)
+            "bug has no usable req_id in bugs_manifest.json (missing, or "
+            "the record is marked known-issue), so the gate cannot rule it "
+            "out.", out)
+        # v1.6.1 [council-2] (A-r2 N2): BUG-003 has a req_id; the FAIL
+        # line names the known-issue cause too.
+        self.assertIn(
+            "; 1 confirmed bug(s) have no usable req_id in "
+            "bugs_manifest.json (missing, or the record is marked "
+            "known-issue), so the gate cannot rule out a bug resting on "
+            "REQ-002", out)
+        self.assertNotIn("have no req_id", out)
 
     def test_multi_repo_lines_name_their_repo(self):
         """Council A7 / B gap 4: with two repos, each listed FAIL line
@@ -432,6 +441,74 @@ class Council1GateTests(_GateFixture):
                 f"      - [{name}] citation_semantic_check.json: "
                 f"record_id=REQ-003: semantic check majority overreaches",
                 out)
+
+
+class Council2GateTests(_GateFixture):
+    """v1.6.1 [council-2]: Council round-2 findings A-r2 N3 and C-r2
+    nit 2, end to end through the real gate."""
+
+    def test_multi_repo_overreach_narration_per_repo(self):
+        """A-r2 N3 probe: alpha has a bug with no req_id and a flagged
+        REQ-003; beta has a flagged REQ-003 and no such bug. The
+        narration counts 2 repo:REQ pairs and gives each repo its own
+        bugs text."""
+        with tempfile.TemporaryDirectory() as td:
+            dirs = []
+            for name in ("alpha", "beta"):
+                d = Path(td) / name
+                d.mkdir()
+                tree = build_reproduced_tree(
+                    {"BUG-001": "REQ-001"}, ["REQ-003"])
+                if name == "alpha":
+                    manifest = json.loads(tree["quality/bugs_manifest.json"])
+                    del manifest["records"][0]["req_id"]
+                    tree["quality/bugs_manifest.json"] = json.dumps(manifest)
+                write_tree(d, tree)
+                dirs.append(d)
+            out, code = run_gate(dirs[1], args=(str(dirs[0]),))
+        self.assertEqual(code, 1, out)
+        self.assertIn(
+            "    2 requirement(s) say more than the passage they quote", out)
+        self.assertIn(
+            "Bugs that rest on these requirements: [alpha] unknown — 1 "
+            "confirmed bug has no usable req_id in bugs_manifest.json "
+            "(missing, or the record is marked known-issue), so the gate "
+            "cannot rule it out; [beta] none.", out)
+
+    def test_mixed_decisions_and_cleanup_pass_separates_record_keeping(self):
+        """C-r2 nit 2: on a decisions pass with a record-keeping FAIL,
+        the record-keeping FAIL is under its own heading (not under
+        'What needs your decision:'), and 'What to do next' names it."""
+        tree = build_reproduced_tree({"BUG-001": "REQ-001"}, ["REQ-003"])
+        del tree["quality/results/run-2026-01-01T00-00-00.json"]
+        out, code = self.gate(tree)
+        self.assertEqual(code, 0, out)
+        self.assertRegex(out, r"\nTotal: 1 DECISION, 1 CLEANUP, \d+ WARN\n")
+        decision = _slice_between(out, "\nWhat needs your decision:\n",
+                                  "\nAudit record-keeping gaps:\n")
+        self.assertIn("record_id=REQ-003", decision)
+        self.assertNotIn("run-metadata", decision)
+        gaps = _slice_between(out, "\nAudit record-keeping gaps:\n",
+                              "── What happened ──")
+        self.assertIn("run-metadata JSON missing", gaps)
+        self.assertNotIn("record_id=REQ-003", gaps)
+        self.assertNotIn("Why it failed", out)
+        nxt = out[out.index("── What to do next ──"):]
+        self.assertIn(
+            "Then tidy the 1 audit record-keeping gap(s) listed in 'Audit "
+            "record-keeping gaps' above.", nxt)
+
+    def test_decisions_only_pass_has_no_record_keeping_heading(self):
+        tree = build_reproduced_tree({"BUG-001": "REQ-001"}, ["REQ-003"])
+        out, code = self.gate(tree)
+        self.assertEqual(code, 0, out)
+        self.assertNotIn("Audit record-keeping gaps", out)
+        self.assertNotIn("Then tidy the", out)
+
+
+def _slice_between(text, start, stop):
+    i = text.index(start)
+    return text[i:text.index(stop, i + len(start))]
 
 
 class FinalVerdictUnitTests(unittest.TestCase):
@@ -665,6 +742,58 @@ class VerdictPresentationUnitTests(unittest.TestCase):
             "These checks failed: BUGS.md, functional test file, "
             "spec_audits/ directory.", text)
         self.assertNotIn("test_functional.*", text)
+
+    def test_check_name_real_messages(self):
+        """C-r2 nit 1: the real colon-less FAIL messages Reviewer C
+        quoted from the archived 1.5.8 runs. A stop token ends the name
+        (no word cap then); the word cap applies only without one."""
+        cn = quality_gate._check_name
+        self.assertEqual(cn(
+            "No writeups have inline fix diffs (section 6 'The fix' must "
+            "include a ```diff block)"), "No writeups have inline fix diffs")
+        self.assertEqual(cn("PROGRESS.md version 'v1.5.8' != '1.6.0'"),
+                         "PROGRESS.md version")
+        self.assertEqual(cn(
+            "Directory version '1.5.8' != skill version '1.6.0' — possible "
+            "cross-run contamination"), "Directory version")
+        self.assertEqual(cn("No writeups for 3 confirmed bug(s)"),
+                         "No writeups for 3 confirmed bug(s)")
+        self.assertEqual(cn("summary missing 'total' count"), "summary")
+        self.assertEqual(cn("version 1.5 != 1.6"), "version 1.5")
+        self.assertEqual(
+            cn("one two three four five six seven eight nine ten eleven"),
+            "one two three four five six seven eight nine ten")
+        self.assertEqual(cn("x.json: broke"), "x.json")
+
+    def test_failure_reason_names_colon_less_check(self):
+        """B-r2 nit 2: the second _check_name call site
+        (_failure_reason's "N other check(s) (...)")."""
+        records = [(quality_gate.VERDICT_SUBSTANTIVE,
+                    "PROGRESS.md version 'v1.5.8' != '1.6.0'")]
+        reason = quality_gate._failure_reason(
+            records, quality_gate._summarize_bug_evidence([], ledger=[]))
+        self.assertIn("1 other check (PROGRESS.md version)", reason)
+
+    def test_reproduced_bugs_plural(self):
+        """B-r2 nit 3: 'For the 2 reproduced bugs' (plural)."""
+        summary = quality_gate._summarize_bug_evidence([], ledger=self._ledger(
+            bug_ids=["BUG-001", "BUG-002", "BUG-003"], bug_count=3,
+            tdd_ok={"BUG-001": True, "BUG-002": True, "BUG-003": True},
+            no_regression_patch={"BUG-003"}))
+        lines = quality_gate._bug_evidence_lines(
+            summary, other_checks_failed=True)
+        self.assertTrue(any(ln.startswith(
+            "For the 2 reproduced bugs, this shows") for ln in lines), lines)
+
+    def test_reset_counters_clears_fail_repos(self):
+        """B-r2 nit 4: a second in-process run must not inherit the
+        first run's per-FAIL repo labels."""
+        quality_gate._new_bug_evidence("alpha")
+        with redirect_stdout(io.StringIO()):
+            quality_gate.fail("x.json: broke")
+        self.assertEqual(quality_gate._FAIL_REPOS, ["alpha"])
+        quality_gate._reset_counters()
+        self.assertEqual(quality_gate._FAIL_REPOS, [])
 
     def test_noted_reqs_listed_separately(self):
         summary = quality_gate._summarize_bug_evidence([], ledger=self._ledger(

@@ -1101,49 +1101,104 @@ def _bug_evidence_lines(summary, *, other_checks_failed):
     return lines
 
 
-_CHECK_NAME_STOP_RE = re.compile(r" missing\b| \(| — | - |;|,")
+# v1.6.1 [council-2] (C-r2 nit 1): comparison operators and the first
+# quoted value also end the name ("PROGRESS.md version 'v1.5.8' !=
+# '1.6.0'" -> "PROGRESS.md version").
+_CHECK_NAME_STOP_RE = re.compile(
+    r" missing\b| \(| — | - |;|,| !=| ==| <=| >=| < | > | '"
+)
+_CHECK_NAME_MAX_WORDS = 10
 
 
 def _check_name(msg):
     """v1.6.1 [council-1] (Council C5): a short name for the check a FAIL
     line came from. With a ``path:`` prefix, the path; otherwise the
-    leading words before " missing" / " (" / " — " (at most four), so
-    a whole message is never repeated as a "file" name."""
+    leading words before the first stop token (" missing", " (", " — ",
+    " !=", a quoted value, ...).
+
+    v1.6.1 [council-2] (C-r2 nit 1): the word cap applies only when no
+    stop token matched (it was cutting "No writeups have inline fix
+    diffs" to four words), and is ``_CHECK_NAME_MAX_WORDS``."""
     first = msg.strip()
     if ":" in first:
         return first.split(":", 1)[0].strip()
-    head = _CHECK_NAME_STOP_RE.split(first, 1)[0].strip() or first
-    return " ".join(head.split()[:4])
+    parts = _CHECK_NAME_STOP_RE.split(first, 1)
+    if len(parts) > 1 and parts[0].strip():
+        return parts[0].strip()
+    return " ".join(first.split()[:_CHECK_NAME_MAX_WORDS])
 
 
-def _narrate_fail_category(category, msgs, summary):
+def _overreach_bugs_text(dependent, unlinked):
+    """v1.6.1 [council-1] (Council A2) / [council-2] (A-r2 N2): the
+    "Bugs that rest on these requirements" text for one repo. Confirmed
+    bugs with no usable req_id make "none" unprovable; say how many the
+    gate cannot rule out. "No usable req_id" covers both causes:
+    _bug_req_map drops records without a req_id and known-issue
+    records."""
+    bugs_text = _format_req_bug_groups(dependent) if dependent else "none"
+    if unlinked:
+        k = len(unlinked)
+        unknown = (
+            f"{k} confirmed bug{'s' if k != 1 else ''} "
+            f"{'have' if k != 1 else 'has'} no usable req_id in "
+            f"bugs_manifest.json (missing, or the record is marked "
+            f"known-issue), so the gate cannot rule "
+            f"{'them' if k != 1 else 'it'} out"
+        )
+        bugs_text = (
+            f"{bugs_text}; {unknown}" if dependent
+            else f"unknown — {unknown}"
+        )
+    return bugs_text
+
+
+def _narrate_fail_category(category, msgs, summary, repos=None):
     """v1.6.1 [G] (G3): plain-English narration for one FAIL category.
     Static texts come from ``_FAIL_NARRATION``; the requirement and
-    generic categories are built from the messages themselves."""
+    generic categories are built from the messages themselves.
+
+    ``repos``: v1.6.1 [council-2] (A-r2 N3) — in a multi-repo run, the
+    repo of each message (parallel to ``msgs``); None otherwise."""
     if category == _FAIL_REQ_OVERREACH:
         reqs = _req_ids_in(msgs)
-        dependent = [
-            (rid, bids) for rid, bids in summary["on_flagged"]
-            if rid.split(":")[-1] in reqs
-        ]
-        bugs_text = _format_req_bug_groups(dependent) if dependent else "none"
-        # v1.6.1 [council-1] (Council A2): confirmed bugs with no req_id
-        # make "none" unprovable; say how many the gate cannot rule out.
-        unlinked = summary.get("unlinked") or []
-        if unlinked:
-            k = len(unlinked)
-            unknown = (
-                f"{k} confirmed bug{'s' if k != 1 else ''} "
-                f"{'have' if k != 1 else 'has'} no req_id in "
-                f"bugs_manifest.json, so the gate cannot rule "
-                f"{'them' if k != 1 else 'it'} out"
-            )
-            bugs_text = (
-                f"{bugs_text}; {unknown}" if dependent
-                else f"unknown — {unknown}"
-            )
+        if repos and any(repos):
+            # v1.6.1 [council-2] (A-r2 N3): count repo:REQ pairs and
+            # give each repo its own bugs text — one repo's unlinked
+            # bugs say nothing about another repo's REQ.
+            pairs = []
+            for msg, repo in zip(msgs, repos):
+                for rid in _REQ_ID_IN_MSG_RE.findall(msg):
+                    if (repo, rid) not in pairs:
+                        pairs.append((repo, rid))
+            n_reqs = len(pairs)
+            unlinked_all = summary.get("unlinked") or []
+            segments = []
+            for repo in dict.fromkeys(r for r, _rid in pairs):
+                prefix = f"{repo}:"
+                repo_reqs = {rid for r, rid in pairs if r == repo}
+                dependent = [
+                    (rid[len(prefix):],
+                     [b[len(prefix):] if b.startswith(prefix) else b
+                      for b in bids])
+                    for rid, bids in summary["on_flagged"]
+                    if rid.startswith(prefix)
+                    and rid[len(prefix):] in repo_reqs
+                ]
+                unlinked = [b for b in unlinked_all if b.startswith(prefix)]
+                segments.append(
+                    f"[{repo}] {_overreach_bugs_text(dependent, unlinked)}"
+                )
+            bugs_text = "; ".join(segments)
+        else:
+            n_reqs = len(reqs)
+            dependent = [
+                (rid, bids) for rid, bids in summary["on_flagged"]
+                if rid.split(":")[-1] in reqs
+            ]
+            bugs_text = _overreach_bugs_text(
+                dependent, summary.get("unlinked") or [])
         return (
-            f"{len(reqs)} requirement(s) say more than the passage they "
+            f"{n_reqs} requirement(s) say more than the passage they "
             f"quote; at least two of three reviewers agreed. This is about "
             f"how the requirement is written, not about the code. Each "
             f"needs your decision: narrow it to what the passage says, "
@@ -1316,8 +1371,6 @@ def _emit_operator_verdict(fail_records, warn_records, zero_bug_repos,
         # same narration N times. Preserve first-seen order so
         # the operator reads the explanations in the order the
         # checks fired.
-        seen: list[str] = []
-        per_category_msgs: dict[str, list[str]] = {}
         # v1.6.1 [council-1] (Council A7): in a multi-repo run each
         # listed line says which repo it came from.
         repos = (
@@ -1326,39 +1379,65 @@ def _emit_operator_verdict(fail_records, warn_records, zero_bug_repos,
             else [None] * len(fail_records)
         )
         multi_repo = len({r for r in repos if r}) > 1 or len(_BUG_EVIDENCE) > 1
-        per_category_lines: dict[str, list[str]] = {}
-        for (_cat, msg), repo in zip(fail_records, repos):
-            classified = _classify_fail(msg)
-            if classified not in per_category_msgs:
-                per_category_msgs[classified] = []
-                per_category_lines[classified] = []
-                seen.append(classified)
-            per_category_msgs[classified].append(msg)
-            per_category_lines[classified].append(
-                f"[{repo}] {msg.strip()}" if multi_repo and repo
-                else msg.strip()
-            )
-        print("")
+        records_with_repos = list(zip(fail_records, repos))
         # v1.6.1 [council-1] (Council A5): a decisions pass did not fail.
-        print("What needs your decision:" if decisions_pass
-              else "Why it failed:")
-        for category in seen:
-            msgs = per_category_msgs[category]
-            label = (
-                f"  • [{category}] ({len(msgs)} FAIL{'s' if len(msgs) > 1 else ''})"
-            )
-            print(label)
-            narration = _narrate_fail_category(category, msgs, evidence)
-            print(f"    {narration}")
-            # v1.6.1 [G] (G3): list the failing lines themselves
-            # (deduped, capped) so the operator need not grep. The
-            # per-check lines carry no "FAIL:" prefix by design (see
-            # fail()); this list is where they are gathered.
-            unique = list(dict.fromkeys(per_category_lines[category]))
-            for m in unique[:_VERDICT_LINE_LIMIT]:
-                print(f"      - {m}")
-            if len(unique) > _VERDICT_LINE_LIMIT:
-                print(f"      +{len(unique) - _VERDICT_LINE_LIMIT} more")
+        # v1.6.1 [council-2] (C-r2 nit 2): on a decisions pass the
+        # record-keeping FAILs get their own heading, so they are not
+        # listed as decisions. FAILED and CLEANUP keep one "Why it
+        # failed:" section.
+        if decisions_pass:
+            sections = [
+                ("What needs your decision:",
+                 [x for x in records_with_repos
+                  if x[0][0] != VERDICT_RECORD_KEEPING]),
+                ("Audit record-keeping gaps:",
+                 [x for x in records_with_repos
+                  if x[0][0] == VERDICT_RECORD_KEEPING]),
+            ]
+        else:
+            sections = [("Why it failed:", records_with_repos)]
+        for heading, section_records in sections:
+            if not section_records:
+                continue
+            seen: list[str] = []
+            per_category_msgs: dict[str, list[str]] = {}
+            per_category_lines: dict[str, list[str]] = {}
+            per_category_repos: dict[str, list] = {}
+            for (_cat, msg), repo in section_records:
+                classified = _classify_fail(msg)
+                if classified not in per_category_msgs:
+                    per_category_msgs[classified] = []
+                    per_category_lines[classified] = []
+                    per_category_repos[classified] = []
+                    seen.append(classified)
+                per_category_msgs[classified].append(msg)
+                per_category_repos[classified].append(repo)
+                per_category_lines[classified].append(
+                    f"[{repo}] {msg.strip()}" if multi_repo and repo
+                    else msg.strip()
+                )
+            print("")
+            print(heading)
+            for category in seen:
+                msgs = per_category_msgs[category]
+                label = (
+                    f"  • [{category}] ({len(msgs)} FAIL{'s' if len(msgs) > 1 else ''})"
+                )
+                print(label)
+                narration = _narrate_fail_category(
+                    category, msgs, evidence,
+                    repos=per_category_repos[category] if multi_repo else None,
+                )
+                print(f"    {narration}")
+                # v1.6.1 [G] (G3): list the failing lines themselves
+                # (deduped, capped) so the operator need not grep. The
+                # per-check lines carry no "FAIL:" prefix by design (see
+                # fail()); this list is where they are gathered.
+                unique = list(dict.fromkeys(per_category_lines[category]))
+                for m in unique[:_VERDICT_LINE_LIMIT]:
+                    print(f"      - {m}")
+                if len(unique) > _VERDICT_LINE_LIMIT:
+                    print(f"      +{len(unique) - _VERDICT_LINE_LIMIT} more")
 
     # === Section 3: shallow-PASS narration + three-bucket attribution ===
     #
@@ -1702,6 +1781,16 @@ def _emit_what_happened_what_next(*, fail_records, warn_records,
             f"ready-to-apply options. The bug findings in "
             f"quality/BUGS.md do not depend on them."
         )
+        # v1.6.1 [council-2] (C-r2 nit 2): record-keeping FAILs on a
+        # decisions pass are listed under their own heading.
+        n_record_keeping = sum(
+            1 for cat, _msg in fail_records if cat == VERDICT_RECORD_KEEPING
+        )
+        if n_record_keeping:
+            print(
+                f"Then tidy the {n_record_keeping} audit record-keeping "
+                f"gap(s) listed in 'Audit record-keeping gaps' above."
+            )
     elif cleanup_only and exit_code == 0:
         # CLEANUP — "Mostly good — a few bookkeeping artifacts
         # need tidying; see 'Why it failed' for which."
@@ -6511,8 +6600,11 @@ def check_v1_5_0_semantic_check(q):
                 category = VERDICT_SUBSTANTIVE
             elif unlinked_bugs:
                 tail = (
-                    f"; {len(unlinked_bugs)} confirmed bug(s) have no req_id "
-                    f"in bugs_manifest.json, so the gate cannot rule out a "
+                    # v1.6.1 [council-2] (A-r2 N2): known-issue records
+                    # with a req_id land here too.
+                    f"; {len(unlinked_bugs)} confirmed bug(s) have no usable "
+                    f"req_id in bugs_manifest.json (missing, or the record "
+                    f"is marked known-issue), so the gate cannot rule out a "
                     f"bug resting on {rid}"
                 )
                 category = VERDICT_SUBSTANTIVE
