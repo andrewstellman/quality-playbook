@@ -17,6 +17,7 @@
         "gate_result": [
           "PASS",
           "CLEANUP",
+          "DECISIONS",
           "FAIL"
         ],
         "no_false_pass": true,
@@ -38,6 +39,7 @@
         "gate_result": [
           "PASS",
           "CLEANUP",
+          "DECISIONS",
           "FAIL"
         ],
         "no_false_pass": true,
@@ -82,6 +84,7 @@
         "gate_result": [
           "PASS",
           "CLEANUP",
+          "DECISIONS",
           "FAIL"
         ],
         "no_false_pass": true,

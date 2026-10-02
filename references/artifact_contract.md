@@ -52,6 +52,9 @@ The quality gate (`quality_gate.py`) validates these artifacts. If the gate chec
 | Recheck summary (MD) | `quality/results/recheck-summary.md` | When recheck runs | Recheck |
 | Seed checks | `quality/SEED_CHECKS.md` | If Phase 0b ran | Phase 0b |
 | Run metadata | `quality/results/run-YYYY-MM-DDTHH-MM-SS.json` | Yes | Phase 1 (created), Throughout (updated) |
+| Operator decisions | `quality/OPERATOR_DECISIONS.md` | No (the gate WARNs if it is missing while a requirement was questioned) | Phase 5 — one entry per REQ the gate questioned (majority overreach or tier mismatch), with ready-to-apply options (`references/phase5_reconciliation_guide.md`, v1.6.1) |
+| REQ id remap record | `quality/req_id_remap.json` | No | Phase 2→3 boundary, when the Feature H pass renumbers REQs (`persona_apply.propagate_remap_on_disk`; written even when no id moved, v1.6.1) |
+| Upstream submission kit | `quality/upstream/` | No | Phase 7 path 5, only when the operator picks it (`references/upstream_submission.md`, v1.6.1) |
 
 **`quality/RUN_CONTRACT.md` (v1.6.0 Feature C):** QPB's own run-layout invariants render here, not into `quality/REQUIREMENTS.md`. Both render from `requirements_manifest.json`; a REQ whose `references[]` point exclusively into `quality/` is a tool-contract REQ. Required whenever the manifest carries at least one such record. Enforced in two places: conditionally at the Phase 2 boundary (`validate_phase_artifacts.py --phase 2`) so an incomplete artifact set is rejected where it is produced, and at the Phase 6 gate by `check_render_contract` (presence here, absence from REQUIREMENTS.md). Deliberately **not** added to `run_state_lib.py`'s unconditional Phase-2 `required_fixed` list, which would retroactively fail every archived pre-v1.6.0 tree.
 

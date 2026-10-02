@@ -15,7 +15,7 @@
       "model": "opus",
       "channel": "pip-local-wheel",
       "expect": {
-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
         "no_false_pass": true,
         "no_false_fail": true,
         "phase0_first_probe": true,
@@ -32,7 +32,7 @@
       "model": "opus",
       "channel": "pip-local-wheel",
       "expect": {
-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
         "no_false_pass": true,
         "no_false_fail": true,
         "phase0_first_probe": true,
@@ -49,7 +49,7 @@
       "model": "sonnet",
       "channel": "pip-local-wheel",
       "expect": {
-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
         "no_false_pass": true,
         "no_false_fail": true,
         "phase0_first_probe": true,
@@ -66,7 +66,7 @@
       "model": "sonnet",
       "channel": "pip-local-wheel",
       "expect": {
-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
         "no_false_pass": true,
         "no_false_fail": true,
         "phase0_first_probe": true,
@@ -83,7 +83,7 @@
       "model": "sonnet",
       "channel": "pip-local-wheel",
       "expect": {
-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
         "no_false_pass": true,
         "no_false_fail": true,
         "phase0_first_probe": true,
@@ -100,7 +100,7 @@
       "model": "sonnet",
       "channel": "pip-local-wheel",
       "expect": {
-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
         "no_false_pass": true,
         "no_false_fail": true,
         "phase0_first_probe": true,
@@ -118,7 +118,7 @@
       "channel": "clone",
       "mode": "B",
       "expect": {
-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
         "no_false_pass": true,
         "no_false_fail": true,
         "phase0_first_probe": true,

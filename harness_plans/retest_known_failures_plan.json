@@ -16,7 +16,7 @@
       "model": "haiku",
       "channel": "pip-local-wheel",
       "expect": {
-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
         "no_false_pass": true,
         "no_false_fail": true,
         "phase0_first_probe": true,
@@ -33,7 +33,7 @@
       "model": "opus",
       "channel": "pip-local-wheel",
       "expect": {
-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
         "no_false_pass": true,
         "no_false_fail": true,
         "phase0_first_probe": true,
@@ -51,7 +51,7 @@
       "channel": "npm-local-tgz",
       "mode": "B",
       "expect": {
-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
         "no_false_pass": true,
         "no_false_fail": true,
         "phase0_first_probe": true,
@@ -69,7 +69,7 @@
       "channel": "pip-local-wheel",
       "mode": "B",
       "expect": {
-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
         "no_false_pass": true,
         "no_false_fail": true,
         "phase0_first_probe": true,
@@ -86,7 +86,7 @@
       "model": "gpt-5.4",
       "channel": "pip-local-wheel",
       "expect": {
-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
         "no_false_pass": true,
         "no_false_fail": true,
         "phase0_first_probe": true,

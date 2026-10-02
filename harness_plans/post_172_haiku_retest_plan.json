@@ -14,7 +14,7 @@
       "model": "haiku",
       "channel": "pip-local-wheel",
       "expect": {
-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
         "no_false_pass": true,
         "no_false_fail": true,
         "phase0_first_probe": true,
@@ -31,7 +31,7 @@
       "model": "haiku",
       "channel": "npm-local-tgz",
       "expect": {
-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
         "no_false_pass": true,
         "no_false_fail": true,
         "phase0_first_probe": true,
@@ -48,7 +48,7 @@
       "model": "haiku",
       "channel": "pip-local-wheel",
       "expect": {
-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
         "no_false_pass": true,
         "no_false_fail": true,
         "phase0_first_probe": true,
@@ -65,7 +65,7 @@
       "model": "haiku",
       "channel": "npm-local-tgz",
       "expect": {
-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
         "no_false_pass": true,
         "no_false_fail": true,
         "phase0_first_probe": true,
@@ -82,7 +82,7 @@
       "model": "haiku",
       "channel": "pip-local-wheel",
       "expect": {
-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
         "no_false_pass": true,
         "no_false_fail": true,
         "phase0_first_probe": true,
@@ -99,7 +99,7 @@
       "model": "haiku",
       "channel": "npm-local-tgz",
       "expect": {
-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
         "no_false_pass": true,
         "no_false_fail": true,
         "phase0_first_probe": true,

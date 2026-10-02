@@ -169,6 +169,8 @@ Marks the end of a phase. Cross-validated against the phase's expected artifacts
 - Phase 5: `{"gate_checks_total": N, "gate_failures": M}`
 - Phase 6: `{"bugs_md_count": N, "gate_verdict": "pass|pass-with-cleanup|pass-with-decisions|fail|partial"}` (the `pass-with-cleanup` value, v1.5.7 089d F17, corresponds to the gate's `RESULT: GATE PASSED WITH CLEANUP NEEDED` line; `pass-with-decisions`, v1.6.1, to `RESULT: GATE PASSED WITH DECISIONS NEEDED`)
 
+The gate also prints one `::QPB::` sentinel line with `"kind":"gate"` as its last line (`quality_gate.py` `_format_gate_sentinel`; for live display, not grading). Its `gate_result` is one of `PASS`, `CLEANUP`, `DECISIONS`, `FAIL`. Its `verdict_state` matches the operator-verdict lead line and is one of `solid`, `shallow`, `decisions` (v1.6.1: exit 0 with requirement decisions; the lead line reads `[WARN] GATE PASSED -- N requirement decision(s) need you`), `failed`.
+
 ### `error`
 
 Records an error during the run.

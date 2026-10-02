@@ -545,3 +545,81 @@ class IterationPromptIncludesWhatJustHappenedTailTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+# v1.6.1 [council-1] (Council B gap 5): pin the load-bearing template
+# text G5/G9 added. Before this, replacing these phrases with junk left
+# every test green. Mutation-bite: replacing "only you can decide" in
+# what_just_happened.md, or "Phase 5 may close with these FAILs open" in
+# phase5_reconciliation_guide.md, makes the matching test fail.
+_PHASE5_GUIDE = _SKILL_DIR / "references" / "phase5_reconciliation_guide.md"
+
+
+def _flat(text: str) -> str:
+    """Collapse whitespace so phrases wrapped across lines still match."""
+    return " ".join(text.split())
+
+
+def _section(text: str, header: str) -> str:
+    start = text.index(header)
+    end = text.find("\n### State ", start + len(header))
+    return text[start:] if end == -1 else text[start:end]
+
+
+class CouncilOneTemplatePinTests(unittest.TestCase):
+
+    def setUp(self) -> None:
+        self.wjh = REFERENCE_PATH.read_text(encoding="utf-8")
+        self.p5 = _PHASE5_GUIDE.read_text(encoding="utf-8")
+
+    def test_state_p5_operator_decisions_branch(self) -> None:
+        p5 = _flat(_section(self.wjh, "### State P5 — Phase 5 just completed"))
+        self.assertIn("**Branch — FAILs only you can decide remain (v1.6.1).**",
+                      p5)
+        self.assertIn('do NOT write "All FAIL findings from the gate were '
+                      'addressed"', p5)
+        self.assertIn("N FAILs remain that only you can decide (see "
+                      "quality/OPERATOR_DECISIONS.md).", p5)
+        self.assertIn("The agent did not rewrite them", p5)
+
+    def test_end_of_run_states_carry_bug_evidence_block(self) -> None:
+        state_b = _flat(_section(
+            self.wjh, "### State B — Phases 1-6 baseline complete"))
+        self.assertIn("**Bug evidence (REQUIRED on every outcome, including a "
+                      "failed gate — paste verbatim):**", state_b)
+        self.assertIn("── Bug evidence ── <every line of that block, "
+                      "unchanged>", state_b)
+        for header in ("### State CN — ", "### State DN — "):
+            sec = _flat(_section(self.wjh, header))
+            self.assertIn("**Bug evidence (REQUIRED — paste verbatim from "
+                          "quality/results/quality-gate.log):**", sec, header)
+            self.assertIn("── Bug evidence ──", sec, header)
+
+    def test_claims_rules_pointers(self) -> None:
+        line = "Apply `references/claims_rules.md` before writing operator-facing text."
+        self.assertIn(line, self.wjh)
+        self.assertIn(line, self.p5)
+
+    def test_phase5_operator_decisions_structure(self) -> None:
+        p5 = self.p5
+        for needle in (
+            "## REQ-NNN — <title>",
+            "- Kind: overreach (K of 3 reviewers) | tier mismatch",
+            "- Cited excerpt: <citation_excerpt, verbatim>",
+            "- Reviewer notes:",
+            "- Bugs that rest on this requirement: BUG-NNN, ...",
+            "- Options (ready to apply — the operator picks one):",
+            "  1. Narrow:", "  2. Re-cite:", "  3. Keep with a note:",
+            "  4. Split:",
+        ):
+            self.assertIn(needle, p5, needle)
+        flat = _flat(p5)
+        self.assertIn("Phase 5 must NOT rewrite these requirements, change "
+                      "their tier, or delete their citations to make the "
+                      "gate pass.", flat)
+
+    def test_phase5_may_close_with_operator_owned_fails(self) -> None:
+        self.assertIn(
+            "Phase 5 may close with these FAILs open when every remaining "
+            "FAIL is an overreach, a tier mismatch, or record-keeping.",
+            _flat(self.p5))

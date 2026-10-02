@@ -14,7 +14,7 @@
       "channel": "pip-local-wheel",
       "mode": "A",
       "expect": {
-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
         "no_false_pass": true,
         "no_false_fail": true,
         "phase0_first_probe": true,
@@ -32,7 +32,7 @@
       "channel": "npm-local-tgz",
       "mode": "A",
       "expect": {
-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
         "no_false_pass": true,
         "no_false_fail": true,
         "phase0_first_probe": true,
@@ -52,7 +52,7 @@
       "parameters": ["--runner-extra-args", "-c 'model_reasoning_effort=\"medium\"'"],
       "prep_timeout_s": 900,
       "expect": {
-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
         "no_false_pass": true,
         "no_false_fail": true,
         "provenance_runner_matches": true
