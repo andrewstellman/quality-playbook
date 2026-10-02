@@ -1,0 +1,12 @@
+import * as z from "/tmp/zodw/packages/zod/src/index.js";
+const s = z.stringbool({ truthy: ["Yes"], falsy: ["No"] });
+const t = z.encode(s, true);
+const f = z.encode(s, false);
+console.log("encode(true)  =", JSON.stringify(t), " expected \"Yes\"");
+console.log("encode(false) =", JSON.stringify(f), " expected \"No\"");
+console.log("decode('Yes') =", z.decode(s, "Yes"), " decode('yes') =", z.decode(s, "yes"), " decode('YES') =", z.decode(s, "YES"));
+const cs = z.stringbool({ truthy: ["Yes"], falsy: ["No"], case: "sensitive" });
+console.log("case-sensitive encode(true) =", JSON.stringify(z.encode(cs, true)));
+const bug = t !== "Yes" || f !== "No";
+console.log(bug ? "BUG PRESENT" : "BUG ABSENT");
+process.exit(bug ? 1 : 0);

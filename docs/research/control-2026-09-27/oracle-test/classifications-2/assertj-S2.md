@@ -1,0 +1,5 @@
+assertj-01 | line | equals/hashCode compare only `value` and ignore the `unit` field declared just above, which is visible in the same lines.
+assertj-02 | nearby | The reviewer must compare the Javadoc, class name and "strict less than" intent with `>= value` at a zero offset, and the constructor accepting 0 (see 03), to see that 0 can never satisfy it.
+assertj-03 | nearby | The method is named "positive", its message says "greater than zero", and the check is `>= 0`. The reviewer must decide the intent against the constructor Javadoc, which says only "negative", and against the subclasses, so the message and the check disagree only on comparison.
+assertj-04 | trace | The reviewer must follow `getDifference` into `unit.between` and `abs`, then into the JDK's overflow behaviour. They would also need to notice that the sibling `getBeyondOffsetDifferenceDescription` catches ArithmeticException while `isBeyondOffset` does not.
+assertj-05 | input | The `(int) value` cast looks fine until the reviewer tries a whole-number double larger than Integer.MAX_VALUE, where it saturates.

@@ -1,0 +1,6106 @@
+[
+ {
+  "repo": "aiohttp",
+  "id": "aiohttp-01",
+  "n": 20,
+  "hits": 3,
+  "rate": 0.15,
+  "levels": [
+   "input",
+   "input",
+   "input",
+   "input",
+   "input"
+  ],
+  "maj": "input",
+  "agree": 1.0,
+  "mean_level": 3,
+  "target": null,
+  "loc": "aiohttp/payload.py:512, 532, 784, 807 (`IOBasePayload` / `TextIOPayload` `_read_and_available_len`, `_read`)",
+  "sonnet": [
+   "input",
+   "input",
+   "input"
+  ],
+  "opus": [
+   "input",
+   "input"
+  ]
+ },
+ {
+  "repo": "aiohttp",
+  "id": "aiohttp-02",
+  "n": 20,
+  "hits": 6,
+  "rate": 0.3,
+  "levels": [
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "maj": "nearby",
+  "agree": 1.0,
+  "mean_level": 2,
+  "target": null,
+  "loc": "aiohttp/multipart.py:609-619 (`BodyPartReader._decode_content`)",
+  "sonnet": [
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "opus": [
+   "nearby",
+   "nearby"
+  ]
+ },
+ {
+  "repo": "aiohttp",
+  "id": "aiohttp-03",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "input",
+   "input",
+   "input",
+   "input",
+   "input"
+  ],
+  "maj": "input",
+  "agree": 1.0,
+  "mean_level": 3,
+  "target": null,
+  "loc": "aiohttp/client_middleware_digest_auth.py:409-428 (`DigestAuthMiddleware._authenticate`)",
+  "sonnet": [
+   "input",
+   "input",
+   "input"
+  ],
+  "opus": [
+   "input",
+   "input"
+  ]
+ },
+ {
+  "repo": "aiohttp",
+  "id": "aiohttp-04",
+  "n": 20,
+  "hits": 2,
+  "rate": 0.1,
+  "levels": [
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "maj": "nearby",
+  "agree": 1.0,
+  "mean_level": 2,
+  "target": null,
+  "loc": "aiohttp/http_writer.py:276-352 (`StreamWriter.write_eof`)",
+  "sonnet": [
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "opus": [
+   "nearby",
+   "nearby"
+  ]
+ },
+ {
+  "repo": "aiohttp",
+  "id": "aiohttp-05",
+  "n": 20,
+  "hits": 3,
+  "rate": 0.15,
+  "levels": [
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "maj": "nearby",
+  "agree": 1.0,
+  "mean_level": 2,
+  "target": null,
+  "loc": "aiohttp/web_log.py:62, 110-118 (`AccessLogger.compile_format`)",
+  "sonnet": [
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "opus": [
+   "nearby",
+   "nearby"
+  ]
+ },
+ {
+  "repo": "aiohttp",
+  "id": "aiohttp-06",
+  "n": 20,
+  "hits": 5,
+  "rate": 0.25,
+  "levels": [
+   "input",
+   "trace",
+   "trace",
+   "input",
+   "input"
+  ],
+  "maj": "input",
+  "agree": 0.6,
+  "mean_level": 3.4,
+  "target": null,
+  "loc": "aiohttp/client_reqrep.py:490-515 (`ClientResponse.links`), splitter in aiohttp/helpers.py:788-802 (`HeadersDictProxy.getall`)",
+  "sonnet": [
+   "trace",
+   "input",
+   "input"
+  ],
+  "opus": [
+   "input",
+   "trace"
+  ]
+ },
+ {
+  "repo": "aiohttp",
+  "id": "aiohttp-07",
+  "n": 20,
+  "hits": 4,
+  "rate": 0.2,
+  "levels": [
+   "line",
+   "line",
+   "nearby",
+   "line",
+   "line"
+  ],
+  "maj": "line",
+  "agree": 0.8,
+  "mean_level": 1.2,
+  "target": null,
+  "loc": "aiohttp/client.py:769-777 (`ClientSession._request`)",
+  "sonnet": [
+   "nearby",
+   "line",
+   "line"
+  ],
+  "opus": [
+   "line",
+   "line"
+  ]
+ },
+ {
+  "repo": "aiohttp",
+  "id": "aiohttp-08",
+  "n": 20,
+  "hits": 7,
+  "rate": 0.35,
+  "levels": [
+   "line",
+   "line",
+   "line",
+   "line",
+   "line"
+  ],
+  "maj": "line",
+  "agree": 1.0,
+  "mean_level": 1,
+  "target": null,
+  "loc": "aiohttp/web_response.py:342-352 (`StreamResponse._start_compression`)",
+  "sonnet": [
+   "line",
+   "line",
+   "line"
+  ],
+  "opus": [
+   "line",
+   "line"
+  ]
+ },
+ {
+  "repo": "aiohttp",
+  "id": "aiohttp-09",
+  "n": 20,
+  "hits": 2,
+  "rate": 0.1,
+  "levels": [
+   "line",
+   "line",
+   "line",
+   "line",
+   "nearby"
+  ],
+  "maj": "line",
+  "agree": 0.8,
+  "mean_level": 1.2,
+  "target": null,
+  "loc": "aiohttp/web_response.py:681-698 (`Response.write_eof`)",
+  "sonnet": [
+   "line",
+   "line",
+   "nearby"
+  ],
+  "opus": [
+   "line",
+   "line"
+  ]
+ },
+ {
+  "repo": "aiohttp",
+  "id": "aiohttp-10",
+  "n": 20,
+  "hits": 5,
+  "rate": 0.25,
+  "levels": [
+   "input",
+   "input",
+   "input",
+   "input",
+   "input"
+  ],
+  "maj": "input",
+  "agree": 1.0,
+  "mean_level": 3,
+  "target": "aiohttp readuntil",
+  "loc": "aiohttp/streams.py:381-420 (`StreamReader.readuntil`)",
+  "sonnet": [
+   "input",
+   "input",
+   "input"
+  ],
+  "opus": [
+   "input",
+   "input"
+  ]
+ },
+ {
+  "repo": "aiohttp",
+  "id": "aiohttp-11",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "maj": "nearby",
+  "agree": 1.0,
+  "mean_level": 2,
+  "target": null,
+  "loc": "aiohttp/client.py:646-656 (`ClientSession._request`)",
+  "sonnet": [
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "opus": [
+   "nearby",
+   "nearby"
+  ]
+ },
+ {
+  "repo": "aiohttp",
+  "id": "aiohttp-12",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "maj": "nearby",
+  "agree": 1.0,
+  "mean_level": 2,
+  "target": null,
+  "loc": "aiohttp/web_exceptions.py:308-327 (`HTTPMethodNotAllowed.__init__`)",
+  "sonnet": [
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "opus": [
+   "nearby",
+   "nearby"
+  ]
+ },
+ {
+  "repo": "aiohttp",
+  "id": "aiohttp-13",
+  "n": 20,
+  "hits": 3,
+  "rate": 0.15,
+  "levels": [
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "maj": "nearby",
+  "agree": 1.0,
+  "mean_level": 2,
+  "target": null,
+  "loc": "aiohttp/web_log.py:62, 112 (`AccessLogger.compile_format`)",
+  "sonnet": [
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "opus": [
+   "nearby",
+   "nearby"
+  ]
+ },
+ {
+  "repo": "aiohttp",
+  "id": "aiohttp-14",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "maj": "nearby",
+  "agree": 1.0,
+  "mean_level": 2,
+  "target": null,
+  "loc": "aiohttp/web_request.py:810-852 (`BaseRequest.post`)",
+  "sonnet": [
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "opus": [
+   "nearby",
+   "nearby"
+  ]
+ },
+ {
+  "repo": "aiohttp",
+  "id": "aiohttp-15",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "maj": "nearby",
+  "agree": 1.0,
+  "mean_level": 2,
+  "target": null,
+  "loc": "aiohttp/streams.py:261-264 (`StreamReader.total_raw_bytes`) on `EmptyStreamReader` (598-679)",
+  "sonnet": [
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "opus": [
+   "nearby",
+   "nearby"
+  ]
+ },
+ {
+  "repo": "aiohttp",
+  "id": "aiohttp-16",
+  "n": 20,
+  "hits": 2,
+  "rate": 0.1,
+  "levels": [
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "maj": "nearby",
+  "agree": 1.0,
+  "mean_level": 2,
+  "target": null,
+  "loc": "aiohttp/multipart.py:812 (`MultipartReader.next`), assertion at 450-452 (`_read_chunk_from_stream`)",
+  "sonnet": [
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "opus": [
+   "nearby",
+   "nearby"
+  ]
+ },
+ {
+  "repo": "aiohttp",
+  "id": "aiohttp-17",
+  "n": 20,
+  "hits": 4,
+  "rate": 0.2,
+  "levels": [
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "maj": "nearby",
+  "agree": 1.0,
+  "mean_level": 2,
+  "target": null,
+  "loc": "aiohttp/multipart.py:809-816 (`MultipartReader.next`)",
+  "sonnet": [
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "opus": [
+   "nearby",
+   "nearby"
+  ]
+ },
+ {
+  "repo": "aiohttp",
+  "id": "aiohttp-18",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "input",
+   "input",
+   "input",
+   "input",
+   "input"
+  ],
+  "maj": "input",
+  "agree": 1.0,
+  "mean_level": 3,
+  "target": null,
+  "loc": "aiohttp/client_reqrep.py:747-773 (`ClientResponse.json`)",
+  "sonnet": [
+   "input",
+   "input",
+   "input"
+  ],
+  "opus": [
+   "input",
+   "input"
+  ]
+ },
+ {
+  "repo": "aiohttp",
+  "id": "aiohttp-19",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "nearby",
+   "nearby",
+   "nearby",
+   "input",
+   "input"
+  ],
+  "maj": "nearby",
+  "agree": 0.6,
+  "mean_level": 2.4,
+  "target": null,
+  "loc": "aiohttp/multipart.py:901-936 (`MultipartReader._read_boundary`, `_read_headers`)",
+  "sonnet": [
+   "nearby",
+   "input",
+   "input"
+  ],
+  "opus": [
+   "nearby",
+   "nearby"
+  ]
+ },
+ {
+  "repo": "aiohttp",
+  "id": "aiohttp-20",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "line",
+   "line",
+   "nearby",
+   "line",
+   "line"
+  ],
+  "maj": "line",
+  "agree": 0.8,
+  "mean_level": 1.2,
+  "target": null,
+  "loc": "aiohttp/client_middlewares.py:58 (`_cached_build_client_middlewares`), called from aiohttp/client.py ~715-722",
+  "sonnet": [
+   "nearby",
+   "line",
+   "line"
+  ],
+  "opus": [
+   "line",
+   "line"
+  ]
+ },
+ {
+  "repo": "aiohttp",
+  "id": "aiohttp-21",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "maj": "nearby",
+  "agree": 1.0,
+  "mean_level": 2,
+  "target": null,
+  "loc": "aiohttp/client.py:778-786 (`ClientSession._request`)",
+  "sonnet": [
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "opus": [
+   "nearby",
+   "nearby"
+  ]
+ },
+ {
+  "repo": "aiohttp",
+  "id": "aiohttp-22",
+  "n": 20,
+  "hits": 3,
+  "rate": 0.15,
+  "levels": [
+   "input",
+   "input",
+   "input",
+   "input",
+   "trace"
+  ],
+  "maj": "input",
+  "agree": 0.8,
+  "mean_level": 3.2,
+  "target": null,
+  "loc": "aiohttp/web_response.py:720-735 (`Response._do_start_compression`), reached from `StreamResponse._prepare_headers` at 388-389",
+  "sonnet": [
+   "input",
+   "input",
+   "trace"
+  ],
+  "opus": [
+   "input",
+   "input"
+  ]
+ },
+ {
+  "repo": "aiohttp",
+  "id": "aiohttp-23",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "input",
+   "input",
+   "input",
+   "input",
+   "input"
+  ],
+  "maj": "input",
+  "agree": 1.0,
+  "mean_level": 3,
+  "target": null,
+  "loc": "aiohttp/helpers.py:788-802 (`HeadersDictProxy.getall`)",
+  "sonnet": [
+   "input",
+   "input",
+   "input"
+  ],
+  "opus": [
+   "input",
+   "input"
+  ]
+ },
+ {
+  "repo": "aiohttp",
+  "id": "aiohttp-24",
+  "n": 20,
+  "hits": 11,
+  "rate": 0.55,
+  "levels": [
+   "input",
+   "input",
+   "input",
+   "input",
+   "trace"
+  ],
+  "maj": "input",
+  "agree": 0.8,
+  "mean_level": 3.2,
+  "target": null,
+  "loc": "aiohttp/web_request.py:682-685 (`BaseRequest.http_range`), consumed in aiohttp/web_fileresponse.py:358-395",
+  "sonnet": [
+   "input",
+   "input",
+   "trace"
+  ],
+  "opus": [
+   "input",
+   "input"
+  ]
+ },
+ {
+  "repo": "aiohttp",
+  "id": "aiohttp-25",
+  "n": 20,
+  "hits": 9,
+  "rate": 0.45,
+  "levels": [
+   "input",
+   "input",
+   "nearby",
+   "input",
+   "input"
+  ],
+  "maj": "input",
+  "agree": 0.8,
+  "mean_level": 2.8,
+  "target": null,
+  "loc": "aiohttp/cookiejar.py:396-416 (`CookieJar._update_cookies`)",
+  "sonnet": [
+   "nearby",
+   "input",
+   "input"
+  ],
+  "opus": [
+   "input",
+   "input"
+  ]
+ },
+ {
+  "repo": "aiohttp",
+  "id": "aiohttp-26",
+  "n": 20,
+  "hits": 3,
+  "rate": 0.15,
+  "levels": [
+   "input",
+   "input",
+   "input",
+   "nearby",
+   "input"
+  ],
+  "maj": "input",
+  "agree": 0.8,
+  "mean_level": 2.8,
+  "target": null,
+  "loc": "aiohttp/cookiejar.py:360-374 (`CookieJar._update_cookies`), 532-545 (`_is_domain_match`)",
+  "sonnet": [
+   "input",
+   "nearby",
+   "input"
+  ],
+  "opus": [
+   "input",
+   "input"
+  ]
+ },
+ {
+  "repo": "aiohttp",
+  "id": "aiohttp-27",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "input",
+   "input",
+   "input",
+   "line",
+   "trace"
+  ],
+  "maj": "input",
+  "agree": 0.6,
+  "mean_level": 2.8,
+  "target": null,
+  "loc": "aiohttp/web_request.py:386-411 (`BaseRequest.forwarded`, pair loop)",
+  "sonnet": [
+   "input",
+   "line",
+   "trace"
+  ],
+  "opus": [
+   "input",
+   "input"
+  ]
+ },
+ {
+  "repo": "aiohttp",
+  "id": "aiohttp-28",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "line",
+   "line",
+   "input",
+   "trace",
+   "line"
+  ],
+  "maj": "line",
+  "agree": 0.6,
+  "mean_level": 2,
+  "target": null,
+  "loc": "aiohttp/web_urldispatcher.py:292-305 (`_default_expect_handler`)",
+  "sonnet": [
+   "input",
+   "trace",
+   "line"
+  ],
+  "opus": [
+   "line",
+   "line"
+  ]
+ },
+ {
+  "repo": "aiohttp",
+  "id": "aiohttp-29",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "maj": "nearby",
+  "agree": 1.0,
+  "mean_level": 2,
+  "target": null,
+  "loc": "aiohttp/helpers.py:804-805 (`HeadersDictProxy.__eq__`)",
+  "sonnet": [
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "opus": [
+   "nearby",
+   "nearby"
+  ]
+ },
+ {
+  "repo": "aiohttp",
+  "id": "aiohttp-30",
+  "n": 20,
+  "hits": 6,
+  "rate": 0.3,
+  "levels": [
+   "line",
+   "line",
+   "line",
+   "line",
+   "line"
+  ],
+  "maj": "line",
+  "agree": 1.0,
+  "mean_level": 1,
+  "target": null,
+  "loc": "aiohttp/web_fileresponse.py:241-243 (`FileResponse._get_file_path_stat_encoding`)",
+  "sonnet": [
+   "line",
+   "line",
+   "line"
+  ],
+  "opus": [
+   "line",
+   "line"
+  ]
+ },
+ {
+  "repo": "aiohttp",
+  "id": "aiohttp-31",
+  "n": 20,
+  "hits": 2,
+  "rate": 0.1,
+  "levels": [
+   "trace",
+   "trace",
+   "trace",
+   "trace",
+   "trace"
+  ],
+  "maj": "trace",
+  "agree": 1.0,
+  "mean_level": 4,
+  "target": null,
+  "loc": "aiohttp/client_reqrep.py:913 (`ClientRequestBase._update_headers`), with the retry loop in aiohttp/client.py `ClientSession._request`",
+  "sonnet": [
+   "trace",
+   "trace",
+   "trace"
+  ],
+  "opus": [
+   "trace",
+   "trace"
+  ]
+ },
+ {
+  "repo": "aiohttp",
+  "id": "aiohttp-32",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "nearby",
+   "line",
+   "line",
+   "nearby",
+   "nearby"
+  ],
+  "maj": "nearby",
+  "agree": 0.6,
+  "mean_level": 1.6,
+  "target": null,
+  "loc": "aiohttp/web_request.py:396-399 (`BaseRequest.forwarded`)",
+  "sonnet": [
+   "line",
+   "nearby",
+   "nearby"
+  ],
+  "opus": [
+   "nearby",
+   "line"
+  ]
+ },
+ {
+  "repo": "aiohttp",
+  "id": "aiohttp-33",
+  "n": 20,
+  "hits": 3,
+  "rate": 0.15,
+  "levels": [
+   "input",
+   "input",
+   "input",
+   "input",
+   "input"
+  ],
+  "maj": "input",
+  "agree": 1.0,
+  "mean_level": 3,
+  "target": null,
+  "loc": "aiohttp/helpers.py:810-825 (`HeadersDictProxy.__iter__`, `__len__`)",
+  "sonnet": [
+   "input",
+   "input",
+   "input"
+  ],
+  "opus": [
+   "input",
+   "input"
+  ]
+ },
+ {
+  "repo": "aiohttp",
+  "id": "aiohttp-34",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "line",
+   "line",
+   "line",
+   "line",
+   "line"
+  ],
+  "maj": "line",
+  "agree": 1.0,
+  "mean_level": 1,
+  "target": null,
+  "loc": "aiohttp/client_reqrep.py:109-130 (`ClientTimeout.__post_init__`)",
+  "sonnet": [
+   "line",
+   "line",
+   "line"
+  ],
+  "opus": [
+   "line",
+   "line"
+  ]
+ },
+ {
+  "repo": "aiohttp",
+  "id": "aiohttp-35",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "input",
+   "nearby",
+   "input",
+   "nearby",
+   "input"
+  ],
+  "maj": "input",
+  "agree": 0.6,
+  "mean_level": 2.6,
+  "target": null,
+  "loc": "aiohttp/http_parser.py:999-1007 and ~1062 (`HttpPayloadParser.feed_data`, `PARSE_CHUNKED_SIZE`)",
+  "sonnet": [
+   "input",
+   "nearby",
+   "input"
+  ],
+  "opus": [
+   "input",
+   "nearby"
+  ]
+ },
+ {
+  "repo": "aiohttp",
+  "id": "aiohttp-36",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "line",
+   "line",
+   "input",
+   "line",
+   "input"
+  ],
+  "maj": "line",
+  "agree": 0.6,
+  "mean_level": 1.8,
+  "target": null,
+  "loc": "aiohttp/streams.py:394 (`StreamReader.readuntil`)",
+  "sonnet": [
+   "input",
+   "line",
+   "input"
+  ],
+  "opus": [
+   "line",
+   "line"
+  ]
+ },
+ {
+  "repo": "aiohttp",
+  "id": "aiohttp-37",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "line",
+   "line",
+   "nearby",
+   "line",
+   "nearby"
+  ],
+  "maj": "line",
+  "agree": 0.6,
+  "mean_level": 1.4,
+  "target": null,
+  "loc": "aiohttp/web_response.py:377-380, 407-408 (`StreamResponse._prepare_headers`)",
+  "sonnet": [
+   "nearby",
+   "line",
+   "nearby"
+  ],
+  "opus": [
+   "line",
+   "line"
+  ]
+ },
+ {
+  "repo": "aiohttp",
+  "id": "aiohttp-38",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "input",
+   "input",
+   "input",
+   "input",
+   "input"
+  ],
+  "maj": "input",
+  "agree": 1.0,
+  "mean_level": 3,
+  "target": null,
+  "loc": "aiohttp/multipart.py:408-434 (`BodyPartReader._align_base64_chunk`)",
+  "sonnet": [
+   "input",
+   "input",
+   "input"
+  ],
+  "opus": [
+   "input",
+   "input"
+  ]
+ },
+ {
+  "repo": "aiohttp",
+  "id": "aiohttp-39",
+  "n": 20,
+  "hits": 7,
+  "rate": 0.35,
+  "levels": [
+   "line",
+   "line",
+   "input",
+   "line",
+   "line"
+  ],
+  "maj": "line",
+  "agree": 0.8,
+  "mean_level": 1.4,
+  "target": null,
+  "loc": "aiohttp/web_request.py:138-140 (`_FORWARDED_PAIR`, used by `BaseRequest.forwarded`)",
+  "sonnet": [
+   "input",
+   "line",
+   "line"
+  ],
+  "opus": [
+   "line",
+   "line"
+  ]
+ },
+ {
+  "repo": "aiohttp",
+  "id": "aiohttp-40",
+  "n": 20,
+  "hits": 2,
+  "rate": 0.1,
+  "levels": [
+   "input",
+   "input",
+   "nearby",
+   "nearby",
+   "input"
+  ],
+  "maj": "input",
+  "agree": 0.6,
+  "mean_level": 2.6,
+  "target": null,
+  "loc": "aiohttp/web_urldispatcher.py:826-827 (`MaskDomain.match_domain`)",
+  "sonnet": [
+   "nearby",
+   "nearby",
+   "input"
+  ],
+  "opus": [
+   "input",
+   "input"
+  ]
+ },
+ {
+  "repo": "aiohttp",
+  "id": "aiohttp-41",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "line",
+   "line",
+   "nearby",
+   "line",
+   "nearby"
+  ],
+  "maj": "line",
+  "agree": 0.6,
+  "mean_level": 1.4,
+  "target": null,
+  "loc": "aiohttp/http_parser.py:409 (`get_content_length`)",
+  "sonnet": [
+   "nearby",
+   "line",
+   "nearby"
+  ],
+  "opus": [
+   "line",
+   "line"
+  ]
+ },
+ {
+  "repo": "aiohttp",
+  "id": "aiohttp-42",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "line",
+   "line",
+   "line",
+   "line",
+   "line"
+  ],
+  "maj": "line",
+  "agree": 1.0,
+  "mean_level": 1,
+  "target": null,
+  "loc": "aiohttp/streams.py:523-541 (`StreamReader.read_nowait`)",
+  "sonnet": [
+   "line",
+   "line",
+   "line"
+  ],
+  "opus": [
+   "line",
+   "line"
+  ]
+ },
+ {
+  "repo": "aiohttp",
+  "id": "aiohttp-43",
+  "n": 20,
+  "hits": 3,
+  "rate": 0.15,
+  "levels": [
+   "line",
+   "line",
+   "input",
+   "line",
+   "line"
+  ],
+  "maj": "line",
+  "agree": 0.8,
+  "mean_level": 1.4,
+  "target": null,
+  "loc": "aiohttp/cookiejar.py:402-416 (`CookieJar._update_cookies`)",
+  "sonnet": [
+   "input",
+   "line",
+   "line"
+  ],
+  "opus": [
+   "line",
+   "line"
+  ]
+ },
+ {
+  "repo": "aiohttp",
+  "id": "aiohttp-44",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "nearby",
+   "line",
+   "nearby",
+   "nearby",
+   "trace"
+  ],
+  "maj": "nearby",
+  "agree": 0.6,
+  "mean_level": 2.2,
+  "target": null,
+  "loc": "aiohttp/web_urldispatcher.py:975, 1023 (`UrlDispatcher.HTTP_NOT_FOUND`), raised in `SystemRoute._handle` at 908-909",
+  "sonnet": [
+   "nearby",
+   "nearby",
+   "trace"
+  ],
+  "opus": [
+   "nearby",
+   "line"
+  ]
+ },
+ {
+  "repo": "aiohttp",
+  "id": "aiohttp-45",
+  "n": 20,
+  "hits": 2,
+  "rate": 0.1,
+  "levels": [
+   "line",
+   "line",
+   "input",
+   "input",
+   "nearby"
+  ],
+  "maj": "line",
+  "agree": 0.4,
+  "mean_level": 2,
+  "target": null,
+  "loc": "aiohttp/helpers.py:173 (`TOKEN`)",
+  "sonnet": [
+   "input",
+   "input",
+   "nearby"
+  ],
+  "opus": [
+   "line",
+   "line"
+  ]
+ },
+ {
+  "repo": "aiohttp",
+  "id": "aiohttp-46",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "maj": "nearby",
+  "agree": 1.0,
+  "mean_level": 2,
+  "target": null,
+  "loc": "aiohttp/streams.py:598-679 (`EmptyStreamReader`)",
+  "sonnet": [
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "opus": [
+   "nearby",
+   "nearby"
+  ]
+ },
+ {
+  "repo": "aiohttp",
+  "id": "aiohttp-47",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "nearby",
+   "nearby",
+   "trace",
+   "trace",
+   "trace"
+  ],
+  "maj": "trace",
+  "agree": 0.6,
+  "mean_level": 3.2,
+  "target": null,
+  "loc": "aiohttp/client_reqrep.py:1231-1248 (`_update_transfer_encoding`), 1280-1284 (`_update_body_from_data`), 1450 (`_create_writer`)",
+  "sonnet": [
+   "trace",
+   "trace",
+   "trace"
+  ],
+  "opus": [
+   "nearby",
+   "nearby"
+  ]
+ },
+ {
+  "repo": "aiohttp",
+  "id": "aiohttp-48",
+  "n": 20,
+  "hits": 2,
+  "rate": 0.1,
+  "levels": [
+   "input",
+   "input",
+   "trace",
+   "trace",
+   "trace"
+  ],
+  "maj": "trace",
+  "agree": 0.6,
+  "mean_level": 3.6,
+  "target": null,
+  "loc": "aiohttp/web_protocol.py:243 (`RequestHandler.__init__`), 393-413 (`connection_made`), 649-651 (`_process_keepalive`)",
+  "sonnet": [
+   "trace",
+   "trace",
+   "trace"
+  ],
+  "opus": [
+   "input",
+   "input"
+  ]
+ },
+ {
+  "repo": "aiohttp",
+  "id": "aiohttp-49",
+  "n": 20,
+  "hits": 6,
+  "rate": 0.3,
+  "levels": [
+   "line",
+   "line",
+   "line",
+   "line",
+   "nearby"
+  ],
+  "maj": "line",
+  "agree": 0.8,
+  "mean_level": 1.2,
+  "target": null,
+  "loc": "aiohttp/client_reqrep.py:1450-1451 (`ClientRequest._create_writer`)",
+  "sonnet": [
+   "line",
+   "line",
+   "nearby"
+  ],
+  "opus": [
+   "line",
+   "line"
+  ]
+ },
+ {
+  "repo": "aiohttp",
+  "id": "aiohttp-50",
+  "n": 20,
+  "hits": 3,
+  "rate": 0.15,
+  "levels": [
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "maj": "nearby",
+  "agree": 1.0,
+  "mean_level": 2,
+  "target": null,
+  "loc": "aiohttp/multipart.py:703-711 (`BodyPartReaderPayload.write`), with `decode_iter` / `_decode_content_async` at 593-633",
+  "sonnet": [
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "opus": [
+   "nearby",
+   "nearby"
+  ]
+ },
+ {
+  "repo": "aiohttp",
+  "id": "aiohttp-51",
+  "n": 20,
+  "hits": 2,
+  "rate": 0.1,
+  "levels": [
+   "line",
+   "line",
+   "line",
+   "line",
+   "input"
+  ],
+  "maj": "line",
+  "agree": 0.8,
+  "mean_level": 1.4,
+  "target": null,
+  "loc": "aiohttp/multipart.py:389 (`BodyPartReader.read_chunk`)",
+  "sonnet": [
+   "line",
+   "line",
+   "input"
+  ],
+  "opus": [
+   "line",
+   "line"
+  ]
+ },
+ {
+  "repo": "aiohttp",
+  "id": "aiohttp-52",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "input",
+   "nearby",
+   "input",
+   "nearby",
+   "input"
+  ],
+  "maj": "input",
+  "agree": 0.6,
+  "mean_level": 2.6,
+  "target": null,
+  "loc": "aiohttp/http_parser.py:999-1007 and ~1112 (`HttpPayloadParser.feed_data`, `PARSE_TRAILERS`)",
+  "sonnet": [
+   "input",
+   "nearby",
+   "input"
+  ],
+  "opus": [
+   "input",
+   "nearby"
+  ]
+ },
+ {
+  "repo": "aiohttp",
+  "id": "aiohttp-53",
+  "n": 20,
+  "hits": 2,
+  "rate": 0.1,
+  "levels": [
+   "input",
+   "nearby",
+   "nearby",
+   "input",
+   "input"
+  ],
+  "maj": "input",
+  "agree": 0.6,
+  "mean_level": 2.6,
+  "target": null,
+  "loc": "aiohttp/multipart.py:636-642 (`_decode_content_transfer`), called per chunk via `decode_iter` from aiohttp/web_request.py:833-852 (`BaseRequest.post`) and `BodyPartReaderPayload.write`",
+  "sonnet": [
+   "nearby",
+   "input",
+   "input"
+  ],
+  "opus": [
+   "input",
+   "nearby"
+  ]
+ },
+ {
+  "repo": "aiohttp",
+  "id": "aiohttp-54",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "line",
+   "line",
+   "line",
+   "line",
+   "line"
+  ],
+  "maj": "line",
+  "agree": 1.0,
+  "mean_level": 1,
+  "target": null,
+  "loc": "aiohttp/multipart.py:1159 (`MultipartWriter.decode`)",
+  "sonnet": [
+   "line",
+   "line",
+   "line"
+  ],
+  "opus": [
+   "line",
+   "line"
+  ]
+ },
+ {
+  "repo": "aiohttp",
+  "id": "aiohttp-55",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "line",
+   "line",
+   "line",
+   "line",
+   "line"
+  ],
+  "maj": "line",
+  "agree": 1.0,
+  "mean_level": 1,
+  "target": null,
+  "loc": "aiohttp/test_utils.py:65, 78-81 (`BaseTestServer` socket factory)",
+  "sonnet": [
+   "line",
+   "line",
+   "line"
+  ],
+  "opus": [
+   "line",
+   "line"
+  ]
+ },
+ {
+  "repo": "aiohttp",
+  "id": "aiohttp-56",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "input",
+   "input",
+   "input",
+   "input",
+   "input"
+  ],
+  "maj": "input",
+  "agree": 1.0,
+  "mean_level": 3,
+  "target": null,
+  "loc": "aiohttp/web_request.py:515-541 (`BaseRequest.raw_path`)",
+  "sonnet": [
+   "input",
+   "input",
+   "input"
+  ],
+  "opus": [
+   "input",
+   "input"
+  ]
+ },
+ {
+  "repo": "aiohttp",
+  "id": "aiohttp-57",
+  "n": 20,
+  "hits": 8,
+  "rate": 0.4,
+  "levels": [
+   "line",
+   "line",
+   "line",
+   "line",
+   "line"
+  ],
+  "maj": "line",
+  "agree": 1.0,
+  "mean_level": 1,
+  "target": null,
+  "loc": "aiohttp/_websocket/reader_py.py:552 (`WebSocketReader._feed_data`)",
+  "sonnet": [
+   "line",
+   "line",
+   "line"
+  ],
+  "opus": [
+   "line",
+   "line"
+  ]
+ },
+ {
+  "repo": "aiohttp",
+  "id": "aiohttp-58",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "trace",
+   "trace",
+   "trace",
+   "trace",
+   "trace"
+  ],
+  "maj": "trace",
+  "agree": 1.0,
+  "mean_level": 4,
+  "target": null,
+  "loc": "aiohttp/client_middleware_digest_auth.py:470-503 (`DigestAuthMiddleware.__call__`), with aiohttp/payload.py `AsyncIterablePayload.write_with_length`",
+  "sonnet": [
+   "trace",
+   "trace",
+   "trace"
+  ],
+  "opus": [
+   "trace",
+   "trace"
+  ]
+ },
+ {
+  "repo": "aiohttp",
+  "id": "aiohttp-59",
+  "n": 20,
+  "hits": 8,
+  "rate": 0.4,
+  "levels": [
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "maj": "nearby",
+  "agree": 1.0,
+  "mean_level": 2,
+  "target": null,
+  "loc": "aiohttp/multipart.py:1147-1160 (`MultipartWriter.decode`)",
+  "sonnet": [
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "opus": [
+   "nearby",
+   "nearby"
+  ]
+ },
+ {
+  "repo": "aiohttp",
+  "id": "aiohttp-60",
+  "n": 20,
+  "hits": 2,
+  "rate": 0.1,
+  "levels": [
+   "line",
+   "line",
+   "line",
+   "line",
+   "line"
+  ],
+  "maj": "line",
+  "agree": 1.0,
+  "mean_level": 1,
+  "target": null,
+  "loc": "aiohttp/http_parser.py:324 (`HttpParser.feed_eof`)",
+  "sonnet": [
+   "line",
+   "line",
+   "line"
+  ],
+  "opus": [
+   "line",
+   "line"
+  ]
+ },
+ {
+  "repo": "aiohttp",
+  "id": "aiohttp-61",
+  "n": 20,
+  "hits": 2,
+  "rate": 0.1,
+  "levels": [
+   "input",
+   "input",
+   "input",
+   "input",
+   "input"
+  ],
+  "maj": "input",
+  "agree": 1.0,
+  "mean_level": 3,
+  "target": null,
+  "loc": "aiohttp/web_log.py:63, 123 (`AccessLogger.compile_format`, `CLEANUP_RE`)",
+  "sonnet": [
+   "input",
+   "input",
+   "input"
+  ],
+  "opus": [
+   "input",
+   "input"
+  ]
+ },
+ {
+  "repo": "assertj",
+  "id": "assertj-01",
+  "n": 2,
+  "hits": 1,
+  "rate": 0.5,
+  "levels": [
+   "line",
+   "line",
+   "line",
+   "line",
+   "line"
+  ],
+  "maj": "line",
+  "agree": 1.0,
+  "mean_level": 1,
+  "target": null,
+  "loc": "assertj-core/src/main/java/org/assertj/core/data/TemporalUnitOffset.java:99-111 (hashCode / equals)",
+  "sonnet": [
+   "line",
+   "line",
+   "line"
+  ],
+  "opus": [
+   "line",
+   "line"
+  ]
+ },
+ {
+  "repo": "assertj",
+  "id": "assertj-02",
+  "n": 2,
+  "hits": 1,
+  "rate": 0.5,
+  "levels": [
+   "input",
+   "input",
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "maj": "nearby",
+  "agree": 0.6,
+  "mean_level": 2.4,
+  "target": null,
+  "loc": "assertj-core/src/main/java/org/assertj/core/data/TemporalUnitLessThanOffset.java:33-45 (constructor / isBeyondOffset)",
+  "sonnet": [
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "opus": [
+   "input",
+   "input"
+  ]
+ },
+ {
+  "repo": "assertj",
+  "id": "assertj-03",
+  "n": 2,
+  "hits": 1,
+  "rate": 0.5,
+  "levels": [
+   "line",
+   "line",
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "maj": "nearby",
+  "agree": 0.6,
+  "mean_level": 1.6,
+  "target": null,
+  "loc": "assertj-core/src/main/java/org/assertj/core/data/TemporalUnitOffset.java:53 (checkThatValueIsPositive)",
+  "sonnet": [
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "opus": [
+   "line",
+   "line"
+  ]
+ },
+ {
+  "repo": "assertj",
+  "id": "assertj-04",
+  "n": 2,
+  "hits": 2,
+  "rate": 1.0,
+  "levels": [
+   "input",
+   "nearby",
+   "input",
+   "trace",
+   "trace"
+  ],
+  "maj": "input",
+  "agree": 0.4,
+  "mean_level": 3.2,
+  "target": null,
+  "loc": "assertj-core/src/main/java/org/assertj/core/data/TemporalUnitLessThanOffset.java:45 (isBeyondOffset)",
+  "sonnet": [
+   "input",
+   "trace",
+   "trace"
+  ],
+  "opus": [
+   "input",
+   "nearby"
+  ]
+ },
+ {
+  "repo": "assertj",
+  "id": "assertj-05",
+  "n": 2,
+  "hits": 1,
+  "rate": 0.5,
+  "levels": [
+   "line",
+   "line",
+   "input",
+   "input",
+   "input"
+  ],
+  "maj": "input",
+  "agree": 0.6,
+  "mean_level": 2.2,
+  "target": null,
+  "loc": "assertj-core/src/main/java/org/assertj/core/data/Percentage.java:62 (toString)",
+  "sonnet": [
+   "input",
+   "input",
+   "input"
+  ],
+  "opus": [
+   "line",
+   "line"
+  ]
+ },
+ {
+  "repo": "bionemo",
+  "id": "bionemo-01",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "input",
+   "input",
+   "line",
+   "input",
+   "input"
+  ],
+  "maj": "input",
+  "agree": 0.8,
+  "mean_level": 2.6,
+  "target": null,
+  "loc": "models/amplify/src/amplify/metrics.py:26, 49-68 (compute_metrics)",
+  "sonnet": [
+   "line",
+   "input",
+   "input"
+  ],
+  "opus": [
+   "input",
+   "input"
+  ]
+ },
+ {
+  "repo": "bionemo",
+  "id": "bionemo-02",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "line",
+   "line",
+   "line",
+   "nearby",
+   "nearby"
+  ],
+  "maj": "line",
+  "agree": 0.6,
+  "mean_level": 1.4,
+  "target": null,
+  "loc": "models/esm2/collator.py:435-436 (DataCollatorForContextParallel.__call__)",
+  "sonnet": [
+   "line",
+   "nearby",
+   "nearby"
+  ],
+  "opus": [
+   "line",
+   "line"
+  ]
+ },
+ {
+  "repo": "bionemo",
+  "id": "bionemo-03",
+  "n": 20,
+  "hits": 0,
+  "rate": 0.0,
+  "levels": [
+   "input",
+   "input",
+   "input",
+   "input",
+   "input"
+  ],
+  "maj": "input",
+  "agree": 1.0,
+  "mean_level": 3,
+  "target": "bionemo THD remainder",
+  "loc": "models/esm2/collator.py:975-989 (_split_batch_by_cp_rank, THD branch)",
+  "sonnet": [
+   "input",
+   "input",
+   "input"
+  ],
+  "opus": [
+   "input",
+   "input"
+  ]
+ },
+ {
+  "repo": "bionemo",
+  "id": "bionemo-04",
+  "n": 20,
+  "hits": 15,
+  "rate": 0.75,
+  "levels": [
+   "line",
+   "line",
+   "line",
+   "nearby",
+   "nearby"
+  ],
+  "maj": "line",
+  "agree": 0.6,
+  "mean_level": 1.4,
+  "target": "bionemo AMPLIFY _pad_weights",
+  "loc": "models/amplify/src/amplify/state_dict_convert.py:90 (_pad_weights)",
+  "sonnet": [
+   "line",
+   "nearby",
+   "nearby"
+  ],
+  "opus": [
+   "line",
+   "line"
+  ]
+ },
+ {
+  "repo": "bionemo",
+  "id": "bionemo-05",
+  "n": 20,
+  "hits": 4,
+  "rate": 0.2,
+  "levels": [
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "maj": "nearby",
+  "agree": 1.0,
+  "mean_level": 2,
+  "target": null,
+  "loc": "models/amplify/src/amplify/amplify_te.py:190 (AMPLIFY.__init__, TransformerLayer construction)",
+  "sonnet": [
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "opus": [
+   "nearby",
+   "nearby"
+  ]
+ },
+ {
+  "repo": "bionemo",
+  "id": "bionemo-06",
+  "n": 20,
+  "hits": 2,
+  "rate": 0.1,
+  "levels": [
+   "line",
+   "line",
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "maj": "nearby",
+  "agree": 0.6,
+  "mean_level": 1.6,
+  "target": null,
+  "loc": "models/esm2/modeling_esm_te.py:88, 145-151 (NVEsmConfig.__init__)",
+  "sonnet": [
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "opus": [
+   "line",
+   "line"
+  ]
+ },
+ {
+  "repo": "bionemo",
+  "id": "bionemo-07",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "nearby",
+   "nearby",
+   "trace",
+   "input",
+   "trace"
+  ],
+  "maj": "nearby",
+  "agree": 0.4,
+  "mean_level": 3,
+  "target": null,
+  "loc": "models/esm2/collator.py:511-521, 592-603 (ContextParallelDataLoaderWrapper.__next__ / state_dict)",
+  "sonnet": [
+   "trace",
+   "input",
+   "trace"
+  ],
+  "opus": [
+   "nearby",
+   "nearby"
+  ]
+ },
+ {
+  "repo": "bionemo",
+  "id": "bionemo-08",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "maj": "nearby",
+  "agree": 1.0,
+  "mean_level": 2,
+  "target": null,
+  "loc": "models/amplify/src/amplify/amplify_te.py:298-301 (AMPLIFYForMaskedLM.__init__)",
+  "sonnet": [
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "opus": [
+   "nearby",
+   "nearby"
+  ]
+ },
+ {
+  "repo": "bionemo",
+  "id": "bionemo-09",
+  "n": 20,
+  "hits": 3,
+  "rate": 0.15,
+  "levels": [
+   "nearby",
+   "line",
+   "nearby",
+   "input",
+   "input"
+  ],
+  "maj": "nearby",
+  "agree": 0.4,
+  "mean_level": 2.2,
+  "target": null,
+  "loc": "models/esm2/collator.py:544-549 (ContextParallelDataLoaderWrapper.close), with __iter__ at 500-509",
+  "sonnet": [
+   "nearby",
+   "input",
+   "input"
+  ],
+  "opus": [
+   "nearby",
+   "line"
+  ]
+ },
+ {
+  "repo": "bionemo",
+  "id": "bionemo-10",
+  "n": 20,
+  "hits": 9,
+  "rate": 0.45,
+  "levels": [
+   "line",
+   "input",
+   "line",
+   "input",
+   "line"
+  ],
+  "maj": "line",
+  "agree": 0.6,
+  "mean_level": 1.8,
+  "target": null,
+  "loc": "models/amplify/src/amplify/amplify_hf.py:361 (AMPLIFY.forward)",
+  "sonnet": [
+   "line",
+   "input",
+   "line"
+  ],
+  "opus": [
+   "line",
+   "input"
+  ]
+ },
+ {
+  "repo": "bionemo",
+  "id": "bionemo-11",
+  "n": 20,
+  "hits": 2,
+  "rate": 0.1,
+  "levels": [
+   "input",
+   "input",
+   "input",
+   "input",
+   "input"
+  ],
+  "maj": "input",
+  "agree": 1.0,
+  "mean_level": 3,
+  "target": null,
+  "loc": "models/esm2/collator.py:300-306, 319-327, 331 (TokenPackingDataset.__iter__)",
+  "sonnet": [
+   "input",
+   "input",
+   "input"
+  ],
+  "opus": [
+   "input",
+   "input"
+  ]
+ },
+ {
+  "repo": "bionemo",
+  "id": "bionemo-12",
+  "n": 20,
+  "hits": 2,
+  "rate": 0.1,
+  "levels": [
+   "line",
+   "input",
+   "input",
+   "input",
+   "nearby"
+  ],
+  "maj": "input",
+  "agree": 0.6,
+  "mean_level": 2.4,
+  "target": null,
+  "loc": "models/esm2/modeling_esm_te.py:735-736 (NVEsmEmbeddings._apply_token_dropout_thd)",
+  "sonnet": [
+   "input",
+   "input",
+   "nearby"
+  ],
+  "opus": [
+   "line",
+   "input"
+  ]
+ },
+ {
+  "repo": "bionemo",
+  "id": "bionemo-13",
+  "n": 20,
+  "hits": 2,
+  "rate": 0.1,
+  "levels": [
+   "input",
+   "line",
+   "line",
+   "line",
+   "line"
+  ],
+  "maj": "line",
+  "agree": 0.8,
+  "mean_level": 1.4,
+  "target": null,
+  "loc": "models/amplify/src/amplify/amplify_hf.py:148-189 (EncoderBlock.__init__)",
+  "sonnet": [
+   "line",
+   "line",
+   "line"
+  ],
+  "opus": [
+   "input",
+   "line"
+  ]
+ },
+ {
+  "repo": "bionemo",
+  "id": "bionemo-14",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "input",
+   "input",
+   "input",
+   "input",
+   "input"
+  ],
+  "maj": "input",
+  "agree": 1.0,
+  "mean_level": 3,
+  "target": null,
+  "loc": "models/esm2/modeling_esm_te.py:734-742 (NVEsmEmbeddings._apply_token_dropout_thd)",
+  "sonnet": [
+   "input",
+   "input",
+   "input"
+  ],
+  "opus": [
+   "input",
+   "input"
+  ]
+ },
+ {
+  "repo": "bionemo",
+  "id": "bionemo-15",
+  "n": 20,
+  "hits": 13,
+  "rate": 0.65,
+  "levels": [
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "maj": "nearby",
+  "agree": 1.0,
+  "mean_level": 2,
+  "target": null,
+  "loc": "models/esm2/modeling_esm_te.py:741 (NVEsmEmbeddings._apply_token_dropout_thd)",
+  "sonnet": [
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "opus": [
+   "nearby",
+   "nearby"
+  ]
+ },
+ {
+  "repo": "bionemo",
+  "id": "bionemo-16",
+  "n": 20,
+  "hits": 5,
+  "rate": 0.25,
+  "levels": [
+   "trace",
+   "nearby",
+   "trace",
+   "nearby",
+   "nearby"
+  ],
+  "maj": "nearby",
+  "agree": 0.6,
+  "mean_level": 2.8,
+  "target": null,
+  "loc": "models/amplify/src/amplify/state_dict_convert.py:33 (mapping)",
+  "sonnet": [
+   "trace",
+   "nearby",
+   "nearby"
+  ],
+  "opus": [
+   "trace",
+   "nearby"
+  ]
+ },
+ {
+  "repo": "bionemo",
+  "id": "bionemo-17",
+  "n": 20,
+  "hits": 2,
+  "rate": 0.1,
+  "levels": [
+   "line",
+   "input",
+   "trace",
+   "trace",
+   "trace"
+  ],
+  "maj": "trace",
+  "agree": 0.6,
+  "mean_level": 3.2,
+  "target": null,
+  "loc": "models/esm2/collator.py:551-585 (ContextParallelDataLoaderWrapper._send_data_to_cp_tp_ranks)",
+  "sonnet": [
+   "trace",
+   "trace",
+   "trace"
+  ],
+  "opus": [
+   "line",
+   "input"
+  ]
+ },
+ {
+  "repo": "bionemo",
+  "id": "bionemo-18",
+  "n": 20,
+  "hits": 4,
+  "rate": 0.2,
+  "levels": [
+   "nearby",
+   "input",
+   "nearby",
+   "input",
+   "input"
+  ],
+  "maj": "input",
+  "agree": 0.6,
+  "mean_level": 2.6,
+  "target": null,
+  "loc": "models/esm2/collator.py:500-504 (ContextParallelDataLoaderWrapper.__iter__)",
+  "sonnet": [
+   "nearby",
+   "input",
+   "input"
+  ],
+  "opus": [
+   "nearby",
+   "input"
+  ]
+ },
+ {
+  "repo": "bionemo",
+  "id": "bionemo-19",
+  "n": 20,
+  "hits": 9,
+  "rate": 0.45,
+  "levels": [
+   "trace",
+   "trace",
+   "trace",
+   "nearby",
+   "trace"
+  ],
+  "maj": "trace",
+  "agree": 0.8,
+  "mean_level": 3.6,
+  "target": null,
+  "loc": "models/amplify/src/amplify/amplify_te.py:298-301 (AMPLIFYForMaskedLM.__init__), with models/amplify/src/amplify/state_dict_convert.py:94-117",
+  "sonnet": [
+   "trace",
+   "nearby",
+   "trace"
+  ],
+  "opus": [
+   "trace",
+   "trace"
+  ]
+ },
+ {
+  "repo": "bionemo",
+  "id": "bionemo-20",
+  "n": 20,
+  "hits": 4,
+  "rate": 0.2,
+  "levels": [
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "maj": "nearby",
+  "agree": 1.0,
+  "mean_level": 2,
+  "target": null,
+  "loc": "models/esm2/collator.py:204-227 (DataCollatorWithFlattening._pad_sequences_to_be_divisible_by)",
+  "sonnet": [
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "opus": [
+   "nearby",
+   "nearby"
+  ]
+ },
+ {
+  "repo": "bionemo",
+  "id": "bionemo-21",
+  "n": 20,
+  "hits": 3,
+  "rate": 0.15,
+  "levels": [
+   "trace",
+   "trace",
+   "trace",
+   "input",
+   "trace"
+  ],
+  "maj": "trace",
+  "agree": 0.8,
+  "mean_level": 3.8,
+  "target": null,
+  "loc": "models/esm2/modeling_esm_te.py:185-187 (NVEsmEncoder.__init__)",
+  "sonnet": [
+   "trace",
+   "input",
+   "trace"
+  ],
+  "opus": [
+   "trace",
+   "trace"
+  ]
+ },
+ {
+  "repo": "bionemo",
+  "id": "bionemo-22",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "line",
+   "line",
+   "nearby",
+   "input",
+   "nearby"
+  ],
+  "maj": "line",
+  "agree": 0.4,
+  "mean_level": 1.8,
+  "target": null,
+  "loc": "models/esm2/collator.py:417, 432-434 (DataCollatorForContextParallel.__call__)",
+  "sonnet": [
+   "nearby",
+   "input",
+   "nearby"
+  ],
+  "opus": [
+   "line",
+   "line"
+  ]
+ },
+ {
+  "repo": "bionemo",
+  "id": "bionemo-23",
+  "n": 20,
+  "hits": 13,
+  "rate": 0.65,
+  "levels": [
+   "input",
+   "input",
+   "input",
+   "input",
+   "input"
+  ],
+  "maj": "input",
+  "agree": 1.0,
+  "mean_level": 3,
+  "target": null,
+  "loc": "models/amplify/src/amplify/amplify_te.py:245-247 (AMPLIFY.forward)",
+  "sonnet": [
+   "input",
+   "input",
+   "input"
+  ],
+  "opus": [
+   "input",
+   "input"
+  ]
+ },
+ {
+  "repo": "bionemo",
+  "id": "bionemo-24",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "trace",
+   "trace",
+   "trace",
+   "trace",
+   "trace"
+  ],
+  "maj": "trace",
+  "agree": 1.0,
+  "mean_level": 4,
+  "target": null,
+  "loc": "models/esm2/modeling_esm_te.py:734-744 (NVEsmEmbeddings._apply_token_dropout_thd), with models/esm2/collator.py:414-425 (DataCollatorForContextParallel.__call__)",
+  "sonnet": [
+   "trace",
+   "trace",
+   "trace"
+  ],
+  "opus": [
+   "trace",
+   "trace"
+  ]
+ },
+ {
+  "repo": "bionemo",
+  "id": "bionemo-25",
+  "n": 20,
+  "hits": 2,
+  "rate": 0.1,
+  "levels": [
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby",
+   "trace"
+  ],
+  "maj": "nearby",
+  "agree": 0.8,
+  "mean_level": 2.4,
+  "target": null,
+  "loc": "models/esm2/state.py:544-672 (TransformFns.split_qkv_bias, merge_qkv_concat, merge_qkv_bias_concat, merge_qkv_bias); same code in models/amplify/src/amplify/state.py",
+  "sonnet": [
+   "nearby",
+   "nearby",
+   "trace"
+  ],
+  "opus": [
+   "nearby",
+   "nearby"
+  ]
+ },
+ {
+  "repo": "bionemo",
+  "id": "bionemo-26",
+  "n": 20,
+  "hits": 4,
+  "rate": 0.2,
+  "levels": [
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "maj": "nearby",
+  "agree": 1.0,
+  "mean_level": 2,
+  "target": null,
+  "loc": "models/esm2/collator.py:204-227 (DataCollatorWithFlattening._pad_sequences_to_be_divisible_by)",
+  "sonnet": [
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "opus": [
+   "nearby",
+   "nearby"
+  ]
+ },
+ {
+  "repo": "bionemo",
+  "id": "bionemo-27",
+  "n": 20,
+  "hits": 3,
+  "rate": 0.15,
+  "levels": [
+   "line",
+   "line",
+   "line",
+   "input",
+   "input"
+  ],
+  "maj": "line",
+  "agree": 0.6,
+  "mean_level": 1.8,
+  "target": null,
+  "loc": "models/esm2/convert.py:63 (convert_esm_hf_to_te), models/esm2/convert.py:102 (convert_esm_te_to_hf), models/amplify/src/amplify/state_dict_convert.py:47 (convert_amplify_hf_to_te)",
+  "sonnet": [
+   "line",
+   "input",
+   "input"
+  ],
+  "opus": [
+   "line",
+   "line"
+  ]
+ },
+ {
+  "repo": "bionemo",
+  "id": "bionemo-28",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "line",
+   "line",
+   "line",
+   "line",
+   "input"
+  ],
+  "maj": "line",
+  "agree": 0.8,
+  "mean_level": 1.4,
+  "target": null,
+  "loc": "models/esm2/state.py:432 (_match_keys); same line at models/amplify/src/amplify/state.py:438",
+  "sonnet": [
+   "line",
+   "line",
+   "input"
+  ],
+  "opus": [
+   "line",
+   "line"
+  ]
+ },
+ {
+  "repo": "bionemo",
+  "id": "bionemo-29",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "trace",
+   "nearby",
+   "trace",
+   "nearby",
+   "nearby"
+  ],
+  "maj": "nearby",
+  "agree": 0.6,
+  "mean_level": 2.8,
+  "target": null,
+  "loc": "models/amplify/src/amplify/state_dict_convert.py:27-34 (mapping)",
+  "sonnet": [
+   "trace",
+   "nearby",
+   "nearby"
+  ],
+  "opus": [
+   "trace",
+   "nearby"
+  ]
+ },
+ {
+  "repo": "bionemo",
+  "id": "bionemo-30",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "input",
+   "input",
+   "input",
+   "input",
+   "input"
+  ],
+  "maj": "input",
+  "agree": 1.0,
+  "mean_level": 3,
+  "target": null,
+  "loc": "models/esm2/modeling_esm_te.py:712-716 (NVEsmEmbeddings._apply_token_dropout_bshd)",
+  "sonnet": [
+   "input",
+   "input",
+   "input"
+  ],
+  "opus": [
+   "input",
+   "input"
+  ]
+ },
+ {
+  "repo": "calibre",
+  "id": "calibre-01",
+  "n": 20,
+  "hits": 8,
+  "rate": 0.4,
+  "levels": [
+   "input",
+   "input",
+   "input",
+   "input",
+   "input"
+  ],
+  "maj": "input",
+  "agree": 1.0,
+  "mean_level": 3,
+  "target": null,
+  "loc": "src/calibre/srv/http_response.py:152-161 (get_ranges)",
+  "sonnet": [
+   "input",
+   "input",
+   "input"
+  ],
+  "opus": [
+   "input",
+   "input"
+  ]
+ },
+ {
+  "repo": "calibre",
+  "id": "calibre-02",
+  "n": 20,
+  "hits": 8,
+  "rate": 0.4,
+  "levels": [
+   "line",
+   "input",
+   "nearby",
+   "input",
+   "nearby"
+  ],
+  "maj": "input",
+  "agree": 0.4,
+  "mean_level": 2.2,
+  "target": null,
+  "loc": "src/calibre/srv/utils.py:232-248 (sort_q_values), used by http_response.py:101-117 (acceptable_encoding, preferred_lang)",
+  "sonnet": [
+   "nearby",
+   "input",
+   "nearby"
+  ],
+  "opus": [
+   "line",
+   "input"
+  ]
+ },
+ {
+  "repo": "calibre",
+  "id": "calibre-03",
+  "n": 20,
+  "hits": 4,
+  "rate": 0.2,
+  "levels": [
+   "line",
+   "input",
+   "input",
+   "input",
+   "input"
+  ],
+  "maj": "input",
+  "agree": 0.8,
+  "mean_level": 2.6,
+  "target": null,
+  "loc": "src/calibre/srv/http_request.py:426 (read_chunk_length)",
+  "sonnet": [
+   "input",
+   "input",
+   "input"
+  ],
+  "opus": [
+   "line",
+   "input"
+  ]
+ },
+ {
+  "repo": "calibre",
+  "id": "calibre-04",
+  "n": 20,
+  "hits": 2,
+  "rate": 0.1,
+  "levels": [
+   "input",
+   "input",
+   "input",
+   "input",
+   "nearby"
+  ],
+  "maj": "input",
+  "agree": 0.8,
+  "mean_level": 2.8,
+  "target": null,
+  "loc": "src/calibre/srv/content.py:105-116 (create_file_copy)",
+  "sonnet": [
+   "input",
+   "input",
+   "nearby"
+  ],
+  "opus": [
+   "input",
+   "input"
+  ]
+ },
+ {
+  "repo": "calibre",
+  "id": "calibre-05",
+  "n": 20,
+  "hits": 2,
+  "rate": 0.1,
+  "levels": [
+   "input",
+   "line",
+   "input",
+   "input",
+   "input"
+  ],
+  "maj": "input",
+  "agree": 0.8,
+  "mean_level": 2.6,
+  "target": null,
+  "loc": "src/calibre/srv/http_request.py:186, 209-213 (HTTPHeaderParser)",
+  "sonnet": [
+   "input",
+   "input",
+   "input"
+  ],
+  "opus": [
+   "input",
+   "line"
+  ]
+ },
+ {
+  "repo": "calibre",
+  "id": "calibre-06",
+  "n": 20,
+  "hits": 7,
+  "rate": 0.35,
+  "levels": [
+   "input",
+   "input",
+   "input",
+   "input",
+   "input"
+  ],
+  "maj": "input",
+  "agree": 1.0,
+  "mean_level": 3,
+  "target": null,
+  "loc": "src/calibre/srv/http_request.py:426 (read_chunk_length)",
+  "sonnet": [
+   "input",
+   "input",
+   "input"
+  ],
+  "opus": [
+   "input",
+   "input"
+  ]
+ },
+ {
+  "repo": "calibre",
+  "id": "calibre-07",
+  "n": 20,
+  "hits": 7,
+  "rate": 0.35,
+  "levels": [
+   "line",
+   "line",
+   "nearby",
+   "line",
+   "nearby"
+  ],
+  "maj": "line",
+  "agree": 0.6,
+  "mean_level": 1.4,
+  "target": null,
+  "loc": "src/calibre/srv/auth.py:297-303 (AuthController.do_http_auth)",
+  "sonnet": [
+   "nearby",
+   "line",
+   "nearby"
+  ],
+  "opus": [
+   "line",
+   "line"
+  ]
+ },
+ {
+  "repo": "calibre",
+  "id": "calibre-08",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "trace",
+   "trace",
+   "nearby",
+   "trace",
+   "trace"
+  ],
+  "maj": "trace",
+  "agree": 0.8,
+  "mean_level": 3.6,
+  "target": null,
+  "loc": "src/calibre/srv/embedded.py:95, 135 (Server.start / serve_forever)",
+  "sonnet": [
+   "nearby",
+   "trace",
+   "trace"
+  ],
+  "opus": [
+   "trace",
+   "trace"
+  ]
+ },
+ {
+  "repo": "calibre",
+  "id": "calibre-09",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "nearby",
+   "nearby",
+   "nearby",
+   "line",
+   "nearby"
+  ],
+  "maj": "nearby",
+  "agree": 0.8,
+  "mean_level": 1.8,
+  "target": null,
+  "loc": "src/calibre/srv/convert.py:252 (conversion_status)",
+  "sonnet": [
+   "nearby",
+   "line",
+   "nearby"
+  ],
+  "opus": [
+   "nearby",
+   "nearby"
+  ]
+ },
+ {
+  "repo": "calibre",
+  "id": "calibre-10",
+  "n": 20,
+  "hits": 4,
+  "rate": 0.2,
+  "levels": [
+   "nearby",
+   "input",
+   "input",
+   "nearby",
+   "input"
+  ],
+  "maj": "input",
+  "agree": 0.6,
+  "mean_level": 2.6,
+  "target": null,
+  "loc": "src/calibre/srv/jobs.py:98, 198-224 (JobsManager.update_max_block / abort_hanging_jobs)",
+  "sonnet": [
+   "input",
+   "nearby",
+   "input"
+  ],
+  "opus": [
+   "nearby",
+   "input"
+  ]
+ },
+ {
+  "repo": "calibre",
+  "id": "calibre-11",
+  "n": 20,
+  "hits": 0,
+  "rate": 0.0,
+  "levels": [
+   "line",
+   "input",
+   "input",
+   "input",
+   "input"
+  ],
+  "maj": "input",
+  "agree": 0.8,
+  "mean_level": 2.6,
+  "target": "calibre OPDS hex->500",
+  "loc": "src/calibre/srv/opds.py:664, 687, 739-745 (opds_navcatalog, opds_category, opds_categorygroup)",
+  "sonnet": [
+   "input",
+   "input",
+   "input"
+  ],
+  "opus": [
+   "line",
+   "input"
+  ]
+ },
+ {
+  "repo": "calibre",
+  "id": "calibre-12",
+  "n": 20,
+  "hits": 2,
+  "rate": 0.1,
+  "levels": [
+   "nearby",
+   "nearby",
+   "nearby",
+   "trace",
+   "nearby"
+  ],
+  "maj": "nearby",
+  "agree": 0.8,
+  "mean_level": 2.4,
+  "target": null,
+  "loc": "src/calibre/srv/http_response.py:468 (simple_response)",
+  "sonnet": [
+   "nearby",
+   "trace",
+   "nearby"
+  ],
+  "opus": [
+   "nearby",
+   "nearby"
+  ]
+ },
+ {
+  "repo": "calibre",
+  "id": "calibre-13",
+  "n": 20,
+  "hits": 6,
+  "rate": 0.3,
+  "levels": [
+   "line",
+   "line",
+   "line",
+   "line",
+   "line"
+  ],
+  "maj": "line",
+  "agree": 1.0,
+  "mean_level": 1,
+  "target": null,
+  "loc": "src/calibre/srv/standalone.py:209 (main)",
+  "sonnet": [
+   "line",
+   "line",
+   "line"
+  ],
+  "opus": [
+   "line",
+   "line"
+  ]
+ },
+ {
+  "repo": "calibre",
+  "id": "calibre-14",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "trace",
+   "trace",
+   "trace",
+   "trace",
+   "input"
+  ],
+  "maj": "trace",
+  "agree": 0.8,
+  "mean_level": 3.8,
+  "target": null,
+  "loc": "src/calibre/srv/content.py:632-639 (upload_data_files)",
+  "sonnet": [
+   "trace",
+   "trace",
+   "input"
+  ],
+  "opus": [
+   "trace",
+   "trace"
+  ]
+ },
+ {
+  "repo": "calibre",
+  "id": "calibre-15",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "line",
+   "line",
+   "nearby",
+   "nearby",
+   "input"
+  ],
+  "maj": "line",
+  "agree": 0.4,
+  "mean_level": 1.8,
+  "target": null,
+  "loc": "src/calibre/srv/opds.py:598-604 (get_navcatalog)",
+  "sonnet": [
+   "nearby",
+   "nearby",
+   "input"
+  ],
+  "opus": [
+   "line",
+   "line"
+  ]
+ },
+ {
+  "repo": "calibre",
+  "id": "calibre-16",
+  "n": 20,
+  "hits": 2,
+  "rate": 0.1,
+  "levels": [
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "maj": "nearby",
+  "agree": 1.0,
+  "mean_level": 2,
+  "target": null,
+  "loc": "src/calibre/srv/http_response.py:748-755 (finalize_output)",
+  "sonnet": [
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "opus": [
+   "nearby",
+   "nearby"
+  ]
+ },
+ {
+  "repo": "calibre",
+  "id": "calibre-17",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "nearby",
+   "input",
+   "input",
+   "nearby",
+   "line"
+  ],
+  "maj": "nearby",
+  "agree": 0.4,
+  "mean_level": 2.2,
+  "target": null,
+  "loc": "src/calibre/srv/render_book.py:289-312 (parse_smil_time)",
+  "sonnet": [
+   "input",
+   "nearby",
+   "line"
+  ],
+  "opus": [
+   "nearby",
+   "input"
+  ]
+ },
+ {
+  "repo": "calibre",
+  "id": "calibre-18",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "input",
+   "nearby",
+   "input",
+   "input",
+   "nearby"
+  ],
+  "maj": "input",
+  "agree": 0.6,
+  "mean_level": 2.6,
+  "target": null,
+  "loc": "src/calibre/srv/code.py:368-375 (category_browse_items)",
+  "sonnet": [
+   "input",
+   "input",
+   "nearby"
+  ],
+  "opus": [
+   "input",
+   "nearby"
+  ]
+ },
+ {
+  "repo": "calibre",
+  "id": "calibre-19",
+  "n": 20,
+  "hits": 7,
+  "rate": 0.35,
+  "levels": [
+   "input",
+   "line",
+   "input",
+   "input",
+   "input"
+  ],
+  "maj": "input",
+  "agree": 0.8,
+  "mean_level": 2.6,
+  "target": null,
+  "loc": "src/calibre/srv/http_response.py:784-801 (finalize_output)",
+  "sonnet": [
+   "input",
+   "input",
+   "input"
+  ],
+  "opus": [
+   "input",
+   "line"
+  ]
+ },
+ {
+  "repo": "calibre",
+  "id": "calibre-20",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "input",
+   "input",
+   "input",
+   "line",
+   "line"
+  ],
+  "maj": "input",
+  "agree": 0.6,
+  "mean_level": 2.2,
+  "target": null,
+  "loc": "src/calibre/srv/render_book.py:294-299 (parse_smil_time)",
+  "sonnet": [
+   "input",
+   "line",
+   "line"
+  ],
+  "opus": [
+   "input",
+   "input"
+  ]
+ },
+ {
+  "repo": "calibre",
+  "id": "calibre-21",
+  "n": 20,
+  "hits": 5,
+  "rate": 0.25,
+  "levels": [
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "maj": "nearby",
+  "agree": 1.0,
+  "mean_level": 2,
+  "target": null,
+  "loc": "src/calibre/srv/cdb.py:226 (cdb_set_fields)",
+  "sonnet": [
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "opus": [
+   "nearby",
+   "nearby"
+  ]
+ },
+ {
+  "repo": "calibre",
+  "id": "calibre-22",
+  "n": 20,
+  "hits": 6,
+  "rate": 0.3,
+  "levels": [
+   "line",
+   "line",
+   "line",
+   "line",
+   "line"
+  ],
+  "maj": "line",
+  "agree": 1.0,
+  "mean_level": 1,
+  "target": null,
+  "loc": "src/calibre/srv/loop.py:570 (ServerLoop.setup_socket)",
+  "sonnet": [
+   "line",
+   "line",
+   "line"
+  ],
+  "opus": [
+   "line",
+   "line"
+  ]
+ },
+ {
+  "repo": "calibre",
+  "id": "calibre-23",
+  "n": 20,
+  "hits": 8,
+  "rate": 0.4,
+  "levels": [
+   "nearby",
+   "line",
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "maj": "nearby",
+  "agree": 0.8,
+  "mean_level": 1.8,
+  "target": null,
+  "loc": "src/calibre/srv/http_response.py:759 (finalize_output)",
+  "sonnet": [
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "opus": [
+   "nearby",
+   "line"
+  ]
+ },
+ {
+  "repo": "calibre",
+  "id": "calibre-24",
+  "n": 20,
+  "hits": 13,
+  "rate": 0.65,
+  "levels": [
+   "line",
+   "line",
+   "line",
+   "line",
+   "nearby"
+  ],
+  "maj": "line",
+  "agree": 0.8,
+  "mean_level": 1.2,
+  "target": null,
+  "loc": "src/calibre/srv/http_response.py:561 (job_done)",
+  "sonnet": [
+   "line",
+   "line",
+   "nearby"
+  ],
+  "opus": [
+   "line",
+   "line"
+  ]
+ },
+ {
+  "repo": "calibre",
+  "id": "calibre-25",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "line",
+   "nearby",
+   "nearby",
+   "nearby",
+   "line"
+  ],
+  "maj": "nearby",
+  "agree": 0.6,
+  "mean_level": 1.6,
+  "target": null,
+  "loc": "src/calibre/srv/opds.py:598-604 (get_navcatalog)",
+  "sonnet": [
+   "nearby",
+   "nearby",
+   "line"
+  ],
+  "opus": [
+   "line",
+   "nearby"
+  ]
+ },
+ {
+  "repo": "calibre",
+  "id": "calibre-26",
+  "n": 20,
+  "hits": 4,
+  "rate": 0.2,
+  "levels": [
+   "line",
+   "input",
+   "input",
+   "input",
+   "nearby"
+  ],
+  "maj": "input",
+  "agree": 0.6,
+  "mean_level": 2.4,
+  "target": null,
+  "loc": "src/calibre/srv/web_socket.py:418 (ws_control_frame)",
+  "sonnet": [
+   "input",
+   "input",
+   "nearby"
+  ],
+  "opus": [
+   "line",
+   "input"
+  ]
+ },
+ {
+  "repo": "calibre",
+  "id": "calibre-27",
+  "n": 20,
+  "hits": 3,
+  "rate": 0.15,
+  "levels": [
+   "line",
+   "line",
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "maj": "nearby",
+  "agree": 0.6,
+  "mean_level": 1.6,
+  "target": null,
+  "loc": "src/calibre/srv/http_request.py:328-331 (parse_request_line)",
+  "sonnet": [
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "opus": [
+   "line",
+   "line"
+  ]
+ },
+ {
+  "repo": "calibre",
+  "id": "calibre-28",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "line",
+   "input",
+   "input",
+   "input",
+   "input"
+  ],
+  "maj": "input",
+  "agree": 0.8,
+  "mean_level": 2.6,
+  "target": null,
+  "loc": "src/calibre/srv/http_request.py:449-450 (read_chunk_separator)",
+  "sonnet": [
+   "input",
+   "input",
+   "input"
+  ],
+  "opus": [
+   "line",
+   "input"
+  ]
+ },
+ {
+  "repo": "calibre",
+  "id": "calibre-29",
+  "n": 20,
+  "hits": 5,
+  "rate": 0.25,
+  "levels": [
+   "trace",
+   "trace",
+   "trace",
+   "nearby",
+   "input"
+  ],
+  "maj": "trace",
+  "agree": 0.6,
+  "mean_level": 3.4,
+  "target": null,
+  "loc": "src/calibre/srv/content.py:659-668 (remove_data_files)",
+  "sonnet": [
+   "trace",
+   "nearby",
+   "input"
+  ],
+  "opus": [
+   "trace",
+   "trace"
+  ]
+ },
+ {
+  "repo": "calibre",
+  "id": "calibre-30",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby",
+   "line"
+  ],
+  "maj": "nearby",
+  "agree": 0.8,
+  "mean_level": 1.8,
+  "target": null,
+  "loc": "src/calibre/srv/http_response.py:582 (job_done)",
+  "sonnet": [
+   "nearby",
+   "nearby",
+   "line"
+  ],
+  "opus": [
+   "nearby",
+   "nearby"
+  ]
+ },
+ {
+  "repo": "calibre",
+  "id": "calibre-31",
+  "n": 20,
+  "hits": 9,
+  "rate": 0.45,
+  "levels": [
+   "line",
+   "line",
+   "line",
+   "line",
+   "line"
+  ],
+  "maj": "line",
+  "agree": 1.0,
+  "mean_level": 1,
+  "target": null,
+  "loc": "src/calibre/srv/loop.py:615-616 (ServerLoop.tick)",
+  "sonnet": [
+   "line",
+   "line",
+   "line"
+  ],
+  "opus": [
+   "line",
+   "line"
+  ]
+ },
+ {
+  "repo": "calibre",
+  "id": "calibre-32",
+  "n": 20,
+  "hits": 5,
+  "rate": 0.25,
+  "levels": [
+   "nearby",
+   "nearby",
+   "nearby",
+   "input",
+   "line"
+  ],
+  "maj": "nearby",
+  "agree": 0.6,
+  "mean_level": 2,
+  "target": null,
+  "loc": "src/calibre/srv/http_response.py:793-794 (finalize_output)",
+  "sonnet": [
+   "nearby",
+   "input",
+   "line"
+  ],
+  "opus": [
+   "nearby",
+   "nearby"
+  ]
+ },
+ {
+  "repo": "calibre",
+  "id": "calibre-33",
+  "n": 20,
+  "hits": 2,
+  "rate": 0.1,
+  "levels": [
+   "input",
+   "input",
+   "input",
+   "input",
+   "input"
+  ],
+  "maj": "input",
+  "agree": 1.0,
+  "mean_level": 3,
+  "target": null,
+  "loc": "src/calibre/srv/legacy.py:122 (build_navigation)",
+  "sonnet": [
+   "input",
+   "input",
+   "input"
+  ],
+  "opus": [
+   "input",
+   "input"
+  ]
+ },
+ {
+  "repo": "calibre",
+  "id": "calibre-34",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "maj": "nearby",
+  "agree": 1.0,
+  "mean_level": 2,
+  "target": null,
+  "loc": "src/calibre/srv/http_response.py:521-529 (send_range_not_satisfiable)",
+  "sonnet": [
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "opus": [
+   "nearby",
+   "nearby"
+  ]
+ },
+ {
+  "repo": "calibre",
+  "id": "calibre-35",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "maj": "nearby",
+  "agree": 1.0,
+  "mean_level": 2,
+  "target": null,
+  "loc": "src/calibre/srv/content.py:223-263 (book_fmt)",
+  "sonnet": [
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "opus": [
+   "nearby",
+   "nearby"
+  ]
+ },
+ {
+  "repo": "calibre",
+  "id": "calibre-36",
+  "n": 20,
+  "hits": 11,
+  "rate": 0.55,
+  "levels": [
+   "input",
+   "input",
+   "input",
+   "input",
+   "input"
+  ],
+  "maj": "input",
+  "agree": 1.0,
+  "mean_level": 3,
+  "target": null,
+  "loc": "src/calibre/srv/http_request.py:426 (read_chunk_length / read_chunk)",
+  "sonnet": [
+   "input",
+   "input",
+   "input"
+  ],
+  "opus": [
+   "input",
+   "input"
+  ]
+ },
+ {
+  "repo": "calibre",
+  "id": "calibre-37",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "trace",
+   "trace",
+   "trace",
+   "trace",
+   "trace"
+  ],
+  "maj": "trace",
+  "agree": 1.0,
+  "mean_level": 4,
+  "target": null,
+  "loc": "src/calibre/srv/ajax.py:554 (search_result)",
+  "sonnet": [
+   "trace",
+   "trace",
+   "trace"
+  ],
+  "opus": [
+   "trace",
+   "trace"
+  ]
+ },
+ {
+  "repo": "calibre",
+  "id": "calibre-38",
+  "n": 20,
+  "hits": 2,
+  "rate": 0.1,
+  "levels": [
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby",
+   "trace"
+  ],
+  "maj": "nearby",
+  "agree": 0.8,
+  "mean_level": 2.4,
+  "target": null,
+  "loc": "src/calibre/srv/convert.py:46, 134, 187 (JobStatus / queue_job / convert_book)",
+  "sonnet": [
+   "nearby",
+   "nearby",
+   "trace"
+  ],
+  "opus": [
+   "nearby",
+   "nearby"
+  ]
+ },
+ {
+  "repo": "calibre",
+  "id": "calibre-39",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "input",
+   "input",
+   "input",
+   "trace",
+   "trace"
+  ],
+  "maj": "input",
+  "agree": 0.6,
+  "mean_level": 3.4,
+  "target": null,
+  "loc": "src/calibre/srv/code.py:337-352 (category_browse_search_expression)",
+  "sonnet": [
+   "input",
+   "trace",
+   "trace"
+  ],
+  "opus": [
+   "input",
+   "input"
+  ]
+ },
+ {
+  "repo": "calibre",
+  "id": "calibre-40",
+  "n": 20,
+  "hits": 3,
+  "rate": 0.15,
+  "levels": [
+   "trace",
+   "trace",
+   "input",
+   "trace",
+   "input"
+  ],
+  "maj": "trace",
+  "agree": 0.6,
+  "mean_level": 3.6,
+  "target": null,
+  "loc": "src/calibre/srv/cdb.py:107-113 (cdb_add_book)",
+  "sonnet": [
+   "input",
+   "trace",
+   "input"
+  ],
+  "opus": [
+   "trace",
+   "trace"
+  ]
+ },
+ {
+  "repo": "calibre",
+  "id": "calibre-41",
+  "n": 20,
+  "hits": 12,
+  "rate": 0.6,
+  "levels": [
+   "line",
+   "line",
+   "line",
+   "line",
+   "input"
+  ],
+  "maj": "line",
+  "agree": 0.8,
+  "mean_level": 1.4,
+  "target": null,
+  "loc": "src/calibre/srv/auth.py:52-58 (BanList.failed)",
+  "sonnet": [
+   "line",
+   "line",
+   "input"
+  ],
+  "opus": [
+   "line",
+   "line"
+  ]
+ },
+ {
+  "repo": "calibre",
+  "id": "calibre-42",
+  "n": 20,
+  "hits": 9,
+  "rate": 0.45,
+  "levels": [
+   "nearby",
+   "input",
+   "nearby",
+   "nearby",
+   "input"
+  ],
+  "maj": "nearby",
+  "agree": 0.6,
+  "mean_level": 2.4,
+  "target": null,
+  "loc": "src/calibre/srv/auth.py:48-51 (BanList.failed)",
+  "sonnet": [
+   "nearby",
+   "nearby",
+   "input"
+  ],
+  "opus": [
+   "nearby",
+   "input"
+  ]
+ },
+ {
+  "repo": "calibre",
+  "id": "calibre-43",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "nearby",
+   "nearby",
+   "input",
+   "input",
+   "trace"
+  ],
+  "maj": "nearby",
+  "agree": 0.4,
+  "mean_level": 2.8,
+  "target": null,
+  "loc": "src/calibre/srv/content.py:65-121 (create_file_copy, with book_fmt 228-243)",
+  "sonnet": [
+   "input",
+   "input",
+   "trace"
+  ],
+  "opus": [
+   "nearby",
+   "nearby"
+  ]
+ },
+ {
+  "repo": "calibre",
+  "id": "calibre-44",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "nearby",
+   "trace",
+   "trace",
+   "trace",
+   "trace"
+  ],
+  "maj": "trace",
+  "agree": 0.8,
+  "mean_level": 3.6,
+  "target": null,
+  "loc": "src/calibre/srv/users.py:29-40, 236 (parse_restriction / restrictions)",
+  "sonnet": [
+   "trace",
+   "trace",
+   "trace"
+  ],
+  "opus": [
+   "nearby",
+   "trace"
+  ]
+ },
+ {
+  "repo": "calibre",
+  "id": "calibre-45",
+  "n": 20,
+  "hits": 6,
+  "rate": 0.3,
+  "levels": [
+   "line",
+   "line",
+   "line",
+   "line",
+   "line"
+  ],
+  "maj": "line",
+  "agree": 1.0,
+  "mean_level": 1,
+  "target": null,
+  "loc": "src/calibre/srv/content.py:358 (reader_background)",
+  "sonnet": [
+   "line",
+   "line",
+   "line"
+  ],
+  "opus": [
+   "line",
+   "line"
+  ]
+ },
+ {
+  "repo": "calibre",
+  "id": "calibre-46",
+  "n": 20,
+  "hits": 3,
+  "rate": 0.15,
+  "levels": [
+   "line",
+   "trace",
+   "trace",
+   "trace",
+   "trace"
+  ],
+  "maj": "trace",
+  "agree": 0.8,
+  "mean_level": 3.4,
+  "target": null,
+  "loc": "src/calibre/srv/cdb.py:107-119 (cdb_add_book)",
+  "sonnet": [
+   "trace",
+   "trace",
+   "trace"
+  ],
+  "opus": [
+   "line",
+   "trace"
+  ]
+ },
+ {
+  "repo": "calibre",
+  "id": "calibre-47",
+  "n": 20,
+  "hits": 4,
+  "rate": 0.2,
+  "levels": [
+   "line",
+   "line",
+   "line",
+   "nearby",
+   "line"
+  ],
+  "maj": "line",
+  "agree": 0.8,
+  "mean_level": 1.2,
+  "target": null,
+  "loc": "src/calibre/srv/books.py:114-116 (clean_final)",
+  "sonnet": [
+   "line",
+   "nearby",
+   "line"
+  ],
+  "opus": [
+   "line",
+   "line"
+  ]
+ },
+ {
+  "repo": "calibre",
+  "id": "calibre-48",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "line",
+   "input",
+   "line",
+   "line",
+   "input"
+  ],
+  "maj": "line",
+  "agree": 0.6,
+  "mean_level": 1.8,
+  "target": null,
+  "loc": "src/calibre/srv/http_request.py:189-193 (HTTPHeaderParser.commit)",
+  "sonnet": [
+   "line",
+   "line",
+   "input"
+  ],
+  "opus": [
+   "line",
+   "input"
+  ]
+ },
+ {
+  "repo": "calibre",
+  "id": "calibre-49",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "line",
+   "line",
+   "line",
+   "line",
+   "line"
+  ],
+  "maj": "line",
+  "agree": 1.0,
+  "mean_level": 1,
+  "target": null,
+  "loc": "src/calibre/srv/render_book.py:289-312 (parse_smil_time)",
+  "sonnet": [
+   "line",
+   "line",
+   "line"
+  ],
+  "opus": [
+   "line",
+   "line"
+  ]
+ },
+ {
+  "repo": "calibre",
+  "id": "calibre-50",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "line",
+   "line",
+   "input",
+   "input",
+   "input"
+  ],
+  "maj": "input",
+  "agree": 0.6,
+  "mean_level": 2.2,
+  "target": null,
+  "loc": "src/calibre/srv/http_request.py:189-190 (HTTPHeaderParser.commit)",
+  "sonnet": [
+   "input",
+   "input",
+   "input"
+  ],
+  "opus": [
+   "line",
+   "line"
+  ]
+ },
+ {
+  "repo": "calibre",
+  "id": "calibre-51",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "input",
+   "input",
+   "nearby",
+   "input",
+   "nearby"
+  ],
+  "maj": "input",
+  "agree": 0.6,
+  "mean_level": 2.6,
+  "target": null,
+  "loc": "src/calibre/srv/http_request.py:373-381 (finalize_headers)",
+  "sonnet": [
+   "nearby",
+   "input",
+   "nearby"
+  ],
+  "opus": [
+   "input",
+   "input"
+  ]
+ },
+ {
+  "repo": "calibre",
+  "id": "calibre-52",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "line",
+   "line",
+   "input",
+   "input",
+   "input"
+  ],
+  "maj": "input",
+  "agree": 0.6,
+  "mean_level": 2.2,
+  "target": null,
+  "loc": "src/calibre/srv/web_socket.py:439 (websocket_close)",
+  "sonnet": [
+   "input",
+   "input",
+   "input"
+  ],
+  "opus": [
+   "line",
+   "line"
+  ]
+ },
+ {
+  "repo": "calibre",
+  "id": "calibre-53",
+  "n": 20,
+  "hits": 13,
+  "rate": 0.65,
+  "levels": [
+   "line",
+   "line",
+   "line",
+   "line",
+   "line"
+  ],
+  "maj": "line",
+  "agree": 1.0,
+  "mean_level": 1,
+  "target": null,
+  "loc": "src/calibre/srv/http_response.py:138 (get_ranges)",
+  "sonnet": [
+   "line",
+   "line",
+   "line"
+  ],
+  "opus": [
+   "line",
+   "line"
+  ]
+ },
+ {
+  "repo": "calibre",
+  "id": "calibre-54",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby",
+   "input"
+  ],
+  "maj": "nearby",
+  "agree": 0.8,
+  "mean_level": 2.2,
+  "target": null,
+  "loc": "src/calibre/srv/opds.py:588-590 (get_navcatalog)",
+  "sonnet": [
+   "nearby",
+   "nearby",
+   "input"
+  ],
+  "opus": [
+   "nearby",
+   "nearby"
+  ]
+ },
+ {
+  "repo": "calibre",
+  "id": "calibre-55",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "maj": "nearby",
+  "agree": 1.0,
+  "mean_level": 2,
+  "target": null,
+  "loc": "src/calibre/srv/legacy.py:270-272 (mobile)",
+  "sonnet": [
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "opus": [
+   "nearby",
+   "nearby"
+  ]
+ },
+ {
+  "repo": "calibre",
+  "id": "calibre-56",
+  "n": 20,
+  "hits": 10,
+  "rate": 0.5,
+  "levels": [
+   "input",
+   "input",
+   "input",
+   "input",
+   "input"
+  ],
+  "maj": "input",
+  "agree": 1.0,
+  "mean_level": 3,
+  "target": null,
+  "loc": "src/calibre/srv/http_response.py:152-161 (get_ranges)",
+  "sonnet": [
+   "input",
+   "input",
+   "input"
+  ],
+  "opus": [
+   "input",
+   "input"
+  ]
+ },
+ {
+  "repo": "calibre",
+  "id": "calibre-57",
+  "n": 20,
+  "hits": 3,
+  "rate": 0.15,
+  "levels": [
+   "trace",
+   "nearby",
+   "nearby",
+   "trace",
+   "nearby"
+  ],
+  "maj": "nearby",
+  "agree": 0.6,
+  "mean_level": 2.8,
+  "target": null,
+  "loc": "src/calibre/srv/code.py:456-464 (get_library_init_data)",
+  "sonnet": [
+   "nearby",
+   "trace",
+   "nearby"
+  ],
+  "opus": [
+   "trace",
+   "nearby"
+  ]
+ },
+ {
+  "repo": "calibre",
+  "id": "calibre-58",
+  "n": 20,
+  "hits": 5,
+  "rate": 0.25,
+  "levels": [
+   "line",
+   "line",
+   "line",
+   "line",
+   "input"
+  ],
+  "maj": "line",
+  "agree": 0.8,
+  "mean_level": 1.4,
+  "target": null,
+  "loc": "src/calibre/srv/utils.py:237-248 (sort_q_values)",
+  "sonnet": [
+   "line",
+   "line",
+   "input"
+  ],
+  "opus": [
+   "line",
+   "line"
+  ]
+ },
+ {
+  "repo": "calibre",
+  "id": "calibre-59",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "maj": "nearby",
+  "agree": 1.0,
+  "mean_level": 2,
+  "target": null,
+  "loc": "src/calibre/srv/fts.py:77-82 (fts_disable)",
+  "sonnet": [
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "opus": [
+   "nearby",
+   "nearby"
+  ]
+ },
+ {
+  "repo": "calibre",
+  "id": "calibre-60",
+  "n": 20,
+  "hits": 4,
+  "rate": 0.2,
+  "levels": [
+   "input",
+   "input",
+   "input",
+   "input",
+   "input"
+  ],
+  "maj": "input",
+  "agree": 1.0,
+  "mean_level": 3,
+  "target": null,
+  "loc": "src/calibre/srv/http_response.py:152-161 (get_ranges)",
+  "sonnet": [
+   "input",
+   "input",
+   "input"
+  ],
+  "opus": [
+   "input",
+   "input"
+  ]
+ },
+ {
+  "repo": "calibre",
+  "id": "calibre-61",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "line",
+   "line",
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "maj": "nearby",
+  "agree": 0.6,
+  "mean_level": 1.6,
+  "target": null,
+  "loc": "src/calibre/srv/jobs.py:235 (JobsManager.job_finished)",
+  "sonnet": [
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "opus": [
+   "line",
+   "line"
+  ]
+ },
+ {
+  "repo": "calibre",
+  "id": "calibre-62",
+  "n": 20,
+  "hits": 6,
+  "rate": 0.3,
+  "levels": [
+   "line",
+   "line",
+   "line",
+   "line",
+   "line"
+  ],
+  "maj": "line",
+  "agree": 1.0,
+  "mean_level": 1,
+  "target": null,
+  "loc": "src/calibre/srv/http_request.py:396-399 (finalize_headers)",
+  "sonnet": [
+   "line",
+   "line",
+   "line"
+  ],
+  "opus": [
+   "line",
+   "line"
+  ]
+ },
+ {
+  "repo": "calibre",
+  "id": "calibre-63",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "line",
+   "line",
+   "line",
+   "line",
+   "line"
+  ],
+  "maj": "line",
+  "agree": 1.0,
+  "mean_level": 1,
+  "target": null,
+  "loc": "src/calibre/srv/render_book.py:902-917 (handle_quicklook_client)",
+  "sonnet": [
+   "line",
+   "line",
+   "line"
+  ],
+  "opus": [
+   "line",
+   "line"
+  ]
+ },
+ {
+  "repo": "chi",
+  "id": "chi-01",
+  "n": 20,
+  "hits": 3,
+  "rate": 0.15,
+  "levels": [
+   "line",
+   "line",
+   "input",
+   "line",
+   "line"
+  ],
+  "maj": "line",
+  "agree": 0.8,
+  "mean_level": 1.4,
+  "target": null,
+  "loc": "middleware/recoverer.go:39 (Recoverer)",
+  "sonnet": [
+   "input",
+   "line",
+   "line"
+  ],
+  "opus": [
+   "line",
+   "line"
+  ]
+ },
+ {
+  "repo": "chi",
+  "id": "chi-02",
+  "n": 20,
+  "hits": 2,
+  "rate": 0.1,
+  "levels": [
+   "line",
+   "line",
+   "line",
+   "input",
+   "input"
+  ],
+  "maj": "line",
+  "agree": 0.6,
+  "mean_level": 1.8,
+  "target": null,
+  "loc": "middleware/url_format.go:58-60 (URLFormat)",
+  "sonnet": [
+   "line",
+   "input",
+   "input"
+  ],
+  "opus": [
+   "line",
+   "line"
+  ]
+ },
+ {
+  "repo": "chi",
+  "id": "chi-03",
+  "n": 20,
+  "hits": 15,
+  "rate": 0.75,
+  "levels": [
+   "input",
+   "input",
+   "input",
+   "line",
+   "line"
+  ],
+  "maj": "input",
+  "agree": 0.6,
+  "mean_level": 2.2,
+  "target": null,
+  "loc": "middleware/compress.go:260-267 (matchAcceptEncoding)",
+  "sonnet": [
+   "input",
+   "line",
+   "line"
+  ],
+  "opus": [
+   "input",
+   "input"
+  ]
+ },
+ {
+  "repo": "chi",
+  "id": "chi-04",
+  "n": 20,
+  "hits": 9,
+  "rate": 0.45,
+  "levels": [
+   "nearby",
+   "input",
+   "nearby",
+   "input",
+   "input"
+  ],
+  "maj": "input",
+  "agree": 0.6,
+  "mean_level": 2.6,
+  "target": null,
+  "loc": "middleware/compress.go:357-371 (compressResponseWriter.Flush)",
+  "sonnet": [
+   "nearby",
+   "input",
+   "input"
+  ],
+  "opus": [
+   "nearby",
+   "input"
+  ]
+ },
+ {
+  "repo": "chi",
+  "id": "chi-05",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "maj": "nearby",
+  "agree": 1.0,
+  "mean_level": 2,
+  "target": null,
+  "loc": "middleware/compress.go:406-411 (encoderDeflate)",
+  "sonnet": [
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "opus": [
+   "nearby",
+   "nearby"
+  ]
+ },
+ {
+  "repo": "chi",
+  "id": "chi-06",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "input",
+   "line",
+   "input",
+   "line",
+   "line"
+  ],
+  "maj": "line",
+  "agree": 0.6,
+  "mean_level": 1.8,
+  "target": null,
+  "loc": "middleware/compress.go:296-300 (compressResponseWriter.isCompressible)",
+  "sonnet": [
+   "input",
+   "line",
+   "line"
+  ],
+  "opus": [
+   "input",
+   "line"
+  ]
+ },
+ {
+  "repo": "chi",
+  "id": "chi-07",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "trace",
+   "trace",
+   "nearby",
+   "trace",
+   "trace"
+  ],
+  "maj": "trace",
+  "agree": 0.8,
+  "mean_level": 3.6,
+  "target": null,
+  "loc": "middleware/path_rewrite.go:12 (PathRewrite)",
+  "sonnet": [
+   "nearby",
+   "trace",
+   "trace"
+  ],
+  "opus": [
+   "trace",
+   "trace"
+  ]
+ },
+ {
+  "repo": "chi",
+  "id": "chi-08",
+  "n": 20,
+  "hits": 6,
+  "rate": 0.3,
+  "levels": [
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "maj": "nearby",
+  "agree": 1.0,
+  "mean_level": 2,
+  "target": null,
+  "loc": "middleware/supress_notfound.go:19 (SupressNotFound)",
+  "sonnet": [
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "opus": [
+   "nearby",
+   "nearby"
+  ]
+ },
+ {
+  "repo": "chi",
+  "id": "chi-09",
+  "n": 20,
+  "hits": 12,
+  "rate": 0.6,
+  "levels": [
+   "line",
+   "line",
+   "line",
+   "line",
+   "line"
+  ],
+  "maj": "line",
+  "agree": 1.0,
+  "mean_level": 1,
+  "target": null,
+  "loc": "middleware/route_headers.go:86 (HeaderRouter.Handler)",
+  "sonnet": [
+   "line",
+   "line",
+   "line"
+  ],
+  "opus": [
+   "line",
+   "line"
+  ]
+ },
+ {
+  "repo": "chi",
+  "id": "chi-10",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "trace",
+   "trace",
+   "trace",
+   "trace",
+   "trace"
+  ],
+  "maj": "trace",
+  "agree": 1.0,
+  "mean_level": 4,
+  "target": null,
+  "loc": "middleware/supress_notfound.go:19-21 (SupressNotFound)",
+  "sonnet": [
+   "trace",
+   "trace",
+   "trace"
+  ],
+  "opus": [
+   "trace",
+   "trace"
+  ]
+ },
+ {
+  "repo": "chi",
+  "id": "chi-11",
+  "n": 20,
+  "hits": 12,
+  "rate": 0.6,
+  "levels": [
+   "input",
+   "input",
+   "input",
+   "input",
+   "input"
+  ],
+  "maj": "input",
+  "agree": 1.0,
+  "mean_level": 3,
+  "target": null,
+  "loc": "middleware/content_encoding.go:24-29 (AllowContentEncoding)",
+  "sonnet": [
+   "input",
+   "input",
+   "input"
+  ],
+  "opus": [
+   "input",
+   "input"
+  ]
+ },
+ {
+  "repo": "chi",
+  "id": "chi-12",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "line",
+   "input",
+   "input",
+   "input",
+   "input"
+  ],
+  "maj": "input",
+  "agree": 0.8,
+  "mean_level": 2.6,
+  "target": null,
+  "loc": "middleware/clean_path.go:23 (CleanPath)",
+  "sonnet": [
+   "input",
+   "input",
+   "input"
+  ],
+  "opus": [
+   "line",
+   "input"
+  ]
+ },
+ {
+  "repo": "chi",
+  "id": "chi-13",
+  "n": 20,
+  "hits": 4,
+  "rate": 0.2,
+  "levels": [
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "maj": "nearby",
+  "agree": 1.0,
+  "mean_level": 2,
+  "target": null,
+  "loc": "middleware/route_headers.go:87 (HeaderRouter.Handler)",
+  "sonnet": [
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "opus": [
+   "nearby",
+   "nearby"
+  ]
+ },
+ {
+  "repo": "chi",
+  "id": "chi-14",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "line",
+   "line",
+   "line",
+   "line",
+   "line"
+  ],
+  "maj": "line",
+  "agree": 1.0,
+  "mean_level": 1,
+  "target": null,
+  "loc": "middleware/throttle.go:49-50 (ThrottleWithOpts)",
+  "sonnet": [
+   "line",
+   "line",
+   "line"
+  ],
+  "opus": [
+   "line",
+   "line"
+  ]
+ },
+ {
+  "repo": "chi",
+  "id": "chi-15",
+  "n": 20,
+  "hits": 3,
+  "rate": 0.15,
+  "levels": [
+   "input",
+   "input",
+   "input",
+   "input",
+   "input"
+  ],
+  "maj": "input",
+  "agree": 1.0,
+  "mean_level": 3,
+  "target": null,
+  "loc": "middleware/url_format.go:58-69 (URLFormat)",
+  "sonnet": [
+   "input",
+   "input",
+   "input"
+  ],
+  "opus": [
+   "input",
+   "input"
+  ]
+ },
+ {
+  "repo": "chi",
+  "id": "chi-16",
+  "n": 20,
+  "hits": 2,
+  "rate": 0.1,
+  "levels": [
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "maj": "nearby",
+  "agree": 1.0,
+  "mean_level": 2,
+  "target": null,
+  "loc": "middleware/strip.go:16-29 (StripSlashes)",
+  "sonnet": [
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "opus": [
+   "nearby",
+   "nearby"
+  ]
+ },
+ {
+  "repo": "chi",
+  "id": "chi-17",
+  "n": 20,
+  "hits": 7,
+  "rate": 0.35,
+  "levels": [
+   "input",
+   "input",
+   "input",
+   "input",
+   "input"
+  ],
+  "maj": "input",
+  "agree": 1.0,
+  "mean_level": 3,
+  "target": null,
+  "loc": "middleware/content_charset.go:35-39 (contentEncoding)",
+  "sonnet": [
+   "input",
+   "input",
+   "input"
+  ],
+  "opus": [
+   "input",
+   "input"
+  ]
+ },
+ {
+  "repo": "chi",
+  "id": "chi-18",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "line",
+   "line",
+   "line",
+   "line",
+   "line"
+  ],
+  "maj": "line",
+  "agree": 1.0,
+  "mean_level": 1,
+  "target": null,
+  "loc": "middleware/sunset.go:15-16 (Sunset)",
+  "sonnet": [
+   "line",
+   "line",
+   "line"
+  ],
+  "opus": [
+   "line",
+   "line"
+  ]
+ },
+ {
+  "repo": "chi",
+  "id": "chi-19",
+  "n": 20,
+  "hits": 3,
+  "rate": 0.15,
+  "levels": [
+   "input",
+   "input",
+   "input",
+   "input",
+   "input"
+  ],
+  "maj": "input",
+  "agree": 1.0,
+  "mean_level": 3,
+  "target": null,
+  "loc": "middleware/compress.go:310-336, 387-392 (compressResponseWriter.WriteHeader, Close)",
+  "sonnet": [
+   "input",
+   "input",
+   "input"
+  ],
+  "opus": [
+   "input",
+   "input"
+  ]
+ },
+ {
+  "repo": "chi",
+  "id": "chi-20",
+  "n": 20,
+  "hits": 4,
+  "rate": 0.2,
+  "levels": [
+   "line",
+   "line",
+   "input",
+   "input",
+   "input"
+  ],
+  "maj": "input",
+  "agree": 0.6,
+  "mean_level": 2.2,
+  "target": null,
+  "loc": "middleware/profiler.go:27, 30 (Profiler)",
+  "sonnet": [
+   "input",
+   "input",
+   "input"
+  ],
+  "opus": [
+   "line",
+   "line"
+  ]
+ },
+ {
+  "repo": "chi",
+  "id": "chi-21",
+  "n": 20,
+  "hits": 2,
+  "rate": 0.1,
+  "levels": [
+   "input",
+   "input",
+   "input",
+   "input",
+   "input"
+  ],
+  "maj": "input",
+  "agree": 1.0,
+  "mean_level": 3,
+  "target": null,
+  "loc": "middleware/strip.go:51-62 (RedirectSlashes)",
+  "sonnet": [
+   "input",
+   "input",
+   "input"
+  ],
+  "opus": [
+   "input",
+   "input"
+  ]
+ },
+ {
+  "repo": "chi",
+  "id": "chi-22",
+  "n": 20,
+  "hits": 0,
+  "rate": 0.0,
+  "levels": [
+   "trace",
+   "trace",
+   "trace",
+   "trace",
+   "trace"
+  ],
+  "maj": "trace",
+  "agree": 1.0,
+  "mean_level": 4,
+  "target": "chi GetHead under mount",
+  "loc": "middleware/get_head.go:14-29 (GetHead)",
+  "sonnet": [
+   "trace",
+   "trace",
+   "trace"
+  ],
+  "opus": [
+   "trace",
+   "trace"
+  ]
+ },
+ {
+  "repo": "chi",
+  "id": "chi-23",
+  "n": 20,
+  "hits": 4,
+  "rate": 0.2,
+  "levels": [
+   "input",
+   "input",
+   "input",
+   "input",
+   "input"
+  ],
+  "maj": "input",
+  "agree": 1.0,
+  "mean_level": 3,
+  "target": null,
+  "loc": "middleware/compress.go:310-316 (compressResponseWriter.WriteHeader)",
+  "sonnet": [
+   "input",
+   "input",
+   "input"
+  ],
+  "opus": [
+   "input",
+   "input"
+  ]
+ },
+ {
+  "repo": "chi",
+  "id": "chi-24",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "line",
+   "line",
+   "line",
+   "line",
+   "line"
+  ],
+  "maj": "line",
+  "agree": 1.0,
+  "mean_level": 1,
+  "target": null,
+  "loc": "middleware/basic_auth.go:20 (BasicAuth)",
+  "sonnet": [
+   "line",
+   "line",
+   "line"
+  ],
+  "opus": [
+   "line",
+   "line"
+  ]
+ },
+ {
+  "repo": "chi",
+  "id": "chi-25",
+  "n": 20,
+  "hits": 9,
+  "rate": 0.45,
+  "levels": [
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "maj": "nearby",
+  "agree": 1.0,
+  "mean_level": 2,
+  "target": null,
+  "loc": "middleware/compress.go:249-250 (Compressor.selectEncoder)",
+  "sonnet": [
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "opus": [
+   "nearby",
+   "nearby"
+  ]
+ },
+ {
+  "repo": "chi",
+  "id": "chi-26",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "line",
+   "line",
+   "line",
+   "line",
+   "nearby"
+  ],
+  "maj": "line",
+  "agree": 0.8,
+  "mean_level": 1.2,
+  "target": null,
+  "loc": "middleware/strip.go:25-26 (StripSlashes)",
+  "sonnet": [
+   "line",
+   "line",
+   "nearby"
+  ],
+  "opus": [
+   "line",
+   "line"
+  ]
+ },
+ {
+  "repo": "chi",
+  "id": "chi-27",
+  "n": 20,
+  "hits": 12,
+  "rate": 0.6,
+  "levels": [
+   "line",
+   "line",
+   "line",
+   "line",
+   "line"
+  ],
+  "maj": "line",
+  "agree": 1.0,
+  "mean_level": 1,
+  "target": null,
+  "loc": "middleware/compress.go:260-267 (matchAcceptEncoding)",
+  "sonnet": [
+   "line",
+   "line",
+   "line"
+  ],
+  "opus": [
+   "line",
+   "line"
+  ]
+ },
+ {
+  "repo": "chi",
+  "id": "chi-28",
+  "n": 20,
+  "hits": 10,
+  "rate": 0.5,
+  "levels": [
+   "trace",
+   "trace",
+   "trace",
+   "trace",
+   "trace"
+  ],
+  "maj": "trace",
+  "agree": 1.0,
+  "mean_level": 4,
+  "target": null,
+  "loc": "middleware/strip.go:44-62 (RedirectSlashes)",
+  "sonnet": [
+   "trace",
+   "trace",
+   "trace"
+  ],
+  "opus": [
+   "trace",
+   "trace"
+  ]
+ },
+ {
+  "repo": "chi",
+  "id": "chi-29",
+  "n": 20,
+  "hits": 5,
+  "rate": 0.25,
+  "levels": [
+   "line",
+   "line",
+   "line",
+   "line",
+   "line"
+  ],
+  "maj": "line",
+  "agree": 1.0,
+  "mean_level": 1,
+  "target": null,
+  "loc": "middleware/content_charset.go:13-14 (ContentCharset)",
+  "sonnet": [
+   "line",
+   "line",
+   "line"
+  ],
+  "opus": [
+   "line",
+   "line"
+  ]
+ },
+ {
+  "repo": "chi",
+  "id": "chi-30",
+  "n": 20,
+  "hits": 2,
+  "rate": 0.1,
+  "levels": [
+   "line",
+   "line",
+   "input",
+   "line",
+   "line"
+  ],
+  "maj": "line",
+  "agree": 0.8,
+  "mean_level": 1.4,
+  "target": null,
+  "loc": "middleware/content_charset.go:35-39 (contentEncoding)",
+  "sonnet": [
+   "input",
+   "line",
+   "line"
+  ],
+  "opus": [
+   "line",
+   "line"
+  ]
+ },
+ {
+  "repo": "chi",
+  "id": "chi-31",
+  "n": 20,
+  "hits": 3,
+  "rate": 0.15,
+  "levels": [
+   "line",
+   "line",
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "maj": "nearby",
+  "agree": 0.6,
+  "mean_level": 1.6,
+  "target": null,
+  "loc": "middleware/sunset.go:16 (Sunset)",
+  "sonnet": [
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "opus": [
+   "line",
+   "line"
+  ]
+ },
+ {
+  "repo": "chi",
+  "id": "chi-32",
+  "n": 20,
+  "hits": 12,
+  "rate": 0.6,
+  "levels": [
+   "nearby",
+   "nearby",
+   "trace",
+   "trace",
+   "trace"
+  ],
+  "maj": "trace",
+  "agree": 0.6,
+  "mean_level": 3.2,
+  "target": null,
+  "loc": "middleware/supress_notfound.go:19 (SupressNotFound)",
+  "sonnet": [
+   "trace",
+   "trace",
+   "trace"
+  ],
+  "opus": [
+   "nearby",
+   "nearby"
+  ]
+ },
+ {
+  "repo": "chi",
+  "id": "chi-33",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "input",
+   "line",
+   "input",
+   "input",
+   "input"
+  ],
+  "maj": "input",
+  "agree": 0.8,
+  "mean_level": 2.6,
+  "target": null,
+  "loc": "middleware/timeout.go:36-41 (Timeout)",
+  "sonnet": [
+   "input",
+   "input",
+   "input"
+  ],
+  "opus": [
+   "input",
+   "line"
+  ]
+ },
+ {
+  "repo": "chi",
+  "id": "chi-34",
+  "n": 20,
+  "hits": 2,
+  "rate": 0.1,
+  "levels": [
+   "input",
+   "line",
+   "input",
+   "line",
+   "line"
+  ],
+  "maj": "line",
+  "agree": 0.6,
+  "mean_level": 1.8,
+  "target": null,
+  "loc": "middleware/compress.go:88, 296-300 (NewCompressor, compressResponseWriter.isCompressible)",
+  "sonnet": [
+   "input",
+   "line",
+   "line"
+  ],
+  "opus": [
+   "input",
+   "line"
+  ]
+ },
+ {
+  "repo": "chi",
+  "id": "chi-35",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby",
+   "input"
+  ],
+  "maj": "nearby",
+  "agree": 0.8,
+  "mean_level": 2.2,
+  "target": null,
+  "loc": "middleware/client_ip.go:46-49 (ClientIPFromHeader)",
+  "sonnet": [
+   "nearby",
+   "nearby",
+   "input"
+  ],
+  "opus": [
+   "nearby",
+   "nearby"
+  ]
+ },
+ {
+  "repo": "chi",
+  "id": "chi-36",
+  "n": 20,
+  "hits": 10,
+  "rate": 0.5,
+  "levels": [
+   "nearby",
+   "line",
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "maj": "nearby",
+  "agree": 0.8,
+  "mean_level": 1.8,
+  "target": null,
+  "loc": "middleware/route_headers.go:54, 66, 91, 135-139 (HeaderRouter.Route/RouteAny, Handler, NewPattern)",
+  "sonnet": [
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "opus": [
+   "nearby",
+   "line"
+  ]
+ },
+ {
+  "repo": "express",
+  "id": "express-01",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "line",
+   "line",
+   "input",
+   "input",
+   "input"
+  ],
+  "maj": "input",
+  "agree": 0.6,
+  "mean_level": 2.2,
+  "target": null,
+  "loc": "lib/response.js:285-304 (`res.jsonp`)",
+  "sonnet": [
+   "input",
+   "input",
+   "input"
+  ],
+  "opus": [
+   "line",
+   "line"
+  ]
+ },
+ {
+  "repo": "express",
+  "id": "express-02",
+  "n": 20,
+  "hits": 9,
+  "rate": 0.45,
+  "levels": [
+   "trace",
+   "trace",
+   "trace",
+   "input",
+   "trace"
+  ],
+  "maj": "trace",
+  "agree": 0.8,
+  "mean_level": 3.8,
+  "target": null,
+  "loc": "lib/response.js:681 (`res.set` / `res.header`)",
+  "sonnet": [
+   "trace",
+   "input",
+   "trace"
+  ],
+  "opus": [
+   "trace",
+   "trace"
+  ]
+ },
+ {
+  "repo": "express",
+  "id": "express-03",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "line",
+   "line",
+   "line",
+   "nearby",
+   "line"
+  ],
+  "maj": "line",
+  "agree": 0.8,
+  "mean_level": 1.2,
+  "target": null,
+  "loc": "lib/response.js:404 (`res.sendFile`)",
+  "sonnet": [
+   "line",
+   "nearby",
+   "line"
+  ],
+  "opus": [
+   "line",
+   "line"
+  ]
+ },
+ {
+  "repo": "express",
+  "id": "express-04",
+  "n": 20,
+  "hits": 4,
+  "rate": 0.2,
+  "levels": [
+   "input",
+   "input",
+   "input",
+   "input",
+   "input"
+  ],
+  "maj": "input",
+  "agree": 1.0,
+  "mean_level": 3,
+  "target": null,
+  "loc": "lib/response.js:843, 848-849 (`res.redirect`)",
+  "sonnet": [
+   "input",
+   "input",
+   "input"
+  ],
+  "opus": [
+   "input",
+   "input"
+  ]
+ },
+ {
+  "repo": "express",
+  "id": "express-05",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "line",
+   "line",
+   "line",
+   "line",
+   "line"
+  ],
+  "maj": "line",
+  "agree": 1.0,
+  "mean_level": 1,
+  "target": null,
+  "loc": "lib/response.js:404 (`res.sendFile`)",
+  "sonnet": [
+   "line",
+   "line",
+   "line"
+  ],
+  "opus": [
+   "line",
+   "line"
+  ]
+ },
+ {
+  "repo": "express",
+  "id": "express-06",
+  "n": 20,
+  "hits": 2,
+  "rate": 0.1,
+  "levels": [
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "maj": "nearby",
+  "agree": 1.0,
+  "mean_level": 2,
+  "target": null,
+  "loc": "lib/request.js:172-174 (`req.acceptsCharsets`)",
+  "sonnet": [
+   "nearby",
+   "nearby",
+   "nearby"
+  ],
+  "opus": [
+   "nearby",
+   "nearby"
+  ]
+ },
+ {
+  "repo": "express",
+  "id": "express-07",
+  "n": 20,
+  "hits": 11,
+  "rate": 0.55,
+  "levels": [
+   "input",
+   "input",
+   "input",
+   "input",
+   "input"
+  ],
+  "maj": "input",
+  "agree": 1.0,
+  "mean_level": 3,
+  "target": null,
+  "loc": "lib/response.js:175 (`res.send`)",
+  "sonnet": [
+   "input",
+   "input",
+   "input"
+  ],
+  "opus": [
+   "input",
+   "input"
+  ]
+ },
+ {
+  "repo": "express",
+  "id": "express-08",
+  "n": 20,
+  "hits": 2,
+  "rate": 0.1,
+  "levels": [
+   "input",
+   "nearby",
+   "input",
+   "input",
+   "input"
+  ],
+  "maj": "input",
+  "agree": 0.8,
+  "mean_level": 2.8,
+  "target": null,
+  "loc": "lib/request.js:389 (`req.subdomains` getter)",
+  "sonnet": [
+   "input",
+   "input",
+   "input"
+  ],
+  "opus": [
+   "input",
+   "nearby"
+  ]
+ },
+ {
+  "repo": "express",
+  "id": "express-09",
+  "n": 20,
+  "hits": 1,
+  "rate": 0.05,
+  "levels": [
+   "input",
+   "input",
+   "input",
+   "input",
+   "input"
+  ],
+  "maj": "input",
+  "agree": 1.0,
+  "mean_level": 3,
+  "target": null,
+  "loc": "lib/request.js:389 (`req.subdomains` getter)",
+  "sonnet": [
+   "input",
+   "input",
+   "input"
+  ],
+  "opus": [
+   "input",
+   "input"
+  ]
+ },
+ {
+  "repo": "express",
+  "id": "express-10",
+  "n": 20,
+  "hits": 9,
+  "rate": 0.45,
+  "levels": [
+   "input",
+   "input",
+   "input",
+   "input",
+   "input"
+  ],
+  "maj": "input",
+  "agree": 1.0,
+  "mean_level": 3,
+  "target": null,
+  "loc": "lib/response.js:172, 218 (`res.send`)",
+  "sonnet": [
+   "input",
+   "input",
+   "input"
+  ],
+  "opus": [
+   "input",
+   "input"
+  ]
+ },
+ {
+  "repo": "express",
+  "id": "express-11",
+  "n": 20,
+  "hits": 0,
+  "rate": 0.0,
+  "levels": [
+   "input",
+   "input",
+   "input",
+   "input",
+   "input"
+  ],
+  "maj": "input",
+  "agree": 1.0,
+  "mean_level": 3,
+  "target": "express maxAge<1s",
+  "loc": "lib/response.js:764-769 (`res.cookie`)",
+  "sonnet": [
+   "input",
+   "input",
+   "input"
+  ],
+  "opus": [
+   "input",
+   "input"
+  ]
+ },
+ {
+  "repo": "otel",
+  "id": "otel-01",
+  "n": 2,
+  "hits": 2,
+  "rate": 1.0,
+  "levels": [
+   "line",
+   "line",
+   "line",
+   "line",
+   "line"
+  ],
+  "maj": "line",
+  "agree": 1.0,
+  "mean_level": 1,
+  "target": null,
+  "loc": "instrumentation-api/src/main/java/io/opentelemetry/instrumentation/api/semconv/http/HttpServerAddressAndPortExtractor.java:51 (extractFromForwardedHeader)",
+  "sonnet": [
+   "line",
+   "line",
+   "line"
+  ],
+  "opus": [
+   "line",
+   "line"
+  ]
+ },
+ {
+  "repo": "otel",
+  "id": "otel-02",
+  "n": 2,
+  "hits": 1,
+  "rate": 0.5,
+  "levels": [
+   "input",
+   "input",
+   "input",
+   "input",
+   "input"
+  ],
+  "maj": "input",
+  "agree": 1.0,
+  "mean_level": 3,
+  "target": null,
+  "loc": "instrumentation-api/src/main/java/io/opentelemetry/instrumentation/api/semconv/http/ForwardedHostAddressAndPortExtractor.java:87 (extractHost)",
+  "sonnet": [
+   "input",
+   "input",
+   "input"
+  ],
+  "opus": [
+   "input",
+   "input"
+  ]
+ },
+ {
+  "repo": "otel",
+  "id": "otel-03",
+  "n": 2,
+  "hits": 1,
+  "rate": 0.5,
+  "levels": [
+   "input",
+   "input",
+   "input",
+   "input",
+   "input"
+  ],
+  "maj": "input",
+  "agree": 1.0,
+  "mean_level": 3,
+  "target": null,
+  "loc": "instrumentation-api-incubator/src/main/java/io/opentelemetry/instrumentation/api/incubator/semconv/net/internal/UrlParser.java:73 (getPath)",
+  "sonnet": [
+   "input",
+   "input",
+   "input"
+  ],
+  "opus": [
+   "input",
+   "input"
+  ]
+ },
+ {
+  "repo": "otel",
+  "id": "otel-04",
+  "n": 2,
+  "hits": 2,
+  "rate": 1.0,
+  "levels": [
+   "line",
+   "line",
+   "line",
+   "line",
+   "line"
+  ],
+  "maj": "line",
+  "agree": 1.0,
+  "mean_level": 1,
+  "target": null,
+  "loc": "instrumentation-api/src/main/java/io/opentelemetry/instrumentation/api/semconv/http/ForwardedHostAddressAndPortExtractor.java:60 (extractFromForwardedHeader)",
+  "sonnet": [
+   "line",
+   "line",
+   "line"
+  ],
+  "opus": [
+   "line",
+   "line"
+  ]
+ },
+ {
+  "repo": "otel",
+  "id": "otel-05",
+  "n": 2,
+  "hits": 1,
+  "rate": 0.5,
+  "levels": [
+   "input",
+   "input",
+   "input",
+   "input",
+   "input"
+  ],
+  "maj": "input",
+  "agree": 1.0,
+  "mean_level": 3,
+  "target": null,
+  "loc": "instrumentation-api-incubator/src/main/java/io/opentelemetry/instrumentation/api/incubator/semconv/net/internal/UrlParser.java:105 (getHostEndIndexExclusive)",
+  "sonnet": [
+   "input",
+   "input",
+   "input"
+  ],
+  "opus": [
+   "input",
+   "input"
+  ]
+ },
+ {
+  "repo": "otel",
+  "id": "otel-06",
+  "n": 2,
+  "hits": 1,
+  "rate": 0.5,
+  "levels": [
+   "input",
+   "input",
+   "input",
+   "input",
+   "input"
+  ],
+  "maj": "input",
+  "agree": 1.0,
+  "mean_level": 3,
+  "target": null,
+  "loc": "instrumentation/reactor/reactor-netty/reactor-netty-1.0/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/reactornetty/v1_0/UrlParser.java:74 (getHostEndIndexExclusive), used by ReactorNettyHttpClientAttributesGetter.java:92-114",
+  "sonnet": [
+   "input",
+   "input",
+   "input"
+  ],
+  "opus": [
+   "input",
+   "input"
+  ]
+ },
+ {
+  "repo": "otel",
+  "id": "otel-07",
+  "n": 2,
+  "hits": 1,
+  "rate": 0.5,
+  "levels": [
+   "nearby",
+   "input",
+   "input",
+   "input",
+   "input"
+  ],
+  "maj": "input",
+  "agree": 0.8,
+  "mean_level": 2.8,
+  "target": null,
+  "loc": "instrumentation-api/src/main/java/io/opentelemetry/instrumentation/api/semconv/http/ForwardedHostAddressAndPortExtractor.java:64 (extractFromForwardedHeader) / :71 (extractHost)",
+  "sonnet": [
+   "input",
+   "input",
+   "input"
+  ],
+  "opus": [
+   "nearby",
+   "input"
+  ]
+ },
+ {
+  "repo": "otel",
+  "id": "otel-08",
+  "n": 2,
+  "hits": 2,
+  "rate": 1.0,
+  "levels": [
+   "line",
+   "line",
+   "line",
+   "line",
+   "line"
+  ],
+  "maj": "line",
+  "agree": 1.0,
+  "mean_level": 1,
+  "target": null,
+  "loc": "instrumentation-api/src/main/java/io/opentelemetry/instrumentation/api/semconv/http/ForwardedUrlSchemeProvider.java:50 (extractProtoFromForwardedHeader)",
+  "sonnet": [
+   "line",
+   "line",
+   "line"
+  ],
+  "opus": [
+   "line",
+   "line"
+  ]
+ },
+ {
+  "repo": "otel",
+  "id": "otel-09",
+  "n": 2,
+  "hits": 1,
+  "rate": 0.5,
+  "levels": [
+   "trace",
+   "trace",
+   "trace",
+   "trace",
+   "trace"
+  ],
+  "maj": "trace",
+  "agree": 1.0,
+  "mean_level": 4,
+  "target": null,
+  "loc": "instrumentation/reactor/reactor-netty/reactor-netty-1.0/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/reactornetty/v1_0/ResponseReceiverInstrumentation.java:102-121 (AdviceScope.start / end)",
+  "sonnet": [
+   "trace",
+   "trace",
+   "trace"
+  ],
+  "opus": [
+   "trace",
+   "trace"
+  ]
+ },
+ {
+  "repo": "otel",
+  "id": "otel-10",
+  "n": 2,
+  "hits": 1,
+  "rate": 0.5,
+  "levels": [
+   "input",
+   "input",
+   "input",
+   "input",
+   "input"
+  ],
+  "maj": "input",
+  "agree": 1.0,
+  "mean_level": 3,
+  "target": null,
+  "loc": "instrumentation-api-incubator/src/main/java/io/opentelemetry/instrumentation/api/incubator/semconv/net/internal/UrlParser.java:86 (getHostStartIndex)",
+  "sonnet": [
+   "input",
+   "input",
+   "input"
+  ],
+  "opus": [
+   "input",
+   "input"
+  ]
+ },
+ {
+  "repo": "otel",
+  "id": "otel-11",
+  "n": 2,
+  "hits": 1,
+  "rate": 0.5,
+  "levels": [
+   "input",
+   "input",
+   "input",
+   "input",
+   "input"
+  ],
+  "maj": "input",
+  "agree": 1.0,
+  "mean_level": 3,
+  "target": null,
+  "loc": "instrumentation/reactor/reactor-netty/reactor-netty-1.0/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/reactornetty/v1_0/UrlParser.java:55 (getHostStartIndex), used by ReactorNettyHttpClientAttributesGetter.java:92-114",
+  "sonnet": [
+   "input",
+   "input",
+   "input"
+  ],
+  "opus": [
+   "input",
+   "input"
+  ]
+ },
+ {
+  "repo": "otel",
+  "id": "otel-12",
+  "n": 2,
+  "hits": 1,
+  "rate": 0.5,
+  "levels": [
+   "input",
+   "input",
+   "nearby",
+   "input",
+   "nearby"
+  ],
+  "maj": "input",
+  "agree": 0.6,
+  "mean_level": 2.6,
+  "target": null,
+  "loc": "instrumentation/reactor/reactor-netty/reactor-netty-1.0/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/reactornetty/v1_0/ReactorNettyHttpClientAttributesGetter.java:84 (getNetworkProtocolVersion)",
+  "sonnet": [
+   "nearby",
+   "input",
+   "nearby"
+  ],
+  "opus": [
+   "input",
+   "input"
+  ]
+ }
+]

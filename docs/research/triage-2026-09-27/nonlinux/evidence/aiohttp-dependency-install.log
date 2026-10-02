@@ -1,0 +1,33 @@
+Collecting aiohttp
+  Downloading aiohttp-3.14.3-cp314-cp314-macosx_11_0_arm64.whl.metadata (8.3 kB)
+Collecting aiohappyeyeballs>=2.5.0 (from aiohttp)
+  Downloading aiohappyeyeballs-2.7.1-py3-none-any.whl.metadata (5.9 kB)
+Collecting aiosignal>=1.4.0 (from aiohttp)
+  Using cached aiosignal-1.4.0-py3-none-any.whl.metadata (3.7 kB)
+Collecting attrs>=17.3.0 (from aiohttp)
+  Using cached attrs-26.1.0-py3-none-any.whl.metadata (8.8 kB)
+Collecting frozenlist>=1.1.1 (from aiohttp)
+  Downloading frozenlist-1.8.0-cp314-cp314-macosx_11_0_arm64.whl.metadata (20 kB)
+Collecting multidict<7.0,>=4.5 (from aiohttp)
+  Downloading multidict-6.9.1-cp314-cp314-macosx_11_0_arm64.whl.metadata (5.3 kB)
+Collecting propcache>=0.2.0 (from aiohttp)
+  Downloading propcache-0.5.4-cp314-cp314-macosx_11_0_arm64.whl.metadata (25 kB)
+Collecting yarl<2.0,>=1.17.0 (from aiohttp)
+  Downloading yarl-1.25.1-cp314-cp314-macosx_11_0_arm64.whl.metadata (111 kB)
+Collecting idna>=2.0 (from yarl<2.0,>=1.17.0->aiohttp)
+  Using cached idna-3.20-py3-none-any.whl.metadata (7.2 kB)
+Downloading aiohttp-3.14.3-cp314-cp314-macosx_11_0_arm64.whl (512 kB)
+Downloading multidict-6.9.1-cp314-cp314-macosx_11_0_arm64.whl (56 kB)
+Downloading yarl-1.25.1-cp314-cp314-macosx_11_0_arm64.whl (104 kB)
+Downloading aiohappyeyeballs-2.7.1-py3-none-any.whl (15 kB)
+Using cached aiosignal-1.4.0-py3-none-any.whl (7.5 kB)
+Using cached attrs-26.1.0-py3-none-any.whl (67 kB)
+Downloading frozenlist-1.8.0-cp314-cp314-macosx_11_0_arm64.whl (49 kB)
+Using cached idna-3.20-py3-none-any.whl (69 kB)
+Downloading propcache-0.5.4-cp314-cp314-macosx_11_0_arm64.whl (51 kB)
+Installing collected packages: propcache, multidict, idna, frozenlist, attrs, aiohappyeyeballs, yarl, aiosignal, aiohttp
+
+Successfully installed aiohappyeyeballs-2.7.1 aiohttp-3.14.3 aiosignal-1.4.0 attrs-26.1.0 frozenlist-1.8.0 idna-3.20 multidict-6.9.1 propcache-0.5.4 yarl-1.25.1
+
+[notice] A new release of pip is available: 26.1.2 -> 26.2.1
+[notice] To update, run: /Users/andrewstellman/Documents/QPB/repos/validation-2026-09-27/nonlinux/aiohttp-venv/bin/python -m pip install --upgrade pip

@@ -1,0 +1,192 @@
+From 714c73e348d7ec9677409172153e7265c6a43afe Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <andrew@stellman.com>
+Date: Fri, 2 Oct 2026 01:39:52 -0400
+Subject: [PATCH 12/12] v1.6.1 [council-3]: witness compares the lead line as
+ well as the sentinel; tier-mismatch narration counts repo:REQ pairs; witness
+ docstring order
+
+---
+ bin/tests/test_gate_verdict_honesty_v161.py   | 18 +++++++++++
+ bin/tests/test_parent_witness_161.py          | 17 ++++++++++
+ .../scripts/qpb_gate_witness.py               | 32 +++++++++++--------
+ .../quality-playbook/scripts/quality_gate.py  | 18 +++++++++--
+ 4 files changed, 69 insertions(+), 16 deletions(-)
+
+diff --git a/bin/tests/test_gate_verdict_honesty_v161.py b/bin/tests/test_gate_verdict_honesty_v161.py
+index b93863f..c3fe34e 100644
+--- a/bin/tests/test_gate_verdict_honesty_v161.py
++++ b/bin/tests/test_gate_verdict_honesty_v161.py
+@@ -479,6 +479,24 @@ class Council2GateTests(_GateFixture):
+         self.assertIn("the paperwork behind 2 requirements", out)
+         self.assertNotIn("the paperwork behind 1 requirement", out)
+ 
++    def test_multi_repo_tier_mismatch_counts_repo_req_pairs(self):
++        """C-r3 nit 2: the tier-mismatch narration counts repo:REQ pairs
++        in a multi-repo run, as the 'What happened' reason does."""
++        msgs = [
++            "requirements_manifest.json: record_id=REQ-003: is tier 3 but "
++            "carries a citation block (citations are for Tier 1/2 only)",
++            "requirements_manifest.json: record_id=REQ-003: is tier 3 but "
++            "carries a citation block (citations are for Tier 1/2 only)",
++        ]
++        text = quality_gate._narrate_fail_category(
++            quality_gate._FAIL_REQ_TIER_MISMATCH, msgs,
++            {"on_flagged": [], "unlinked": []}, repos=["alpha", "beta"])
++        self.assertIn("2 requirement(s) quote a document", text)
++        single = quality_gate._narrate_fail_category(
++            quality_gate._FAIL_REQ_TIER_MISMATCH, msgs[:1],
++            {"on_flagged": [], "unlinked": []})
++        self.assertIn("1 requirement(s) quote a document", single)
++
+     def test_mixed_decisions_and_cleanup_pass_separates_record_keeping(self):
+         """C-r2 nit 2: on a decisions pass with a record-keeping FAIL,
+         the record-keeping FAIL is under its own heading (not under
+diff --git a/bin/tests/test_parent_witness_161.py b/bin/tests/test_parent_witness_161.py
+index 47f1eb8..27297ec 100644
+--- a/bin/tests/test_parent_witness_161.py
++++ b/bin/tests/test_parent_witness_161.py
+@@ -285,6 +285,23 @@ class GateWitnessScriptTests(unittest.TestCase):
+             self.assertIn("MISMATCH: verdict state differs (::QPB:: "
+                           "gate_result/verdict_state", r.stdout)
+ 
++    def test_true_sentinel_with_false_lead_line_is_mismatch(self) -> None:
++        """Council A-r3 F1 / C-r3 nit 1: the real log's sentinel is kept
++        but its operator lead line is edited to claim a solid pass. The
++        lead line is compared too, so this is a MISMATCH."""
++        with tempfile.TemporaryDirectory() as td:
++            target = self._tree_target(td, self._zero_bug_tree())
++            real = self._real_log(target)
++            self.assertIn("[WARN] GATE PASSED -- but this run looks shallow",
++                          real)
++            self._write_log(target, real.replace(
++                "[WARN] GATE PASSED -- but this run looks shallow",
++                "[PASS] GATE PASSED -- this run looks solid"))
++            r = _run_witness(target)
++            self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
++            self.assertIn("MISMATCH: verdict state differs (lead line",
++                          r.stdout)
++
+     def test_shallow_agents_md_written_later_is_match(self) -> None:
+         """AGENTS.md written after the log changes the WARN count only;
+         the verdict state stays "shallow" -> MATCH, and the MATCH line
+diff --git a/plugins/quality-playbook/skills/quality-playbook/scripts/qpb_gate_witness.py b/plugins/quality-playbook/skills/quality-playbook/scripts/qpb_gate_witness.py
+index 1bae4ef..235bba6 100644
+--- a/plugins/quality-playbook/skills/quality-playbook/scripts/qpb_gate_witness.py
++++ b/plugins/quality-playbook/skills/quality-playbook/scripts/qpb_gate_witness.py
+@@ -16,12 +16,14 @@ Usage:
+   qpb_gate_witness <target-repo>
+ 
+ Exit codes:
+-  0  the gate's ``RESULT:`` line equals the log's, and its ``Total:``
+-     line equals the log's once the trailing ``, N WARN`` part is
+-     removed from both
++  0  the gate's ``RESULT:`` line equals the log's, its ``Total:`` line
++     equals the log's once the trailing ``, N WARN`` part is removed
++     from both, and the verdict state matches
+   1  they differ (a ``MISMATCH`` line names which), the verdict state
+      differs, the log carries no verdict state, or the gate printed
+      no verdict lines
++  2  ``quality/results/quality-gate.log`` is missing, or the target /
++     ``quality_gate.py`` cannot be found
+ 
+ v1.6.1 [council-1]: the WARN count is left out of the comparison
+ because it can change between the subagent's gate run and the
+@@ -32,13 +34,12 @@ printed.
+ 
+ v1.6.1 [council-2]: a WARN can still change the verdict state (the
+ "no test functions found" WARN turns a pass "shallow"), so the witness
+-also compares the verdict state. Source, in order: the LAST
+-``::QPB::`` gate sentinel's ``gate_result`` + ``verdict_state``; for
+-a log with no sentinel (pre-1.6.1), the operator lead line
+-(``[PASS]/[WARN]/[FAIL] GATE ...``). A log with neither is a MISMATCH:
+-its verdict state cannot be witnessed.
+-  2  ``quality/results/quality-gate.log`` is missing, or the target /
+-     ``quality_gate.py`` cannot be found
++also compares the verdict state: the LAST ``::QPB::`` gate sentinel's
++``gate_result`` + ``verdict_state``, and the operator lead line
++(``[PASS]/[WARN]/[FAIL] GATE ...``). v1.6.1 [council-3]: when the log
++has both, both are compared; a log with only the lead line (written
++before v1.5.7, or by hand) is compared on the lead line; a log with
++neither is a MISMATCH because its verdict state cannot be witnessed.
+ 
+ The script never writes to the target: it reads the log and leaves it
+ as the subagent wrote it. Stdlib only, plus the bundled ``_purpose``
+@@ -142,8 +143,8 @@ _LEAD_RE = re.compile(r"^\[(?:PASS|WARN|FAIL)\] GATE ")
+ def gate_sentinel_state(text: str) -> "Optional[tuple[str, str]]":
+     """v1.6.1 [council-2]: ``(gate_result, verdict_state)`` from the
+     LAST ``::QPB::`` line whose payload has ``kind == "gate"``, or
+-    None when there is no such line (pre-1.6.1 log, or a hand-written
+-    one). Unparseable sentinel lines are skipped."""
++    None when there is no such line (a log written before v1.5.7, or by
++    hand). Unparseable sentinel lines are skipped."""
+     found = None
+     for raw in text.splitlines():
+         line = raw.strip()
+@@ -176,18 +177,21 @@ def compare_verdict_state(gate_text: str, log_text: str) -> Optional[str]:
+     gate's, else a one-line reason. Uses the sentinel when the log has
+     one, else the lead line; a log with neither cannot be witnessed."""
+     log_state = gate_sentinel_state(log_text)
++    log_lead = lead_line(log_text)
+     if log_state is not None:
+         gate_state = gate_sentinel_state(gate_text)
+         if gate_state != log_state:
+             return (f"verdict state differs (::QPB:: gate_result/"
+                     f"verdict_state: gate {gate_state}, log {log_state})")
+-        return None
+-    log_lead = lead_line(log_text)
+     if log_lead is not None:
++        # v1.6.1 [council-3] (A-r3 F1 / C-r3 nit 1): compare the lead
++        # line too when the log has one, so a true sentinel cannot
++        # sit beside a false operator-facing line.
+         gate_lead = lead_line(gate_text)
+         if gate_lead != log_lead:
+             return (f"verdict state differs (lead line: gate "
+                     f"{gate_lead!r}, log {log_lead!r})")
++    if log_state is not None or log_lead is not None:
+         return None
+     return ("quality-gate.log has no ::QPB:: gate sentinel and no "
+             "[PASS]/[WARN]/[FAIL] GATE lead line, so its verdict state "
+diff --git a/plugins/quality-playbook/skills/quality-playbook/scripts/quality_gate.py b/plugins/quality-playbook/skills/quality-playbook/scripts/quality_gate.py
+index b5c077b..2b7e217 100755
+--- a/plugins/quality-playbook/skills/quality-playbook/scripts/quality_gate.py
++++ b/plugins/quality-playbook/skills/quality-playbook/scripts/quality_gate.py
+@@ -1209,6 +1209,20 @@ def _narrate_fail_category(category, msgs, summary, repos=None):
+     if category == _FAIL_REQ_TIER_MISMATCH:
+         carries = [m for m in msgs if _TIER_CARRIES_CITATION_RE.search(m)]
+         differs = [m for m in msgs if m not in carries]
++
++        def _count_reqs(subset):
++            # v1.6.1 [council-3] (C-r3 nit 2): in a multi-repo run count
++            # repo:REQ pairs, as the overreach narration and the
++            # "What happened" reason do.
++            if repos and any(repos):
++                pairs = set()
++                for msg, repo in zip(msgs, repos):
++                    if msg in subset:
++                        for rid in _REQ_ID_IN_MSG_RE.findall(msg):
++                            pairs.add((repo, rid))
++                return len(pairs)
++            return len(_req_ids_in(subset))
++
+         parts = []
+         if carries:
+             tiers = sorted({
+@@ -1220,13 +1234,13 @@ def _narrate_fail_category(category, msgs, summary, repos=None):
+             else:
+                 marked = "tier " + "/".join(str(t) for t in tiers)
+             parts.append(
+-                f"{len(_req_ids_in(carries))} requirement(s) quote a "
++                f"{_count_reqs(carries)} requirement(s) quote a "
+                 f"document but are still marked as {marked}. This usually "
+                 f"comes from the expert-review (Feature H) step."
+             )
+         if differs:
+             parts.append(
+-                f"{len(_req_ids_in(differs))} requirement(s) carry a tier "
++                f"{_count_reqs(differs)} requirement(s) carry a tier "
+                 f"that differs from the tier of the document they cite."
+             )
+         parts.append(
+-- 
+2.34.1
+

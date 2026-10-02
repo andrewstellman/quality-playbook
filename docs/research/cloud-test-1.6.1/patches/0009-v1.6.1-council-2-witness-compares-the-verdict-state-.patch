@@ -1,0 +1,348 @@
+From ced874973e78efa559b3679ac67ddd433102d9e9 Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <andrew@stellman.com>
+Date: Fri, 2 Oct 2026 01:26:31 -0400
+Subject: [PATCH 09/12] v1.6.1 [council-2]: witness compares the verdict state
+ (A-r2 N1) and pins the Total: count compare end to end (B-r2)
+
+---
+ bin/tests/test_parent_witness_161.py          | 161 ++++++++++++++++++
+ .../scripts/qpb_gate_witness.py               |  93 +++++++++-
+ references/orchestrator_protocol.md           |   2 +-
+ 3 files changed, 247 insertions(+), 9 deletions(-)
+
+diff --git a/bin/tests/test_parent_witness_161.py b/bin/tests/test_parent_witness_161.py
+index 291a04d..47f1eb8 100644
+--- a/bin/tests/test_parent_witness_161.py
++++ b/bin/tests/test_parent_witness_161.py
+@@ -23,6 +23,17 @@ Mutation-bite evidence (executed during v1.6.1 [S] development):
+   M2: in SKILL.md, rename "Parent-witness rule" to "Subagent rule" →
+       test_skill_md_mode_a_carries_conditional_rule FAILS. Restored →
+       PASS.
++  v1.6.1 [council-2] (each mutation run against this file, then
++  restored):
++  M3: ``if state_diff is not None:`` -> ``if False:`` -> 3 FAIL (shallow
++      probe, sentinel-state, no-verdict-state log).
++  M4: ``if total_without_warn(...) != ...:`` -> ``if False:`` -> 3 FAIL
++      (edited FAIL / DECISION / CLEANUP count).
++  M5: WARN-strip regex widened to also drop ``, N CLEANUP`` -> FAIL
++      test_edited_cleanup_count_is_mismatch; widened to drop
++      ``N DECISION`` -> FAIL test_edited_decision_count_is_mismatch.
++  M6: log sentinel ignored (``log_state = None``) -> FAIL
++      test_fabricated_sentinel_state_is_mismatch.
+ """
+ 
+ from __future__ import annotations
+@@ -207,6 +218,156 @@ class GateWitnessScriptTests(unittest.TestCase):
+                             w.total_without_warn("Total: 2 FAIL, 6 WARN"))
+         self.assertIsNone(w.total_without_warn(None))
+ 
++    # v1.6.1 [council-2] (Council A-r2 N1, B-r2 should-fix).
++    def _tree_target(self, td: str, tree: dict) -> Path:
++        sys.path.insert(0, str(Path(__file__).resolve().parent))
++        try:
++            from test_quality_gate_gates import write_tree
++        finally:
++            sys.path.pop(0)
++        target = _make_target(Path(td))
++        write_tree(target, tree)
++        return target
++
++    def _write_log(self, target: Path, text: str) -> None:
++        (target / "quality" / "results" / "quality-gate.log").write_text(
++            text, encoding="utf-8")
++
++    @staticmethod
++    def _zero_bug_tree() -> dict:
++        sys.path.insert(0, str(Path(__file__).resolve().parent))
++        try:
++            from test_quality_gate_gates import minimal_zero_bug_tree
++        finally:
++            sys.path.pop(0)
++        return minimal_zero_bug_tree()
++
++    @staticmethod
++    def _decisions_tree() -> dict:
++        """Real gate: Total: 1 DECISION, 1 CLEANUP, N WARN (exit 0). The
++        CLEANUP is the missing run-metadata file (record-keeping)."""
++        sys.path.insert(0, str(Path(__file__).resolve().parent))
++        try:
++            from test_gate_verdict_honesty_v161 import build_reproduced_tree
++        finally:
++            sys.path.pop(0)
++        tree = build_reproduced_tree({"BUG-001": "REQ-001"}, ["REQ-003"])
++        del tree["quality/results/run-2026-01-01T00-00-00.json"]
++        return tree
++
++    def test_shallow_pass_with_fabricated_solid_log_is_mismatch(self) -> None:
++        """Council A-r2 N1 probe: the real gate passes but the run looks
++        shallow (zero bugs, verdict_state "shallow"); a hand-written log
++        claims a solid pass with 0 WARN. RESULT and the non-WARN Total
++        counts agree, so only the verdict-state comparison catches it."""
++        with tempfile.TemporaryDirectory() as td:
++            target = self._tree_target(td, self._zero_bug_tree())
++            self.assertIn('"verdict_state":"shallow"',
++                          self._real_log(target))
++            self._write_log(target, "[PASS] GATE PASSED\n"
++                            "Total: 0 FAIL, 0 WARN\n"
++                            "RESULT: GATE PASSED\nexit=0\n")
++            r = _run_witness(target)
++            self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
++            self.assertIn("MISMATCH: verdict state differs (lead line",
++                          r.stdout)
++
++    def test_fabricated_sentinel_state_is_mismatch(self) -> None:
++        """A log that carries a ::QPB:: gate sentinel is judged on the
++        sentinel's verdict_state (here "solid" vs the gate's "shallow")."""
++        with tempfile.TemporaryDirectory() as td:
++            target = self._tree_target(td, self._zero_bug_tree())
++            real = self._real_log(target)
++            self._write_log(target, real.replace(
++                '"verdict_state":"shallow"', '"verdict_state":"solid"'))
++            r = _run_witness(target)
++            self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
++            self.assertIn("MISMATCH: verdict state differs (::QPB:: "
++                          "gate_result/verdict_state", r.stdout)
++
++    def test_shallow_agents_md_written_later_is_match(self) -> None:
++        """AGENTS.md written after the log changes the WARN count only;
++        the verdict state stays "shallow" -> MATCH, and the MATCH line
++        does not claim WARNs never change the verdict."""
++        with tempfile.TemporaryDirectory() as td:
++            tree = self._zero_bug_tree()
++            del tree["AGENTS.md"]
++            target = self._tree_target(td, tree)
++            self._real_log(target)
++            (target / "AGENTS.md").write_text("# Agents\n", encoding="utf-8")
++            r = _run_witness(target)
++            self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
++            self.assertIn(
++                "MATCH: the WARN count differs, but the RESULT: line, the "
++                "FAIL / DECISION / CLEANUP counts and the verdict state "
++                "equal the gate's.", r.stdout)
++            self.assertNotIn("do not change the verdict", r.stdout)
++
++    def test_log_without_sentinel_matching_lead_line_is_match(self) -> None:
++        """Pre-1.6.1 log shape (no ::QPB:: line): the lead line is the
++        verdict state, and it matches -> MATCH."""
++        with tempfile.TemporaryDirectory() as td:
++            target = self._tree_target(td, self._zero_bug_tree())
++            real = self._real_log(target)
++            self._write_log(target, "\n".join(
++                ln for ln in real.splitlines()
++                if not ln.startswith("::QPB::")) + "\n")
++            r = _run_witness(target)
++            self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
++            self.assertIn("MATCH:", r.stdout)
++            self.assertNotIn("MISMATCH", r.stdout)
++
++    def test_log_without_sentinel_or_lead_line_is_mismatch(self) -> None:
++        """Total: and RESULT: copied verbatim, but no verdict-state line
++        at all -> the log cannot be witnessed."""
++        with tempfile.TemporaryDirectory() as td:
++            target = self._tree_target(td, self._zero_bug_tree())
++            real = self._real_log(target)
++            self._write_log(target, "\n".join(
++                ln for ln in real.splitlines()
++                if not ln.startswith(("::QPB::", "[PASS] GATE",
++                                      "[WARN] GATE", "[FAIL] GATE")))
++                + "\n")
++            r = _run_witness(target)
++            self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
++            self.assertIn("MISMATCH: quality-gate.log has no ::QPB:: gate "
++                          "sentinel and no [PASS]/[WARN]/[FAIL] GATE lead "
++                          "line, so its verdict state cannot be witnessed",
++                          r.stdout)
++
++    def _edited_total_is_mismatch(self, tree, old: str, new: str) -> None:
++        with tempfile.TemporaryDirectory() as td:
++            target = (_make_target(Path(td)) if tree is None
++                      else self._tree_target(td, tree))
++            real = self._real_log(target)
++            total = [ln for ln in real.splitlines()
++                     if ln.startswith("Total:")][-1]
++            self.assertIn(old, total)
++            self._write_log(target, real.replace(
++                total, total.replace(old, new, 1)))
++            r = _run_witness(target)
++            self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
++            self.assertIn("MISMATCH: Total: line(s) differ", r.stdout)
++
++    def test_edited_fail_count_is_mismatch(self) -> None:
++        """Council B-r2: only the FAIL count is edited (RESULT, lead line
++        and sentinel untouched) -> MISMATCH on Total:."""
++        with tempfile.TemporaryDirectory() as td:
++            target = _make_target(Path(td))
++            real = self._real_log(target)
++        total = [ln for ln in real.splitlines() if ln.startswith("Total:")][-1]
++        n_fail = total.split()[1]
++        self._edited_total_is_mismatch(None, f"Total: {n_fail} FAIL",
++                                       f"Total: {int(n_fail) + 1} FAIL")
++
++    def test_edited_decision_count_is_mismatch(self) -> None:
++        self._edited_total_is_mismatch(self._decisions_tree(),
++                                       "1 DECISION,", "2 DECISION,")
++
++    def test_edited_cleanup_count_is_mismatch(self) -> None:
++        self._edited_total_is_mismatch(self._decisions_tree(),
++                                       "1 CLEANUP,", "0 CLEANUP,")
++
+     def test_witness_ships_in_install_bundle(self) -> None:
+         from bin.install_skill import _bundle_files
+         dests = {str(d) for _s, d in _bundle_files(_SKILL_DIR)}
+diff --git a/plugins/quality-playbook/skills/quality-playbook/scripts/qpb_gate_witness.py b/plugins/quality-playbook/skills/quality-playbook/scripts/qpb_gate_witness.py
+index 00c265a..1bae4ef 100644
+--- a/plugins/quality-playbook/skills/quality-playbook/scripts/qpb_gate_witness.py
++++ b/plugins/quality-playbook/skills/quality-playbook/scripts/qpb_gate_witness.py
+@@ -19,7 +19,8 @@ Exit codes:
+   0  the gate's ``RESULT:`` line equals the log's, and its ``Total:``
+      line equals the log's once the trailing ``, N WARN`` part is
+      removed from both
+-  1  they differ (a ``MISMATCH`` line names which), or the gate printed
++  1  they differ (a ``MISMATCH`` line names which), the verdict state
++     differs, the log carries no verdict state, or the gate printed
+      no verdict lines
+ 
+ v1.6.1 [council-1]: the WARN count is left out of the comparison
+@@ -28,6 +29,14 @@ parent's: the orchestrator writes AGENTS.md after the gate passes, and
+ a missing AGENTS.md is one WARN. FAIL / DECISION / CLEANUP counts and
+ the RESULT line are still compared exactly. Both full lines are
+ printed.
++
++v1.6.1 [council-2]: a WARN can still change the verdict state (the
++"no test functions found" WARN turns a pass "shallow"), so the witness
++also compares the verdict state. Source, in order: the LAST
++``::QPB::`` gate sentinel's ``gate_result`` + ``verdict_state``; for
++a log with no sentinel (pre-1.6.1), the operator lead line
++(``[PASS]/[WARN]/[FAIL] GATE ...``). A log with neither is a MISMATCH:
++its verdict state cannot be witnessed.
+   2  ``quality/results/quality-gate.log`` is missing, or the target /
+      ``quality_gate.py`` cannot be found
+ 
+@@ -37,6 +46,7 @@ banner via the same 3-step anchored fallback qpb_phase.py uses.
+ """
+ from __future__ import annotations
+ 
++import json
+ import re
+ import subprocess
+ import sys
+@@ -125,6 +135,65 @@ def verdict_lines(text: str) -> "tuple[Optional[str], Optional[str]]":
+     return total, result
+ 
+ 
++_SENTINEL_PREFIX = "::QPB::"
++_LEAD_RE = re.compile(r"^\[(?:PASS|WARN|FAIL)\] GATE ")
++
++
++def gate_sentinel_state(text: str) -> "Optional[tuple[str, str]]":
++    """v1.6.1 [council-2]: ``(gate_result, verdict_state)`` from the
++    LAST ``::QPB::`` line whose payload has ``kind == "gate"``, or
++    None when there is no such line (pre-1.6.1 log, or a hand-written
++    one). Unparseable sentinel lines are skipped."""
++    found = None
++    for raw in text.splitlines():
++        line = raw.strip()
++        if not line.startswith(_SENTINEL_PREFIX):
++            continue
++        try:
++            payload = json.loads(line[len(_SENTINEL_PREFIX):].strip())
++        except ValueError:
++            continue
++        if isinstance(payload, dict) and payload.get("kind") == "gate":
++            found = (str(payload.get("gate_result")),
++                     str(payload.get("verdict_state")))
++    return found
++
++
++def lead_line(text: str) -> Optional[str]:
++    """v1.6.1 [council-2]: the LAST operator lead line
++    (``[PASS] GATE ...`` / ``[WARN] GATE ...`` / ``[FAIL] GATE ...``),
++    stripped, or None."""
++    found = None
++    for raw in text.splitlines():
++        line = raw.strip()
++        if _LEAD_RE.match(line):
++            found = line
++    return found
++
++
++def compare_verdict_state(gate_text: str, log_text: str) -> Optional[str]:
++    """v1.6.1 [council-2]: None when the log's verdict state equals the
++    gate's, else a one-line reason. Uses the sentinel when the log has
++    one, else the lead line; a log with neither cannot be witnessed."""
++    log_state = gate_sentinel_state(log_text)
++    if log_state is not None:
++        gate_state = gate_sentinel_state(gate_text)
++        if gate_state != log_state:
++            return (f"verdict state differs (::QPB:: gate_result/"
++                    f"verdict_state: gate {gate_state}, log {log_state})")
++        return None
++    log_lead = lead_line(log_text)
++    if log_lead is not None:
++        gate_lead = lead_line(gate_text)
++        if gate_lead != log_lead:
++            return (f"verdict state differs (lead line: gate "
++                    f"{gate_lead!r}, log {log_lead!r})")
++        return None
++    return ("quality-gate.log has no ::QPB:: gate sentinel and no "
++            "[PASS]/[WARN]/[FAIL] GATE lead line, so its verdict state "
++            "cannot be witnessed")
++
++
+ _WARN_TAIL_RE = re.compile(r",\s*\d+\s+WARN\s*$")
+ 
+ 
+@@ -176,9 +245,10 @@ def main(argv: "list[str] | None" = None) -> int:
+               file=sys.stderr)
+         return 2
+ 
+-    gate_total, gate_result = verdict_lines(run_gate(gate, target))
+-    log_total, log_result = verdict_lines(
+-        log_path.read_text(encoding="utf-8", errors="replace"))
++    gate_text = run_gate(gate, target)
++    log_text = log_path.read_text(encoding="utf-8", errors="replace")
++    gate_total, gate_result = verdict_lines(gate_text)
++    log_total, log_result = verdict_lines(log_text)
+ 
+     print(f"Gate run by parent ({gate}):")
+     print(f"  {gate_total or '<no Total: line>'}")
+@@ -200,12 +270,19 @@ def main(argv: "list[str] | None" = None) -> int:
+         print(f"MISMATCH: {' and '.join(diffs)} line(s) differ between "
+               "the gate and quality-gate.log; stop and report.")
+         return 1
++    # v1.6.1 [council-2]: the verdict state (solid / shallow /
++    # decisions / failed) can hinge on a WARN, so compare it too.
++    state_diff = compare_verdict_state(gate_text, log_text)
++    if state_diff is not None:
++        print(f"MISMATCH: {state_diff}; stop and report.")
++        return 1
+     if gate_total != log_total:
+-        print("MATCH: the log's RESULT: line and its Total: counts other "
+-              "than WARN equal the gate's (the WARN count differs; WARNs "
+-              "do not change the verdict).")
++        print("MATCH: the WARN count differs, but the RESULT: line, the "
++              "FAIL / DECISION / CLEANUP counts and the verdict state "
++              "equal the gate's.")
+         return 0
+-    print("MATCH: the log's Total: and RESULT: lines equal the gate's.")
++    print("MATCH: the log's Total: and RESULT: lines and its verdict "
++          "state equal the gate's.")
+     return 0
+ 
+ 
+diff --git a/references/orchestrator_protocol.md b/references/orchestrator_protocol.md
+index c8410f5..6eb36b5 100644
+--- a/references/orchestrator_protocol.md
++++ b/references/orchestrator_protocol.md
+@@ -59,7 +59,7 @@ Cross-reference SKILL.md's Complete Artifact Contract for the authoritative list
+ - **Phase 3 (Code Review):** `quality/code_reviews/` contains at least one review file. If bugs were confirmed: `quality/BUGS.md` has at least one `### BUG-` entry, `quality/patches/` contains a regression-test patch per confirmed bug, and `quality/test_regression.*` exists.
+ - **Phase 4 (Spec Audit):** `quality/spec_audits/` contains at least one triage file AND at least one individual auditor file.
+ - **Phase 5 (Reconciliation):** If bugs were confirmed: `quality/results/tdd-results.json` exists, a writeup at `quality/writeups/BUG-NNN.md` exists for every confirmed bug, and a red-phase log exists at `quality/results/BUG-NNN.red.log` for every confirmed bug.
+-- **Phase 6 (Verify):** `quality/results/quality-gate.log` exists and PROGRESS.md marks Phase 6 complete with a Terminal Gate Verification section. Then the parent's witness run (mandatory): run `python3 <install_root>/bin/qpb_gate_witness.py <target-repo>` yourself and paste its output verbatim in your own chat. It re-runs `quality_gate.py` the way adopters do and compares the gate's `Total:` and `RESULT:` lines with the log's. Exit 0 prints `MATCH`. Exit 1 prints `MISMATCH`: stop, report both pairs of lines to the operator, and start nothing else. Exit 2 means the log is missing: the phase failed. Run the witness before you write AGENTS.md. (The witness leaves the WARN count out of the `Total:` comparison, because writing AGENTS.md removes one WARN; the FAIL, DECISION and CLEANUP counts and the `RESULT:` line must still match.)
++- **Phase 6 (Verify):** `quality/results/quality-gate.log` exists and PROGRESS.md marks Phase 6 complete with a Terminal Gate Verification section. Then the parent's witness run (mandatory): run `python3 <install_root>/bin/qpb_gate_witness.py <target-repo>` yourself and paste its output verbatim in your own chat. It re-runs `quality_gate.py` the way adopters do and compares the gate's `Total:` and `RESULT:` lines with the log's. Exit 0 prints `MATCH`. Exit 1 prints `MISMATCH`: stop, report both pairs of lines to the operator, and start nothing else. Exit 2 means the log is missing: the phase failed. Run the witness before you write AGENTS.md. (The witness leaves the WARN count out of the `Total:` comparison, because writing AGENTS.md removes one WARN; the FAIL, DECISION and CLEANUP counts, the `RESULT:` line and the verdict state must still match. The verdict state comes from the last `::QPB::` gate line, or from the `[PASS]`/`[WARN]`/`[FAIL] GATE` lead line in a log without one; a log with neither is a `MISMATCH`.)
+ - **AGENTS.md (target repo root):** written by the orchestrator AFTER the Phase 6 gate passes and AFTER the parent's witness run. It is not required for the gate to pass, and no phase sub-agent writes it.
+ 
+ ### After verification passes
+-- 
+2.34.1
+

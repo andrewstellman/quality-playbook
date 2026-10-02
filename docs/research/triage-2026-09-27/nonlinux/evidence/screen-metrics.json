@@ -1,0 +1,17 @@
+{
+  "reports": 112,
+  "unique_report_sha256": 105,
+  "groups": {
+    "archive": 14,
+    "chi-1.5.8": 1,
+    "chi-1.6.0": 1,
+    "chi-1.6.0.bak-20260726T020949Z": 1,
+    "express-1.5.8": 1,
+    "express-accept": 1,
+    "qpb-ff": 1,
+    "secbench": 10,
+    "secbench-2": 26,
+    "secbench2": 23,
+    "secbench2_widenet": 33
+  }
+}

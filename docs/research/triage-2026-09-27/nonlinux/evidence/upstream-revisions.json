@@ -1,0 +1,50 @@
+{
+  "chi": {
+    "head": "3d1777a1ef8881f7d1da0b02c76ca8f0a29cd2bc",
+    "commit": "2026-09-18T13:51:53+02:00 middleware: honor Discard when flushing (#1185)",
+    "remote": "https://github.com/go-chi/chi.git",
+    "branch": "master"
+  },
+  "aiohttp": {
+    "head": "25f30573cc01da08f5b962128eebb16b9701ada3",
+    "commit": "2026-09-27T19:18:20+01:00 Deprecate TCPConnector ssl (#13829)",
+    "remote": "https://github.com/aio-libs/aiohttp.git",
+    "branch": "master"
+  },
+  "flatted": {
+    "head": "e6f5ca700c4ca8104a6a83472c8219e267bd5e84",
+    "commit": "2026-07-30T11:52:52+02:00 3.4.4",
+    "remote": "https://github.com/WebReflection/flatted.git",
+    "branch": "main"
+  },
+  "immutable-js": {
+    "head": "686b8baf1dc825419f5ded2968b48e3432644aff",
+    "commit": "2026-09-02T22:04:10+02:00 Merge pull request #2273 from immutable-js/fix-2272",
+    "remote": "https://github.com/immutable-js/immutable-js.git",
+    "branch": "main"
+  },
+  "ljharb-shell-quote": {
+    "head": "35c9b97a744211091b772f145bef0b6a5562b68e",
+    "commit": "2026-07-14T18:23:43-07:00 [Fix] `quote`: preserve empty glob patterns",
+    "remote": "https://github.com/ljharb/shell-quote.git",
+    "branch": "main"
+  },
+  "minimatch": {
+    "head": "ded1bbd01beca62a5978bc1650ed0a1ccf9039d5",
+    "commit": "2026-07-27T11:59:48-07:00 10.2.6",
+    "remote": "https://github.com/isaacs/minimatch.git",
+    "branch": "main"
+  },
+  "shell-quote": {
+    "head": "ed731a465cfa497ad83a2e13fe9037d091767aad",
+    "commit": "2018-08-29T22:42:52Z change package name for release",
+    "remote": "https://github.com/shell-quote/shell-quote.git",
+    "branch": "master"
+  },
+  "defu": {
+    "head": "82632b66f5914e9946edce300e10633a3d5c0cb7",
+    "commit": "2026-05-17T01:55:13Z chore(deps): update all non-major dependencies (#161)",
+    "remote": "https://github.com/unjs/defu.git",
+    "branch": "main"
+  }
+}

@@ -1,0 +1,1467 @@
+From 140644d615eb2d6352a0078728c4625a1a958669 Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <andrew@stellman.com>
+Date: Fri, 2 Oct 2026 00:52:21 -0400
+Subject: [PATCH 05/12] v1.6.1 [R]: Prepare upstream submissions (Phase 7 path
+ 5), upstream_scripts.py generator
+
+---
+ AGENTS.md                                     |   2 +
+ SKILL.md                                      |   9 +-
+ bin/tests/test_install_manifest_no_drift.py   |   4 +-
+ bin/tests/test_upstream_submission_161.py     | 509 +++++++++++++++++
+ .../quality-playbook/scripts/install_skill.py |  10 +
+ .../quality-playbook/scripts/qpb_validate.py  |   3 +
+ .../quality-playbook/scripts/run_state_lib.py |   1 +
+ .../scripts/upstream_scripts.py               | 514 ++++++++++++++++++
+ references/phase7_guide.md                    |   8 +-
+ references/upstream_submission.md             | 233 ++++++++
+ 10 files changed, 1287 insertions(+), 6 deletions(-)
+ create mode 100644 bin/tests/test_upstream_submission_161.py
+ create mode 100644 plugins/quality-playbook/skills/quality-playbook/scripts/upstream_scripts.py
+ create mode 100644 references/upstream_submission.md
+
+diff --git a/AGENTS.md b/AGENTS.md
+index c55e613..bac76c5 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -113,6 +113,7 @@ cp "$QPB_SKILL_SRC"/scripts/qpb_validate.py                      .github/skills/
+ cp "$QPB_SKILL_SRC"/scripts/qpb_phase.py                         .github/skills/bin/qpb_phase.py
+ cp "$QPB_SKILL_SRC"/scripts/qpb_heartbeat.py                     .github/skills/bin/qpb_heartbeat.py
+ cp "$QPB_SKILL_SRC"/scripts/qpb_gate_witness.py                  .github/skills/bin/qpb_gate_witness.py
++cp "$QPB_SKILL_SRC"/scripts/upstream_scripts.py                  .github/skills/bin/upstream_scripts.py
+ # v1.5.2+: single reference_docs/ tree at the target repo root.
+ # Place adopter docs here — citable specs/RFCs in reference_docs/cite/.
+ # (v1.5.7 090h retired informal_docs/; reference_docs/ is the sole
+@@ -161,6 +162,7 @@ cp "$QPB_SKILL_SRC"/scripts/migrate_v1_5_0_layout.py     .claude/skills/quality-
+ cp "$QPB_SKILL_SRC"/scripts/phase_identity.py            .claude/skills/quality-playbook/bin/phase_identity.py
+ cp "$QPB_SKILL_SRC"/scripts/qpb_heartbeat.py            .claude/skills/quality-playbook/bin/qpb_heartbeat.py
+ cp "$QPB_SKILL_SRC"/scripts/qpb_gate_witness.py         .claude/skills/quality-playbook/bin/qpb_gate_witness.py
++cp "$QPB_SKILL_SRC"/scripts/upstream_scripts.py         .claude/skills/quality-playbook/bin/upstream_scripts.py
+ cp "$QPB_SKILL_SRC"/scripts/qpb_config.py                .claude/skills/quality-playbook/bin/qpb_config.py
+ cp "$QPB_SKILL_SRC"/scripts/quality_playbook.py          .claude/skills/quality-playbook/bin/quality_playbook.py
+ cp "$QPB_SKILL_SRC"/scripts/reference_docs_ingest.py     .claude/skills/quality-playbook/bin/reference_docs_ingest.py
+diff --git a/SKILL.md b/SKILL.md
+index 93e46e2..65057f4 100644
+--- a/SKILL.md
++++ b/SKILL.md
+@@ -624,6 +624,8 @@ After generating and verifying, present the results clearly and give the user co
+ 
+ See `references/phase7_guide.md` for the full Phase 7 detail (Part 1 the summary table, Part 2 drill-down on demand, Part 3 the improvement menu, executing each improvement path, and iteration).
+ 
++**Prepare upstream submissions** is menu path 5, operator-invoked only: policy check, shortlist (stop for the operator's pick), confirm, fix, review panel, then one bug at a time with a `REVIEW.md` and an operator-run `submit.sh`. The skill never submits, marks ready, or comments upstream. See `references/upstream_submission.md`.
++
+ ---
+ 
+ ## Fixture Strategy
+@@ -684,7 +686,7 @@ BUGS.md — an interpretive layer over them.>
+ 
+ This block is **mandatory at every phase boundary**. The reason it exists: without it, adopters who hit failure modes like pass-process / fail-recall (where Phases 1-2 produce real artifacts but Phases 3-5 stub out and the gate passes with zero confirmed bugs) cannot see what went wrong without QPB-power-user knowledge of the gate verdicts. Surfacing the interpretive layer as plain English in chat scrollback fixes that.
+ 
+-**Single source of truth:** the decision tree mapping run state → block content is in `references/what_just_happened.md`. Consult it before emitting — it covers thirteen run states (Phases 1-5 just-completed / code-only mode / Phase 2 abort + D1 preservation / agent-emitted unrecoverable error / pass-process-fail-recall / full baseline / one iteration done / all four iterations done / recheck done) with template prose for each, plus the mechanical 9-rule classifier for picking which state applies. Do NOT inline the decision tree here or in phase prompts — single-sourced in the reference file.
++**Single source of truth:** the decision tree mapping run state → block content is in `references/what_just_happened.md`. Consult it before emitting — it holds one template per run state and the mechanical classifier for picking which state applies. Do NOT inline the decision tree here or in phase prompts — single-sourced in the reference file.
+ 
+ **Plain-English contract.** No QPB-internal jargon without a parenthetical gloss. The first sentence of "What just happened" should make sense to an adopter reading their first run; the "What to do next" sentence must contain a concrete next prompt or shell command. See the DO NOT section of `references/what_just_happened.md` for full enforcement rules.
+ 
+@@ -705,6 +707,7 @@ Read these as you work through each phase:
+ | `references/review_protocols.md` | Files 3–4 (code review, integration) | Templates for both protocols, patch validation, skip guards |
+ | `references/spec_audit.md` | File 5 (Council of Three) | Full audit protocol, triage process, fix execution |
+ | `references/iteration.md` | Iterations (after Phase 6) | Four iteration strategies: gap, unfiltered, parity, adversarial |
+-| `references/verification.md` | Phase 6 (verify) | Complete self-check checklist (45 benchmarks) including structured output, patch gate, skip guard validation, pre-flight discovery, version stamps, bug writeups, enumeration completeness, triage executable evidence, code-extracted enumeration lists, mechanical verification artifacts, source-inspection test execution, contradiction gate, seed check execution, convergence tracking, sidecar JSON schema validation, script-verified closure gate, canonical use case identifiers, and writeup inline fix diffs |
++| `references/verification.md` | Phase 6 (verify) | Complete self-check checklist (45 benchmarks; the file lists them) |
++| `references/upstream_submission.md` | Phase 7 path 5, when the operator asks | Policy check, shortlist, confirmer/fixer briefs, review panel, REVIEW.md template, `bin/upstream_scripts.py` |
+ | `references/claims_rules.md` | Before writing BUGS.md, writeups, or any operator-facing claim | Claim rules R1–R3, R6–R8, flag words, pre-output checklist |
+-| `references/what_just_happened.md` | Every phase boundary (1-6) + end-of-run + iterations + recheck | Mandatory `## What just happened` + `### What to do next` block contract; 9-rule run-state classifier; decision tree of thirteen templates (P1 / P2 / P3 / P4 / P5 / C / G / E / S / B / I / F / R) covering Mode A multi-pass, code-only mode, Phase 2 abort + D1 preservation, agent-emitted unrecoverable error, pass-process / fail-recall, full baseline, iteration done, all four iterations done, recheck done |
++| `references/what_just_happened.md` | Every phase boundary (1-6) + end-of-run + iterations + recheck | Mandatory `## What just happened` + `### What to do next` block contract; run-state classifier; one template per run state |
+diff --git a/bin/tests/test_install_manifest_no_drift.py b/bin/tests/test_install_manifest_no_drift.py
+index 6d49827..462f229 100644
+--- a/bin/tests/test_install_manifest_no_drift.py
++++ b/bin/tests/test_install_manifest_no_drift.py
+@@ -111,8 +111,10 @@ class InstallClosureNoDriftTests(unittest.TestCase):
+         # prompt Feature H now ships). [S+W] +bin/qpb_gate_witness.py (the
+         # parent session's gate re-run after a subagent Phase 6) and
+         # +references/claims_rules.md (auto-bundled by the references/*.md glob).
++        # v1.6.1 [R]: 72 -> 74. +bin/upstream_scripts.py (writes the
++        # operator-run gh scripts) and +references/upstream_submission.md.
+         from bin.qpb_validate import INSTALL_CLOSURE
+-        self.assertEqual(len(INSTALL_CLOSURE), 72)
++        self.assertEqual(len(INSTALL_CLOSURE), 74)
+         paths = [e["path"] for e in INSTALL_CLOSURE]
+         self.assertEqual(len(paths), len(set(paths)),
+                          "duplicate path in INSTALL_CLOSURE")
+diff --git a/bin/tests/test_upstream_submission_161.py b/bin/tests/test_upstream_submission_161.py
+new file mode 100644
+index 0000000..609e015
+--- /dev/null
++++ b/bin/tests/test_upstream_submission_161.py
+@@ -0,0 +1,509 @@
++"""v1.6.1 [R] — "Prepare upstream submissions" (Phase 7 path 5).
++
++Why: the 2026-09 campaign took QPB findings upstream by hand, with
++hand-written ``gh`` scripts the operator ran. v1.6.1 moves the process
++into the skill (references/upstream_submission.md) and generates the
++scripts (scripts/upstream_scripts.py) so the agent never composes them.
++These tests pin:
++
++  * golden properties of every generated script: ``set -euo pipefail``
++    is the first logic line, ``bash -n`` passes, no forbidden ``gh``
++    verb (ready / merge / pr comment / issue comment) appears, PRs open
++    with ``--draft``, a hostile title is quoted safely, the issue-first
++    variant never runs ``gh pr create``, the post-create rename appears
++    only when configured, dup-search writes ``dup-search.out``;
++  * end-to-end runs against a stub ``gh`` and local git remotes: the
++    title reaches ``gh pr create`` byte-for-byte, the patch lands on the
++    fork, the newsfragment is renamed to the PR number, a ``git am``
++    conflict stops with the abort message;
++  * the blob-hash comparison used by the Record step;
++  * the skill text: phase7_guide.md lists the path, upstream_submission.md
++    carries the guardrails and the one-bug-at-a-time rule, SKILL.md
++    points at it, ``--check-skill-references`` passes, and the bundle
++    ships both new files.
++
++Mutation-bite evidence (executed during v1.6.1 [R] development):
++  M1: in render_submit, add the line ``gh pr ready "$URL"`` after the
++      ``echo "$URL"`` line → test_no_forbidden_gh_verbs FAILS. Restored
++      → PASS.
++  M2: in render_submit, replace ``f"TITLE={_q(bug['title'])}"`` with
++      ``f'TITLE="{bug["title"]}"'`` → test_hostile_title_quoted_safely
++      and test_e2e_pr_submit FAIL. Restored → PASS.
++"""
++
++from __future__ import annotations
++
++import json
++import os
++import re
++import shutil
++import subprocess
++import sys
++import tempfile
++import unittest
++from pathlib import Path
++
++_REPO = Path(__file__).resolve().parents[2]
++_SKILL_DIR = _REPO / "plugins" / "quality-playbook" / "skills" / "quality-playbook"
++_GEN = _SKILL_DIR / "scripts" / "upstream_scripts.py"
++_GATE = _SKILL_DIR / "scripts" / "quality_gate.py"
++_SKILL_MD = _REPO / "SKILL.md"
++_PHASE7 = _REPO / "references" / "phase7_guide.md"
++_UPSTREAM_MD = _REPO / "references" / "upstream_submission.md"
++
++_HOSTILE_TITLE = 'fix: don\'t "drop" `x` when $HOME is set $(touch PWNED)'
++
++
++def _load_gen():
++    sys.path.insert(0, str(_GEN.parent))
++    try:
++        import upstream_scripts as gen  # type: ignore[import]
++    finally:
++        sys.path.pop(0)
++    return gen
++
++
++def _spec(**bug_overrides):
++    bug = {
++        "slug": "widget-fix",
++        "branch": "fix-it",
++        "patch": "0001-fix.patch",
++        "title": _HOSTILE_TITLE,
++        "body_file": "PR.md",
++        "test_command": "test -f README && echo tests-ok",
++        "dup_queries": ["can't \"drop\" `x` $Y", "second query"],
++    }
++    bug.update(bug_overrides)
++    return {"upstream": "acme/widget", "expected_login": "op", "bugs": [bug]}
++
++
++def _logic_lines(text):
++    return [l for l in text.splitlines() if l.strip() and not l.startswith("#")]
++
++
++def _have(tool):
++    return shutil.which(tool) is not None
++
++
++class GeneratedScriptGoldenTests(unittest.TestCase):
++
++    def setUp(self):
++        self.gen = _load_gen()
++        self._td = tempfile.TemporaryDirectory()
++        self.tmp = Path(self._td.name)
++
++    def tearDown(self):
++        self._td.cleanup()
++
++    def _generate(self, spec):
++        return self.gen.generate(spec, self.tmp / "upstream")
++
++    def _all_variants(self):
++        """Every script the generator can produce: PR with and without
++        post_create, issue-first, dup-search."""
++        out = []
++        for i, overrides in enumerate((
++            {},
++            {"post_create": [{"rename": {"from": "news/+fix-it.bugfix.rst",
++                                         "to": "news/{pr_number}.bugfix.rst"}}]},
++            {"kind": "issue", "body_file": "ISSUE.md"},
++        )):
++            out += self.gen.generate(_spec(**overrides), self.tmp / f"v{i}")
++        return out
++
++    def test_writes_expected_files(self):
++        paths = {p.relative_to(self.tmp / "upstream").as_posix()
++                 for p in self._generate(_spec())}
++        self.assertEqual(paths, {"dup-search.sh", "widget-fix/submit.sh",
++                                 "widget-fix/verify.sh"})
++
++    def test_set_euo_pipefail_is_first_logic_line(self):
++        for path in self._all_variants():
++            with self.subTest(script=str(path)):
++                text = path.read_text()
++                self.assertTrue(text.startswith("#!/usr/bin/env bash\n"))
++                self.assertEqual(_logic_lines(text)[0], "set -euo pipefail")
++
++    @unittest.skipUnless(_have("bash"), "bash not installed")
++    def test_bash_n_passes_on_every_script(self):
++        for path in self._all_variants():
++            with self.subTest(script=str(path)):
++                r = subprocess.run(["bash", "-n", str(path)],
++                                   capture_output=True, text=True)
++                self.assertEqual(r.returncode, 0, r.stderr)
++
++    def test_no_forbidden_gh_verbs(self):
++        self.assertEqual(self.gen.FORBIDDEN_GH_VERBS,
++                         ("gh pr ready", "gh pr merge", "gh pr comment",
++                          "gh issue comment"))
++        for path in self._all_variants():
++            text = path.read_text()
++            for verb in self.gen.FORBIDDEN_GH_VERBS:
++                with self.subTest(script=str(path), verb=verb):
++                    self.assertNotIn(verb, text)
++
++    def test_pr_submit_opens_a_draft(self):
++        self._generate(_spec())
++        text = (self.tmp / "upstream" / "widget-fix" / "submit.sh").read_text()
++        create = [l for l in text.splitlines() if "gh pr create" in l]
++        self.assertEqual(len(create), 1)
++        self.assertIn("--draft", create[0])
++        self.assertIn('--body-file "$BODY"', create[0])
++        self.assertIn('--title "$TITLE"', create[0])
++        for needed in ("gh auth status", "gh repo view", "gh repo fork",
++                       'git am "$PATCH"', "SKIP_TESTS", "git push -u origin",
++                       'refs/heads/$BRANCH', "am --abort"):
++            self.assertIn(needed, text)
++
++    @unittest.skipUnless(_have("bash"), "bash not installed")
++    def test_hostile_title_quoted_safely(self):
++        self._generate(_spec())
++        text = (self.tmp / "upstream" / "widget-fix" / "submit.sh").read_text()
++        assign = [l for l in text.splitlines() if l.startswith("TITLE=")]
++        self.assertEqual(len(assign), 1)
++        work = self.tmp / "evalcwd"
++        work.mkdir()
++        r = subprocess.run(
++            ["bash", "-c", assign[0] + '\nprintf %s "$TITLE"'],
++            cwd=work, capture_output=True, text=True)
++        self.assertEqual(r.returncode, 0, r.stderr)
++        self.assertEqual(r.stdout, _HOSTILE_TITLE)
++        self.assertFalse((work / "PWNED").exists(),
++                         "title text was executed as a command")
++
++    def test_issue_first_variant(self):
++        self.gen.generate(_spec(kind="issue", body_file="ISSUE.md"),
++                          self.tmp / "u")
++        text = (self.tmp / "u" / "widget-fix" / "submit.sh").read_text()
++        self.assertIn("gh issue create", text)
++        self.assertNotIn("gh pr create", text)
++        self.assertIn("__COMPARE__", text)
++        self.assertIn("Next step:", text)
++        verify = (self.tmp / "u" / "widget-fix" / "verify.sh").read_text()
++        self.assertIn("gh issue view", verify)
++        self.assertNotIn("gh pr ", verify)
++
++    def test_post_create_rename_only_when_configured(self):
++        self.gen.generate(_spec(), self.tmp / "plain")
++        plain = (self.tmp / "plain" / "widget-fix" / "submit.sh").read_text()
++        for absent in ("git mv", "--force-with-lease", "--amend"):
++            self.assertNotIn(absent, plain)
++        self.gen.generate(_spec(post_create=[{"rename": {
++            "from": "news/+fix-it.bugfix.rst",
++            "to": "news/{pr_number}.bugfix.rst"}}]), self.tmp / "ren")
++        ren = (self.tmp / "ren" / "widget-fix" / "submit.sh").read_text()
++        self.assertIn("git mv -- news/+fix-it.bugfix.rst \"$NEW_PATH\"", ren)
++        self.assertIn('NEW_PATH=news/"$NUM".bugfix.rst', ren)
++        self.assertIn("git push --force-with-lease", ren)
++        # the rename runs after the PR exists (it needs the number)
++        self.assertLess(ren.index("gh pr create"), ren.index("git mv"))
++
++    def test_dup_search_writes_out_file(self):
++        self._generate(_spec())
++        text = (self.tmp / "upstream" / "dup-search.sh").read_text()
++        self.assertIn('OUT="$HERE/dup-search.out"', text)
++        self.assertIn('} > "$OUT" 2>&1', text)
++        self.assertEqual(text.count("  search issues "), 2)
++        self.assertEqual(text.count("  search prs "), 2)
++        self.assertIn('--repo "$UPSTREAM"', text)
++
++    def test_verify_is_read_only(self):
++        self._generate(_spec())
++        text = (self.tmp / "upstream" / "widget-fix" / "verify.sh").read_text()
++        gh_calls = re.findall(r"\bgh (\w+ \w+)", text)
++        self.assertEqual(sorted(set(gh_calls)), ["pr diff", "pr view"])
++        self.assertIn("headRefOid", text)
++
++    def test_no_dup_search_without_queries(self):
++        written = self.gen.generate(_spec(dup_queries=[]), self.tmp / "u")
++        self.assertNotIn("dup-search.sh", {p.name for p in written})
++
++    def test_spec_validation(self):
++        bad = [
++            {"upstream": "not-a-repo", "bugs": [{"slug": "a"}]},
++            {"upstream": "a/b", "bugs": [{"slug": "a b"}]},
++            {"upstream": "a/b", "bugs": [{"slug": "a", "patch": "p"}]},
++            _spec(kind="issue", post_create=[{"rename": {
++                "from": "x", "to": "{pr_number}"}}]),
++            _spec(post_create=[{"rename": {"from": "x", "to": "no-number"}}]),
++            _spec(post_create=[{"shell": "rm -rf /"}]),
++        ]
++        for spec in bad:
++            with self.subTest(spec=spec):
++                with self.assertRaises(self.gen.SpecError):
++                    self.gen.validate_spec(spec)
++
++    def test_cli_writes_scripts(self):
++        spec_path = self.tmp / "scripts.json"
++        spec_path.write_text(json.dumps(_spec()))
++        r = subprocess.run([sys.executable, str(_GEN), str(spec_path),
++                            str(self.tmp / "out")],
++                           capture_output=True, text=True)
++        self.assertEqual(r.returncode, 0, r.stderr)
++        self.assertTrue((self.tmp / "out" / "widget-fix" / "submit.sh").is_file())
++        self.assertTrue(os.access(self.tmp / "out" / "dup-search.sh", os.X_OK))
++
++
++class BlobHashCompareTests(unittest.TestCase):
++
++    PATCH = ("From abc Mon Sep 17 00:00:00 2001\nSubject: [PATCH] x\n---\n"
++             "diff --git a/cobra.go b/cobra.go\nindex d9cd241..b36954a 100644\n"
++             "--- a/cobra.go\n+++ b/cobra.go\n@@ -1 +1 @@\n-a\n+b\n"
++             "diff --git a/cobra_test.go b/cobra_test.go\n"
++             "index f1c5b0a..ef35f24 100644\n")
++
++    def test_match_with_longer_forge_hashes(self):
++        gen = _load_gen()
++        forge = self.PATCH.replace("d9cd241..b36954a", "d9cd2410..b36954a1")
++        self.assertEqual(gen.compare_blob_hashes(self.PATCH, forge), [])
++
++    def test_mismatch_and_missing_file(self):
++        gen = _load_gen()
++        forge = self.PATCH.replace("b36954a", "0000000").split(
++            "diff --git a/cobra_test.go")[0]
++        problems = gen.compare_blob_hashes(self.PATCH, forge)
++        self.assertEqual(len(problems), 2, problems)
++        self.assertTrue(any(p.startswith("cobra.go: patch") for p in problems))
++        self.assertTrue(any("cobra_test.go: in the patch" in p for p in problems))
++
++
++_GH_STUB = r'''#!/usr/bin/env bash
++{ printf 'CALL'; printf ' [%s]' "$@"; printf '\n'; } >> "$GH_STUB_DIR/calls.log"
++case "$1 $2" in
++  "auth status") exit 0 ;;
++  "api user") echo op ;;
++  "repo view") echo main ;;
++  "repo fork") echo "! op/widget already exists" ;;
++  "repo clone") repo=$3; dest=$4; shift 4; [[ "${1:-}" == -- ]] && shift
++                git clone -q "$@" "https://github.com/$repo.git" "$dest" ;;
++  "pr create"|"issue create")
++    kind=$1; shift 2
++    while [[ $# -gt 0 ]]; do
++      case "$1" in
++        --title) printf '%s' "$2" > "$GH_STUB_DIR/title"; shift ;;
++        --body-file) cp "$2" "$GH_STUB_DIR/body"; shift ;;
++        --draft) touch "$GH_STUB_DIR/draft" ;;
++      esac
++      shift
++    done
++    if [[ $kind == pr ]]; then echo https://github.com/acme/widget/pull/42
++    else echo https://github.com/acme/widget/issues/7; fi ;;
++  "pr view") if [[ " $* " == *" -q "* ]]; then echo 42; else echo '{"number":42}'; fi ;;
++  "pr diff") printf 'diff --git a/README b/README\n' ;;
++  "issue view") echo '{"number":7}' ;;
++  "search issues"|"search prs") echo "stub result for: ${@: -1}" ;;
++  *) echo "unexpected gh call: $*" >&2; exit 9 ;;
++esac
++'''
++
++
++@unittest.skipUnless(_have("bash") and _have("git"), "needs bash and git")
++class EndToEndStubGhTests(unittest.TestCase):
++    """Run the generated scripts against a stub ``gh`` and local bare
++    repos standing in for github.com (git url.insteadOf)."""
++
++    def setUp(self):
++        self.gen = _load_gen()
++        self._td = tempfile.TemporaryDirectory()
++        t = self.tmp = Path(self._td.name)
++        (t / "bin").mkdir()
++        (t / "bin" / "gh").write_text(_GH_STUB)
++        (t / "bin" / "gh").chmod(0o755)
++        (t / "stub").mkdir()
++        (t / "home").mkdir()
++        remote = t / "remote"
++        self.env = {
++            "PATH": f"{t / 'bin'}:{os.environ.get('PATH', '')}",
++            "HOME": str(t / "home"),
++            "GIT_CONFIG_NOSYSTEM": "1",
++            "GIT_CONFIG_COUNT": "2",
++            "GIT_CONFIG_KEY_0": f"url.{remote}/.insteadOf",
++            "GIT_CONFIG_VALUE_0": "https://github.com/",
++            "GIT_CONFIG_KEY_1": "init.defaultBranch",
++            "GIT_CONFIG_VALUE_1": "main",
++            "GIT_AUTHOR_NAME": "Op", "GIT_AUTHOR_EMAIL": "op@example.com",
++            "GIT_COMMITTER_NAME": "Op", "GIT_COMMITTER_EMAIL": "op@example.com",
++            "GH_STUB_DIR": str(t / "stub"),
++            "QPB_WORK_DIR": str(t / "work"),
++            "TMPDIR": str(t),
++        }
++        # upstream acme/widget and the operator's fork op/widget
++        seed = t / "seed"
++        self._git("init", "-q", str(seed))
++        (seed / "README").write_text("widget\n")
++        self._git("-C", str(seed), "add", ".")
++        self._git("-C", str(seed), "commit", "-q", "-m", "init")
++        (remote / "acme").mkdir(parents=True)
++        (remote / "op").mkdir()
++        self._git("clone", "-q", "--bare", str(seed), str(remote / "acme" / "widget.git"))
++        self._git("clone", "-q", "--bare", str(seed), str(remote / "op" / "widget.git"))
++        self.fork = remote / "op" / "widget.git"
++        # the fix: a README change plus a newsfragment to rename
++        (seed / "README").write_text("widget fixed\n")
++        (seed / "news").mkdir()
++        (seed / "news" / "+fix-it.bugfix.rst").write_text("Fixed it.\n")
++        self._git("-C", str(seed), "add", ".")
++        self._git("-C", str(seed), "commit", "-q", "-m", "fix it")
++        self.slug_dir = t / "upstream" / "widget-fix"
++        self.slug_dir.mkdir(parents=True)
++        self._git("-C", str(seed), "format-patch", "-q", "-1", "-o",
++                  str(self.slug_dir))
++        self.patch = next(self.slug_dir.glob("0001-*.patch"))
++        (self.slug_dir / "PR.md").write_text("Body with `ticks` and $VARS\n")
++        (self.slug_dir / "ISSUE.md").write_text("See __COMPARE__ for the fix.\n")
++
++    def tearDown(self):
++        self._td.cleanup()
++
++    def _git(self, *args):
++        subprocess.run(["git", *args], check=True, env={**os.environ, **self.env},
++                       capture_output=True)
++
++    def _run(self, script, *args, extra_env=None):
++        env = {**os.environ, **self.env, **(extra_env or {})}
++        env.pop("SKIP_TESTS", None)
++        env.update(extra_env or {})
++        return subprocess.run(["bash", str(script), *args], env=env,
++                              cwd=self.tmp, capture_output=True, text=True,
++                              timeout=120)
++
++    def _gen(self, **overrides):
++        spec = _spec(patch=self.patch.name, **overrides)
++        self.gen.generate(spec, self.tmp / "upstream")
++
++    def test_e2e_pr_submit(self):
++        self._gen(post_create=[{"rename": {"from": "news/+fix-it.bugfix.rst",
++                                           "to": "news/{pr_number}.bugfix.rst"}}])
++        r = self._run(self.slug_dir / "submit.sh")
++        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
++        self.assertIn("tests-ok", r.stdout)
++        self.assertIn("https://github.com/acme/widget/pull/42", r.stdout)
++        stub = self.tmp / "stub"
++        self.assertEqual((stub / "title").read_text(), _HOSTILE_TITLE)
++        self.assertEqual((stub / "body").read_text(),
++                         "Body with `ticks` and $VARS\n")
++        self.assertTrue((stub / "draft").exists())
++        self.assertFalse(list(self.tmp.rglob("PWNED")))
++        files = subprocess.run(
++            ["git", "--git-dir", str(self.fork), "ls-tree", "-r",
++             "--name-only", "fix-it"], capture_output=True, text=True,
++            check=True).stdout.split()
++        self.assertIn("news/42.bugfix.rst", files)
++        self.assertNotIn("news/+fix-it.bugfix.rst", files)
++        calls = (stub / "calls.log").read_text()
++        for verb in self.gen.FORBIDDEN_GH_VERBS:
++            self.assertNotIn("[" + "] [".join(verb.split()[1:]) + "]", calls)
++
++    def test_e2e_skip_tests(self):
++        self._gen()
++        r = self._run(self.slug_dir / "submit.sh", extra_env={"SKIP_TESTS": "1"})
++        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
++        self.assertNotIn("tests-ok", r.stdout)
++
++    def test_e2e_git_am_conflict_stops(self):
++        self._gen()
++        self.patch.write_text(self.patch.read_text().replace(
++            "-widget\n", "-something else\n"))
++        r = self._run(self.slug_dir / "submit.sh")
++        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
++        self.assertIn("git am failed", r.stdout)
++        self.assertIn("am --abort", r.stdout)
++        self.assertFalse((self.tmp / "stub" / "title").exists(),
++                         "no PR may be opened after a failed git am")
++
++    def test_e2e_existing_branch_refused(self):
++        self._gen()
++        self.assertEqual(self._run(self.slug_dir / "submit.sh").returncode, 0)
++        r = self._run(self.slug_dir / "submit.sh")
++        self.assertEqual(r.returncode, 1)
++        self.assertIn("branch fix-it exists", r.stdout)
++
++    def test_e2e_issue_first(self):
++        self._gen(kind="issue", body_file="ISSUE.md")
++        r = self._run(self.slug_dir / "submit.sh")
++        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
++        body = (self.tmp / "stub" / "body").read_text()
++        self.assertEqual(
++            body, "See https://github.com/acme/widget/compare/main...op:widget:fix-it"
++                  " for the fix.\n")
++        self.assertIn("Next step:", r.stdout)
++        calls = (self.tmp / "stub" / "calls.log").read_text()
++        self.assertNotIn("[pr] [create]", calls)
++
++    def test_e2e_dup_search_and_verify(self):
++        self._gen()
++        r = self._run(self.tmp / "upstream" / "dup-search.sh")
++        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
++        out = (self.tmp / "upstream" / "dup-search.out").read_text()
++        self.assertIn("## widget-fix", out)
++        self.assertIn("stub result for: can't \"drop\" `x` $Y", out)
++        self.assertEqual(out.count("### gh search issues"), 2)
++        self.assertEqual(out.count("### gh search prs"), 2)
++        r = self._run(self.slug_dir / "verify.sh", "42")
++        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
++        self.assertTrue((self.slug_dir / "verify.pr.json").is_file())
++        self.assertTrue((self.slug_dir / "verify.pr.diff").is_file())
++
++
++class SkillTextTests(unittest.TestCase):
++
++    def test_phase7_menu_lists_the_path(self):
++        text = _PHASE7.read_text(encoding="utf-8")
++        self.assertIn("**5. Prepare upstream submissions**", text)
++        self.assertIn("**Path 5: Prepare upstream submissions.**", text)
++        self.assertIn("references/upstream_submission.md", text)
++
++    def test_upstream_submission_guardrails(self):
++        text = _UPSTREAM_MD.read_text(encoding="utf-8")
++        for line in (
++            "**The skill never submits.**",
++            "never runs a `submit.sh` unless the operator explicitly asks",
++            "**One bug at a time.**",
++            "no queuing the next bug in the same message",
++            "**Policy first, and the project's policy wins.**",
++            "**No security-angle PRs.**",
++            '"Found by Quality Playbook, an AI code-review tool, with '
++            'Claude; I reviewed the change."',
++            "No `Signed-off-by` or `Co-Authored-By` from the agent.",
++            "**Side-effect rule.**",
++            "stop for the operator's pick",
++            "**Blind first.**",
++        ):
++            with self.subTest(line=line):
++                self.assertIn(line, text)
++
++    def test_upstream_submission_roster_and_statuses(self):
++        text = _UPSTREAM_MD.read_text(encoding="utf-8")
++        for role in ("EXEC-A", "EXEC-B", "O1", "O2", "O3", "O4", "O5",
++                     "S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8"):
++            with self.subTest(role=role):
++                self.assertRegex(text, rf"\*\*{role} — ")
++        for status in ("merged", "open", "sent", "ready", "needs-work",
++                       "held", "decision", "dropped", "not-filed",
++                       "duplicate", "maintainer-view", "ruled-out"):
++            with self.subTest(status=status):
++                self.assertIn(f"`{status}`", text)
++        for field in ("status:", "title:", "link:", "updated:", "note:"):
++            self.assertIn(f"\n{field} ", text)
++
++    def test_skill_md_mentions_the_path(self):
++        text = _SKILL_MD.read_text(encoding="utf-8")
++        self.assertIn("See `references/upstream_submission.md`.", text)
++        self.assertIn("| `references/upstream_submission.md` |", text)
++
++    def test_check_skill_references_passes(self):
++        r = subprocess.run([sys.executable, str(_GATE),
++                            "--check-skill-references"],
++                           cwd=_REPO, capture_output=True, text=True)
++        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
++        self.assertIn("SKILL reference integrity: PASS", r.stdout)
++
++    def test_bundle_ships_script_and_reference(self):
++        from bin.install_skill import _bundle_files
++        dests = {Path(d).as_posix() for _s, d in _bundle_files(_SKILL_DIR)}
++        self.assertIn("bin/upstream_scripts.py", dests)
++        self.assertIn("references/upstream_submission.md", dests)
++
++
++if __name__ == "__main__":
++    unittest.main()
+diff --git a/plugins/quality-playbook/skills/quality-playbook/scripts/install_skill.py b/plugins/quality-playbook/skills/quality-playbook/scripts/install_skill.py
+index 2a14ce9..afe3e8f 100644
+--- a/plugins/quality-playbook/skills/quality-playbook/scripts/install_skill.py
++++ b/plugins/quality-playbook/skills/quality-playbook/scripts/install_skill.py
+@@ -236,6 +236,8 @@ def _bundle_files_soft(
+             "qpb_validate.py",
+             # v1.6.1 [S]: parent-session gate witness.
+             "qpb_gate_witness.py",
++            # v1.6.1 [R]: upstream submission script generator.
++            "upstream_scripts.py",
+         ):
+             p = source_root / scripts_dir / _mod
+             if p.is_file():
+@@ -686,6 +688,14 @@ def _bundle_files(source_root: Path) -> list[tuple[Path, Path]]:
+         _require_bundle_file(source_root / scripts_dir / "qpb_gate_witness.py"),
+         Path("bin") / "qpb_gate_witness.py",
+     ))
++    # v1.6.1 [R]: ship bin/upstream_scripts.py — Phase 7's "Prepare
++    # upstream submissions" path (references/upstream_submission.md)
++    # calls it to write the operator-run gh scripts. Import closure:
++    # stdlib + _purpose (bundled). Mandatory-bundle pattern.
++    files.append((
++        _require_bundle_file(source_root / scripts_dir / "upstream_scripts.py"),
++        Path("bin") / "upstream_scripts.py",
++    ))
+     return files
+ 
+ 
+diff --git a/plugins/quality-playbook/skills/quality-playbook/scripts/qpb_validate.py b/plugins/quality-playbook/skills/quality-playbook/scripts/qpb_validate.py
+index 62aa5f3..20df8de 100644
+--- a/plugins/quality-playbook/skills/quality-playbook/scripts/qpb_validate.py
++++ b/plugins/quality-playbook/skills/quality-playbook/scripts/qpb_validate.py
+@@ -167,6 +167,7 @@ INSTALL_CLOSURE = [
+     {"path": "bin/qpb_phase.py", "kind": "bundled_module", "min_version": None, "expected_sha256": None, "source_glob": None},
+     {"path": "bin/qpb_validate.py", "kind": "bundled_module", "min_version": None, "expected_sha256": None, "source_glob": None},
+     {"path": "bin/quality_playbook.py", "kind": "bundled_module", "min_version": None, "expected_sha256": None, "source_glob": None},
++    {"path": "bin/upstream_scripts.py", "kind": "bundled_module", "min_version": None, "expected_sha256": None, "source_glob": None},
+     {"path": "bin/reference_docs_ingest.py", "kind": "bundled_module", "min_version": None, "expected_sha256": None, "source_glob": None},
+     {"path": "bin/doc_classification.py", "kind": "bundled_module", "min_version": None, "expected_sha256": None, "source_glob": None},
+     {"path": "bin/persona_catalog.py", "kind": "bundled_module", "min_version": None, "expected_sha256": None, "source_glob": None},
+@@ -225,6 +226,8 @@ INSTALL_CLOSURE = [
+     {"path": "references/runners_and_models.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},
+     {"path": "references/schema_mapping.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},
+     {"path": "references/spec_audit.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},
++    # v1.6.1 [R]: the Phase 7 "Prepare upstream submissions" path.
++    {"path": "references/upstream_submission.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},
+     {"path": "references/verification.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},
+     {"path": "references/what_just_happened.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},
+ ]
+diff --git a/plugins/quality-playbook/skills/quality-playbook/scripts/run_state_lib.py b/plugins/quality-playbook/skills/quality-playbook/scripts/run_state_lib.py
+index 5979b94..e29ba33 100644
+--- a/plugins/quality-playbook/skills/quality-playbook/scripts/run_state_lib.py
++++ b/plugins/quality-playbook/skills/quality-playbook/scripts/run_state_lib.py
+@@ -1190,6 +1190,7 @@ _FLAT_LAYOUT_BUNDLED_BIN_FILES = frozenset({
+     "qpb_validate.py",              # v1.5.7 090k
+     "quality_playbook.py",
+     "reference_docs_ingest.py",
++    "upstream_scripts.py",          # v1.6.1 [R] upstream submission scripts
+     "doc_classification.py",
+     "persona_catalog.py",
+     "persona_orchestration.py",
+diff --git a/plugins/quality-playbook/skills/quality-playbook/scripts/upstream_scripts.py b/plugins/quality-playbook/skills/quality-playbook/scripts/upstream_scripts.py
+new file mode 100644
+index 0000000..e0ed0e4
+--- /dev/null
++++ b/plugins/quality-playbook/skills/quality-playbook/scripts/upstream_scripts.py
+@@ -0,0 +1,514 @@
++#!/usr/bin/env python3
++"""upstream_scripts — write the operator-run scripts for upstream
++submissions (v1.6.1 [R]).
++
++Why: in the 2026-09 campaign every ``gh`` call that used the operator's
++credentials lived in a script the operator ran, so the agent never had
++to ask for approval call by call. Hand-writing those scripts is where
++quoting and safety mistakes creep in. This generator writes them from a
++spec, so the agent never composes them by hand. See
++``references/upstream_submission.md``.
++
++Usage:
++  upstream_scripts <spec.json> <out_dir>
++  upstream_scripts --compare-diff <patch-file> <forge-diff-file>
++
++``<out_dir>`` is normally ``quality/upstream``. The generator writes:
++
++  * ``<out_dir>/dup-search.sh`` (when any bug has ``dup_queries``):
++    ``gh search issues`` and ``gh search prs`` per query, scoped to
++    the upstream repo, output to ``<out_dir>/dup-search.out``;
++  * ``<out_dir>/<slug>/submit.sh`` (when the bug has ``patch``): opens
++    a DRAFT pull request, or for ``"kind": "issue"`` opens an issue
++    and prints the next step;
++  * ``<out_dir>/<slug>/verify.sh`` (same condition): reads the PR or
++    issue back from the forge into files the agent checks.
++
++The generated scripts never run ``gh pr ready``, ``gh pr merge``,
++``gh pr comment`` or ``gh issue comment``. Every spec value is
++shell-quoted with ``shlex.quote``. Relative ``patch`` / ``body_file``
++paths resolve against the script's own directory at run time, so
++``quality/upstream/`` can be copied to the operator's machine.
++
++``--compare-diff`` compares the blob hashes in a ``git format-patch``
++file with those in ``gh pr diff`` output (exit 0 = all match).
++
++Spec (JSON object):
++  upstream        "owner/repo" (required)
++  expected_login  optional; submit.sh stops if ``gh`` is logged in as
++                  someone else
++  work_dir        optional clone directory; default
++                  ``${QPB_WORK_DIR:-$HOME/src/pr-work}/<repo>``
++  bugs            list of objects:
++    slug          required, [A-Za-z0-9._-]+
++    dup_queries   optional list of search strings
++    kind          "pr" (default) or "issue"
++    branch, patch, title, body_file   required for submit.sh
++    base          optional target branch; default: upstream default
++    test_command  optional shell command run in the clone before push
++                  (``SKIP_TESTS=1`` skips it)
++    post_create   optional list; supported:
++                  {"rename": {"from": "<path>", "to": "<path with {pr_number}>"}}
++                  (PR kind only: git mv, amend, push --force-with-lease)
++
++Stdlib only, plus the bundled ``_purpose`` banner via the same 3-step
++anchored fallback qpb_gate_witness.py uses.
++"""
++from __future__ import annotations
++
++import json
++import re
++import shlex
++import sys
++from pathlib import Path
++from typing import Dict, List, Optional, Tuple
++
++
++_NAME = "upstream_scripts"
++_SUMMARY = (
++    "Write the operator-run gh scripts (submit.sh, verify.sh, "
++    "dup-search.sh) for upstream submissions from a JSON spec."
++)
++_USAGE = ("upstream_scripts <spec.json> <out_dir> | "
++          "upstream_scripts --compare-diff <patch> <forge-diff>")
++
++# v1.6.1 [R]: the gh verbs a generated script must never contain. The
++# operator marks ready, merges and comments; a script never does.
++FORBIDDEN_GH_VERBS = (
++    "gh pr ready",
++    "gh pr merge",
++    "gh pr comment",
++    "gh issue comment",
++)
++
++_SLUG_RE = re.compile(r"^[A-Za-z0-9._-]+$")
++_REPO_RE = re.compile(r"^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$")
++_PR_NUMBER = "{pr_number}"
++
++
++def _resolve_print_command_intro():
++    """089x self-describing banner via the 3-step anchored fallback
++    (package / flat / path-load) used by qpb_gate_witness.py."""
++    try:
++        from bin._purpose import (  # type: ignore[import]
++            print_command_intro as _pci,
++        )
++        return _pci
++    except ImportError:
++        pass
++    try:
++        from _purpose import (  # type: ignore[no-redef, import]
++            print_command_intro as _pci,
++        )
++        return _pci
++    except ImportError:
++        pass
++    import importlib.util as _ilu
++    _pp = Path(__file__).resolve().parent / "_purpose.py"
++    _ps = _ilu.spec_from_file_location("_qpb_purpose_via_upstream", _pp)
++    if _ps is None or _ps.loader is None:
++        raise ImportError(f"upstream_scripts: cannot resolve _purpose at {_pp}")
++    _mod = _ilu.module_from_spec(_ps)
++    sys.modules[_ps.name] = _mod
++    _ps.loader.exec_module(_mod)
++    return _mod.print_command_intro
++
++
++def _print_intro() -> None:
++    _resolve_print_command_intro()(
++        name=_NAME,
++        summary=_SUMMARY,
++        role=(
++            "v1.6.1 [R] — Phase 7 'Prepare upstream submissions' "
++            "(references/upstream_submission.md). The operator runs the "
++            "generated scripts; the agent never does unless asked."
++        ),
++        usage_hint=_USAGE,
++    )
++
++
++# --- spec validation -------------------------------------------------------
++
++
++class SpecError(ValueError):
++    """The spec is missing a field or has an unsafe value."""
++
++
++def _req_str(obj: Dict, key: str, where: str) -> str:
++    val = obj.get(key)
++    if not isinstance(val, str) or not val.strip():
++        raise SpecError(f"{where}: '{key}' must be a non-empty string")
++    return val
++
++
++def validate_spec(spec: Dict) -> None:
++    """Raise SpecError on a missing field or an unsafe value."""
++    if not isinstance(spec, dict):
++        raise SpecError("spec must be a JSON object")
++    upstream = _req_str(spec, "upstream", "spec")
++    if not _REPO_RE.match(upstream):
++        raise SpecError(f"spec: upstream {upstream!r} is not owner/repo")
++    bugs = spec.get("bugs")
++    if not isinstance(bugs, list) or not bugs:
++        raise SpecError("spec: 'bugs' must be a non-empty list")
++    seen = set()
++    for i, bug in enumerate(bugs):
++        where = f"bugs[{i}]"
++        if not isinstance(bug, dict):
++            raise SpecError(f"{where}: must be an object")
++        slug = _req_str(bug, "slug", where)
++        if not _SLUG_RE.match(slug):
++            raise SpecError(f"{where}: slug {slug!r} must match [A-Za-z0-9._-]+")
++        if slug in seen:
++            raise SpecError(f"{where}: duplicate slug {slug!r}")
++        seen.add(slug)
++        kind = bug.get("kind", "pr")
++        if kind not in ("pr", "issue"):
++            raise SpecError(f"{where}: kind must be 'pr' or 'issue'")
++        queries = bug.get("dup_queries", [])
++        if not isinstance(queries, list) or not all(
++                isinstance(q, str) and q.strip() for q in queries):
++            raise SpecError(f"{where}: dup_queries must be a list of strings")
++        if "patch" not in bug:
++            continue
++        for key in ("branch", "patch", "title", "body_file"):
++            _req_str(bug, key, where)
++        for step in bug.get("post_create", []):
++            ren = step.get("rename") if isinstance(step, dict) else None
++            if not isinstance(ren, dict) or set(step) != {"rename"}:
++                raise SpecError(
++                    f"{where}: post_create supports only "
++                    "{'rename': {'from': ..., 'to': ...}}")
++            _req_str(ren, "from", where + ".post_create.rename")
++            to = _req_str(ren, "to", where + ".post_create.rename")
++            if to.count(_PR_NUMBER) != 1:
++                raise SpecError(
++                    f"{where}: post_create rename 'to' must contain "
++                    f"{_PR_NUMBER} exactly once")
++            if kind != "pr":
++                raise SpecError(
++                    f"{where}: post_create needs a PR number; "
++                    "kind 'issue' has none")
++
++
++# --- rendering -------------------------------------------------------------
++
++
++_q = shlex.quote
++
++
++def _path_expr(value: str) -> str:
++    """Absolute paths are quoted as-is; relative ones resolve against
++    the script's directory ($HERE) at run time."""
++    if value.startswith("/"):
++        return _q(value)
++    return '"$HERE"/' + _q(value)
++
++
++def _header(purpose: str,
++            run_note: str = "It stops at the first failure.") -> List[str]:
++    # The purpose comment can carry spec text: newlines would end the
++    # comment, so flatten them.
++    purpose = " ".join(purpose.split())
++    return [
++        "#!/usr/bin/env bash",
++        f"# {purpose}",
++        "# Generated by upstream_scripts.py (QPB v1.6.1 [R]); regenerate "
++        "rather than edit.",
++        f"# The operator runs this. {run_note}",
++        "set -euo pipefail",
++        'HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"',
++    ]
++
++
++def _login_lines(expected_login: Optional[str]) -> List[str]:
++    lines = [
++        'gh auth status >/dev/null 2>&1 || { echo "gh is not logged in: '
++        'run gh auth login first"; exit 1; }',
++        "ME=$(gh api user -q .login)",
++    ]
++    if expected_login:
++        lines += [
++            f"EXPECTED_LOGIN={_q(expected_login)}",
++            '[[ "$ME" == "$EXPECTED_LOGIN" ]] || { echo "gh is logged in '
++            'as $ME, expected $EXPECTED_LOGIN"; exit 1; }',
++        ]
++    return lines
++
++
++def render_submit(spec: Dict, bug: Dict) -> str:
++    """The per-bug submit.sh text."""
++    upstream = spec["upstream"]
++    repo_name = upstream.split("/", 1)[1]
++    kind = bug.get("kind", "pr")
++    action = "a DRAFT pull request" if kind == "pr" else "an issue"
++    lines = _header(f"Opens {action} on {upstream} for {bug['slug']}.")
++    lines += [
++        f"UPSTREAM={_q(upstream)}",
++        f"BRANCH={_q(bug['branch'])}",
++        f"PATCH={_path_expr(bug['patch'])}",
++        f"BODY={_path_expr(bug['body_file'])}",
++        f"TITLE={_q(bug['title'])}",
++        f"BASE_OVERRIDE={_q(bug.get('base', ''))}",
++        f"TEST_COMMAND={_q(bug.get('test_command', ''))}",
++    ]
++    if spec.get("work_dir"):
++        lines.append(f"WORK={_q(spec['work_dir'])}")
++    else:
++        lines.append('WORK="${QPB_WORK_DIR:-$HOME/src/pr-work}"/'
++                     + _q(repo_name))
++    lines += [
++        '[[ -f "$PATCH" ]] || { echo "patch not found: $PATCH"; exit 1; }',
++        '[[ -f "$BODY" ]] || { echo "body file not found: $BODY"; exit 1; }',
++    ]
++    lines += _login_lines(spec.get("expected_login"))
++    lines += [
++        'DEFAULT=$(gh repo view "$UPSTREAM" --json defaultBranchRef '
++        '-q .defaultBranchRef.name)',
++        'BASE="${BASE_OVERRIDE:-$DEFAULT}"',
++        'echo "== fork $UPSTREAM (no-op if your fork exists)"',
++        'gh repo fork "$UPSTREAM" --clone=false 2>&1 | tail -1',
++        'if [[ ! -d "$WORK/.git" ]]; then',
++        '  mkdir -p "$(dirname "$WORK")"',
++        '  gh repo clone "$ME/${UPSTREAM#*/}" "$WORK" -- --filter=blob:none',
++        "fi",
++        'git -C "$WORK" remote get-url upstream >/dev/null 2>&1 || '
++        'git -C "$WORK" remote add upstream "https://github.com/$UPSTREAM.git"',
++        'cd "$WORK"',
++        'git fetch upstream "$BASE"',
++        'git switch -q --detach "upstream/$BASE"',
++        'if git show-ref --verify --quiet "refs/heads/$BRANCH"; then',
++        '  echo "branch $BRANCH exists in $WORK; delete it first: '
++        'git -C $WORK branch -D $BRANCH"',
++        "  exit 1",
++        "fi",
++        'git switch -c "$BRANCH"',
++        'git am "$PATCH" || { echo "git am failed: the patch does not apply '
++        'to upstream/$BASE. Run git -C $WORK am --abort and tell the '
++        'agent."; exit 1; }',
++        "git log --oneline -1",
++        'if [[ "${SKIP_TESTS:-0}" != 1 && -n "$TEST_COMMAND" ]]; then',
++        '  echo "== local check: $TEST_COMMAND (SKIP_TESTS=1 skips it)"',
++        '  bash -c "$TEST_COMMAND"',
++        "fi",
++        'echo "== push to your fork"',
++        'git push -u origin "$BRANCH"',
++    ]
++    if kind == "pr":
++        lines += [
++            'URL=$(gh pr create --draft --repo "$UPSTREAM" --head '
++            '"$ME:$BRANCH" --base "$BASE" --title "$TITLE" '
++            '--body-file "$BODY")',
++            'echo "$URL"',
++        ]
++        for step in bug.get("post_create", []):
++            ren = step["rename"]
++            pre, post = ren["to"].split(_PR_NUMBER)
++            lines += [
++                "# post-create: rename to the PR number, amend, force-push",
++                'NUM=$(gh pr view "$URL" --json number -q .number)',
++                f'NEW_PATH={_q(pre)}"$NUM"{_q(post)}',
++                'echo "== rename to $NEW_PATH"',
++                f'git mv -- {_q(ren["from"])} "$NEW_PATH"',
++                "git commit -q --amend --no-edit",
++                "git push --force-with-lease",
++            ]
++        lines += [
++            'gh pr view "$URL" --json number,url,isDraft,title',
++            'echo "Draft PR opened: $URL"',
++            'echo "Paste this output to the agent. Marking the PR ready is '
++            'yours to do, in the web UI."',
++        ]
++    else:
++        lines += [
++            'COMPARE="https://github.com/$UPSTREAM/compare/$BASE...'
++            '$ME:${UPSTREAM#*/}:$BRANCH"',
++            'BODY_TEXT="$(cat "$BODY")"',
++            'BODY_TEXT="${BODY_TEXT//__COMPARE__/$COMPARE}"',
++            'ISSUE_BODY="$(mktemp)"',
++            "printf '%s\\n' \"$BODY_TEXT\" > \"$ISSUE_BODY\"",
++            'URL=$(gh issue create --repo "$UPSTREAM" --title "$TITLE" '
++            '--body-file "$ISSUE_BODY")',
++            'rm -f "$ISSUE_BODY"',
++            'echo "$URL"',
++            'gh issue view "$URL" --json number,url,title,state',
++            'echo "Issue opened: $URL. The fix is on your fork: $COMPARE"',
++            'echo "Next step: wait for a maintainer to answer on the issue, '
++            'then paste the answer to the agent. It prepares the pull '
++            'request that references the issue."',
++        ]
++    return "\n".join(lines) + "\n"
++
++
++def render_verify(spec: Dict, bug: Dict) -> str:
++    """The per-bug verify.sh text: read-only gh calls into files."""
++    kind = bug.get("kind", "pr")
++    noun = "PR" if kind == "pr" else "issue"
++    lines = _header(f"Reads the submitted {noun} for {bug['slug']} back "
++                    f"from {spec['upstream']} (read-only).")
++    lines += [
++        f"UPSTREAM={_q(spec['upstream'])}",
++        f'REF="${{1:?usage: bash verify.sh <{noun} URL or number>}}"',
++    ]
++    if kind == "pr":
++        lines += [
++            'gh pr view "$REF" --repo "$UPSTREAM" --json '
++            'number,url,title,body,isDraft,state,headRefName,headRefOid '
++            '> "$HERE/verify.pr.json"',
++            'gh pr diff "$REF" --repo "$UPSTREAM" > "$HERE/verify.pr.diff"',
++            'echo "Wrote $HERE/verify.pr.json and $HERE/verify.pr.diff"',
++        ]
++    else:
++        lines += [
++            'gh issue view "$REF" --repo "$UPSTREAM" --json '
++            'number,url,title,body,state > "$HERE/verify.issue.json"',
++            'echo "Wrote $HERE/verify.issue.json"',
++        ]
++    lines.append('echo "Tell the agent; it checks these files against '
++                 'REVIEW.md and the patch."')
++    return "\n".join(lines) + "\n"
++
++
++def render_dup_search(spec: Dict) -> Optional[str]:
++    """The per-run dup-search.sh text, or None when no bug has queries.
++    A failed search does not stop the script: it is written into the
++    .out file as FAILED so the agent sees it."""
++    bugs = [b for b in spec["bugs"] if b.get("dup_queries")]
++    if not bugs:
++        return None
++    lines = _header(f"Duplicate search on {spec['upstream']}: issues and "
++                    "PRs, all states.",
++                    "A failed search is logged as FAILED and the rest run.")
++    lines += [
++        f"UPSTREAM={_q(spec['upstream'])}",
++        'OUT="$HERE/dup-search.out"',
++        "search() {",
++        '  local what="$1" query="$2" rc=0',
++        '  echo "### gh search $what --repo $UPSTREAM: $query"',
++        '  gh search "$what" --repo "$UPSTREAM" --limit 30 -- "$query" || rc=$?',
++        '  if [[ $rc -ne 0 ]]; then echo "FAILED: gh search $what (exit $rc)"; fi',
++        "  echo",
++        "}",
++        "{",
++        '  echo "# dup-search for $UPSTREAM, $(date -u +%Y-%m-%dT%H:%M:%SZ)"',
++    ]
++    for bug in bugs:
++        lines.append(f"  echo; echo {_q('## ' + bug['slug'])}")
++        for query in bug["dup_queries"]:
++            lines.append(f"  search issues {_q(query)}")
++            lines.append(f"  search prs {_q(query)}")
++    lines += [
++        '} > "$OUT" 2>&1',
++        'echo "Wrote $OUT. Give it to the agent (paste or upload)."',
++    ]
++    return "\n".join(lines) + "\n"
++
++
++def generate(spec: Dict, out_dir: Path) -> List[Path]:
++    """Validate ``spec`` and write the scripts under ``out_dir``.
++    Returns the written paths."""
++    validate_spec(spec)
++    out_dir = Path(out_dir)
++    written: List[Path] = []
++
++    def _write(path: Path, text: str) -> None:
++        path.parent.mkdir(parents=True, exist_ok=True)
++        path.write_text(text, encoding="utf-8")
++        path.chmod(0o755)
++        written.append(path)
++
++    dup = render_dup_search(spec)
++    if dup is not None:
++        _write(out_dir / "dup-search.sh", dup)
++    for bug in spec["bugs"]:
++        if "patch" not in bug:
++            continue
++        _write(out_dir / bug["slug"] / "submit.sh", render_submit(spec, bug))
++        _write(out_dir / bug["slug"] / "verify.sh", render_verify(spec, bug))
++    return written
++
++
++# --- blob-hash comparison (Record step) ------------------------------------
++
++
++_DIFF_GIT_RE = re.compile(r"^diff --git a/(\S+) b/(\S+)")
++_INDEX_RE = re.compile(r"^index ([0-9a-f]+)\.\.([0-9a-f]+)")
++
++
++def blob_hashes(diff_text: str) -> Dict[str, Tuple[str, str]]:
++    """Map each file in a git diff to its (old, new) blob hash."""
++    out: Dict[str, Tuple[str, str]] = {}
++    current = None
++    for line in diff_text.splitlines():
++        m = _DIFF_GIT_RE.match(line)
++        if m:
++            current = m.group(2)
++            continue
++        m = _INDEX_RE.match(line)
++        if m and current is not None:
++            out[current] = (m.group(1), m.group(2))
++            current = None
++    return out
++
++
++def _same_hash(a: str, b: str) -> bool:
++    n = min(len(a), len(b))
++    return n >= 7 and a[:n] == b[:n]
++
++
++def compare_blob_hashes(patch_text: str, forge_diff_text: str) -> List[str]:
++    """Return mismatch descriptions; empty means every file's blob
++    hashes match (abbreviated hashes compare by common prefix)."""
++    want, got = blob_hashes(patch_text), blob_hashes(forge_diff_text)
++    problems = []
++    if not want:
++        problems.append("the patch has no 'index' lines to compare")
++    for path in sorted(set(want) | set(got)):
++        if path not in got:
++            problems.append(f"{path}: in the patch, not in the forge diff")
++        elif path not in want:
++            problems.append(f"{path}: in the forge diff, not in the patch")
++        elif not all(_same_hash(a, b) for a, b in zip(want[path], got[path])):
++            problems.append(f"{path}: patch {want[path][0]}..{want[path][1]} "
++                            f"vs forge {got[path][0]}..{got[path][1]}")
++    return problems
++
++
++# --- CLI -------------------------------------------------------------------
++
++
++def main(argv: "list[str] | None" = None) -> int:
++    args = list(sys.argv[1:] if argv is None else argv)
++    if not args or args in (["--help"], ["-h"]):
++        _print_intro()
++        return 0
++    if args[0] == "--compare-diff":
++        if len(args) != 3:
++            print(f"Usage: {_USAGE}", file=sys.stderr)
++            return 2
++        problems = compare_blob_hashes(
++            Path(args[1]).read_text(encoding="utf-8", errors="replace"),
++            Path(args[2]).read_text(encoding="utf-8", errors="replace"))
++        for p in problems:
++            print(f"MISMATCH: {p}")
++        if problems:
++            return 1
++        print("MATCH: every file's blob hashes in the forge diff equal "
++              "the patch's.")
++        return 0
++    if len(args) != 2:
++        print(f"Usage: {_USAGE}", file=sys.stderr)
++        return 2
++    try:
++        spec = json.loads(Path(args[0]).read_text(encoding="utf-8"))
++        written = generate(spec, Path(args[1]))
++    except (OSError, json.JSONDecodeError, SpecError) as exc:
++        print(f"ERROR: {exc}", file=sys.stderr)
++        return 2
++    for path in written:
++        print(f"wrote {path}")
++    return 0
++
++
++if __name__ == "__main__":
++    sys.exit(main())
+diff --git a/references/phase7_guide.md b/references/phase7_guide.md
+index e619375..7224d3f 100644
+--- a/references/phase7_guide.md
++++ b/references/phase7_guide.md
+@@ -1,6 +1,6 @@
+ # Phase 7: Present, Explore, Improve — detail
+ 
+-*Extracted from SKILL.md in v1.5.10 (instr 052). SKILL.md keeps the `## Phase 7` heading + the canonical-treatment paragraph + a pointer here; this file carries Part 1 (summary table), Part 2 (drill-down), Part 3 (improvement menu), executing each improvement path, and iteration.*
++*Extracted from SKILL.md in v1.5.10 (instr 052). SKILL.md keeps the `## Phase 7` heading + the canonical-treatment paragraph + a pointer here; this file carries Part 1 (summary table), Part 2 (drill-down), Part 3 (improvement menu), executing each improvement path, and iteration. v1.6.1 [R] added path 5, "Prepare upstream submissions".*
+ 
+ ## Part 1: The Summary Table
+ 
+@@ -68,7 +68,7 @@ The user may go through several drill-downs before they're ready to improve anyt
+ 
+ After the user has seen the summary (and optionally drilled into details), present the improvement options:
+ 
+-> "Four ways to make this better:"
++> "Five ways to make this better:"
+ >
+ > **1. Validate the requirements against your intent** *(still available — the primary offer was at the Phase 2 → Phase 3 boundary; this is your end-of-run reminder)* — Run the requirements validation interview (`references/requirements_interview.md`). I play back what I understood the system to be, then walk the spec top-down — the narrative, then each section and its use cases, then individual requirements only where you want to drill in. At every step you can **confirm** (recorded as durable evidence), **correct** (tell me what it should say), or **add** (name behavior I missed). Corrections land straight in the requirements and re-render, and your confirmations survive future runs. Entry modes: guided (I walk it all), self-guided (you pick where to look), or cross-model (a different model family drives, to counter self-enhancement bias). Good for: catching where the derivation captured the wrong intent — the defects no autonomous pass finds. Note: validating now means Phases 3–6 were already built on the un-corrected requirements, so a correction here may warrant re-running the affected downstream phase; validating at the Phase 2 boundary avoids that.
+ >
+@@ -85,6 +85,8 @@ After the user has seen the summary (and optionally drilled into details), prese
+ >
+ >   You can use tools like Claude Cowork, GitHub Copilot, or OpenClaw to connect to these sources and gather them into a folder, then point me at the folder. Good for: grounding scenarios and requirements in real project history instead of inference.
+ >
++> **5. Prepare upstream submissions** *(when the confirmed bugs are in a project you don't own)* — I check the project's contribution policy first, shortlist 3–4 bugs for you to pick, confirm each with a fresh confirmer, fix it in a fresh clone with red/green/revert evidence, and run a 15-member review panel (2 executors + 13 reviewers). Then I prepare one bug at a time: a `REVIEW.md` for you to read, and a `submit.sh` you run yourself, which opens a draft PR. I never submit, mark ready, or comment upstream. Protocol: `references/upstream_submission.md`.
++>
+ > "You can do any combination of these, in any order. Which would you like to start with?"
+ 
+ ## Executing Each Improvement Path
+@@ -112,6 +114,8 @@ After the user answers, revise the generated files and re-run tests.
+ 
+ If the user already provided chat history in Step 0, you've already mined it — but they may want to point you to specific conversations, connect additional sources, or ask you to dig deeper into a particular topic.
+ 
++**Path 5: Prepare upstream submissions.** Only when the operator picks it; never start it automatically. Follow `references/upstream_submission.md` step by step: (1) contribution-policy check → `quality/upstream/POLICY.md`, and stop if the project bans AI contributions or closes outside reports; (2) shortlist 3–4 bugs and **stop for the operator's pick**; (3) one fresh confirmer per picked bug; (4) one fixer per confirmed bug; (5) the review panel, spawned by you (subagents cannot nest), then the verdict matrix and any focused re-review; (6) one bug at a time: `quality/upstream/<slug>/REVIEW.md`, the same explanation in chat, scripts from `bin/upstream_scripts.py`, then **stop**; (7) after the operator submits and pastes the output, verify on the forge and fill in the Submission record and `STATUS.md`. The guardrails at the top of that file are binding: the skill never submits, marks ready, comments, or merges, and never runs `submit.sh` unless the operator explicitly asks.
++
+ ## Iteration
+ 
+ The user can cycle through these paths as many times as they want. Each pass makes the quality playbook more grounded. When they're satisfied, they'll move on naturally — there's no explicit "done" step.
+diff --git a/references/upstream_submission.md b/references/upstream_submission.md
+new file mode 100644
+index 0000000..d2bb0e4
+--- /dev/null
++++ b/references/upstream_submission.md
+@@ -0,0 +1,233 @@
++# Prepare Upstream Submissions (Phase 7 path)
++
++*v1.6.1 [R]. The review-and-submission process from the 2026-09 campaign, run by the skill. The operator invokes it from the Phase 7 improvement menu (`references/phase7_guide.md`). It never starts on its own.*
++
++This path takes confirmed bugs from `quality/BUGS.md` to upstream pull requests or issues: policy check, shortlist, confirmation, fix, review panel, then one bug at a time for the operator to submit. The operator submits. The skill prepares, explains, and records.
++
++## Guardrails (binding)
++
++- **The skill never submits.** It never marks a PR ready, never comments upstream, never merges, and never runs a `submit.sh` unless the operator explicitly asks in this session.
++- **One bug at a time.** Present one bug, then stop. No schedules ("two today, three tomorrow"), no batching several bugs into one presentation, no queuing the next bug in the same message.
++- **Policy first, and the project's policy wins.** Step 1 runs before anything else. If the project bans AI-assisted contributions or closes outside reports, stop and say so.
++- **No security-angle PRs.** A finding with a security angle never becomes a public PR or issue; note it for private disclosure (the project's `SECURITY.md` or advisory process) and set it aside.
++- **Disclosure line on every submission.** Default: "Found by Quality Playbook, an AI code-review tool, with Claude; I reviewed the change." Extend it with whatever `POLICY.md` requires (model name, how it was used, a changelog line).
++- **No agent trailers.** The commit is authored by the operator. No `Signed-off-by` or `Co-Authored-By` from the agent. If the project requires DCO sign-off, the operator adds it.
++- **Side-effect rule.** A fix that is correct but would hurt existing users in a way they would not expect is dropped, not submitted.
++- **Nesting rule.** Subagents cannot spawn subagents (`references/orchestrator_protocol.md`). The parent session spawns every confirmer, fixer, and panel reviewer below and passes results between them.
++- **Claims rules.** Every PR, issue, commit message and REVIEW.md follows `references/claims_rules.md`. A specific behavioural claim ("X does not do Y") is run before it is written.
++
++## Files
++
++Everything lives under `quality/upstream/` in the target repo:
++
++| Path | Written by | Contents |
++|---|---|---|
++| `POLICY.md` | Step 1 | The project's contribution rules |
++| `SHORTLIST.md` | Step 2 | Candidates, reasons, set-asides |
++| `scripts.json` | Steps 3, 6 | Spec for `upstream_scripts.py` |
++| `dup-search.sh`, `dup-search.out` | generator; operator | Duplicate search and its output |
++| `<slug>/CONFIRMATION.md` | Step 3 | Confirmer's report |
++| `<slug>/red.log`, `green.log`, `revert.log`, `suite.log` | Step 4 | Fixer's test logs |
++| `<slug>/0001-*.patch`, `PR.md` or `ISSUE.md` | Step 4 | The patch and the exact text |
++| `<slug>/panel/<ROLE>.md`, `<slug>/SYNTHESIS.md` | Step 5 | Reviews and the verdict matrix |
++| `<slug>/REVIEW.md` | Step 6 | What the operator reads before submitting |
++| `<slug>/submit.sh`, `<slug>/verify.sh` | generator | Operator-run scripts |
++| `<slug>/STATUS.md` | Steps 6, 7 | One-screen status |
++
++Slugs are `<project>-<short-name>` in `[A-Za-z0-9._-]`, e.g. `cobra-suggest-runes`.
++
++## Step 1: Contribution-policy check (first, always)
++
++Read the target's `CONTRIBUTING*`, `AGENTS.md`, `CLAUDE.md`, `.github/` (PR and issue templates, any AI or assistant guidelines; also the org-level `.github` repo if the target has none), `CODE_OF_CONDUCT*`, the CLA or DCO, `SECURITY.md`, and the docs' "contributing" pages. Write `quality/upstream/POLICY.md`:
++
++```
++# Contribution policy: <owner/repo>  (read <date>)
++AI policy: banned | allowed with conditions | silent — <quote, file:line or URL>
++Conditions: <e.g. "certify you fully understand the code"; model named in commit message>
++Outside reports: open | closed — <quote>
++Issue first: yes | no — <quote>
++PRs from non-collaborators: allowed | issues only
++CLA / DCO: <none | CLA bot | DCO sign-off required>
++Changelog: <none | newsfragment dir + naming | CHANGES entry>
++Target branch: <name>
++PR template: <path or none>; required sections: <list>
++Disclosure line: <the default line, extended as the rules above require>
++Sources read: <list of files and URLs>
++```
++
++If the AI policy is **banned**, or outside reports are **closed**: tell the operator, quote the rule, and stop this path. Examples from the 2026-09 campaign: one project banned AI contributions; one was closed to outside reports; one required human authorship; one limited PRs to collaborators (issues only); one required an issue first, the model and its use in the commit message, and an AI line in the changelog.
++
++## Step 2: Shortlist, then stop
++
++From `quality/BUGS.md` and `quality/bugs_manifest.json`, propose **3–4 bugs**. Prefer bugs that:
++
++- rest on a requirement from outside the code: a Tier 1/2 citation in `reference_docs/cite/`, quoted verbatim and found by grep;
++- look fine in isolation (the defect is a mismatch with the cited behaviour, not a code smell);
++- have a small fix (a few lines plus one test);
++- have a real user consequence you can state in one sentence;
++- are **not** named in the gate's `── Bug evidence ──` line "rest on a requirement the reviewers questioned" (`quality/results/quality-gate.log`).
++
++Set aside every bug with a security angle: list it with one line, "possible security impact; report privately via <SECURITY.md / advisory URL>, not as a PR".
++
++Write `SHORTLIST.md` and show the operator a table: bug ID, title, cited requirement (file:line), fix size, user consequence, and why it was picked or set aside. Then **stop for the operator's pick.** Do not start Step 3 until the operator names the bugs.
++
++## Step 3: Confirm (one fresh confirmer per picked bug)
++
++The parent spawns one fresh-context confirmer subagent per picked bug, with this brief (fill the brackets):
++
++> You are confirming one candidate bug from a Quality Playbook run. Find out whether it is real; do not just agree with the report. Inputs: the `quality/BUGS.md` entry for [BUG-ID], `quality/patches/` if present, the citable docs in `reference_docs/cite/`, and a scratch clone of the target at [path] (never edit the target repo itself). Steps: (1) restate the claim in one sentence: input, actual, expected, and the source of "expected"; (2) write a repro that prints the actual behaviour and exits 1 if the bug is present, 0 if not; run it and paste the output verbatim; (3) check the expected side: does the cited doc say that (quote it with file:line, grep to prove it)? Does a test, comment, changelog entry or closed issue make the current behaviour intentional? (4) duplicate search across issues **and** open PRs: if you can reach the forge, search it and give the closest match (number, title, state) or "none found" with your queries; if you cannot, write your queries under "dup queries" so the parent can generate `dup-search.sh`; (5) security angle: yes/no, one line; (6) verdict: CONFIRMED / DUPLICATE (cite) / NOT-A-BUG (why) / UNCLEAR (what a maintainer must decide) / COULD-NOT-RUN (what blocked you). Never push, post, comment, or open anything. Return, under 60 lines: id and title; claim; verdict; repro source; verbatim output; expectation check; duplicate search or dup queries; security line; likely maintainer pushback.
++
++The parent saves each report to `<slug>/CONFIRMATION.md`.
++
++**Duplicate search when `gh` is not available to the agent.** Put each candidate's queries in `scripts.json` (`dup_queries`), run the generator (see "Scripts"), and ask the operator to run `bash quality/upstream/dup-search.sh` and give you `quality/upstream/dup-search.out`. Read that file before giving any bug a final CONFIRMED. A query block reading `FAILED` counts as not searched.
++
++Only CONFIRMED bugs go on. A security "yes" moves the bug to the set-aside list.
++
++## Step 4: Fix (one fixer per confirmed bug)
++
++The parent spawns one fixer subagent per confirmed bug:
++
++> Produce a minimal, mergeable fix for ONE confirmed bug. Change only what the bug requires. Inputs: the BUGS.md entry, `<slug>/CONFIRMATION.md`, `quality/upstream/POLICY.md`, the citable docs. Work in a fresh clone: `git clone -q <target> <scratch>/<slug>`; set `user.name` / `user.email` to the operator's identity [given]. Read the project's CONTRIBUTING and PR template and 2–3 recent merged outside bug-fix PRs to copy their style. Steps: (1) test first, in the existing test file that covers the feature, named and written like its neighbours; run it: it fails for the claimed reason (read the assertion text) → `red.log`; (2) smallest code change that fixes it; (3) touched test file passes, and the full suite (or the whole package suite if the full one is impractical; say which) has no new failures → `green.log`, `suite.log`; run the project's formatter/linter on touched files; (4) revert only the source change, confirm the test fails again → `revert.log`; restore; (5) add the changelog entry `POLICY.md` requires; (6) commit: subject in the repo's style (≤ 72 chars), body 2–4 lines, the AI disclosure `POLICY.md` requires, no trailers, no Signed-off-by, no Co-Authored-By; (7) `git format-patch -1`; (8) write `PR.md` (or `ISSUE.md` for issue-first projects): first line `**Title:** <title>`, then the project's template if it has one, else: a minimal repro (actual vs expected), one or two sentences of cause with a file reference, one sentence on the fix, the doc/RFC sentence it relies on (verbatim, with where it lives); at most ~15 lines of prose; last line the disclosure line from `POLICY.md`. Follow `references/claims_rules.md`. Never push or post. Return under 40 lines: files changed (+/−), test name, red/green/revert key lines verbatim, suite result, lint result, commit subject, anything you were unsure about.
++
++The parent copies the patch, the text and the logs into `<slug>/`.
++
++## Step 5: Review panel
++
++The parent spawns every reviewer; reviewers never spawn anyone. Give each reviewer a packet per bug: the patch, `PR.md`/`ISSUE.md`, `CONFIRMATION.md`, `POLICY.md`, the cited docs, and the path of the fixed clone (base = `HEAD~1`; never modify it; experiments go in the reviewer's own scratch clone).
++
++**Default roster: the full panel below.** A smaller roster is the operator's explicit choice; record the choice and who chose it in `REVIEW.md`. If the runtime lets you choose subagent models, use the strongest model for the O-roles and a faster one for the S-roles and executors; otherwise record which model ran.
++
++Charters (one per reviewer):
++
++- **EXEC-A — executor.** In a scratch clone at `HEAD~1`: apply only the test part of the patch, confirm the new test fails for the claimed reason (read the assertion); apply the rest, confirm it passes; revert only the source part, confirm it fails again; run the touched test file and the suite; run the confirmer's repro. End with a table: red | green | revert | suite | repro | PASS/FAIL.
++- **EXEC-B — executor.** Everything EXEC-A does, independently, plus 3 edge inputs of its own choosing run against base and fixed.
++- **O1 — maintainer.** Read the diff as this project's maintainer, with its conventions and recent history (git log, recent merged PRs). Would you merge it as written? What would you ask to change?
++- **O2 — security.** Does the fix add or remove security-relevant behaviour? Does the text frame something as security that isn't, or miss a consequence that is?
++- **O3 — correctness.** Try to break the fix: inputs or configurations where the fixed code is still wrong or newly wrong, especially ones the new test doesn't build. Write and run small tests.
++- **O4 — not-a-bug.** Argue the maintainer's side as hard as the evidence allows: intended, documented, tested, not worth the churn, better fixed elsewhere, previously declined. Check upstream issues and PRs. Concede only where source or docs force you, and quote what forced you.
++- **O5 — slop (A).** A maintainer tired of AI PRs: text out of proportion to the change, claims beyond the evidence, restating the diff, unrelated changes, off-style tests, generated-sounding padding. Propose exact rewrites.
++- **S1 — code readability.** Naming, structure, comments, consistency with the surrounding code and the project's idiom.
++- **S2 — test readability.** Would the test catch a regression, fail for the right reason, and read like its neighbours?
++- **S3 — slop (B).** O5's charter, independently.
++- **S4 — QA coverage.** Untested paths the fix touches, missing negative cases, reliance on implementation details.
++- **S5 — compat.** Every behaviour change for existing users, including users who rely on the old behaviour. Apply the side-effect rule: name who is affected, what happens to them, how likely; judge acceptable or bad enough to drop. Does the text state each change?
++- **S6 — performance.** Cost on hot paths the fix touches; measure if a regex, loop or allocation changed.
++- **S7 — citations.** Every factual claim in the PR/issue text and commit message: true of the code and traceable (doc sentence verbatim, RFC/PEP text, file:line, issue number). Run every specific behavioural claim; flag anything unverifiable or wrong.
++- **S8 — compliance.** Check against `POLICY.md` and the repo: commit style, tests, changelog entry, DCO/CLA, PR template, AI-disclosure rules, licence, author identity in the patch. Would it be rejected on process grounds?
++
++**Protocol.**
++
++1. **Blind first.** Each reviewer writes an initial verdict per bug from the patch, the text and the source **before** reading `CONFIRMATION.md` or any other reviewer's output. After that it may read `CONFIRMATION.md` and add an "after reading" note instead of rewriting.
++2. **Verdicts:** `SHIP` | `FIX-REQUIRED` (submit after the listed changes) | `REJECT` (should not be submitted) | `DROP` (correct, but a side effect on existing users is bad enough to drop it). Each with confidence (high/medium/low) and numbered findings citing file:line or a quote and saying what must change.
++3. Each reviewer writes `<slug>/panel/<ROLE>.md` (under ~150 lines) and returns it as text. Never fabricate; paste command output verbatim; say what was not checked.
++
++**Synthesis** (`<slug>/SYNTHESIS.md`, written by the parent):
++
++```
++| Item | A | B | O1 | O2 | O3 | O4 | O5 | S1 | S2 | S3 | S4 | S5 | S6 | S7 | S8 |
++|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
++| <slug> | S | S | F | S | S | F | F | S | S | S | S | D | S | F | S |
++```
++
++S = SHIP, F = FIX-REQUIRED, R = REJECT, D = DROP, – = not run. Under the matrix, one bullet per item: the findings that must change, each with the reviewers who raised it.
++
++**After the synthesis.**
++
++- **Text-only fixes** (PR/issue text, commit message): apply them, and note each in `REVIEW.md`'s review history.
++- **Code revisions** get a focused re-review: both executors plus every reviewer who flagged the item, each given the first panel's findings and the revision, with the side-effect rule applied to every behaviour change. Repeat until they say SHIP or the item is dropped.
++- **Any REJECT or DROP** goes to the operator as a decision; the side-effect rule is binding, so a DROP is not overridden by the skill.
++
++## Step 6: Prepare one bug at a time, then stop
++
++For one surviving bug, re-check upstream (default-branch head; `git apply --check` of the patch on it), re-run the knock-on check, generate its scripts, write `<slug>/REVIEW.md`, and give the same explanation in chat. Then **stop**. Do not mention the next bug.
++
++`REVIEW.md` shape (the 2026-10 cobra submission used it):
++
++```
++# <project>: <one-line bug title>
++
++Status: **ready for the operator's review.**   (updated at each change)
++
++## The project
++<what it does, one or two sentences, with the repo link>
++
++## The bug
++<expected behaviour and its source, quoted with file:line or URL; what actually
++happens; why it went unnoticed>
++
++## The fix
++<how it works, then the diff>
++
++## Regression test
++- Red: <the failure line, verbatim>
++- Green: <touched file passes; full suite result>
++- Revert: <fails again for the same reason>
++- Logs: red.log, green.log, revert.log, suite.log
++
++## Knock-on effects (run <date>)
++- Callers of the changed code: <list, file:line>
++- Before/after on ordinary inputs: <table, freshly run>
++- Behaviour changes for existing users: <each one, judged under the side-effect rule>
++
++## Review history
++- Confirmed: CONFIRMATION.md
++- Panel: SYNTHESIS.md (roster: full | <reduced, chosen by the operator on <date>>)
++- Re-review: <if any>; text fixes applied: <list>
++- Upstream check (<date>): <default branch> at <sha>; patch applies cleanly: yes/no
++
++## Things to know before submitting
++<related open PRs/issues; CLA/DCO steps; policy steps from POLICY.md; likely pushback>
++
++## The PR as it will be submitted
++**Title:** <title>
++> <body, exactly as in PR.md>
++
++## To submit
++    bash quality/upstream/<slug>/submit.sh      (SKIP_TESTS=1 skips the local test run)
++<what the script does; that it opens a draft; what it does not do>
++
++## Submission record
++(empty until the operator submits)
++```
++
++Also write `<slug>/STATUS.md` with `status: ready`.
++
++## Step 7: Record
++
++After the operator runs `submit.sh` and pastes its output:
++
++1. Ask the operator to run `bash quality/upstream/<slug>/verify.sh <URL>` (or run it yourself if the operator asks and `gh` is available). It writes `verify.pr.json` + `verify.pr.diff` (or `verify.issue.json`).
++2. Check the title and body in the JSON against `REVIEW.md`, character for character.
++3. Check the diff: `python3 <install_root>/bin/upstream_scripts.py --compare-diff quality/upstream/<slug>/<patch> quality/upstream/<slug>/verify.pr.diff` must print `MATCH`. The commit hash differs from the local one because `git am` re-creates the commit; the blob hashes must not.
++4. Fill in the Submission record: date; PR or issue link and number; head branch and commit; what was verified; bot actions (CLA, CI); what remains on the operator's side (sign a CLA, mark ready); maintainer responses. Update the `Status:` line at the top.
++5. Update `<slug>/STATUS.md`. Later responses, revisions, merges or closures are appended to the same record.
++
++`STATUS.md` has exactly these lines:
++
++```
++status: <value>
++title: <one-line description>
++link: <PR / issue / commit URL, or ->
++updated: <YYYY-MM-DD>
++note: <one line>
++```
++
++Status values: `merged`, `open`, `sent` (mailing list), `ready` (reviewed, not yet presented), `needs-work`, `held`, `decision` (waiting on the operator), `dropped`, `not-filed` (project policy or a failed fix), `duplicate`, `maintainer-view` (needs a maintainer's view rather than a patch), `ruled-out` (intended behaviour).
++
++## Scripts
++
++Never hand-write the operator's scripts. Write `quality/upstream/scripts.json` and run:
++
++```
++python3 <install_root>/bin/upstream_scripts.py quality/upstream/scripts.json quality/upstream
++```
++
++Spec fields (see the script's docstring for the full list): `upstream` (owner/repo), optional `expected_login`, and `bugs`: each with `slug`, optional `dup_queries`, and, once a patch exists, `branch`, `patch`, `title`, `body_file` (paths relative to `quality/upstream/<slug>/` or absolute), optional `kind` (`pr` default, `issue` for issue-first projects), `base` (from `POLICY.md`'s target branch), `test_command`, and `post_create` (`{"rename": {"from": "...", "to": "...{pr_number}..."}}`, e.g. a newsfragment named after the PR).
++
++What the generated scripts do:
++
++- **`dup-search.sh`** (per run): `gh search issues` and `gh search prs` for every query, scoped to the upstream repo, all into `dup-search.out`.
++- **`<slug>/submit.sh`** (per bug): `set -euo pipefail`; checks `gh` is logged in; reads the default branch with `gh repo view`; forks if needed; clones to `${QPB_WORK_DIR:-$HOME/src/pr-work}/<repo>` if absent; adds the `upstream` remote; branches from the upstream base and refuses if the branch exists; `git am` with an abort message; runs `test_command` unless `SKIP_TESTS=1`; pushes to the fork; opens a **draft** PR with `--body-file` (or, for `kind: issue`, opens the issue with a compare link substituted for `__COMPARE__` and prints the next step); runs any post-create rename with `git push --force-with-lease`; prints the URL.
++- **`<slug>/verify.sh`** (per bug): read-only `gh pr view --json` / `gh pr diff` (or `gh issue view --json`) into files.
++
++No generated script contains `gh pr ready`, `gh pr merge`, `gh pr comment` or `gh issue comment`; those are the operator's actions in the web UI. Every spec value is shell-quoted. The agent does not run `submit.sh`; it runs `dup-search.sh` or `verify.sh` only when the operator asks and `gh` is available to it.
+-- 
+2.34.1
+

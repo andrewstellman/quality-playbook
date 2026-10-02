@@ -1,0 +1,40 @@
+Working root: /Users/andrewstellman/Documents/QPB
+Date: 2026-09-27
+
+Inventory: rg --files --hidden --no-ignore repos -g BUGS.md -g AGENTS.md
+Then Python Path('repos').rglob('BUGS.md'), retaining any ancestor beginning quality and excluding linux path component or virtio-prefixed directory. Path list and extraction saved in artifact-paths.txt and screening.txt.
+
+Fresh network checkouts (depth 1; no pins supplied, fetched default branch and recorded exact HEAD afterward):
+git clone --depth 1 https://github.com/go-chi/chi.git repos/validation-2026-09-27/nonlinux/chi
+git clone --depth 1 https://github.com/aio-libs/aiohttp.git repos/validation-2026-09-27/nonlinux/aiohttp
+git clone --depth 1 https://github.com/WebReflection/flatted.git repos/validation-2026-09-27/nonlinux/flatted
+git clone --depth 1 https://github.com/isaacs/minimatch.git repos/validation-2026-09-27/nonlinux/minimatch
+git clone --depth 1 https://github.com/unjs/defu.git repos/validation-2026-09-27/nonlinux/defu
+git clone --depth 1 https://github.com/immutable-js/immutable-js.git repos/validation-2026-09-27/nonlinux/immutable-js
+git clone --depth 1 https://github.com/ljharb/shell-quote.git repos/validation-2026-09-27/nonlinux/ljharb-shell-quote
+Initial non-escalated clone attempts failed with DNS resolution. Network-approved clone retries succeeded. An initial shell-quote/shell-quote clone resolved an obsolete shell-quote2 fork, discovered from package metadata; it was not used as validation evidence. Canonical remote came from historical git remote and package.json (ljharb/shell-quote).
+
+Environment:
+node --version
+go version
+python3 --version
+python3 -m venv repos/validation-2026-09-27/nonlinux/aiohttp-venv
+repos/validation-2026-09-27/nonlinux/aiohttp-venv/bin/python -m pip install aiohttp
+The installed wheel supplies dependencies; sys.path in repro-aiohttp.py selects fresh cloned project source instead of wheel code. Install output saved in aiohttp-dependency-install.log. pip freeze included in environment.txt.
+
+Execution (stdout/stderr saved in named actual.log files):
+node docs/research/triage-2026-09-27/nonlinux/evidence/repro-shell-quote.cjs
+python3 docs/research/triage-2026-09-27/nonlinux/evidence/repro-flatted.py
+AIOHTTP_NO_EXTENSIONS=1 repos/validation-2026-09-27/nonlinux/aiohttp-venv/bin/python docs/research/triage-2026-09-27/nonlinux/evidence/repro-aiohttp.py
+Initial aiohttp construction lacked required loop keyword; corrected harness and final successful execution is saved. No project algorithm modification.
+JS flatted control: require fresh cloned flatted/cjs; stringify and parse two independent {x:1} objects, mutate decoded first, print second. Output saved in flatted-js-control.log.
+Chi: copy evidence/chi-triage_test.go to fresh cloned chi/triage_test.go; from fresh clone run GOCACHE=/tmp/qpb-nonlinux-go-cache go test -v -run TestTriage .
+Expected exit status 1: three claimed defects fail expectation assertions. Initial quoted-charset probe with nil body passed due ContentLength==0 bypass; final test uses body 'x' and reproduces 415. This compensation is documented in report.
+
+Disclosure search via primary GitHub REST API:
+python3 docs/research/triage-2026-09-27/nonlinux/evidence/check-disclosures.py
+python3 docs/research/triage-2026-09-27/nonlinux/evidence/extra-disclosures.py
+Both exact query lists and complete returned issue body records preserved in JSON.
+
+Fresh source and output snapshots: evidence/current-source-excerpts.txt, evidence/upstream-revisions.json, evidence/environment.txt.
+No fixes applied, public issues/PRs/messages created, git pushes, or historical artifacts modified.

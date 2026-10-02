@@ -1,0 +1,3 @@
+{"input":"a$!b","env":{"!":"BANG"},"expected":"aBANGb","actual":["aBANG"],"bug":true}
+{"input":"\"x$!y\"","env":{"!":"B"},"expected":"xBy","actual":["xB"],"bug":true}
+{"input":"a$#b","env":{"#":"H"},"expected":"aHb","actual":["aH"],"bug":true}

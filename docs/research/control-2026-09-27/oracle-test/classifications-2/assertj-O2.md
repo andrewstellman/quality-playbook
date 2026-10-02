@@ -1,0 +1,5 @@
+assertj-01 | line | The `hashCode`/`equals` bodies at 99-111 compare only `value`, and the `unit` field declared a few lines above in the same class is plainly left out.
+assertj-02 | input | The constructor and the `>=` comparison look fine separately; the reviewer has to try `value == 0` with two identical temporals to see that a strict-less-than offset of zero can never pass, so the parent's zero-allowing check (line 53) is wrong for this subclass.
+assertj-03 | line | Line 53 checks `value >= 0` but its message says "greater than zero", so the condition and the message visibly disagree.
+assertj-04 | nearby | `isBeyondOffset` → `getDifference` → `unit.between` looks harmless alone, but in the parent class `getBeyondOffsetDifferenceDescription` wraps the same `getDifference` call in `catch (ArithmeticException)`, which shows the authors knew it can overflow and that this path has no such guard.
+assertj-05 | line | The `(int) value` cast on line 62 is applied to an unbounded `double`, so large percentages visibly saturate at `Integer.MAX_VALUE`.

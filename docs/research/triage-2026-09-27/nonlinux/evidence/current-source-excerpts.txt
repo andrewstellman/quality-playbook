@@ -1,0 +1,218 @@
+
+aiohttp/aiohttp/streams.py
+380: 
+381:     async def readuntil(
+382:         self, separator: bytes = b"\n", *, max_size: int | None = None
+383:     ) -> bytes:
+384:         seplen = len(separator)
+385:         if seplen == 0:
+386:             raise ValueError("Separator should be at least one-byte string")
+387: 
+388:         if self._exception is not None:
+389:             raise self._exception
+390: 
+391:         chunk = b""
+392:         chunk_size = 0
+393:         not_enough = True
+394:         max_size = max_size or self._high_water
+395: 
+396:         while not_enough:
+397:             while self._buffer and not_enough:
+398:                 offset = self._buffer_offset
+399:                 ichar = self._buffer[0].find(separator, offset) + 1
+400:                 # Read from current offset to found separator or to the end.
+401:                 data = self._read_nowait_chunk(
+402:                     ichar - offset + seplen - 1 if ichar else -1
+403:                 )
+404:                 chunk += data
+405:                 chunk_size += len(data)
+406:                 if ichar:
+407:                     not_enough = False
+408: 
+409:                 if chunk_size > max_size:
+410:                     raise LineTooLong(chunk[:100] + b"...", max_size)
+411: 
+412:             if self._eof:
+413:                 break
+414: 
+415:             if not_enough:
+416:                 await self._wait("readuntil")
+417: 
+418:         if chunk and self._on_chunk_received is not None:
+419:             await self._fire_chunk_received(chunk)
+420:         return chunk
+421: 
+422:     async def read(self, n: int = -1) -> bytes:
+423:         if self._exception is not None:
+
+aiohttp/docs/streams.rst
+80:    :return bytes: the given line
+81: 
+82: .. method:: StreamReader.readuntil(separator=b"\n", *, max_size=None)
+83:       :async:
+84: 
+85:    Read until separator, where `separator` is a sequence of bytes.
+86: 
+87:    If EOF is received, and `separator` was not found, the method will
+88:    return the partial read bytes.
+89: 
+90:    If the EOF was received and the internal buffer is empty, return an
+91:    empty bytes object.
+92: 
+93:    .. versionadded:: 3.8
+94: 
+95:    :param int max_size: maximum number of bytes to buffer while searching for
+96:       *separator*; exceeding it raises ``LineTooLong``. ``None``, the default,
+97:       uses the stream's high-water limit.
+98: 
+99:    :return bytes: the given data
+
+flatted/python/flatted.py
+45: def _index(known, input, value):
+46:     input.append(value)
+47:     index = str(len(input) - 1)
+48:     known.key.append(value)
+49:     known.value.append(index)
+50:     return index
+51: 
+52: def _relate(known, input, value):
+53:     if _is_string(value) or _is_array(value) or _is_object(value):
+54:         try:
+55:             return known.value[known.key.index(value)]
+56:         except:
+57:             return _index(known, input, value)
+58: 
+59:     return value
+60: 
+61: def _resolver(input, lazy, parsed):
+62:     def resolver(output):
+63:         keys = _array_keys(output) if _is_array(output) else _object_keys(output) if _is_object(output) else []
+64:         for key in keys:
+65:             value = output[key]
+
+flatted/python/test.py
+40: a.append([1, 2, 3])
+41: 
+42: o['test'] = {'test': 'OK'}
+43: o['array'] = [1, 2, 3]
+44: 
+45: assert stringify(a) == '[["0",1,"1",true,"2","3","4"],"two",{"o":"2","one":1,"two":"1","three":true,"a":"0","test":"3","array":"4"},{"test":"5"},[1,2,3],"OK"]'
+46: assert stringify(o) == '[{"o":"0","one":1,"two":"1","three":true,"a":"2","test":"3","array":"4"},"two",["2",1,"1",true,"0","3","4"],{"test":"5"},[1,2,3],"OK"]'
+47: 
+48: a2 = parse(stringify(a));
+
+flatted/cjs/index.js
+85:  * @returns {string}
+86:  */
+87: const stringify = (value, replacer, space) => {
+88:   const $ = replacer && typeof replacer === object ?
+89:             (k, v) => (k === '' || -1 < replacer.indexOf(k) ? v : void 0) :
+90:             (replacer || noop);
+91:   const known = new Map;
+92:   const input = [];
+93:   const output = [];
+94:   let i = +set(known, input, $.call({'': value}, '', value));
+95:   let firstRun = !i;
+96:   while (i < input.length) {
+97:     firstRun = true;
+98:     output[i] = $stringify(input[i++], replace, space);
+99:   }
+100:   return '[' + output.join(',') + ']';
+101:   function replace(key, value) {
+102:     if (firstRun) {
+103:       firstRun = !firstRun;
+104:       return value;
+105:     }
+106:     const after = $.call(this, key, value);
+107:     switch (typeof after) {
+108:       case object:
+109:         if (after === null) return after;
+110:       case primitive:
+111:         return known.get(after) || set(known, input, after);
+112:     }
+113:     return after;
+114:   }
+
+defu/src/types.ts
+49: export interface DefuInstance {
+50:   <Source extends Input, Defaults extends Array<Input | IgnoredInput>>(
+51:     source: Source | IgnoredInput,
+52:     ...defaults: Defaults
+53:   ): Defu<Source, Defaults>;
+54:   fn: DefuFn;
+55:   arrayFn: DefuFn;
+56:   extend(merger?: Merger): DefuFn;
+57: }
+58: 
+
+defu/src/defu.ts
+44: // Create defu wrapper with optional merger and multi arg support
+45: export function createDefu(merger?: Merger): DefuFunction {
+46:   return (...arguments_) =>
+47:     // eslint-disable-next-line unicorn/no-array-reduce
+48:     arguments_.reduce((p, c) => _defu(p, c, "", merger), {} as any);
+49: }
+50: 
+51: // Standard version
+52: export const defu = createDefu() as DefuInstance;
+53: export default defu;
+54: 
+55: // Custom version with function merge support
+56: export const defuFn = createDefu((object, key, currentValue) => {
+57:   if (object[key] !== undefined && typeof currentValue === "function") {
+58:     object[key] = currentValue(object[key]);
+59:     return true;
+60:   }
+61: });
+62: 
+63: // Custom version with function merge support only for defined arrays
+64: export const defuArrayFn = createDefu((object, key, currentValue) => {
+65:   if (Array.isArray(object[key]) && typeof currentValue === "function") {
+66:     object[key] = currentValue(object[key]);
+67:     return true;
+68:   }
+69: });
+70: 
+71: export type { Defu, DefuFn, DefuInstance } from "./types";
+
+minimatch/src/brace-expressions.ts
+1: // translate the various posix character classes into unicode properties
+2: // this works across all unicode locales
+3: 
+4: // { <posix class>: [<translation>, /u flag required, negated]
+5: const posixClasses: { [k: string]: [e: string, u: boolean, n?: boolean] } =
+6:   {
+7:     '[:alnum:]': ['\\p{L}\\p{Nl}\\p{Nd}', true],
+8:     '[:alpha:]': ['\\p{L}\\p{Nl}', true],
+9:     '[:ascii:]': ['\\x' + '00-\\x' + '7f', false],
+10:     '[:blank:]': ['\\p{Zs}\\t', true],
+11:     '[:cntrl:]': ['\\p{Cc}', true],
+12:     '[:digit:]': ['\\p{Nd}', true],
+13:     '[:graph:]': ['\\p{Z}\\p{C}', true, true],
+14:     '[:lower:]': ['\\p{Ll}', true],
+15:     '[:print:]': ['\\p{C}', true],
+16:     '[:punct:]': ['\\p{P}', true],
+17:     '[:space:]': ['\\p{Z}\\t\\r\\n\\v\\f', true],
+18:     '[:upper:]': ['\\p{Lu}', true],
+19:     '[:word:]': ['\\p{L}\\p{Nl}\\p{Nd}\\p{Pc}', true],
+20:     '[:xdigit:]': ['A-Fa-f0-9', false],
+
+immutable-js/src/Repeat.js
+59:   indexOf(searchValue) {
+60:     if (this.size !== 0 && is(this._value, searchValue)) {
+61:       return 0;
+62:     }
+63:     return -1;
+64:   }
+65: 
+66:   lastIndexOf(searchValue) {
+67:     if (this.size !== 0 && is(this._value, searchValue)) {
+68:       return this.size - 1;
+69:     }
+70:     return -1;
+71:   }
+72: 
+73:   __iterate(fn, reverse) {
+74:     const size = this.size;
+75:     let i = 0;
+76:     while (i !== size) {

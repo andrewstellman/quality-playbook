@@ -4,6 +4,8 @@
 
 *Owner: Andrew Stellman. Companion: `QPB_v1.6.1_Implementation_Plan.md`.*
 
+*2026-10-01: scope widened. Besides the precision features A and B, v1.6.1 now carries Feature S (§2a, subagent execution guarded by the parent's own gate run) and Feature R (§2b, the open-source review and submission process, including `submit-pr`). See Decision Record #3.*
+
 *Depends on: v1.6.0 (Track 1) shipped. See §6 for the coupling.*
 
 ---
@@ -20,6 +22,28 @@
 
    **Resolve this before Phase 5 starts, once the schema extension has been attempted and its true blast radius is known.** Renaming these two files and their cross-references is the entire cost of being wrong.
 
+   **RESOLVED 2026-10-01 (Andrew): v1.6.1, with the scope widened (Decision Record #3).** Andrew: *"it's stupid to add a new version when we have work that's tested."*
+
+3. **(2026-10-01, Andrew) v1.6.1 also carries two features from the 2026-09 open-source bug campaign:**
+   - **Feature S:** subagent execution, on condition that the parent agent re-runs the quality gate itself (§2a).
+   - **Feature R:** the open-source review and submission process, including a rewritten `submit-pr` (§2b).
+
+   **State at decision time:**
+   - **S:** the prose change and its evidence come from the icalendar cloud run (in progress).
+   - **R:** the process has been used for real in the campaign; `submit-pr` is not built.
+   - **A and B:** designed, not built.
+
+   **Later additions on 2026-10-01:**
+   - **Feature W:** claims and copywriting rules for QPB's own output (`references/claims_rules.md`).
+   - **Feature R generates external script files** (`submit.sh`, `dup-search.sh`, `verify.sh`) for `gh` and other credentialed binaries, so the operator doesn't have to approve each call.
+
+   **Who builds what:**
+   - **S, W and R:** the cloud chat implements them per `QPB_v1.6.1_Cloud_Implementation_Spec.md`, and tests R on the icalendar run.
+
+   **Ordering inside the release:**
+   - S and R can land and be reviewed on the 1.6.1 branch first.
+   - **Nothing is tagged until Features A and B pass their acceptance test (§4 criterion 1).**
+
 ---
 
 ## 1. Precision: findings untethered from requirements (the OpenFGA failure)
@@ -29,6 +53,86 @@ The 2026-05-23 OpenFGA Mode-A dogfood (v1.5.7, real 548-file Go repo, doc-enrich
 *(Section moved from `QPB_v1.6.0_Design.md` §1.1 on 2026-07-21. It is the motivating defect for this release, not for v1.6.0.)*
 
 ---
+
+## 2a. Feature S: subagent execution, guarded by the parent's own gate run
+
+**Problem.** `SKILL.md` Mode A forbids running Phases 1–5 in subagents. The only automated per-phase pattern is labelled "AUTOMATION ONLY" (`agents/quality-playbook-claude.agent.md`). The rule exists because of the 2026-05-16 express failure: a delegated run hand-wrote a `quality-gate.log` reading PASS while the real gate failed, and the parent trusted it. The rule closes that hole by forbidding delegation altogether. That also rules out long runs that need context isolation, such as a full baseline plus four iterations in one session, or a cloud session.
+
+**Design.**
+- **New rule:** an agent may run phases in per-phase subagents, under the orchestrator pattern, as long as the parent agent itself does two things after every Phase 6:
+  - (a) runs `quality_gate.py` itself and pastes the verdict lines verbatim in its own chat;
+  - (b) compares that output with `quality/results/quality-gate.log`, and stops on any mismatch.
+
+  The parent's own run is the witness, so a subagent cannot fabricate the verdict the operator sees.
+- **Text changes:**
+  - **`SKILL.md`, Mode A section:** replace the "DO NOT … spawn a sub-agent" bullet with the conditional rule above. Keep the Phase 6 fresh-context auditor exception.
+  - **`agents/quality-playbook-claude.agent.md`:** replace the "AUTOMATION ONLY" header with the condition.
+  - **`references/orchestrator_protocol.md`:** add the parent's gate re-run to the mandatory post-phase verification gate for Phase 6.
+- **Nesting.** Subagents cannot spawn subagents. The Feature H persona pass and the Phase 6 auditor must therefore be spawned by the parent (the orchestrator), not from inside a phase subagent. State this explicitly.
+
+**Verification.**
+- **Pin test:** update the pin test for the Mode A/B asymmetries (`bin/tests/test_mode_a_b_parity_documented.py`).
+- **New test:** a fixture where the subagent-written `quality-gate.log` says PASS and the real gate fails. The documented parent procedure must detect the mismatch. Where a check is prose, a doc check that the rule text is present in all three files.
+- **Acceptance evidence:** the icalendar cloud run (`docs/research/HANDOFF-2026-10-01-cloud.md` §5). It records parent gate output next to the subagent log for the baseline and all four iterations, with zero mismatches, or every mismatch caught.
+
+## 2b. Feature R: the open-source review and submission process
+
+**Problem.** The 2026-09 campaign turned QPB findings into upstream fixes: merged in calibre, virtio-pci, Gson and zram, with more open. The process that did it exists only as one-off briefs in `/tmp`, `evidence/` and `docs/research/`. It isn't reproducible by an adopter, or by a fresh session.
+
+**Design.**
+- **Process documentation**, as an orientation doc plus templates (location to be decided: `ai_context/` or `docs/`):
+  - selection: requirement-anchored bugs only; security-angle bugs set aside;
+  - the confirmer brief;
+  - the fixer brief: minimal fix, red / green / revert;
+  - the review panel brief: 2 executors plus 13 roles, blind-first verdicts, synthesis, a focused re-review for code revisions;
+  - the side-effect rule: a correct fix that would hurt existing users unexpectedly is dropped;
+  - the per-project contribution checks: AI policy, CLA or DCO, issue-first, PR template;
+  - `evidence/SUBMISSION-PROTOCOL.md`;
+  - the `REVIEW.md` template;
+  - the per-bug `STATUS.md` with `evidence/build_index.py`.
+- **`submit-pr`.** This rewrites `QPB_v1.6.x_Bug_Report_PR_Automation_Proposal.md` around the protocol, and supersedes that proposal's batch features (`--all`, multi-bug PRs, its throughput rationale). It is one bug per invocation and draft-only. It does all the mechanical work:
+  - fork and clone;
+  - apply the patch;
+  - verify red, green and revert;
+  - run the touched suite;
+  - push to the operator's fork;
+  - `gh pr create --draft`, or issue-first for projects that require it.
+
+  It writes or updates the bug's `REVIEW.md` Submission record. It never marks a PR ready and never posts comments.
+
+**In the skill itself (Andrew, 2026-10-01).** The process moves into the skill, not just operator docs: *"we've proven that it works, so we can ask the skill to analyze the findings, suggest bugs for review, run the review, and then prepare the PRs and guide through them."* The natural home is a new Phase 7 improvement path, "Prepare upstream submissions", with a reference file (e.g. `references/upstream_submission.md`) that carries the briefs. The steps:
+
+1. **Analyze and suggest.** Read `BUGS.md` and the manifest, and shortlist requirement-anchored, non-security bugs. Run the per-project contribution-policy check first. If the project bans AI contributions, stop and say so.
+2. **Confirm.** One fresh confirmer subagent per shortlisted bug; it searches for duplicates in issues and open PRs.
+3. **Operator picks.** The operator chooses which bugs go to review.
+4. **Fix.** Minimal fix with red / green / revert.
+5. **Review panel.**
+   - The parent spawns 2 executors and 13 roles; that's Feature S's parent-spawns rule, because subagents can't nest.
+   - Blind-first verdicts, then a synthesis.
+   - The side-effect rule applies.
+   - Any code revision gets a focused re-review.
+6. **Prepare, one bug at a time.** Write the `REVIEW.md` explanation and the issue or PR text, check the upstream head, and hand `submit-pr` to the operator. **The skill never submits, never marks a PR ready, and never comments upstream.**
+7. **Record.** After the operator submits, verify the submission and fill in the `REVIEW.md` Submission record and `STATUS.md`.
+
+Guardrails stay in the skill text, not only in docs:
+
+- one bug at a time;
+- no schedules;
+- draft only;
+- a project's AI policy is checked first and wins;
+- the disclosure line on every submission;
+- security-angle findings go to a private-disclosure note, not a PR.
+
+**Cost.** A full panel is 15 subagents per bug. The default is the full roster; a smaller roster is an explicit operator choice, recorded in `REVIEW.md`.
+
+**Why it's in the skill.** The 2026-09 campaign showed the panel catching real defects before submission:
+- a false claim in a PR text, refuted by five reviewers who ran it;
+- a fix that made a URL parser throw on a colon, plus a new quadratic regex;
+- two fixes with bad side effects (javalin out-of-memory, setuptools sdist bloat).
+
+Those were caught *before* any maintainer saw them.
+
+**Verification.** `submit-pr --dry-run` against an existing evidence folder (e.g. `cobra-complete-after-dashdash`) reproduces red / green / revert and the PR body. One real draft submission is made through it under the protocol.
 
 ## 2. Feature A — First-class NFR discovery
 
@@ -79,13 +183,16 @@ Criteria 2 and 4 moved here from `QPB_v1.6.0_Design.md` §10, renumbered; criter
 2. NFR REQs derived with acceptance criteria + verification methods; gate rejects aspirational NFRs.
 3. **No regression in v1.6.0's surface:** Track 1's fixture suite (coherence + validation oracles) runs green after Track 2 merges, per the track-coupling rule carried in §6.
 4. No recall collapse anywhere: bin/tests + gate green dual-env; QPB self-audit REQ coverage not reduced.
+5. **Feature S (added 2026-10-01):** the parent's own gate output matches every subagent-written gate log in the icalendar cloud run, or catches every mismatch. The rule text is present in `SKILL.md`, the Claude agent file and `orchestrator_protocol.md`. The pin test is updated.
+6. **Feature R (added 2026-10-01):** the process doc and templates are in the tree. `submit-pr --dry-run` reproduces an existing evidence folder's red/green/revert and PR body. One real draft submission is made through it, with its `REVIEW.md` record filled.
+7. **Additional precision oracle (proposed 2026-10-01):** use the campaign's confirmation ledgers (`docs/research/campaign-2026-09-29/confirm/LEDGER.md` and wave-2 verdicts) as a second labelled set for Feature B, alongside OpenFGA. They record which findings were confirmed, duplicates, unclear or not-a-bug.
 
 ---
 
 ## 5. Open decisions
 
 - **OD-5 — HIGH-precision acceptance bar. RESOLVED: ≥90% precision on HIGH findings**, adopting Google's Tricorder threshold (an analyzer surfaced in code review may carry at most a **10% effective false positive rate**; above that, developers demonstrably dismiss or disable it — Tricorder's own rate runs just under 5%). Two riders. **(a)** Adopt Tricorder's *effective* false-positive definition: a finding counts as a false positive if the operator does not act on it, even when technically correct — this is precisely BUG-009's failure mode (an accurate advisory restatement with no located defect). **(b)** At the OpenFGA fixture's sample size a rate is not measurable — one FP in six findings is 17%. So ≥90% is the **reporting/policy bar**; the **executable acceptance test** remains §4 criterion 1: 003/006/009 must not stand as confirmed HIGH, 001/002/004 must still surface. Sources: Sadowski et al., *Lessons from Building Static Analysis Tools at Google* (CACM 2018); *Software Engineering at Google* ch. 20. *(Moved here 2026-07-21: it gates this release's Phase 6, so it is no longer a v1.6.0 release-time decision.)*
-- **OD-VERSION — the release number.** See Decision Record #2 above. Open.
+- **OD-VERSION — the release number. RESOLVED 2026-10-01: v1.6.1**, with Features S and R added (Decision Record #3).
 
 ---
 

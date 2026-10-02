@@ -1,0 +1,1040 @@
+From bed1ef36511ee02f2ab152a3e5d34bb164dd2d4c Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <andrew@stellman.com>
+Date: Fri, 2 Oct 2026 01:17:01 -0400
+Subject: [PATCH 08/12] v1.6.1 [council-1]: docs and pins (A6, A8, B gap 5, C1,
+ C3, C6)
+
+run_state_schema.md documents the gate sentinel's gate_result and
+verdict_state values; harness plans accept DECISIONS; schemas.md
+documents needs_text_review; artifact_contract.md lists
+OPERATOR_DECISIONS.md, req_id_remap.json and quality/upstream/;
+phase6.md's A-17 sentence follows the parent-witness rule (hash pin
+updated); TOOLKIT.md CLEANUP bullet uses the reproduced vocabulary;
+template text for State P5 / Bug evidence / claims_rules / Phase 5
+OPERATOR_DECISIONS.md is pinned by needle tests.
+---
+ ai_context/TOOLKIT.md                         |  2 +-
+ bin/tests/test_phase_prompts_externalized.py  |  5 +-
+ bin/tests/test_what_just_happened.py          | 78 +++++++++++++++++++
+ harness_plans/acceptance_plan.json            |  3 +
+ harness_plans/akka_retry_plan.json            |  2 +-
+ harness_plans/blind_cve_benchmark_plan.json   | 14 ++--
+ harness_plans/longer_mac_bug_hunt_plan.json   |  8 +-
+ .../longer_windows_bug_hunt_plan.json         |  8 +-
+ harness_plans/post191_regression_plan.json    |  6 +-
+ harness_plans/post_172_haiku_retest_plan.json | 12 +--
+ .../pre_publish_regression_plan.json          |  2 +-
+ harness_plans/retest_known_failures_plan.json | 10 +--
+ harness_plans/round2_bug_hunt_plan.json       |  8 +-
+ harness_plans/security_blind_mac_plan.json    | 14 ++--
+ harness_plans/security_blind_mac_retry.json   |  8 +-
+ harness_plans/security_blind_v2_no_iter.json  |  7 ++
+ harness_plans/security_blind_v2_rebuild.json  | 14 ++--
+ harness_plans/security_bug_hunt_plan.json     | 10 +--
+ harness_plans/self_review_bootstrap_plan.json |  2 +-
+ .../ship_readiness_mac_noncodex_plan.json     | 10 +--
+ harness_plans/ship_readiness_mac_plan.json    | 14 ++--
+ .../ship_readiness_windows_plan.json          |  4 +-
+ harness_plans/windows_codex_smoke.json        |  2 +-
+ .../quality-playbook/phase_prompts/phase6.md  |  2 +-
+ references/artifact_contract.md               |  3 +
+ references/run_state_schema.md                |  2 +
+ schemas.md                                    |  1 +
+ 27 files changed, 174 insertions(+), 77 deletions(-)
+
+diff --git a/ai_context/TOOLKIT.md b/ai_context/TOOLKIT.md
+index fd6fb67..dcb45fd 100644
+--- a/ai_context/TOOLKIT.md
++++ b/ai_context/TOOLKIT.md
+@@ -572,7 +572,7 @@ python3 <resolved_quality_gate_path> .
+ 
+ The gate reports one of **four verdicts** (the v1.5.7 F15 three-state taxonomy plus the v1.6.1 decisions state), not a bare pass/fail:
+ - **PASSED** — all checks clean; the run is complete and conformant.
+-- **PASSED WITH CLEANUP NEEDED** — the substantive checks passed but a non-blocking hygiene issue remains (e.g. a stray `workspace/` directory left behind); the findings are trustworthy, just tidy up before archiving.
++- **PASSED WITH CLEANUP NEEDED** — the substantive checks passed but a non-blocking hygiene issue remains (e.g. a stray `workspace/` directory left behind); the bug evidence stands; only audit records are incomplete, so tidy up before archiving.
+ - **PASSED WITH DECISIONS NEEDED** — no substantive check failed; two or more Council reviewers said N requirements say more than the passage they quote, and no confirmed bug rests on them. Decide each one from `quality/OPERATOR_DECISIONS.md` (narrow, re-cite, keep with a note, or split). Exit code 0.
+ - **FAILED** — a blocking check failed; the artifact set is non-conformant (see causes below).
+ 
+diff --git a/bin/tests/test_phase_prompts_externalized.py b/bin/tests/test_phase_prompts_externalized.py
+index 288b40b..4dc02c1 100644
+--- a/bin/tests/test_phase_prompts_externalized.py
++++ b/bin/tests/test_phase_prompts_externalized.py
+@@ -518,7 +518,10 @@ class PhasePromptByteEqualityTests(unittest.TestCase):
+         # v1.5.7 191 FINDING-50: schemas.md prose citations stripped/rewritten.
+         # v1.6.1 [G]: phase6.md gained the fourth gate state (PASS WITH
+         # DECISIONS NEEDED) and the BUG EVIDENCE witness line.
+-        "phase6":                (10678, "7abbb7475346c34f3785b990da3bd5d5bf1af4eceb38c8d75b38da98235916e1"),
++        # v1.6.1 [council-1] (Council C1): phase6.md's A-17 sentence no
++        # longer says A-17 forbids delegating Phases 1-5; it allows it
++        # only under the parent-witness rule. 10678 → 10811.
++        "phase6":                (10811, "6d8f237c3558c60103fdf9ddb5f421e7996b1623e2bf2a0750b38ecd22c6dc3b"),
+         # v1.5.6 BUG-008: SKILL_FALLBACK_GUIDE grew from 4 to 6
+         # documented install paths (added .cursor + .continue), so
+         # every prompt that interpolates the guide grows by ~86 bytes.
+diff --git a/bin/tests/test_what_just_happened.py b/bin/tests/test_what_just_happened.py
+index ce33a81..e51c5b0 100644
+--- a/bin/tests/test_what_just_happened.py
++++ b/bin/tests/test_what_just_happened.py
+@@ -545,3 +545,81 @@ class IterationPromptIncludesWhatJustHappenedTailTests(unittest.TestCase):
+ 
+ if __name__ == "__main__":
+     unittest.main()
++
++
++# v1.6.1 [council-1] (Council B gap 5): pin the load-bearing template
++# text G5/G9 added. Before this, replacing these phrases with junk left
++# every test green. Mutation-bite: replacing "only you can decide" in
++# what_just_happened.md, or "Phase 5 may close with these FAILs open" in
++# phase5_reconciliation_guide.md, makes the matching test fail.
++_PHASE5_GUIDE = _SKILL_DIR / "references" / "phase5_reconciliation_guide.md"
++
++
++def _flat(text: str) -> str:
++    """Collapse whitespace so phrases wrapped across lines still match."""
++    return " ".join(text.split())
++
++
++def _section(text: str, header: str) -> str:
++    start = text.index(header)
++    end = text.find("\n### State ", start + len(header))
++    return text[start:] if end == -1 else text[start:end]
++
++
++class CouncilOneTemplatePinTests(unittest.TestCase):
++
++    def setUp(self) -> None:
++        self.wjh = REFERENCE_PATH.read_text(encoding="utf-8")
++        self.p5 = _PHASE5_GUIDE.read_text(encoding="utf-8")
++
++    def test_state_p5_operator_decisions_branch(self) -> None:
++        p5 = _flat(_section(self.wjh, "### State P5 — Phase 5 just completed"))
++        self.assertIn("**Branch — FAILs only you can decide remain (v1.6.1).**",
++                      p5)
++        self.assertIn('do NOT write "All FAIL findings from the gate were '
++                      'addressed"', p5)
++        self.assertIn("N FAILs remain that only you can decide (see "
++                      "quality/OPERATOR_DECISIONS.md).", p5)
++        self.assertIn("The agent did not rewrite them", p5)
++
++    def test_end_of_run_states_carry_bug_evidence_block(self) -> None:
++        state_b = _flat(_section(
++            self.wjh, "### State B — Phases 1-6 baseline complete"))
++        self.assertIn("**Bug evidence (REQUIRED on every outcome, including a "
++                      "failed gate — paste verbatim):**", state_b)
++        self.assertIn("── Bug evidence ── <every line of that block, "
++                      "unchanged>", state_b)
++        for header in ("### State CN — ", "### State DN — "):
++            sec = _flat(_section(self.wjh, header))
++            self.assertIn("**Bug evidence (REQUIRED — paste verbatim from "
++                          "quality/results/quality-gate.log):**", sec, header)
++            self.assertIn("── Bug evidence ──", sec, header)
++
++    def test_claims_rules_pointers(self) -> None:
++        line = "Apply `references/claims_rules.md` before writing operator-facing text."
++        self.assertIn(line, self.wjh)
++        self.assertIn(line, self.p5)
++
++    def test_phase5_operator_decisions_structure(self) -> None:
++        p5 = self.p5
++        for needle in (
++            "## REQ-NNN — <title>",
++            "- Kind: overreach (K of 3 reviewers) | tier mismatch",
++            "- Cited excerpt: <citation_excerpt, verbatim>",
++            "- Reviewer notes:",
++            "- Bugs that rest on this requirement: BUG-NNN, ...",
++            "- Options (ready to apply — the operator picks one):",
++            "  1. Narrow:", "  2. Re-cite:", "  3. Keep with a note:",
++            "  4. Split:",
++        ):
++            self.assertIn(needle, p5, needle)
++        flat = _flat(p5)
++        self.assertIn("Phase 5 must NOT rewrite these requirements, change "
++                      "their tier, or delete their citations to make the "
++                      "gate pass.", flat)
++
++    def test_phase5_may_close_with_operator_owned_fails(self) -> None:
++        self.assertIn(
++            "Phase 5 may close with these FAILs open when every remaining "
++            "FAIL is an overreach, a tier mismatch, or record-keeping.",
++            _flat(self.p5))
+diff --git a/harness_plans/acceptance_plan.json b/harness_plans/acceptance_plan.json
+index 0b85147..c246e56 100644
+--- a/harness_plans/acceptance_plan.json
++++ b/harness_plans/acceptance_plan.json
+@@ -17,6 +17,7 @@
+         "gate_result": [
+           "PASS",
+           "CLEANUP",
++          "DECISIONS",
+           "FAIL"
+         ],
+         "no_false_pass": true,
+@@ -38,6 +39,7 @@
+         "gate_result": [
+           "PASS",
+           "CLEANUP",
++          "DECISIONS",
+           "FAIL"
+         ],
+         "no_false_pass": true,
+@@ -82,6 +84,7 @@
+         "gate_result": [
+           "PASS",
+           "CLEANUP",
++          "DECISIONS",
+           "FAIL"
+         ],
+         "no_false_pass": true,
+diff --git a/harness_plans/akka_retry_plan.json b/harness_plans/akka_retry_plan.json
+index cde8498..c08593e 100644
+--- a/harness_plans/akka_retry_plan.json
++++ b/harness_plans/akka_retry_plan.json
+@@ -15,7 +15,7 @@
+       "channel": "clone",
+       "mode": "B",
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+diff --git a/harness_plans/blind_cve_benchmark_plan.json b/harness_plans/blind_cve_benchmark_plan.json
+index 6701462..aa744f3 100644
+--- a/harness_plans/blind_cve_benchmark_plan.json
++++ b/harness_plans/blind_cve_benchmark_plan.json
+@@ -15,7 +15,7 @@
+       "model": "opus",
+       "channel": "pip-local-wheel",
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+@@ -32,7 +32,7 @@
+       "model": "opus",
+       "channel": "pip-local-wheel",
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+@@ -49,7 +49,7 @@
+       "model": "sonnet",
+       "channel": "pip-local-wheel",
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+@@ -66,7 +66,7 @@
+       "model": "sonnet",
+       "channel": "pip-local-wheel",
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+@@ -83,7 +83,7 @@
+       "model": "sonnet",
+       "channel": "pip-local-wheel",
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+@@ -100,7 +100,7 @@
+       "model": "sonnet",
+       "channel": "pip-local-wheel",
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+@@ -118,7 +118,7 @@
+       "channel": "clone",
+       "mode": "B",
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+diff --git a/harness_plans/longer_mac_bug_hunt_plan.json b/harness_plans/longer_mac_bug_hunt_plan.json
+index 4d9ee98..b65fb7b 100644
+--- a/harness_plans/longer_mac_bug_hunt_plan.json
++++ b/harness_plans/longer_mac_bug_hunt_plan.json
+@@ -15,7 +15,7 @@
+       "model": "opus",
+       "channel": "pip-local-wheel",
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+@@ -32,7 +32,7 @@
+       "model": "sonnet",
+       "channel": "npm-local-tgz",
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+@@ -49,7 +49,7 @@
+       "model": "opus",
+       "channel": "pip-local-wheel",
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+@@ -67,7 +67,7 @@
+       "channel": "clone",
+       "mode": "B",
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+diff --git a/harness_plans/longer_windows_bug_hunt_plan.json b/harness_plans/longer_windows_bug_hunt_plan.json
+index 678452f..a07871e 100644
+--- a/harness_plans/longer_windows_bug_hunt_plan.json
++++ b/harness_plans/longer_windows_bug_hunt_plan.json
+@@ -15,7 +15,7 @@
+       "model": "opus",
+       "channel": "pip-local-wheel",
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+@@ -32,7 +32,7 @@
+       "model": "sonnet",
+       "channel": "npm-local-tgz",
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+@@ -49,7 +49,7 @@
+       "model": "opus",
+       "channel": "pip-local-wheel",
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+@@ -67,7 +67,7 @@
+       "channel": "clone",
+       "mode": "B",
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+diff --git a/harness_plans/post191_regression_plan.json b/harness_plans/post191_regression_plan.json
+index 0f389cb..9ed55d0 100644
+--- a/harness_plans/post191_regression_plan.json
++++ b/harness_plans/post191_regression_plan.json
+@@ -14,7 +14,7 @@
+       "channel": "pip-local-wheel",
+       "mode": "A",
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+@@ -32,7 +32,7 @@
+       "channel": "npm-local-tgz",
+       "mode": "A",
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+@@ -52,7 +52,7 @@
+       "parameters": ["--runner-extra-args", "-c 'model_reasoning_effort=\"medium\"'"],
+       "prep_timeout_s": 900,
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "provenance_runner_matches": true
+diff --git a/harness_plans/post_172_haiku_retest_plan.json b/harness_plans/post_172_haiku_retest_plan.json
+index 07ad5df..25987de 100644
+--- a/harness_plans/post_172_haiku_retest_plan.json
++++ b/harness_plans/post_172_haiku_retest_plan.json
+@@ -14,7 +14,7 @@
+       "model": "haiku",
+       "channel": "pip-local-wheel",
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+@@ -31,7 +31,7 @@
+       "model": "haiku",
+       "channel": "npm-local-tgz",
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+@@ -48,7 +48,7 @@
+       "model": "haiku",
+       "channel": "pip-local-wheel",
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+@@ -65,7 +65,7 @@
+       "model": "haiku",
+       "channel": "npm-local-tgz",
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+@@ -82,7 +82,7 @@
+       "model": "haiku",
+       "channel": "pip-local-wheel",
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+@@ -99,7 +99,7 @@
+       "model": "haiku",
+       "channel": "npm-local-tgz",
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+diff --git a/harness_plans/pre_publish_regression_plan.json b/harness_plans/pre_publish_regression_plan.json
+index dcd8c24..fd08c63 100644
+--- a/harness_plans/pre_publish_regression_plan.json
++++ b/harness_plans/pre_publish_regression_plan.json
+@@ -13,7 +13,7 @@
+             "prep": "acceptance",
+             "docs": "gather",
+             "expect": {
+-                "gate_result": ["PASS", "CLEANUP", "FAIL"],
++                "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+                 "no_false_pass": true,
+                 "no_false_fail": true,
+                 "phase0_first_probe": true,
+diff --git a/harness_plans/retest_known_failures_plan.json b/harness_plans/retest_known_failures_plan.json
+index 77e41dc..7939e7f 100644
+--- a/harness_plans/retest_known_failures_plan.json
++++ b/harness_plans/retest_known_failures_plan.json
+@@ -16,7 +16,7 @@
+       "model": "haiku",
+       "channel": "pip-local-wheel",
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+@@ -33,7 +33,7 @@
+       "model": "opus",
+       "channel": "pip-local-wheel",
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+@@ -51,7 +51,7 @@
+       "channel": "npm-local-tgz",
+       "mode": "B",
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+@@ -69,7 +69,7 @@
+       "channel": "pip-local-wheel",
+       "mode": "B",
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+@@ -86,7 +86,7 @@
+       "model": "gpt-5.4",
+       "channel": "pip-local-wheel",
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+diff --git a/harness_plans/round2_bug_hunt_plan.json b/harness_plans/round2_bug_hunt_plan.json
+index 177a69e..3ad71f9 100644
+--- a/harness_plans/round2_bug_hunt_plan.json
++++ b/harness_plans/round2_bug_hunt_plan.json
+@@ -16,7 +16,7 @@
+       "model": "opus",
+       "channel": "pip-local-wheel",
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+@@ -33,7 +33,7 @@
+       "model": "gpt-5.4",
+       "channel": "npm-local-tgz",
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+@@ -52,7 +52,7 @@
+       "channel": "clone",
+       "mode": "B",
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+@@ -69,7 +69,7 @@
+       "model": "sonnet",
+       "channel": "pip-local-wheel",
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+diff --git a/harness_plans/security_blind_mac_plan.json b/harness_plans/security_blind_mac_plan.json
+index e7055ee..f280ec8 100644
+--- a/harness_plans/security_blind_mac_plan.json
++++ b/harness_plans/security_blind_mac_plan.json
+@@ -14,7 +14,7 @@
+       "model": "opus",
+       "channel": "pip-local-wheel",
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+@@ -31,7 +31,7 @@
+       "model": "opus",
+       "channel": "pip-local-wheel",
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+@@ -48,7 +48,7 @@
+       "model": "opus",
+       "channel": "pip-local-wheel",
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+@@ -65,7 +65,7 @@
+       "model": "opus",
+       "channel": "pip-local-wheel",
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+@@ -82,7 +82,7 @@
+       "model": "opus",
+       "channel": "pip-local-wheel",
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+@@ -99,7 +99,7 @@
+       "model": "opus",
+       "channel": "pip-local-wheel",
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+@@ -116,7 +116,7 @@
+       "model": "opus",
+       "channel": "pip-local-wheel",
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+diff --git a/harness_plans/security_blind_mac_retry.json b/harness_plans/security_blind_mac_retry.json
+index 9706af2..eb88bec 100644
+--- a/harness_plans/security_blind_mac_retry.json
++++ b/harness_plans/security_blind_mac_retry.json
+@@ -14,7 +14,7 @@
+       "model": "opus",
+       "channel": "pip-local-wheel",
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+@@ -31,7 +31,7 @@
+       "model": "opus",
+       "channel": "pip-local-wheel",
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+@@ -48,7 +48,7 @@
+       "model": "opus",
+       "channel": "pip-local-wheel",
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+@@ -65,7 +65,7 @@
+       "model": "opus",
+       "channel": "pip-local-wheel",
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+diff --git a/harness_plans/security_blind_v2_no_iter.json b/harness_plans/security_blind_v2_no_iter.json
+index d68791e..53ef142 100644
+--- a/harness_plans/security_blind_v2_no_iter.json
++++ b/harness_plans/security_blind_v2_no_iter.json
+@@ -16,6 +16,7 @@
+         "gate_result": [
+           "PASS",
+           "CLEANUP",
++          "DECISIONS",
+           "FAIL"
+         ],
+         "no_false_pass": true,
+@@ -38,6 +39,7 @@
+         "gate_result": [
+           "PASS",
+           "CLEANUP",
++          "DECISIONS",
+           "FAIL"
+         ],
+         "no_false_pass": true,
+@@ -60,6 +62,7 @@
+         "gate_result": [
+           "PASS",
+           "CLEANUP",
++          "DECISIONS",
+           "FAIL"
+         ],
+         "no_false_pass": true,
+@@ -82,6 +85,7 @@
+         "gate_result": [
+           "PASS",
+           "CLEANUP",
++          "DECISIONS",
+           "FAIL"
+         ],
+         "no_false_pass": true,
+@@ -104,6 +108,7 @@
+         "gate_result": [
+           "PASS",
+           "CLEANUP",
++          "DECISIONS",
+           "FAIL"
+         ],
+         "no_false_pass": true,
+@@ -126,6 +131,7 @@
+         "gate_result": [
+           "PASS",
+           "CLEANUP",
++          "DECISIONS",
+           "FAIL"
+         ],
+         "no_false_pass": true,
+@@ -148,6 +154,7 @@
+         "gate_result": [
+           "PASS",
+           "CLEANUP",
++          "DECISIONS",
+           "FAIL"
+         ],
+         "no_false_pass": true,
+diff --git a/harness_plans/security_blind_v2_rebuild.json b/harness_plans/security_blind_v2_rebuild.json
+index 704d52b..790b65d 100644
+--- a/harness_plans/security_blind_v2_rebuild.json
++++ b/harness_plans/security_blind_v2_rebuild.json
+@@ -13,7 +13,7 @@
+       "channel": "pip-local-wheel",
+       "include_iterations": true,
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+@@ -31,7 +31,7 @@
+       "channel": "pip-local-wheel",
+       "include_iterations": true,
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+@@ -49,7 +49,7 @@
+       "channel": "pip-local-wheel",
+       "include_iterations": true,
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+@@ -67,7 +67,7 @@
+       "channel": "pip-local-wheel",
+       "include_iterations": true,
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+@@ -85,7 +85,7 @@
+       "channel": "pip-local-wheel",
+       "include_iterations": true,
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+@@ -103,7 +103,7 @@
+       "channel": "pip-local-wheel",
+       "include_iterations": true,
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+@@ -121,7 +121,7 @@
+       "channel": "pip-local-wheel",
+       "include_iterations": true,
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+diff --git a/harness_plans/security_bug_hunt_plan.json b/harness_plans/security_bug_hunt_plan.json
+index 22b1e20..e8d254d 100644
+--- a/harness_plans/security_bug_hunt_plan.json
++++ b/harness_plans/security_bug_hunt_plan.json
+@@ -15,7 +15,7 @@
+       "model": "opus",
+       "channel": "pip-local-wheel",
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+@@ -32,7 +32,7 @@
+       "model": "sonnet",
+       "channel": "pip-local-wheel",
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+@@ -50,7 +50,7 @@
+       "channel": "clone",
+       "mode": "B",
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+@@ -67,7 +67,7 @@
+       "model": "opus",
+       "channel": "pip-local-wheel",
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+@@ -84,7 +84,7 @@
+       "model": "opus",
+       "channel": "pip-local-wheel",
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+diff --git a/harness_plans/self_review_bootstrap_plan.json b/harness_plans/self_review_bootstrap_plan.json
+index a856640..5ed597c 100644
+--- a/harness_plans/self_review_bootstrap_plan.json
++++ b/harness_plans/self_review_bootstrap_plan.json
+@@ -14,7 +14,7 @@
+       "model": "opus",
+       "channel": "clone",
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+diff --git a/harness_plans/ship_readiness_mac_noncodex_plan.json b/harness_plans/ship_readiness_mac_noncodex_plan.json
+index 7a66226..800c02d 100644
+--- a/harness_plans/ship_readiness_mac_noncodex_plan.json
++++ b/harness_plans/ship_readiness_mac_noncodex_plan.json
+@@ -15,7 +15,7 @@
+       "model": "haiku",
+       "channel": "pip-local-wheel",
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+@@ -32,7 +32,7 @@
+       "model": "sonnet",
+       "channel": "npm-local-tgz",
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+@@ -49,7 +49,7 @@
+       "model": "opus",
+       "channel": "pip-local-wheel",
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+@@ -66,7 +66,7 @@
+       "model": "gpt-5.4",
+       "channel": "pip-local-wheel",
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+@@ -84,7 +84,7 @@
+       "model": "gpt-5.4",
+       "channel": "npm-local-tgz",
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+diff --git a/harness_plans/ship_readiness_mac_plan.json b/harness_plans/ship_readiness_mac_plan.json
+index 2b61a09..9b2cc12 100644
+--- a/harness_plans/ship_readiness_mac_plan.json
++++ b/harness_plans/ship_readiness_mac_plan.json
+@@ -16,7 +16,7 @@
+       "model": "haiku",
+       "channel": "pip-local-wheel",
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+@@ -33,7 +33,7 @@
+       "model": "sonnet",
+       "channel": "npm-local-tgz",
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+@@ -50,7 +50,7 @@
+       "model": "opus",
+       "channel": "pip-local-wheel",
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+@@ -68,7 +68,7 @@
+       "channel": "npm-local-tgz",
+       "mode": "B",
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+@@ -86,7 +86,7 @@
+       "channel": "pip-local-wheel",
+       "mode": "B",
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+@@ -103,7 +103,7 @@
+       "model": "gpt-5.4",
+       "channel": "pip-local-wheel",
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+@@ -121,7 +121,7 @@
+       "model": "gpt-5.4",
+       "channel": "npm-local-tgz",
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+diff --git a/harness_plans/ship_readiness_windows_plan.json b/harness_plans/ship_readiness_windows_plan.json
+index 32db5c1..857a46b 100644
+--- a/harness_plans/ship_readiness_windows_plan.json
++++ b/harness_plans/ship_readiness_windows_plan.json
+@@ -14,7 +14,7 @@
+       "model": "opus",
+       "channel": "pip-local-wheel",
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+@@ -31,7 +31,7 @@
+       "model": "sonnet",
+       "channel": "npm-local-tgz",
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+diff --git a/harness_plans/windows_codex_smoke.json b/harness_plans/windows_codex_smoke.json
+index e4e6479..aa0ce45 100644
+--- a/harness_plans/windows_codex_smoke.json
++++ b/harness_plans/windows_codex_smoke.json
+@@ -13,7 +13,7 @@
+       "mode": "B",
+       "channel": "npm-local-tgz",
+       "expect": {
+-        "gate_result": ["PASS", "CLEANUP", "FAIL"],
++        "gate_result": ["PASS", "CLEANUP", "DECISIONS", "FAIL"],
+         "no_false_pass": true,
+         "no_false_fail": true,
+         "phase0_first_probe": true,
+diff --git a/plugins/quality-playbook/skills/quality-playbook/phase_prompts/phase6.md b/plugins/quality-playbook/skills/quality-playbook/phase_prompts/phase6.md
+index 17cdf63..4572193 100644
+--- a/plugins/quality-playbook/skills/quality-playbook/phase_prompts/phase6.md
++++ b/plugins/quality-playbook/skills/quality-playbook/phase_prompts/phase6.md
+@@ -12,7 +12,7 @@ You are a quality engineer at the verification boundary of a quality playbook ru
+ 
+ **STRUCTURAL: Phase 6 verification MUST run in a fresh-context sub-agent, not your current session.** This is non-negotiable (v1.5.7 A-13 hybrid). Same-context Phase 6 has demonstrated systematic verdict fabrication across virtio (2026-05-16), express (2026-05-16), and httpx (2026-05-17) — each time prompt-level witness language was strengthened, the same-context executor ignored it and reported PASS against a failing gate. Three model-behavior factors create the bias when an executor verifies its own work: (1) memory of completed work → motivated reasoning ("I did all that, it must have succeeded"); (2) shared context window → anchoring on the "I'm wrapping up" frame; (3) reward shape favors completion-reports over discrepancy-finding. A fresh-context sub-agent has none of these — it IS the structural backstop against fabrication.
+ 
+-This is the principled A-17 exception: A-17 forbids sub-agent delegation for EXECUTING Phases 1-5 (hiding work from operator chat defeats real-time monitoring); A-17 MANDATES sub-agent delegation for Phase 6 VERIFICATION (the executor's reward bias is the failure mode). Same principle — operator chat carries the truth — opposite mechanism (visibility for execution, isolation for verification).
++This is the principled A-17 exception: A-17 allows sub-agent delegation for EXECUTING Phases 1-5 only under the parent-witness rule (`references/orchestrator_protocol.md`: the parent re-runs the gate with `qpb_gate_witness.py` after every Phase 6, because a delegated log can be hand-written); A-17 MANDATES sub-agent delegation for Phase 6 VERIFICATION (the executor's reward bias is the failure mode). Same principle — operator chat carries the truth — opposite mechanism (visibility for execution, isolation for verification).
+ 
+ **Phase 6 sub-agent delegation is NON-OPTIONAL.** Do not interpret "delegation" as requiring explicit operator authorization — it is the documented Phase 6 entry contract. If your runtime cannot dispatch a fresh-context sub-agent (e.g., the host CLI doesn't expose a Task / sub-agent primitive), you MUST ABORT Phase 6 and report that limitation to the operator. You may NOT proceed with in-session verification as a fallback. The whole purpose of A-13 hybrid is bias-isolation: shared-context executor-as-verifier fabricated PASS verdicts against failing gates across virtio + express + httpx 2026-05-16/17, ignoring three rounds of strengthened prompt-level witness language. In-session Phase 6 is the failure mode this contract exists to close — not an acceptable fallback when delegation is "inconvenient."
+ 
+diff --git a/references/artifact_contract.md b/references/artifact_contract.md
+index 7a300b5..2274006 100644
+--- a/references/artifact_contract.md
++++ b/references/artifact_contract.md
+@@ -52,6 +52,9 @@ The quality gate (`quality_gate.py`) validates these artifacts. If the gate chec
+ | Recheck summary (MD) | `quality/results/recheck-summary.md` | When recheck runs | Recheck |
+ | Seed checks | `quality/SEED_CHECKS.md` | If Phase 0b ran | Phase 0b |
+ | Run metadata | `quality/results/run-YYYY-MM-DDTHH-MM-SS.json` | Yes | Phase 1 (created), Throughout (updated) |
++| Operator decisions | `quality/OPERATOR_DECISIONS.md` | No (the gate WARNs if it is missing while a requirement was questioned) | Phase 5 — one entry per REQ the gate questioned (majority overreach or tier mismatch), with ready-to-apply options (`references/phase5_reconciliation_guide.md`, v1.6.1) |
++| REQ id remap record | `quality/req_id_remap.json` | No | Phase 2→3 boundary, when the Feature H pass renumbers REQs (`persona_apply.propagate_remap_on_disk`; written even when no id moved, v1.6.1) |
++| Upstream submission kit | `quality/upstream/` | No | Phase 7 path 5, only when the operator picks it (`references/upstream_submission.md`, v1.6.1) |
+ 
+ **`quality/RUN_CONTRACT.md` (v1.6.0 Feature C):** QPB's own run-layout invariants render here, not into `quality/REQUIREMENTS.md`. Both render from `requirements_manifest.json`; a REQ whose `references[]` point exclusively into `quality/` is a tool-contract REQ. Required whenever the manifest carries at least one such record. Enforced in two places: conditionally at the Phase 2 boundary (`validate_phase_artifacts.py --phase 2`) so an incomplete artifact set is rejected where it is produced, and at the Phase 6 gate by `check_render_contract` (presence here, absence from REQUIREMENTS.md). Deliberately **not** added to `run_state_lib.py`'s unconditional Phase-2 `required_fixed` list, which would retroactively fail every archived pre-v1.6.0 tree.
+ 
+diff --git a/references/run_state_schema.md b/references/run_state_schema.md
+index 3ded3a1..3ccb5bd 100644
+--- a/references/run_state_schema.md
++++ b/references/run_state_schema.md
+@@ -169,6 +169,8 @@ Marks the end of a phase. Cross-validated against the phase's expected artifacts
+ - Phase 5: `{"gate_checks_total": N, "gate_failures": M}`
+ - Phase 6: `{"bugs_md_count": N, "gate_verdict": "pass|pass-with-cleanup|pass-with-decisions|fail|partial"}` (the `pass-with-cleanup` value, v1.5.7 089d F17, corresponds to the gate's `RESULT: GATE PASSED WITH CLEANUP NEEDED` line; `pass-with-decisions`, v1.6.1, to `RESULT: GATE PASSED WITH DECISIONS NEEDED`)
+ 
++The gate also prints one `::QPB::` sentinel line with `"kind":"gate"` as its last line (`quality_gate.py` `_format_gate_sentinel`; for live display, not grading). Its `gate_result` is one of `PASS`, `CLEANUP`, `DECISIONS`, `FAIL`. Its `verdict_state` matches the operator-verdict lead line and is one of `solid`, `shallow`, `decisions` (v1.6.1: exit 0 with requirement decisions; the lead line reads `[WARN] GATE PASSED -- N requirement decision(s) need you`), `failed`.
++
+ ### `error`
+ 
+ Records an error during the run.
+diff --git a/schemas.md b/schemas.md
+index 24fb3e7..8f54fea 100644
+--- a/schemas.md
++++ b/schemas.md
+@@ -656,6 +656,7 @@ anchored at a specific tier. Stored in
+ | `pattern`             | string     | no       | If present, one of `whitelist`, `parity`, `compensation`. Marks the REQ as requiring a Phase 3 compensation grid (Lever 2). Missing → no grid required. Invalid value → gate fails. |
+ | `source_type`         | string     | conditional | v1.5.3+. Member of the `req_source_type` enum (§3.7). REQUIRED on every REQ in a v1.5.3-shaped manifest (any record carrying a v1.5.3 field — see §3.10); absent on legacy manifests, where the validator emits one WARN per check function and treats it as `code-derived` for back-compat. |
+ | `skill_section`       | string     | conditional | v1.5.3+. Heading text from SKILL.md (e.g. `"Phase 1: Explore the Codebase"`); a reader should be able to grep SKILL.md for the heading and find it. REQUIRED non-empty when `source_type == "skill-section"`. MUST be absent or `null` when `source_type` is any other value (§10 invariant #21). |
++| `needs_text_review`   | array of string | no | v1.6.1+. Written by the Feature H merge (`persona_merge.py`) when a `correct` move replaced some prose fields of this REQ but not others: lists the claim-bearing prose fields (`title`, `description`, `summary`, `user_story`, `conditions_of_satisfaction`, `alternative_paths`) the record carries and the move did not supply, because they may still state the wider claim. Removed when the move supplies every such field. Not gate-enforced. Distinct from a review entry's `req_hash` (§9.2), which records the REQ content a Council review saw. |
+ 
+ ### Pattern tags and Phase 3 grids
+ 
+-- 
+2.34.1
+

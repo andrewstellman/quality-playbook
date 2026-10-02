@@ -1,7 +1,7 @@
 # Quality Playbook v1.6.1 — Implementation Plan (Precision)
 
 *Companion to: `QPB_v1.6.1_Design.md`. Created 2026-07-21 by splitting Track 2 out of `QPB_v1.6.0_Implementation_Plan.md`; the phase content below is moved verbatim.*
-*Version number provisional — see `QPB_v1.6.1_Design.md` Decision Record #2. **Resolve before Phase 5 starts.***
+*Version number resolved 2026-10-01: v1.6.1, with Features S and R added. See `QPB_v1.6.1_Design.md` Decision Record #3. S and R land first; nothing is tagged until Phases 5–7 (precision) pass.*
 *Phase numbering is deliberately continued from the v1.6.0 plan (5, 6, 7) rather than restarted at 1, so landed commits and cross-references stay valid.*
 
 ---
@@ -28,6 +28,39 @@ New for this release:
 - v1.6.0 tagged, merged, and its branch closed out; `1.6.1` (or its resolved number) branched from it, base SHA recorded in the branch's first commit message.
 - The OpenFGA run fixtures preserved read-only as the precision oracle inputs.
 - **Resolve the version number** (`QPB_v1.6.1_Design.md` Decision Record #2) and rename these two documents if it changes.
+
+---
+
+# Features S and R (added 2026-10-01; land first, tag waits for Track 2)
+
+## Phase S: subagent execution guarded by the parent's gate run (Design §2a)
+
+- **Prerequisite:** the icalendar cloud run's `CLOUD-LOG.md` "Evidence for the subagent-execution change" section, plus its proposal. This is the acceptance evidence. Read it before drafting the text.
+- **Edits:** `SKILL.md` Mode A, `agents/quality-playbook-claude.agent.md` and `references/orchestrator_protocol.md`, through the Claude Code lane. Cowork proposes the diff.
+- **Tests:** update the pin test; add the mismatch fixture (subagent log says PASS, real gate FAILs, and the parent procedure must catch it).
+- **Gate:** worker self-Council (Protocol 1). This is a small surface; escalate to the nested external Council only if the self-Council splits.
+
+## Phase R: the open-source review process and `submit-pr` (Design §2b)
+
+- **R1, documentation and templates.**
+  - Contents: the process doc; templates for each brief (selector, confirmer, fixer, panel, re-review, synthesis); the `REVIEW.md` template; the `STATUS.md` schema and `build_index.py`; the contribution-policy checklist; the side-effect rule.
+  - Sources: the campaign's working copies (`docs/research/campaign-2026-09-29/confirm/`, `evidence/review-*/PANEL*.md`, `evidence/SUBMISSION-PROTOCOL.md`).
+  - Placement: orientation docs (`ai_context/`), so they can be edited directly per the workspace convention once Andrew has seen the diff.
+- **R2, `submit-pr`.** Rewrite the 2026-05-29 proposal as one bug per invocation, draft-only, protocol-aware, with no `--all` and no multi-bug PRs. Then build it (harness placement per that proposal's open question 1). Use the existing `evidence/SUBMIT/submit-*.sh` scripts as the reference behaviour.
+- **R3, the in-skill path (added 2026-10-01; Design §2b "In the skill itself").**
+  - Add the Phase 7 "Prepare upstream submissions" path and its reference file: analyze, then confirm, then operator pick, then fix, then panel, then prepare one bug at a time, then record.
+  - This is a skill source change: Claude Code lane, nested Council.
+  - R1's templates become the reference file's content; there's no separate copy.
+- **Gate:** R2's `--dry-run` matches one existing evidence folder; one real draft submission made through it, with its `REVIEW.md` record filled. **R3:** one target taken end to end through the in-skill path, from `BUGS.md` to a prepared draft, with the operator submitting. The cloud icalendar run can be that target if R3 lands in time; otherwise the next new project.
+
+## Release acceptance and cutover (Andrew, 2026-10-01)
+
+- **The test is real upstream merges.** The 1.6.1 acceptance evidence is bugs found by QPB in the new open-source projects (icalendar first, from the cloud run), submitted under `evidence/SUBMISSION-PROTOCOL.md`, and **merged by their maintainers**. A merge is independent confirmation that the bug was real, the fix was right, and the process works. Track each in `evidence/<slug>/STATUS.md`; `build_index.py` gives the running count.
+- **When enough have merged** (Andrew decides how many), the sequence is:
+  1. merge the 1.6.1 branch into `main`. The precision gate stays: Features A and B are built and pass their acceptance test before the tag. Andrew, 2026-10-01: the cloud chat may do the precision build work;
+  2. bring `ai_context/DEVELOPMENT_CONTEXT.md` up to date;
+  3. switch fully to the cloud chat.
+- **Cutover.** The Mac Cowork session and the cloud chat exchange follow-up prompts, relayed by Andrew, until the cloud chat's picture matches this session's. Cover campaign state, open PRs, held and decision items, and process rules. Verify by asking the cloud chat specific questions whose answers are on disk, not by trusting a summary.
 
 ---
 

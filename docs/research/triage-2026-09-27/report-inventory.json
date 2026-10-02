@@ -1,0 +1,1065 @@
+{
+  "date": "2026-09-27",
+  "scope": "repos/**/quality*/**/BUGS.md; rg inventory excluding .git, node_modules, vendor; includes archives and backups",
+  "note": "File inventory only. Report, target-directory, project, and distinct-defect counts are different. No findings validated by this inventory.",
+  "report_files": 130,
+  "target_directories": 104,
+  "reports_by_collection": {
+    "archive": 17,
+    "chi-1.5.8": 1,
+    "chi-1.6.0": 1,
+    "chi-1.6.0.bak-20260726T020949Z": 1,
+    "express-1.5.8": 1,
+    "express-accept": 1,
+    "linux": 13,
+    "qpb-ff": 1,
+    "secbench": 10,
+    "secbench-2": 26,
+    "secbench2": 23,
+    "secbench2_widenet": 33,
+    "virtio-1.5.8": 1,
+    "virtio-head": 1
+  },
+  "records": [
+    {
+      "report_path": "repos/archive/chi-1.3.45/quality.gate-failed-20260619T003750Z/previous_runs/20260413T232837Z/quality/BUGS.md",
+      "target_path": "repos/archive/chi-1.3.45",
+      "collection": "archive",
+      "sha256": "7f0eb113f488a14a9808f1c5b678e6c6e40c7b583238a2572740e36fe615b989",
+      "bytes": 14333,
+      "historical_archive_or_backup": true
+    },
+    {
+      "report_path": "repos/archive/chi-1.3.45/quality.gate-failed-20260619T003750Z/previous_runs/20260501T181923Z/quality/BUGS.md",
+      "target_path": "repos/archive/chi-1.3.45",
+      "collection": "archive",
+      "sha256": "7f0eb113f488a14a9808f1c5b678e6c6e40c7b583238a2572740e36fe615b989",
+      "bytes": 14333,
+      "historical_archive_or_backup": true
+    },
+    {
+      "report_path": "repos/archive/chi-1.3.45/quality.gate-failed-20260619T003750Z/previous_runs/20260504T005937Z/quality/BUGS.md",
+      "target_path": "repos/archive/chi-1.3.45",
+      "collection": "archive",
+      "sha256": "7f0eb113f488a14a9808f1c5b678e6c6e40c7b583238a2572740e36fe615b989",
+      "bytes": 14333,
+      "historical_archive_or_backup": true
+    },
+    {
+      "report_path": "repos/archive/chi-1.3.45/quality.gate-failed-20260619T003750Z/previous_runs/20260507T145226Z/quality/BUGS.md",
+      "target_path": "repos/archive/chi-1.3.45",
+      "collection": "archive",
+      "sha256": "7f0eb113f488a14a9808f1c5b678e6c6e40c7b583238a2572740e36fe615b989",
+      "bytes": 14333,
+      "historical_archive_or_backup": true
+    },
+    {
+      "report_path": "repos/archive/chi-1.3.45/quality.gate-failed-20260619T003750Z/previous_runs/20260618T194138Z/quality/BUGS.md",
+      "target_path": "repos/archive/chi-1.3.45",
+      "collection": "archive",
+      "sha256": "7f0eb113f488a14a9808f1c5b678e6c6e40c7b583238a2572740e36fe615b989",
+      "bytes": 14333,
+      "historical_archive_or_backup": true
+    },
+    {
+      "report_path": "repos/archive/chi-1.3.45/quality.gate-failed-20260619T003750Z/previous_runs/20260618T201924Z/quality/BUGS.md",
+      "target_path": "repos/archive/chi-1.3.45",
+      "collection": "archive",
+      "sha256": "7f0eb113f488a14a9808f1c5b678e6c6e40c7b583238a2572740e36fe615b989",
+      "bytes": 14333,
+      "historical_archive_or_backup": true
+    },
+    {
+      "report_path": "repos/archive/chi-1.5.1/quality.gate-failed-20260619T013236Z/previous_runs/20260422T220441Z/quality/BUGS.md",
+      "target_path": "repos/archive/chi-1.5.1",
+      "collection": "archive",
+      "sha256": "0530d43a0758b83198410c808b4ac11e12d9732c92eb749313549a8c4599a905",
+      "bytes": 7632,
+      "historical_archive_or_backup": true
+    },
+    {
+      "report_path": "repos/archive/chi-1.5.1/quality.gate-failed-20260619T013236Z/previous_runs/20260501T235737Z/quality/BUGS.md",
+      "target_path": "repos/archive/chi-1.5.1",
+      "collection": "archive",
+      "sha256": "27a99e85b6fdd1c8b89ef0f6a631a3ff405315fd0a5adb31e51cc1b98434f972",
+      "bytes": 16413,
+      "historical_archive_or_backup": true
+    },
+    {
+      "report_path": "repos/archive/chi-1.5.1/quality.gate-failed-20260619T013236Z/previous_runs/20260507T033609Z/quality/BUGS.md",
+      "target_path": "repos/archive/chi-1.5.1",
+      "collection": "archive",
+      "sha256": "27a99e85b6fdd1c8b89ef0f6a631a3ff405315fd0a5adb31e51cc1b98434f972",
+      "bytes": 16413,
+      "historical_archive_or_backup": true
+    },
+    {
+      "report_path": "repos/archive/chi-1.5.1/quality.gate-failed-20260619T013236Z/previous_runs/20260507T044646Z/quality/BUGS.md",
+      "target_path": "repos/archive/chi-1.5.1",
+      "collection": "archive",
+      "sha256": "40bd5fc6cb846342474c74810963601d2e743013a0d63848d55351e6c173dbd7",
+      "bytes": 20108,
+      "historical_archive_or_backup": true
+    },
+    {
+      "report_path": "repos/archive/chi-1.5.1/quality.gate-failed-20260619T013236Z/previous_runs/20260618T212035Z/quality/BUGS.md",
+      "target_path": "repos/archive/chi-1.5.1",
+      "collection": "archive",
+      "sha256": "1f409ab9233e839b4e9f63d34757d8acf99069a74af79156570b5b77f79bb0ae",
+      "bytes": 14843,
+      "historical_archive_or_backup": true
+    },
+    {
+      "report_path": "repos/archive/express-1.3.50/quality/previous_runs/20260415T002640Z/quality/BUGS.md",
+      "target_path": "repos/archive/express-1.3.50",
+      "collection": "archive",
+      "sha256": "1da868a5d4a3cd209278ab6b6d6c979598e3498e1a8347e9f6cf0bc3e59ffd94",
+      "bytes": 35507,
+      "historical_archive_or_backup": true
+    },
+    {
+      "report_path": "repos/archive/express-1.3.50/quality/previous_runs/20260504T032022Z/quality/BUGS.md",
+      "target_path": "repos/archive/express-1.3.50",
+      "collection": "archive",
+      "sha256": "1da868a5d4a3cd209278ab6b6d6c979598e3498e1a8347e9f6cf0bc3e59ffd94",
+      "bytes": 35507,
+      "historical_archive_or_backup": true
+    },
+    {
+      "report_path": "repos/archive/express-1.3.50/quality/previous_runs/20260618T232924Z/quality/BUGS.md",
+      "target_path": "repos/archive/express-1.3.50",
+      "collection": "archive",
+      "sha256": "f0d7ed852d86311c8e001ba29a7c976119de5fb962e0a936291a6cf5b11e2774",
+      "bytes": 25560,
+      "historical_archive_or_backup": true
+    },
+    {
+      "report_path": "repos/archive/virtio-1.5.1/quality.gate-failed-20260619T015749Z/previous_runs/20260423T001415Z/quality/BUGS.md",
+      "target_path": "repos/archive/virtio-1.5.1",
+      "collection": "archive",
+      "sha256": "596810d63bef08a9eb406381b32cddcbd4514cf0bdcc9ec2f628ae0161bca97f",
+      "bytes": 9766,
+      "historical_archive_or_backup": true
+    },
+    {
+      "report_path": "repos/archive/virtio-1.5.1/quality.gate-failed-20260619T015749Z/previous_runs/20260504T015750Z/quality/BUGS.md",
+      "target_path": "repos/archive/virtio-1.5.1",
+      "collection": "archive",
+      "sha256": "596810d63bef08a9eb406381b32cddcbd4514cf0bdcc9ec2f628ae0161bca97f",
+      "bytes": 9766,
+      "historical_archive_or_backup": true
+    },
+    {
+      "report_path": "repos/archive/virtio-1.5.1/quality.gate-failed-20260619T015749Z/previous_runs/20260618T223118Z/quality/BUGS.md",
+      "target_path": "repos/archive/virtio-1.5.1",
+      "collection": "archive",
+      "sha256": "336466db4f5810ee7a49202c4b247cf8465254c84531adde35c24a8cf6d7c7fb",
+      "bytes": 22319,
+      "historical_archive_or_backup": true
+    },
+    {
+      "report_path": "repos/chi-1.5.8/quality/BUGS.md",
+      "target_path": "repos/chi-1.5.8",
+      "collection": "chi-1.5.8",
+      "sha256": "d3109991d0bb2e7c3e15a23cc0ae3e94aeae26d7f088be12ad27679cd0b7c89b",
+      "bytes": 13788,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/chi-1.6.0.bak-20260726T020949Z/quality/BUGS.md",
+      "target_path": "repos/chi-1.6.0.bak-20260726T020949Z",
+      "collection": "chi-1.6.0.bak-20260726T020949Z",
+      "sha256": "6d38105e096e0d0ad1bf846f73784e491849635a2d8e5b80e8ddadbcd49da16f",
+      "bytes": 863,
+      "historical_archive_or_backup": true
+    },
+    {
+      "report_path": "repos/chi-1.6.0/quality/BUGS.md",
+      "target_path": "repos/chi-1.6.0",
+      "collection": "chi-1.6.0",
+      "sha256": "7f562626e2ce178144e1aae844e85fb58908fb9abf2da4862a9baa96f440089c",
+      "bytes": 24726,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/express-1.5.8/quality/BUGS.md",
+      "target_path": "repos/express-1.5.8",
+      "collection": "express-1.5.8",
+      "sha256": "aa5d7736735f03c4cab6f034d784832b17b05451df1c7ff984582ae24744a56f",
+      "bytes": 10347,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/express-accept/quality/BUGS.md",
+      "target_path": "repos/express-accept",
+      "collection": "express-accept",
+      "sha256": "fdff90f7f265bb9c8fb1c8d25b7582ee3abbeef733cc1fecaeb6049611eaefe7",
+      "bytes": 3835,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/linux/exfat/quality/BUGS.md",
+      "target_path": "repos/linux/exfat",
+      "collection": "linux",
+      "sha256": "f7fb46e54e11edbd9f9101d65ea518acaa64c0ed2d63df1112d716a579ba81f7",
+      "bytes": 57603,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/linux/mptcp/quality/BUGS.md",
+      "target_path": "repos/linux/mptcp",
+      "collection": "linux",
+      "sha256": "8e6a00ef5963261a0fc980de3de9d715c16b959ad5ef2002b5dc4024cdc01a35",
+      "bytes": 12652,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/linux/nfsd/quality/BUGS.md",
+      "target_path": "repos/linux/nfsd",
+      "collection": "linux",
+      "sha256": "67891ba1a4234e32dfb90689fd0f71ba7a2c1a5ef1f65e98a7a3346ea9863e2a",
+      "bytes": 76589,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/linux/nvme-host-docs/quality/BUGS.md",
+      "target_path": "repos/linux/nvme-host-docs",
+      "collection": "linux",
+      "sha256": "83f09ab3061016415bcf9fc4c3f056afcb96099e3fed0176da5992bb7f32348d",
+      "bytes": 19327,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/linux/nvme-host/quality/BUGS.md",
+      "target_path": "repos/linux/nvme-host",
+      "collection": "linux",
+      "sha256": "aa6c5fc7df93b8c569af199277f02c46a69dd9a5dcef1f4d223466132d7cf9f0",
+      "bytes": 10420,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/linux/nvme-host/quality_baseline_nodocs/BUGS.md",
+      "target_path": "repos/linux/nvme-host",
+      "collection": "linux",
+      "sha256": "aa6c5fc7df93b8c569af199277f02c46a69dd9a5dcef1f4d223466132d7cf9f0",
+      "bytes": 10420,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/linux/nvme-target/quality/BUGS.md",
+      "target_path": "repos/linux/nvme-target",
+      "collection": "linux",
+      "sha256": "621798754b0a0f0b816280476969afdd3de07befbfdcfc8e056b748e48b0011b",
+      "bytes": 124905,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/linux/sctp/quality/BUGS.md",
+      "target_path": "repos/linux/sctp",
+      "collection": "linux",
+      "sha256": "491e54d567f674f227b53f687cdd1aad6c44efa12374f48fe0a726732e7d640c",
+      "bytes": 39310,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/linux/sctp2/quality/BUGS.md",
+      "target_path": "repos/linux/sctp2",
+      "collection": "linux",
+      "sha256": "3ed5eaf37ab6046292c290e28d6e32c91f33d90afb4f50118048838b39aa4ef8",
+      "bytes": 113846,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/linux/smc/quality/BUGS.md",
+      "target_path": "repos/linux/smc",
+      "collection": "linux",
+      "sha256": "fd1e4be33355138e1e5f5914a2d41b9552f4562cc01c55fa47ad8f18304cffe5",
+      "bytes": 128921,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/linux/tls/quality/BUGS.md",
+      "target_path": "repos/linux/tls",
+      "collection": "linux",
+      "sha256": "c7b04590312f4b01f00b3a6d637b2c99883de504fc56b89bbf991d840b5b64c9",
+      "bytes": 29257,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/linux/virtio/quality/BUGS.md",
+      "target_path": "repos/linux/virtio",
+      "collection": "linux",
+      "sha256": "6097207236a0b81aabc5b661c1f63a28fbe842c7c49e3b17c8e36ad7b3e9e31d",
+      "bytes": 38202,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/linux/vsock/quality/BUGS.md",
+      "target_path": "repos/linux/vsock",
+      "collection": "linux",
+      "sha256": "c8c3a95ee3b37884f64c6f545b84b3c3049ec0107086eb2e53e38a9a09af443c",
+      "bytes": 111858,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/qpb-ff/flatted/quality/BUGS.md",
+      "target_path": "repos/qpb-ff/flatted",
+      "collection": "qpb-ff",
+      "sha256": "3caa41702860d6f0ab7727eccae45e115120b6f916ebde6a15a3090a7da5f892",
+      "bytes": 18567,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench-2/addressable/quality/BUGS.md",
+      "target_path": "repos/secbench-2/addressable",
+      "collection": "secbench-2",
+      "sha256": "7c81cbe588f43d3402cb5a47afddc76737be0761d0637400d8811782115e2e5a",
+      "bytes": 9756,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench-2/adonisjs-http-server/quality/BUGS.md",
+      "target_path": "repos/secbench-2/adonisjs-http-server",
+      "collection": "secbench-2",
+      "sha256": "65d6e9b2b9dd7a8f9a2c2f79ed05f7cf35d0ff65b09db5cccc1b3e36d16ebad1",
+      "bytes": 7489,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench-2/compliance-trestle/quality/BUGS.md",
+      "target_path": "repos/secbench-2/compliance-trestle",
+      "collection": "secbench-2",
+      "sha256": "573332848b7fc50e44c9a02c2b9cd132674a8852dbd24fa0ecaa0e25844cdc20",
+      "bytes": 11096,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench-2/ech0/quality/BUGS.md",
+      "target_path": "repos/secbench-2/ech0",
+      "collection": "secbench-2",
+      "sha256": "1b6192f8f7305ad5e75b3748f17faad1883b7b5d638b60e727ce7ded7116a315",
+      "bytes": 8921,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench-2/erb/quality/BUGS.md",
+      "target_path": "repos/secbench-2/erb",
+      "collection": "secbench-2",
+      "sha256": "cfff5950c1c28bfc9b7713b09f7fcf03e818035e73756fce31d833e9aeb24f8a",
+      "bytes": 9962,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench-2/file-type/quality/BUGS.md",
+      "target_path": "repos/secbench-2/file-type",
+      "collection": "secbench-2",
+      "sha256": "e797d05cc76c63de376f53b530b1f9b2e4f3cb6c97c43f513772a0ec4d67dba5",
+      "bytes": 8362,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench-2/flatted/quality/BUGS.md",
+      "target_path": "repos/secbench-2/flatted",
+      "collection": "secbench-2",
+      "sha256": "1540c6ee2bb23f84cc5bf595ae552a1c06c8ffa564405071481c0a8ed5e6152d",
+      "bytes": 8934,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench-2/flatted/quality_gen2/BUGS.md",
+      "target_path": "repos/secbench-2/flatted",
+      "collection": "secbench-2",
+      "sha256": "6d666ee636bb6a49f90080cd80f286db5b15fd48ca21e0e53b81b724b6bc97ea",
+      "bytes": 14580,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench-2/ghost/quality/BUGS.md",
+      "target_path": "repos/secbench-2/ghost",
+      "collection": "secbench-2",
+      "sha256": "eccaa2b228e68808e8396f6af7ca6d4257c54a5436a1b01ba5970944677e630e",
+      "bytes": 13128,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench-2/jupyter-enterprise-gateway/quality/BUGS.md",
+      "target_path": "repos/secbench-2/jupyter-enterprise-gateway",
+      "collection": "secbench-2",
+      "sha256": "0ef16d9c9ac53c0ec6c720ced77b7857b7a4129955817335f4e2335d0334a09c",
+      "bytes": 14838,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench-2/jupyter-enterprise-gateway/quality_gen2/BUGS.md",
+      "target_path": "repos/secbench-2/jupyter-enterprise-gateway",
+      "collection": "secbench-2",
+      "sha256": "36c4534abe2faf9c795dbb8704456bbf37018647d67fcc81b47b9217d4d69b1a",
+      "bytes": 22275,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench-2/lmdeploy/quality/BUGS.md",
+      "target_path": "repos/secbench-2/lmdeploy",
+      "collection": "secbench-2",
+      "sha256": "56a7406a231fe8af31f621cbe188849b998848a69de9a2d769bcad0fda776a18",
+      "bytes": 14301,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench-2/minimatch/quality/BUGS.md",
+      "target_path": "repos/secbench-2/minimatch",
+      "collection": "secbench-2",
+      "sha256": "4648802c10e8031c1a9a7b0b7c1de68d88516e098af4e8e5193e2def57ad32c3",
+      "bytes": 12806,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench-2/nltk/quality/BUGS.md",
+      "target_path": "repos/secbench-2/nltk",
+      "collection": "secbench-2",
+      "sha256": "c119afe81058c11b6bde8f5ca7b3d60bfa2dd07664d9a0d84c45aeb0d3a17ec9",
+      "bytes": 8710,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench-2/node-tar/quality/BUGS.md",
+      "target_path": "repos/secbench-2/node-tar",
+      "collection": "secbench-2",
+      "sha256": "7592d351319daaa4c5abfc5cb5edd4b633d59475166de0002a0f98b5fd9d22ec",
+      "bytes": 11536,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench-2/olivetin/quality/BUGS.md",
+      "target_path": "repos/secbench-2/olivetin",
+      "collection": "secbench-2",
+      "sha256": "fc19f9c3cc41afb69d26624c91994e4da3d290c3c6e1dd5c28e6dbb241ad4315",
+      "bytes": 18376,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench-2/openhands/quality/BUGS.md",
+      "target_path": "repos/secbench-2/openhands",
+      "collection": "secbench-2",
+      "sha256": "93acb480d1cc2c6d12fd067624045147f4e55947e53142b5b50856a076a120f2",
+      "bytes": 13087,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench-2/openhands/quality_gen2/BUGS.md",
+      "target_path": "repos/secbench-2/openhands",
+      "collection": "secbench-2",
+      "sha256": "e6ed508a479f755b3cdaccca65f5a4f8decb60d1713ca123a5bfd628ffe58c59",
+      "bytes": 13549,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench-2/picomatch/quality/BUGS.md",
+      "target_path": "repos/secbench-2/picomatch",
+      "collection": "secbench-2",
+      "sha256": "43aa7ecabb4fcd9dd0763626d5b8f7322d8cd7306f1ada91208566500a73fed2",
+      "bytes": 7290,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench-2/picomatch/quality_gen2/BUGS.md",
+      "target_path": "repos/secbench-2/picomatch",
+      "collection": "secbench-2",
+      "sha256": "5d28520dd85f3d353e8f0431d8b0f1dd661e5a422cef7a304947ad2e9655e33b",
+      "bytes": 9081,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench-2/praisonai/quality/BUGS.md",
+      "target_path": "repos/secbench-2/praisonai",
+      "collection": "secbench-2",
+      "sha256": "1abf4616424f410a6419833bb856b26a0a727a0c38de2ccc70076e2921238c6f",
+      "bytes": 16615,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench-2/react-router/quality/BUGS.md",
+      "target_path": "repos/secbench-2/react-router",
+      "collection": "secbench-2",
+      "sha256": "105517dcfa8df5e1a1d7ae6521a4f9aa7ec9c11ee6c9e289d930609ba322ddb2",
+      "bytes": 7957,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench-2/rollup/quality/BUGS.md",
+      "target_path": "repos/secbench-2/rollup",
+      "collection": "secbench-2",
+      "sha256": "d1a4c8650d9e44f0fa8d8bcaf1cd76708fe5d1749a1ddd767f5a2fdfdba3849d",
+      "bytes": 9714,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench-2/sentry/quality/BUGS.md",
+      "target_path": "repos/secbench-2/sentry",
+      "collection": "secbench-2",
+      "sha256": "96e01079cfd2423ac7346362690b9f92d19795efc9b12ca956afdced7755f3cb",
+      "bytes": 10075,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench-2/spring-framework/quality/BUGS.md",
+      "target_path": "repos/secbench-2/spring-framework",
+      "collection": "secbench-2",
+      "sha256": "49588e15b0c998eb62c2d4898a6ecb08bebbb557dde8b4d6fe89d098771390c6",
+      "bytes": 12837,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench-2/weknora/quality/BUGS.md",
+      "target_path": "repos/secbench-2/weknora",
+      "collection": "secbench-2",
+      "sha256": "f026b5e079d9a1d0b83f836561ee93eebeda04632b1bec2ba7d8110eef2b9f35",
+      "bytes": 17788,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench/CASE-001-setuptools/quality/BUGS.md",
+      "target_path": "repos/secbench/CASE-001-setuptools",
+      "collection": "secbench",
+      "sha256": "c4f909f9345616722ad640995dbde7acb0756cd42e3e76e2a777740f9446764b",
+      "bytes": 4219,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench/CASE-002-jspdf/quality/BUGS.md",
+      "target_path": "repos/secbench/CASE-002-jspdf",
+      "collection": "secbench",
+      "sha256": "ac04d4ae09ab3893e3a6cb5b55d94310cd18e2d04eed8700f2aba771e8241fef",
+      "bytes": 12725,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench/CASE-003-keras/quality/BUGS.md",
+      "target_path": "repos/secbench/CASE-003-keras",
+      "collection": "secbench",
+      "sha256": "db2914e3324d1804076a0af4dd7d6527b53323bfcfe5500bfcf164c8dc74dc3d",
+      "bytes": 9082,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench/CASE-004-cpython/quality/BUGS.md",
+      "target_path": "repos/secbench/CASE-004-cpython",
+      "collection": "secbench",
+      "sha256": "fb31e9f402eef63279fb09b051093cf265c33e7c626318848cd20ce662bc67d9",
+      "bytes": 4248,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench/CASE-005-avro/quality/BUGS.md",
+      "target_path": "repos/secbench/CASE-005-avro",
+      "collection": "secbench",
+      "sha256": "e9845ee34c97a312b7daefd28d3ebec9c43f9f37e2a3f0af1fb6a6bd60bd1c1c",
+      "bytes": 9696,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench/CASE-006-budibase/quality/BUGS.md",
+      "target_path": "repos/secbench/CASE-006-budibase",
+      "collection": "secbench",
+      "sha256": "db0b69ee18489ba1f2cbdc55d16bc57d3e2baea2c42e0ed2480f04530d9be623",
+      "bytes": 8603,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench/CASE-007-spark/quality/BUGS.md",
+      "target_path": "repos/secbench/CASE-007-spark",
+      "collection": "secbench",
+      "sha256": "0e92647b46f7f3534a961e4ce96c565a31c463b6eca80dd019c0585764718747",
+      "bytes": 5703,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench/CASE-008-dasel/quality/BUGS.md",
+      "target_path": "repos/secbench/CASE-008-dasel",
+      "collection": "secbench",
+      "sha256": "c98505a8e6414e9268f1583a360bb4edde492d57b8484f7576096685057bff02",
+      "bytes": 13749,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench/CASE-009-evervault-go/quality/BUGS.md",
+      "target_path": "repos/secbench/CASE-009-evervault-go",
+      "collection": "secbench",
+      "sha256": "438b98faecee0f8f7293974d95ecdad6d42027ddeb964476b664aba598d73da8",
+      "bytes": 9015,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench/CASE-010-gogs/quality/BUGS.md",
+      "target_path": "repos/secbench/CASE-010-gogs",
+      "collection": "secbench",
+      "sha256": "22c31de75d0860dff12a86979b1c3fd875bfb697c788ef79f8f2b55edeeb187e",
+      "bytes": 16240,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench2/sb2-01-mcp-atlassian/quality.stale-patched-20260621T191306Z/BUGS.md",
+      "target_path": "repos/secbench2/sb2-01-mcp-atlassian",
+      "collection": "secbench2",
+      "sha256": "afb07e1b4de982dfc24e1733b57b457e89a84d257197fbde3b74a401e1a5bc0b",
+      "bytes": 5741,
+      "historical_archive_or_backup": true
+    },
+    {
+      "report_path": "repos/secbench2/sb2-01-mcp-atlassian/quality.stale-patched-20260621T205910Z/BUGS.md",
+      "target_path": "repos/secbench2/sb2-01-mcp-atlassian",
+      "collection": "secbench2",
+      "sha256": "439b0bdb9773bbcd1d4c3c6a7fd6007fe88f798c49f7a0270ff2984a70114005",
+      "bytes": 4890,
+      "historical_archive_or_backup": true
+    },
+    {
+      "report_path": "repos/secbench2/sb2-01-mcp-atlassian/quality/BUGS.md",
+      "target_path": "repos/secbench2/sb2-01-mcp-atlassian",
+      "collection": "secbench2",
+      "sha256": "af0ba1360ab72dc88a386511f339c5f245ba44539a6add2c5bdebaf44bbc2d53",
+      "bytes": 11865,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench2/sb2-02-microceph/quality/BUGS.md",
+      "target_path": "repos/secbench2/sb2-02-microceph",
+      "collection": "secbench2",
+      "sha256": "f5d246ac7e9b8c870e284d13346c6b71de35503ed4d8adaa439a14a8a98472a6",
+      "bytes": 9742,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench2/sb2-03-microsoft-apm/quality.stale-patched-20260621T191306Z/BUGS.md",
+      "target_path": "repos/secbench2/sb2-03-microsoft-apm",
+      "collection": "secbench2",
+      "sha256": "eae0687a111620d35da763fc390e10aafd0292baf13fd4257337ef09c3b00bbf",
+      "bytes": 5608,
+      "historical_archive_or_backup": true
+    },
+    {
+      "report_path": "repos/secbench2/sb2-03-microsoft-apm/quality/BUGS.md",
+      "target_path": "repos/secbench2/sb2-03-microsoft-apm",
+      "collection": "secbench2",
+      "sha256": "d391b1c566f680e88d82359b9307286358e305638e94ca2091a00b9d3c9c2ac6",
+      "bytes": 6905,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench2/sb2-04-openclaw-pathtrav/quality/BUGS.md",
+      "target_path": "repos/secbench2/sb2-04-openclaw-pathtrav",
+      "collection": "secbench2",
+      "sha256": "d11a3dcfc0678c7251bb20e7a91ac934513dc7298f03f005a12fd859ecc8bf52",
+      "bytes": 5663,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench2/sb2-05-bionemo/quality/BUGS.md",
+      "target_path": "repos/secbench2/sb2-05-bionemo",
+      "collection": "secbench2",
+      "sha256": "56172dedecd9aaff9c7a2446a1fb41ec6215f8cff4acd7ad8d4b9c7c574897ff",
+      "bytes": 5062,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench2/sb2-06-picklescan/quality/BUGS.md",
+      "target_path": "repos/secbench2/sb2-06-picklescan",
+      "collection": "secbench2",
+      "sha256": "a7c52ffe827c98d70ab53d839e2c3f5d16d4305bf19a4799abd77d608d2f3e0f",
+      "bytes": 6626,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench2/sb2-08-hermes-webui/quality/BUGS.md",
+      "target_path": "repos/secbench2/sb2-08-hermes-webui",
+      "collection": "secbench2",
+      "sha256": "22fc1a421d1a4fc414bfbb6fab0775be5f7b32e84850d3f47b7486903cf81027",
+      "bytes": 4089,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench2/sb2-09-omni/quality.stale-patched-20260621T191306Z/BUGS.md",
+      "target_path": "repos/secbench2/sb2-09-omni",
+      "collection": "secbench2",
+      "sha256": "2867316766d7514065e91e4ed6fcd04c9be364b78121e80c2b57973f511eee66",
+      "bytes": 4302,
+      "historical_archive_or_backup": true
+    },
+    {
+      "report_path": "repos/secbench2/sb2-09-omni/quality.stale-patched-20260621T205910Z/BUGS.md",
+      "target_path": "repos/secbench2/sb2-09-omni",
+      "collection": "secbench2",
+      "sha256": "bfd622fa9cca2ab10d7a8e800abc1a01d8aef5f60225dfa89df6c086372ee3ed",
+      "bytes": 6442,
+      "historical_archive_or_backup": true
+    },
+    {
+      "report_path": "repos/secbench2/sb2-09-omni/quality/BUGS.md",
+      "target_path": "repos/secbench2/sb2-09-omni",
+      "collection": "secbench2",
+      "sha256": "5795f385e567df84eb5c72782f826c620970d662d9e070cb3dcd46c4a90c3da0",
+      "bytes": 6769,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench2/sb2-10-openclaw-toctou/quality/BUGS.md",
+      "target_path": "repos/secbench2/sb2-10-openclaw-toctou",
+      "collection": "secbench2",
+      "sha256": "a7b0379ba3879f1e211ac0283a74d3a7df232665d1046bb4c91f89c21b26b261",
+      "bytes": 9776,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench2/sb2-15-assertj/quality.stale-patched-20260621T191306Z/BUGS.md",
+      "target_path": "repos/secbench2/sb2-15-assertj",
+      "collection": "secbench2",
+      "sha256": "4c62451da21bb48490877165ec3e1f63902f38ccb92d160ce3f33060ed37610c",
+      "bytes": 5670,
+      "historical_archive_or_backup": true
+    },
+    {
+      "report_path": "repos/secbench2/sb2-15-assertj/quality/BUGS.md",
+      "target_path": "repos/secbench2/sb2-15-assertj",
+      "collection": "secbench2",
+      "sha256": "8f50bbb2c142ae5988552880cede4f88c1c6edb027a39325b0506e30ac9e8e53",
+      "bytes": 7332,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench2/sb2-18-bigbluebutton/quality/BUGS.md",
+      "target_path": "repos/secbench2/sb2-18-bigbluebutton",
+      "collection": "secbench2",
+      "sha256": "f3a53d268372f326375a599d1593c85a2e49dc8269b7dad716e0eba17376cda3",
+      "bytes": 10603,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench2/sb2-19-affine/quality.incomplete-20260621-111719/BUGS.md",
+      "target_path": "repos/secbench2/sb2-19-affine",
+      "collection": "secbench2",
+      "sha256": "47407da82f6add19c96cd878dcf735d96cd6f4354ddb8be7a2bd5c9e2e1f1f95",
+      "bytes": 4111,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench2/sb2-19-affine/quality/BUGS.md",
+      "target_path": "repos/secbench2/sb2-19-affine",
+      "collection": "secbench2",
+      "sha256": "22e3ee006e67a99d7086ef90c945db5e1cb741235111cfd5f9c0d47857929a9a",
+      "bytes": 4773,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench2/sb2-21-compliance-trestle/quality.stale-patched-20260621T191306Z/BUGS.md",
+      "target_path": "repos/secbench2/sb2-21-compliance-trestle",
+      "collection": "secbench2",
+      "sha256": "de659c8a0feb9ca053a0bb30829ad8838cc77387ae3c5b7f08d140b3861d4bd9",
+      "bytes": 4690,
+      "historical_archive_or_backup": true
+    },
+    {
+      "report_path": "repos/secbench2/sb2-21-compliance-trestle/quality/BUGS.md",
+      "target_path": "repos/secbench2/sb2-21-compliance-trestle",
+      "collection": "secbench2",
+      "sha256": "503197574f20467e66dfd45b6da198b47b7a04d039c9bee36da36fd225c3bd1f",
+      "bytes": 5730,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench2/sb2-24-calibre/quality/BUGS.md",
+      "target_path": "repos/secbench2/sb2-24-calibre",
+      "collection": "secbench2",
+      "sha256": "9b8764bd2f4a64ceb1db352d607ead1d701d6d60e2796b5344e582b76a1de265",
+      "bytes": 5594,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench2/sb2-27-camaleon/quality/BUGS.md",
+      "target_path": "repos/secbench2/sb2-27-camaleon",
+      "collection": "secbench2",
+      "sha256": "743d6f434212feb8a62baddb1d2ab31901dcca224774e458e2b22e00afff6985",
+      "bytes": 9590,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench2_widenet/wn-c-04-gdk-pixbuf/quality/BUGS.md",
+      "target_path": "repos/secbench2_widenet/wn-c-04-gdk-pixbuf",
+      "collection": "secbench2_widenet",
+      "sha256": "b7ac7f02f6b7345a8da5ed54be54c031a969a8342c90923d48b9d292f2f779ff",
+      "bytes": 11003,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench2_widenet/wn-c-05-perl5/quality/BUGS.md",
+      "target_path": "repos/secbench2_widenet/wn-c-05-perl5",
+      "collection": "secbench2_widenet",
+      "sha256": "d276dae63d394d72718ea1c66dd68dacf9c16b952ad71ae073de9f8366762a3e",
+      "bytes": 4109,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench2_widenet/wn-go-01-goshs/quality/BUGS.md",
+      "target_path": "repos/secbench2_widenet/wn-go-01-goshs",
+      "collection": "secbench2_widenet",
+      "sha256": "0a4d13a2f71a437b2936c4f6010db5c9c58b4ec66e6407657bc1f5301f83ceb6",
+      "bytes": 19441,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench2_widenet/wn-go-02-goshs/quality/BUGS.md",
+      "target_path": "repos/secbench2_widenet/wn-go-02-goshs",
+      "collection": "secbench2_widenet",
+      "sha256": "69c6396d4157d6f9f975d54aa7a644eaaf1ae99623a49e5c266fa1ccab790894",
+      "bytes": 11078,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench2_widenet/wn-go-03-goshs/quality/BUGS.md",
+      "target_path": "repos/secbench2_widenet/wn-go-03-goshs",
+      "collection": "secbench2_widenet",
+      "sha256": "9ebcf5988dbeb8d7fe28962a30840568e773e1a30c881c63d9c429f22d80e9a4",
+      "bytes": 11434,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench2_widenet/wn-go-04-goshs/quality/BUGS.md",
+      "target_path": "repos/secbench2_widenet/wn-go-04-goshs",
+      "collection": "secbench2_widenet",
+      "sha256": "0a86f3bd40f3ed088fb683db2d4a4282284aeb4a34c34cededfeeae1805603a4",
+      "bytes": 7252,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench2_widenet/wn-go-05-goshs/quality/BUGS.md",
+      "target_path": "repos/secbench2_widenet/wn-go-05-goshs",
+      "collection": "secbench2_widenet",
+      "sha256": "539a931debc0235de167185fef2d7886a4caa1e66de0b0aa98cec6a8dd3512ab",
+      "bytes": 12185,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench2_widenet/wn-go-06-grpc-go/quality/BUGS.md",
+      "target_path": "repos/secbench2_widenet/wn-go-06-grpc-go",
+      "collection": "secbench2_widenet",
+      "sha256": "836cbed76e76d7c51df45ab3834039830a47981a46941a1331129cc23972d97c",
+      "bytes": 9296,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench2_widenet/wn-go-07-pipeline/quality/BUGS.md",
+      "target_path": "repos/secbench2_widenet/wn-go-07-pipeline",
+      "collection": "secbench2_widenet",
+      "sha256": "4f34b31a6aed80819675d5f315eba01aadce714adfa16b6b46a2bed42e2f1d93",
+      "bytes": 10435,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench2_widenet/wn-go-09-zitadel/quality/BUGS.md",
+      "target_path": "repos/secbench2_widenet/wn-go-09-zitadel",
+      "collection": "secbench2_widenet",
+      "sha256": "a6413e26cc9cdc2590b3cf0addcde5485bbc9322548efdeafbfe66388e5c8d32",
+      "bytes": 7218,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench2_widenet/wn-go-10-frankenphp/quality/BUGS.md",
+      "target_path": "repos/secbench2_widenet/wn-go-10-frankenphp",
+      "collection": "secbench2_widenet",
+      "sha256": "d3f55a9b1f9d96af3eb7b966034b0b0c971fd9e35dde23dc06f5739f89bd5444",
+      "bytes": 7166,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench2_widenet/wn-go-11-openbao/quality/BUGS.md",
+      "target_path": "repos/secbench2_widenet/wn-go-11-openbao",
+      "collection": "secbench2_widenet",
+      "sha256": "0c028b4f5818ae391ebddc2123636efed8651ffe721ea495d237053a58512895",
+      "bytes": 3202,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench2_widenet/wn-go-12-source-controller/quality/BUGS.md",
+      "target_path": "repos/secbench2_widenet/wn-go-12-source-controller",
+      "collection": "secbench2_widenet",
+      "sha256": "58a2911360b9d7d55b8c05de853f4929b2ea378da63889510518d6bfa43b4381",
+      "bytes": 5683,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench2_widenet/wn-jsts-01-flatted/quality/BUGS.md",
+      "target_path": "repos/secbench2_widenet/wn-jsts-01-flatted",
+      "collection": "secbench2_widenet",
+      "sha256": "e4b2fea227ed5eb8ac4d845f1fc51e833906bf5cb8ece8a0b0545ea5a1432891",
+      "bytes": 15061,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench2_widenet/wn-jsts-02-shell-quote/quality/BUGS.md",
+      "target_path": "repos/secbench2_widenet/wn-jsts-02-shell-quote",
+      "collection": "secbench2_widenet",
+      "sha256": "4305c15b74dd88bc42a333f04290ce834395985ba7c337f6d4bad8b6d0145bf9",
+      "bytes": 3906,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench2_widenet/wn-jsts-03-immutable-js/quality/BUGS.md",
+      "target_path": "repos/secbench2_widenet/wn-jsts-03-immutable-js",
+      "collection": "secbench2_widenet",
+      "sha256": "8fcc67d70e6b59e8d45ef2d1e93622b3a272d78ddd9aacef2e562dbbbc0f520f",
+      "bytes": 5927,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench2_widenet/wn-jsts-04-swiper/quality/BUGS.md",
+      "target_path": "repos/secbench2_widenet/wn-jsts-04-swiper",
+      "collection": "secbench2_widenet",
+      "sha256": "cd6a6f46d4461f5a2b6f1e6d06151c79dbf5b584e2d50af14ed436016001cb2c",
+      "bytes": 20657,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench2_widenet/wn-jsts-05-defu/quality/BUGS.md",
+      "target_path": "repos/secbench2_widenet/wn-jsts-05-defu",
+      "collection": "secbench2_widenet",
+      "sha256": "4ed96cf2ecdf6979a7c7981524a234eebb8fff91abc863fcdd31a59dc887dd2c",
+      "bytes": 3110,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench2_widenet/wn-jsts-06-minimatch/quality/BUGS.md",
+      "target_path": "repos/secbench2_widenet/wn-jsts-06-minimatch",
+      "collection": "secbench2_widenet",
+      "sha256": "748710ca80713926cdfe7a84a48c42d5242e74dd54c0f93773b41979b9e2b05a",
+      "bytes": 6147,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench2_widenet/wn-jsts-13-svelte/quality/BUGS.md",
+      "target_path": "repos/secbench2_widenet/wn-jsts-13-svelte",
+      "collection": "secbench2_widenet",
+      "sha256": "44a9b422c9a042254e8cd1a34baa1027a6a00e9e82894c3b4b1efca386aa63e5",
+      "bytes": 3748,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench2_widenet/wn-jsts-14-next.js/quality/BUGS.md",
+      "target_path": "repos/secbench2_widenet/wn-jsts-14-next.js",
+      "collection": "secbench2_widenet",
+      "sha256": "4231d44dced39db0361466690d56e140f3f2f5ded1128f31e947ab49f5bb8a79",
+      "bytes": 2660,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench2_widenet/wn-jvm-02-opentelemetry-java-instrumentation/quality/BUGS.md",
+      "target_path": "repos/secbench2_widenet/wn-jvm-02-opentelemetry-java-instrumentation",
+      "collection": "secbench2_widenet",
+      "sha256": "4f35212311b4e872fafc7ccb54b99c88458962cb995d7ac34052b43af39b0738",
+      "bytes": 9083,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench2_widenet/wn-jvm-03-junrar/quality/BUGS.md",
+      "target_path": "repos/secbench2_widenet/wn-jvm-03-junrar",
+      "collection": "secbench2_widenet",
+      "sha256": "7236f5f50c3625421ebc07d5f0b1ac33583c354ac5df8fce62addc0f97a35ba8",
+      "bytes": 17415,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench2_widenet/wn-jvm-04-junrar/quality/BUGS.md",
+      "target_path": "repos/secbench2_widenet/wn-jvm-04-junrar",
+      "collection": "secbench2_widenet",
+      "sha256": "394d441c42a2314f478bb6d9f1bffb16034485153a247b015c376221920994e0",
+      "bytes": 9858,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench2_widenet/wn-php-01-commerce/quality/BUGS.md",
+      "target_path": "repos/secbench2_widenet/wn-php-01-commerce",
+      "collection": "secbench2_widenet",
+      "sha256": "eec649517b9be266d04d47fe733c75a6ff2301a21e705ed940b66259dd88c515",
+      "bytes": 27032,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench2_widenet/wn-py-09-aiohttp/quality/BUGS.md",
+      "target_path": "repos/secbench2_widenet/wn-py-09-aiohttp",
+      "collection": "secbench2_widenet",
+      "sha256": "daac5cfa784c5c3f0ab05d0b865f35c15790bfbd6aff7d9ddd261945cd07898a",
+      "bytes": 20043,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench2_widenet/wn-py-10-requests/quality/BUGS.md",
+      "target_path": "repos/secbench2_widenet/wn-py-10-requests",
+      "collection": "secbench2_widenet",
+      "sha256": "ddac32e56ef75dcc1528dab24b7875d1ee3ee8f31af9aacd0474eef89a3f22bf",
+      "bytes": 5566,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench2_widenet/wn-py-11-glances/quality/BUGS.md",
+      "target_path": "repos/secbench2_widenet/wn-py-11-glances",
+      "collection": "secbench2_widenet",
+      "sha256": "b2dbf949c95bbc007a48335b0c4462571ba2308f4aa865cd06e54e7171b30e0a",
+      "bytes": 29936,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench2_widenet/wn-py-12-glances/quality/BUGS.md",
+      "target_path": "repos/secbench2_widenet/wn-py-12-glances",
+      "collection": "secbench2_widenet",
+      "sha256": "0a764524a361964f6abcb7d7ccf655cb2706c1cac5f21096aa7d3860da003be2",
+      "bytes": 9481,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench2_widenet/wn-rb-01-rails/quality/BUGS.md",
+      "target_path": "repos/secbench2_widenet/wn-rb-01-rails",
+      "collection": "secbench2_widenet",
+      "sha256": "40477e09e88015119dd90d829530e8a8678d8554ae8b8f7bd54a9d1b2f00fd89",
+      "bytes": 9909,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench2_widenet/wn-rb-02-rails/quality/BUGS.md",
+      "target_path": "repos/secbench2_widenet/wn-rb-02-rails",
+      "collection": "secbench2_widenet",
+      "sha256": "fa09067429dc58d9f3aa870f3bc09decffa12113293fc3409ce4d7dca3f1e034",
+      "bytes": 8345,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench2_widenet/wn-rb-03-rails/quality/BUGS.md",
+      "target_path": "repos/secbench2_widenet/wn-rb-03-rails",
+      "collection": "secbench2_widenet",
+      "sha256": "92943bae2e4ce879d25f31f9d2b58bcd729bb5bf9619c77b484d47fc46a0ab40",
+      "bytes": 11406,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/secbench2_widenet/wn-rs-02-tar-rs/quality/BUGS.md",
+      "target_path": "repos/secbench2_widenet/wn-rs-02-tar-rs",
+      "collection": "secbench2_widenet",
+      "sha256": "432ef9d497280372edcc45720ba10b0ad9039b54e6bc09ed608f838626d3ec74",
+      "bytes": 13892,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/virtio-1.5.8/quality/BUGS.md",
+      "target_path": "repos/virtio-1.5.8",
+      "collection": "virtio-1.5.8",
+      "sha256": "6d7ddcff15c44038e905735ef82448c7ab655f1e6dde1f015bb9616f5ef67f4f",
+      "bytes": 7807,
+      "historical_archive_or_backup": false
+    },
+    {
+      "report_path": "repos/virtio-head/quality/BUGS.md",
+      "target_path": "repos/virtio-head",
+      "collection": "virtio-head",
+      "sha256": "fdf89311f0bd3ae3f215b3a9068002046d63ae6d86d099dedc6e34646e9868b5",
+      "bytes": 42431,
+      "historical_archive_or_backup": false
+    }
+  ]
+}

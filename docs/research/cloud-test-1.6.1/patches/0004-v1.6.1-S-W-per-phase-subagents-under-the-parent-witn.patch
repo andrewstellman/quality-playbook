@@ -1,0 +1,1069 @@
+From 69f6c35929ea52fb30c0067fff76bc7e898cbfa9 Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <andrew@stellman.com>
+Date: Fri, 2 Oct 2026 00:19:58 -0400
+Subject: [PATCH 04/12] v1.6.1 [S+W]: per-phase subagents under the
+ parent-witness rule (qpb_gate_witness.py); references/claims_rules.md
+
+---
+ AGENTS.md                                     |   6 +-
+ SKILL.md                                      |  28 +--
+ bin/tests/test_install_manifest_no_drift.py   |   8 +-
+ .../test_mode_a_self_execution_contract.py    |  82 ++++---
+ bin/tests/test_parent_witness_161.py          | 206 ++++++++++++++++++
+ bin/tests/test_phase6_subagent_contract.py    |   4 +-
+ .../agents/quality-playbook-claude.agent.md   |  25 +--
+ .../agents/quality-playbook.agent.md          |  25 +--
+ .../quality-playbook/scripts/install_skill.py |  11 +
+ .../scripts/qpb_gate_witness.py               | 186 ++++++++++++++++
+ .../quality-playbook/scripts/qpb_validate.py  |   2 +
+ .../quality-playbook/scripts/run_state_lib.py |   1 +
+ references/claims_rules.md                    |  48 ++++
+ references/orchestrator_protocol.md           |  23 +-
+ references/phase2_generation_guide.md         |   6 +-
+ references/requirements_pipeline.md           |   2 +-
+ 16 files changed, 584 insertions(+), 79 deletions(-)
+ create mode 100644 bin/tests/test_parent_witness_161.py
+ create mode 100644 plugins/quality-playbook/skills/quality-playbook/scripts/qpb_gate_witness.py
+ create mode 100644 references/claims_rules.md
+
+diff --git a/AGENTS.md b/AGENTS.md
+index bb12991..c55e613 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -49,8 +49,8 @@ The Quality Playbook is a skill for AI coding agents that explores any codebase
+ | `bin/qpb_config.py` | v1.5.7 D6 — `python3 -m bin.qpb_config show|set|unset <key>` manages `~/.qpb/config.json`. | When showing/setting the adopter's Council override |
+ | `ai_context/TOOLKIT.md` | User-facing interactive documentation | When helping a user set up or run the playbook |
+ | `ai_context/DEVELOPMENT_CONTEXT.md` | Maintainer context (architecture, benchmarking, known issues) | When working on the skill itself |
+-| `agents/quality-playbook.agent.md` | Orchestrator agent (Copilot / general format). **AUTOMATION ONLY — NOT for interactive sessions.** Spawns a sub-agent per phase, hiding per-step output from the operator's chat. Use only for headless CI / batch contexts where per-phase context-window isolation is necessary. For interactive coding sessions (Claude Code, Cursor, Copilot UI, Codex desktop), do NOT read this file — read `SKILL.md` and execute Mode A directly; your chat IS the witness trail. | Automated batch invocation only — never for an operator-watched interactive session |
+-| `agents/quality-playbook-claude.agent.md` | Orchestrator agent (Claude Code format). **AUTOMATION ONLY — NOT for interactive sessions.** Same automation-only constraint as the row above. The 2026-05-16 express opus-4.6 Mode-A run reproduced the failure mode this constraint prevents: an interactive Claude Code session spawned this orchestrator, the sub-skill hid the gate invocation from the parent's witness chat, and a PASS verdict was fabricated against an actual 14-FAIL gate. For interactive sessions: read `SKILL.md`, execute Mode A in your own context. | Automated batch invocation only — never for an operator-watched interactive session |
++| `agents/quality-playbook.agent.md` | Orchestrator agent (Copilot / general format). Spawns a sub-agent (or fresh context) per phase. **Allowed under the parent-witness rule** (v1.6.1): after every Phase 6 the parent session runs `bin/qpb_gate_witness.py <target>` itself, pastes its verdict lines, and stops on `MISMATCH`. Driving Mode A from `SKILL.md` directly stays valid. | Per-phase context isolation (large targets, CI/batch, or an interactive session following the parent-witness rule) |
++| `agents/quality-playbook-claude.agent.md` | Orchestrator agent (Claude Code format). **Allowed under the parent-witness rule** (v1.6.1), same as the row above: the parent runs `bin/qpb_gate_witness.py <target>` after every Phase 6 and stops on `MISMATCH`. The rule exists because of the 2026-05-16 express opus-4.6 Mode-A run: an interactive Claude Code session spawned this orchestrator, the sub-skill hid the gate invocation from the parent's chat, and a PASS verdict was fabricated against an actual 14-FAIL gate. | Per-phase context isolation (large targets, CI/batch, or an interactive session following the parent-witness rule) |
+ 
+ ### Where logs go (v1.5.7+ centralized layout)
+ 
+@@ -112,6 +112,7 @@ cp "$QPB_SKILL_SRC"/scripts/validate_phase_artifacts.py          .github/skills/
+ cp "$QPB_SKILL_SRC"/scripts/qpb_validate.py                      .github/skills/bin/qpb_validate.py
+ cp "$QPB_SKILL_SRC"/scripts/qpb_phase.py                         .github/skills/bin/qpb_phase.py
+ cp "$QPB_SKILL_SRC"/scripts/qpb_heartbeat.py                     .github/skills/bin/qpb_heartbeat.py
++cp "$QPB_SKILL_SRC"/scripts/qpb_gate_witness.py                  .github/skills/bin/qpb_gate_witness.py
+ # v1.5.2+: single reference_docs/ tree at the target repo root.
+ # Place adopter docs here — citable specs/RFCs in reference_docs/cite/.
+ # (v1.5.7 090h retired informal_docs/; reference_docs/ is the sole
+@@ -159,6 +160,7 @@ cp "$QPB_SKILL_SRC"/scripts/council_semantic_check.py    .claude/skills/quality-
+ cp "$QPB_SKILL_SRC"/scripts/migrate_v1_5_0_layout.py     .claude/skills/quality-playbook/bin/migrate_v1_5_0_layout.py
+ cp "$QPB_SKILL_SRC"/scripts/phase_identity.py            .claude/skills/quality-playbook/bin/phase_identity.py
+ cp "$QPB_SKILL_SRC"/scripts/qpb_heartbeat.py            .claude/skills/quality-playbook/bin/qpb_heartbeat.py
++cp "$QPB_SKILL_SRC"/scripts/qpb_gate_witness.py         .claude/skills/quality-playbook/bin/qpb_gate_witness.py
+ cp "$QPB_SKILL_SRC"/scripts/qpb_config.py                .claude/skills/quality-playbook/bin/qpb_config.py
+ cp "$QPB_SKILL_SRC"/scripts/quality_playbook.py          .claude/skills/quality-playbook/bin/quality_playbook.py
+ cp "$QPB_SKILL_SRC"/scripts/reference_docs_ingest.py     .claude/skills/quality-playbook/bin/reference_docs_ingest.py
+diff --git a/SKILL.md b/SKILL.md
+index c91af1a..93e46e2 100644
+--- a/SKILL.md
++++ b/SKILL.md
+@@ -25,7 +25,7 @@ Before reading any other section of this skill, understand the plan and its depe
+ 
+ **Phase 1 (Explore):** Run the documentation intake first. **Invocation form:** `bin/reference_docs_ingest.py` does `from bin import benchmark_lib` at import, so Python's `-m bin.reference_docs_ingest` resolves ONLY when `bin/` is reachable as a top-level package. Resolve the **install root** (the directory containing this SKILL.md) via the same install-location fallback list this skill uses for `references/` / `quality_gate.py` (the 10 canonical layouts documented below — install-root forms: `<empty>`, `.claude/skills/quality-playbook`, `.github/skills`, `.github/skills/quality-playbook`, `.cursor/skills/quality-playbook`, `.continue/skills/quality-playbook`, `.codex/skills/quality-playbook`, `.windsurf/skills/quality-playbook`, `.cline/skills/quality-playbook`, `.aider/skills/quality-playbook`). Then, from the target repo root, run `PYTHONPATH=<install_root> python3 -m bin.reference_docs_ingest <target>`. If `<install_root>` is empty (QPB self-bootstrap, or a `setup_repos.sh` install where `bin/` is already at the target root) omit the `PYTHONPATH=` prefix — cwd already provides `bin/`. The bare `python -m bin.reference_docs_ingest <target>` works ONLY for those two layouts; an `install_skill.py`-layout adopter (bin/ inside the marker dir) otherwise gets `ModuleNotFoundError: No module named 'bin'`. This walks `reference_docs/` — `cite/` files produce `quality/formal_docs_manifest.json` records; top-level files are loaded as Tier 4 context via `reference_docs_ingest.load_tier4_context(<target>)`. Then explore the codebase in three stages: open exploration driven by domain knowledge, domain-knowledge risk analysis, and selected structured exploration patterns. Write all findings to `quality/EXPLORATION.md`. This file is the foundation — Phase 2 reads it as its primary input.
+ 
+-**Phase 2 (Generate):** Read EXPLORATION.md and produce the quality artifacts: requirements, constitution, functional tests, code review protocol, integration tests, spec audit protocol, TDD protocol. (`AGENTS.md` at the target's repo root is generated by the orchestrator AFTER Phase 6, not by you in Phase 2 — see "File 6" below for the contract.)
++**Phase 2 (Generate):** Read EXPLORATION.md and produce the quality artifacts: requirements, constitution, functional tests, code review protocol, integration tests, spec audit protocol, TDD protocol. (`AGENTS.md` at the target's repo root is generated by the orchestrator after the Phase 6 gate passes and is not required for the gate to pass; you do not write it in Phase 2 — see "File 6" below.)
+ 
+ **Phase 3 (Code Review):** Run the three-pass code review against HEAD. Write regression tests for every confirmed bug. Generate patches.
+ 
+@@ -91,19 +91,20 @@ The operator's prompt is just **"Run the Quality Playbook"** (or "run on itself"
+ **Mode A means YOU execute the skill.** If you are an interactive coding agent (Claude Code, Cursor, Copilot UI, Codex desktop, any tool where the operator is monitoring your chat output in real-time), DO NOT:
+ 
+ - Spawn a sub-skill via your `quality-playbook` skill-invocation mechanism.
+-- Spawn a sub-agent via your Task tool / Agent tool / similar.
++- Spawn a sub-agent via your Task tool / Agent tool / similar to run a phase, unless you follow the parent-witness rule below.
+ - Invoke `python3 -m bin.run_playbook` — that's Mode B, the CLI-automation path.
+-- Read `agents/quality-playbook.agent.md` or `agents/quality-playbook-claude.agent.md` and follow their "spawn sub-agents per phase" pattern — those files are AUTOMATION ONLY (batch CI runs, headless invocations) where per-phase context-window isolation is necessary at the cost of operator chat visibility.
++
++**Parent-witness rule (per-phase subagents).** You may run each phase in its own subagent (pattern: `agents/quality-playbook-claude.agent.md`) only if, after every Phase 6, YOU — the parent — run `python3 <install_root>/bin/qpb_gate_witness.py <target-repo>`, paste its `Total:`/`RESULT:` lines verbatim in your chat, and stop and report if it prints `MISMATCH` (exit 1) or the log is missing (exit 2). Subagents cannot spawn subagents: the parent spawns the Feature H personas, the Phase 6 auditor, and any sub-agent a phase prompt asks for (e.g. challenge-gate reviewers); a phase subagent that needs one returns to the parent. See `references/orchestrator_protocol.md`. Driving every phase yourself stays the default.
+ 
+ **Phase 0 entry contract (MANDATORY first action): run the QPB install validator.** Resolve the install root via the install-location fallback list (per the Phase 0 numbered step above), then run `python3 <install_root>/bin/qpb_validate.py <target-repo>` — bare `python3 bin/qpb_validate.py <target-repo>` works only when cwd already contains `bin/` (QPB clone / self-bootstrap); `install_skill`-layout adopters (channel install — `bin/` under `.github/skills/quality-playbook/`, etc.) MUST prefix the install root. Paste every `event=` line; do not proceed until `event=validation_complete status=ok` — see `AGENTS.md` "Mode A entry sequence". Non-negotiable — skipped/fabricated validation and bare-path-from-repo-root invocation are both documented adopter failure modes.
+ 
+-**EXCEPTION: Phase 6 verification MUST be delegated to a fresh-context sub-agent.** Sub-agent delegation is forbidden for EXECUTION (Phases 1-5) because hiding work from operator chat defeats real-time monitoring. Sub-agent delegation is MANDATED for VERIFICATION (Phase 6) because shared-context executor-as-verifier has empirically fabricated PASS verdicts against failing gates across multiple benchmark runs despite repeated rounds of strengthened prompt-level witness language. The principle is the same as the rule above — operator chat should carry the truth — but the mechanism is opposite: visibility for execution; isolation for verification (a fresh auditor has none of the executor's memory/anchoring/completion-reward bias). See `phase_prompts/phase6.md` + `phase_prompts/phase6_auditor.md` for the sub-agent delegation protocol. This exception is scoped strictly to Phase 6 verification — the no-sub-agent rule still holds for all Phase 1-5 execution.
++**EXCEPTION: Phase 6 verification MUST be delegated to a fresh-context sub-agent.** Sub-agent delegation for EXECUTION (Phases 1-5) requires the parent-witness rule. Sub-agent delegation is MANDATED for VERIFICATION (Phase 6) because shared-context executor-as-verifier has empirically fabricated PASS verdicts against failing gates across multiple benchmark runs despite repeated rounds of strengthened prompt-level witness language. The principle is the same as the rule above — operator chat should carry the truth — but the mechanism is opposite: visibility for execution; isolation for verification (a fresh auditor has none of the executor's memory/anchoring/completion-reward bias). See `phase_prompts/phase6.md` + `phase_prompts/phase6_auditor.md` for the sub-agent delegation protocol. The auditor is required either way; with per-phase subagents the parent spawns it.
+ 
+-**EXCEPTION: the Feature H persona validation pass may spawn its personas.** The no-sub-agent rule governs delegating a PHASE'S EXECUTION (Phases 1–5). The Feature H persona validation pass (`bin/persona_apply.run_feature_h`, run automatically at the Phase 2→3 boundary; Design §8b, `references/requirements_pipeline.md` § E.9) is a second narrowly-scoped sanctioned exception: it spawns fresh-context, tool-restricted domain-expert + security personas to validate the finalized requirements. This does NOT reopen either failure mode the rule closes: (a) it does **not** delegate a phase's execution — it is a bounded validation *remediation* that runs at one boundary and returns to your session, never a worker running phases 2–6 (so the delegated-agent-silent-death mode cannot apply); (b) operator visibility is **preserved and mandatory** — the pass writes an operator-visible `quality/expert_review_summary.json` listing every applied change with its grounding, every change is `agent-validation`-tagged and revertible (`persona_apply.revert`), and the pass is opt-out (disablable for the run), so nothing is hidden and no verdict is fabricated. The guardrail's own principle — operator chat carries the truth — is honored, not bypassed: that review summary is the trail. Scoped strictly to this pass; the no-sub-agent rule still holds for all other Phase 1–5 work — you may NOT delegate a phase, spawn a worker, or invoke the `quality-playbook` orchestrator sub-skill.
++**EXCEPTION: the Feature H persona validation pass may spawn its personas.** The parent-witness rule governs delegating a PHASE'S EXECUTION (Phases 1–5). The Feature H persona validation pass (`bin/persona_apply.run_feature_h`, run automatically at the Phase 2→3 boundary; Design §8b, `references/requirements_pipeline.md` § E.9) is a second narrowly-scoped sanctioned exception: it spawns fresh-context, tool-restricted domain-expert + security personas to validate the finalized requirements. This does NOT reopen either failure mode the rule closes: (a) it does **not** delegate a phase's execution — it is a bounded validation *remediation* that runs at one boundary and returns to your session, never a worker running phases 2–6 (so the delegated-agent-silent-death mode cannot apply); (b) operator visibility is **preserved and mandatory** — the pass writes an operator-visible `quality/expert_review_summary.json` listing every applied change with its grounding, every change is `agent-validation`-tagged and revertible (`persona_apply.revert`), and the pass is opt-out (disablable for the run), so nothing is hidden and no verdict is fabricated. The guardrail's own principle — operator chat carries the truth — is honored, not bypassed: that review summary is the trail. Scoped strictly to this pass; delegating a phase still requires the parent-witness rule, and you may NOT invoke the `quality-playbook` orchestrator sub-skill.
+ 
+-The failure mode that motivated this rule: a shared-context session ran phases 1-6, fabricated the gate-verdict log (`quality/results/quality-gate.log` was hand-written with a "PASS" tally while the actual gate showed 14 FAIL, GATE FAILED), and reported PASS to the parent. The Phase 6 witness contract (your obligation to quote the gate's verdict lines verbatim) cannot enforce when a sub-skill owns the witness — only the parent's chat carries operator-readable evidence.
++Why: on 2026-05-16 a delegated session hand-wrote `quality/results/quality-gate.log` with a "PASS" tally while the actual gate showed 14 FAIL, GATE FAILED, and the parent trusted it. The witness contract (quote the gate's verdict lines verbatim) enforces only when the parent runs the gate itself: a subagent can write any log, not what the gate prints in the parent's session. On 2026-10-01 a cloud run with one subagent per phase had the parent re-run the gate after both Phase 6 runs; both matched the subagent's log.
+ 
+-YOU read SKILL.md and the phase prompts. YOU execute Phases 1-5 yourself and write artifacts to `quality/`. Phase 6 verification is delegated to the fresh-context auditor sub-agent per the exception above (the auditor invokes `quality_gate.py`); you paste its verbatim verdict. Your chat IS the trust trail — execution stays visible, verification stays bias-isolated.
++YOU read SKILL.md and the phase prompts. By default YOU execute Phases 1-5 yourself and write artifacts to `quality/`. Phase 6 verification is delegated to the fresh-context auditor sub-agent per the exception above (the auditor invokes `quality_gate.py`); you paste its verbatim verdict. Your chat IS the trust trail — execution stays visible, verification stays bias-isolated.
+ 
+ **You have shell access — probe before claiming unavailability.** Mode A means an interactive coding agent (Claude Code, Cursor, Copilot UI) running commands on the operator's actual machine via your Bash tool — NOT a sandboxed runtime. A common failure is writing "the sandbox can't run X" reflexively, conflating your model-level "I can't natively execute" with the harness Bash tool you DO have. A `which <tool>` / `<tool> --version` probe costs one line; assuming-and-being-wrong forfeits the entire Phase 5 evidence trail.
+ 
+@@ -181,17 +182,17 @@ The run proceeds the same way as any other target. The only difference is that t
+ 
+ These are not suggestions; the orchestrator enforces them and a violation aborts the run:
+ 
+-1. **Synchronous execution — no sub-agent delegation.** Run every phase yourself in the same session. **Do NOT use the Task tool**, sub-agent dispatch, background-agent invocations, the `quality-playbook` skill-invocation mechanism, or any "delegate phases 2–6 to a worker" pattern. Two verified failure modes the guardrail closes: (a) Phase 1 completes, phases 2–6 silently die in a delegated agent that loses its parent session, the runner self-marks `-PARTIAL`, and the operator gets no signal anything was wrong. (b) An interactive coding session spawns the `quality-playbook` orchestrator sub-skill; sub-skill runs Mode A in its own context but fabricates `quality/results/quality-gate.log` and reports "Gate: PASS" against an actual failing gate. The Phase 6 witness contract cannot enforce when the witness lives in a sub-skill's chat that the parent never sees. **Phase 6 verification — mandatory sub-agent delegation:** the no-sub-agent rule above governs Phase 1-5 EXECUTION (operator visibility). Phase 6 VERIFICATION is the opposite: it MUST run in a fresh-context sub-agent, because shared-context executor-as-verifier has empirically fabricated PASS verdicts against failing gates despite repeated rounds of strengthened witness language. Same principle (operator chat carries the truth), opposite mechanism (visibility for execution; bias-isolation for verification). Scoped strictly to Phase 6 verification — see `phase_prompts/phase6.md` + `phase_prompts/phase6_auditor.md`. **Feature H persona pass — the second sanctioned exception:** the automatic persona validation pass at the Phase 2→3 boundary (`bin/persona_apply.run_feature_h`) MAY spawn its fresh-context, tool-restricted personas — it is a bounded, operator-visible validation *remediation* (mandatory `quality/expert_review_summary.json`, every change `agent-validation`-tagged + revertible, opt-out), not a delegated phase, so neither failure mode (a) nor (b) applies. Scoped strictly to that pass (see the EXCEPTION block above); all OTHER Phase 1–5 sub-agent delegation stays forbidden.
++1. **Synchronous execution, or per-phase subagents under the parent-witness rule** (Mode A section). Run every phase yourself, or one subagent per phase under that rule. **Do NOT use** background-agent invocations, the `quality-playbook` skill-invocation mechanism, or any "delegate phases 2–6 to a worker" pattern. Two verified failure modes the guardrail closes: (a) Phase 1 completes, phases 2–6 silently die in a delegated agent that loses its parent session, the runner self-marks `-PARTIAL`, and the operator gets no signal anything was wrong. (b) An interactive coding session spawns the `quality-playbook` orchestrator sub-skill; sub-skill runs Mode A in its own context but fabricates `quality/results/quality-gate.log` and reports "Gate: PASS" against an actual failing gate. The Phase 6 witness contract cannot enforce when the witness lives in a sub-skill's chat that the parent never sees; the parent's `qpb_gate_witness.py` run restores it. **Phase 6 verification — mandatory sub-agent delegation:** the parent-witness rule governs Phase 1-5 EXECUTION (operator visibility). Phase 6 VERIFICATION is the opposite: it MUST run in a fresh-context sub-agent, because shared-context executor-as-verifier has empirically fabricated PASS verdicts against failing gates despite repeated rounds of strengthened witness language. Same principle (operator chat carries the truth), opposite mechanism (visibility for execution; bias-isolation for verification). Scoped strictly to Phase 6 verification — see `phase_prompts/phase6.md` + `phase_prompts/phase6_auditor.md`. **Feature H persona pass — the second sanctioned exception** (EXCEPTION block above): its personas are a bounded, operator-visible remediation (`quality/expert_review_summary.json`), not a delegated phase. Sub-agents never nest — the parent spawns them.
+ 2. **Don't patch QPB source mid-run.** If you encounter a bug in `bin/`, `.github/skills/`, `agents/`, `references/`, `SKILL.md`, or `AGENTS.md` during the run, **STOP and report**: name the file:line, describe the failure, propose a fix shape — but do NOT apply the fix. The orchestrator captures a git-SHA baseline at run start and verifies the source tree unchanged at every phase boundary; an autonomous patch fails the gate with a diagnostic naming the modified files. Patches go through Council review, not mid-run improvisation.
+ 3. **Don't delete sentinel files.** Files protected by `.gitignore !`-rules (e.g., `reference_docs/.gitkeep`, `reference_docs/cite/.gitkeep`) keep otherwise-empty tracked directories present. The pre-flight check enumerates every `!`-rule and aborts if any sentinel is missing. If you find such a file and don't understand its purpose, **leave it alone**.
+ 4. **Phase 1 file enumeration uses `git ls-files`.** Use `git ls-files` as the canonical file list when the target is a git repo; this respects `.gitignore` automatically. Do NOT use `os.walk`, `find`, `os.listdir`, or any recursive directory walker — those pull in `.git/`, `.venv/`, `node_modules/`, build outputs, and vendored dependencies, all of which the role-map validator rejects. Disallowed path prefixes are `.git/`, `.venv/`, `venv/`, `node_modules/`, `__pycache__/`, `.pytest_cache/`, `.mypy_cache/`, `.ruff_cache/`, `.tox/`, plus any path whose components end in `.egg-info` or `.dist-info`. The role map carries a `provenance` field recording which enumeration source you used (`"git-ls-files"` or `"filesystem-walk-with-skips"` for non-git targets). There is also a 2000-entry ceiling; a role map exceeding it almost certainly walked .gitignored content.
+ 5. **Cross-artifact agreement.** EXPLORATION.md's "File inventory" section and the role map's `summary` field both render from `bin.role_map.summarize_role_map()`. Don't write file counts or role percentages by hand; copy from the helper. The validator cross-checks the two and rejects mismatches.
+ 
+-If the operator's prompt says something that conflicts with these guardrails (e.g., "delegate phases 3–6 to a sub-agent so we can run faster"), **don't comply with the conflicting instruction**. Surface the conflict, name the guardrail, and ask for clarification. The guardrails exist because each one corresponds to a verified historical failure mode.
++If the operator's prompt says something that conflicts with these guardrails (e.g., "delegate phases 3–6 to one sub-agent, skip the gate re-run"), **don't comply with the conflicting instruction**. Surface the conflict, name the guardrail, and ask for clarification. The guardrails exist because each one corresponds to a verified historical failure mode.
+ 
+ ### What this run produces — output artifact contract
+ 
+-A successful run produces this canonical set under the target's `quality/` directory plus an AGENTS.md at the target's repo root. Every file listed here is gate-validated:
++A successful run produces this canonical set under the target's `quality/` directory plus an AGENTS.md at the target's repo root. Every file listed here except AGENTS.md is gate-validated:
+ 
+ | Path | Role |
+ |------|------|
+@@ -216,7 +217,7 @@ A successful run produces this canonical set under the target's `quality/` direc
+ | `quality/code_reviews/`, `quality/spec_audits/`, `quality/results/`, `quality/mechanical/` | Intermediate pipeline artifacts. Top-level only — `quality/workspace/` is forbidden (gated by `check_no_workspace_dir`). |
+ | `quality/logs/<run-id>/` | Centralized per-run logs (transcripts, control prompts, etc.). `<run-id>` is the run's UTC ISO-8601 compact timestamp (`YYYYMMDDTHHMMSSZ`). Pass `--logs-flat` (or set `QPB_LOGS_LEGACY=1`) to preserve the legacy scattered layout (parent-dir log file + top-level `quality/control_prompts/`) for tooling that depends on the old paths. See `references/run_state_schema.md` for the `run_id` / `log_layout` discriminator fields on the `run_start` event. |
+ | `<repo_dir>/quality.gate-failed-<UTC-ts>/` | Preserved on Phase 2 gate-failure: the failed `quality/` tree is renamed to this sibling directory and a fresh `quality/` is created. The preserved directory carries its own `logs/<run-id>/` subtree with the failure logs. Operators inspect it post-mortem; the next run starts clean. |
+-| `AGENTS.md` (target repo root) | Per-project orientation generated post-Phase-6. Carries a QPB sentinel marker so future runs detect QPB-managed copies. |
++| `AGENTS.md` (target repo root) | Per-project orientation written by the orchestrator after the Phase 6 gate passes; not required for the gate to pass. Carries a QPB sentinel marker so future runs detect QPB-managed copies. |
+ 
+ The gate verdict in `quality/INDEX.md` (`pass` / `pass-with-cleanup` / `pass-with-decisions` / `partial` / `fail`) is the operator-facing summary of how the run went. The four-state taxonomy (089c F15 plus the v1.6.1 decisions state) maps the gate's `RESULT:` line to this enum: `RESULT: GATE PASSED` → `pass`; `RESULT: GATE PASSED WITH CLEANUP NEEDED` → `pass-with-cleanup` (review completed, bug findings stand, only audit record-keeping incomplete — non-blocking); `RESULT: GATE PASSED WITH DECISIONS NEEDED` → `pass-with-decisions` (no substantive issue; the operator decides N requirement wordings no confirmed bug rests on, from `quality/OPERATOR_DECISIONS.md` — State DN); `RESULT: GATE FAILED` → `fail` (a substantive issue). `partial` covers aborted / WARN-only runs. If the verdict is anything other than `pass`, surface why before considering the run done; `pass-with-cleanup` is a successful outcome, but the State CN emit (per `references/what_just_happened.md`) walks the adopter through completing the remaining audit records.
+ 
+@@ -267,9 +268,9 @@ Nine files that together form a repeatable quality system:
+ 
+ Plus output directories: `quality/code_reviews/`, `quality/spec_audits/`, `quality/results/`, `quality/history/`.
+ 
+-`AGENTS.md` at the target repo root is **Generated by orchestrator after Phase 6 — not a Phase 2 deliverable** (it carries a QPB sentinel marker so future runs detect QPB-managed copies). See the full gate-validated artifact table in `references/artifact_contract.md`.
++`AGENTS.md` at the target repo root is **Generated by orchestrator after Phase 6 — not a Phase 2 deliverable**, after the gate passes (it carries a QPB sentinel marker so future runs detect QPB-managed copies). See the full gate-validated artifact table in `references/artifact_contract.md`.
+ 
+-The pipeline also generates supporting artifacts: `quality/PROGRESS.md` (phase-by-phase checkpoint log with cumulative BUG tracker), `quality/CONTRACTS.md` (behavioral contracts), `quality/COVERAGE_MATRIX.md` (traceability), `quality/COMPLETENESS_REPORT.md` (final gate), and `quality/VERSION_HISTORY.md` (review log). At the **end of Phase 1** the documentation classification is **always shown** to the operator in plain language (`doc_classification.classification_review`) — which gathered documents are being used as authoritative sources and which are background — and the operator can confirm or correct it before Phase 2 derives anything against it; a correction is recorded in the operator-authored, content-keyed `reference_docs/qpb_decisions.txt` — the ONE override channel, which instruction 033 collapsed `qpb_promote.txt`, `qpb_advisory_rescue.txt`, `qpb_authoritative.txt` and `cite/` placement into — and a re-run ingest makes a promoted document byte-citable (Design §8a; `references/phase1_exploration_guide.md`). Only the human operator can promote a document — document content, the classifier, and personas never can. **The show prints in every mode; only the *pause* varies** — pause only when an operator is stepping the run phase by phase and waiting, never in the continuous full-pipeline default, the single-pass prompt, or any unattended/runner-driven run. The requirements validation interview (`references/requirements_interview.md`) — an operator-driven, fitness-for-purpose review whose corrections write back to the manifest — is offered at the **Phase 2 → Phase 3 boundary** (the requirements are complete and Phases 3–6 build on them; Design §6), with one playbook-end reminder if the operator declined. It is opt-in and never auto-starts. At the same boundary, the **Feature H persona validation pass** (`bin/persona_apply.run_feature_h`; Design §8b, `references/requirements_pipeline.md` § E.9) runs **automatically** unless disabled for the run — fresh-context, tool-restricted domain-expert + security personas validate the spec, apply grounded (cited + byte-verified) fixes tagged `agent-validation`, and write an operator-visible review summary to `quality/expert_review_summary.json`. It is a **remediator, not a gate** (opt-out; the human interview is opt-in). Because it **changes the operator's requirements**, the end-of-Phase-2 message must disclose it in plain language (`persona_apply.persona_review_disclosure`, rendered into the State P2 block after the pass runs — instruction 031): reviewers ran, what they changed, where to read it, that it can be undone; nothing is added when the pass did not run. Spawning its personas is a **sanctioned exception** to the no-sub-agent guardrail (the second EXCEPTION block in the Mode A walkthrough, sibling to Phase 6 verification): a bounded, operator-visible validation remediation, not a delegated phase — so a faithful agent runs it here rather than disabling it.
++The pipeline also generates supporting artifacts: `quality/PROGRESS.md` (phase-by-phase checkpoint log with cumulative BUG tracker), `quality/CONTRACTS.md` (behavioral contracts), `quality/COVERAGE_MATRIX.md` (traceability), `quality/COMPLETENESS_REPORT.md` (final gate), and `quality/VERSION_HISTORY.md` (review log). At the **end of Phase 1** the documentation classification is **always shown** to the operator in plain language (`doc_classification.classification_review`) — which gathered documents are being used as authoritative sources and which are background — and the operator can confirm or correct it before Phase 2 derives anything against it; a correction is recorded in the operator-authored, content-keyed `reference_docs/qpb_decisions.txt` — the ONE override channel, which instruction 033 collapsed `qpb_promote.txt`, `qpb_advisory_rescue.txt`, `qpb_authoritative.txt` and `cite/` placement into — and a re-run ingest makes a promoted document byte-citable (Design §8a; `references/phase1_exploration_guide.md`). Only the human operator can promote a document — document content, the classifier, and personas never can. **The show prints in every mode; only the *pause* varies** — pause only when an operator is stepping the run phase by phase and waiting, never in the continuous full-pipeline default, the single-pass prompt, or any unattended/runner-driven run. The requirements validation interview (`references/requirements_interview.md`) — an operator-driven, fitness-for-purpose review whose corrections write back to the manifest — is offered at the **Phase 2 → Phase 3 boundary** (the requirements are complete and Phases 3–6 build on them; Design §6), with one playbook-end reminder if the operator declined. It is opt-in and never auto-starts. At the same boundary, the **Feature H persona validation pass** (`bin/persona_apply.run_feature_h`; Design §8b, `references/requirements_pipeline.md` § E.9) runs **automatically** unless disabled for the run — fresh-context, tool-restricted domain-expert + security personas validate the spec, apply grounded (cited + byte-verified) fixes tagged `agent-validation`, and write an operator-visible review summary to `quality/expert_review_summary.json`. It is a **remediator, not a gate** (opt-out; the human interview is opt-in). Because it **changes the operator's requirements**, the end-of-Phase-2 message must disclose it in plain language (`persona_apply.persona_review_disclosure`, rendered into the State P2 block after the pass runs — instruction 031): reviewers ran, what they changed, where to read it, that it can be undone; nothing is added when the pass did not run. Spawning its personas is a **sanctioned exception** to the sub-agent guardrail (the second EXCEPTION block in the Mode A walkthrough, sibling to Phase 6 verification): a bounded, operator-visible validation remediation, not a delegated phase — so a faithful agent runs it here rather than disabling it.
+ 
+ The two critical deliverables are the requirements file and the functional test file. The requirements file (`quality/REQUIREMENTS.md`) feeds the code review protocol's verification and consistency passes — it's what makes the code review catch more than structural anomalies. The functional test file (named for the project's language and test framework conventions) is the automated safety net. The Markdown protocols are documentation for humans and AI agents.
+ 
+@@ -705,4 +706,5 @@ Read these as you work through each phase:
+ | `references/spec_audit.md` | File 5 (Council of Three) | Full audit protocol, triage process, fix execution |
+ | `references/iteration.md` | Iterations (after Phase 6) | Four iteration strategies: gap, unfiltered, parity, adversarial |
+ | `references/verification.md` | Phase 6 (verify) | Complete self-check checklist (45 benchmarks) including structured output, patch gate, skip guard validation, pre-flight discovery, version stamps, bug writeups, enumeration completeness, triage executable evidence, code-extracted enumeration lists, mechanical verification artifacts, source-inspection test execution, contradiction gate, seed check execution, convergence tracking, sidecar JSON schema validation, script-verified closure gate, canonical use case identifiers, and writeup inline fix diffs |
++| `references/claims_rules.md` | Before writing BUGS.md, writeups, or any operator-facing claim | Claim rules R1–R3, R6–R8, flag words, pre-output checklist |
+ | `references/what_just_happened.md` | Every phase boundary (1-6) + end-of-run + iterations + recheck | Mandatory `## What just happened` + `### What to do next` block contract; 9-rule run-state classifier; decision tree of thirteen templates (P1 / P2 / P3 / P4 / P5 / C / G / E / S / B / I / F / R) covering Mode A multi-pass, code-only mode, Phase 2 abort + D1 preservation, agent-emitted unrecoverable error, pass-process / fail-recall, full baseline, iteration done, all four iterations done, recheck done |
+diff --git a/bin/tests/test_install_manifest_no_drift.py b/bin/tests/test_install_manifest_no_drift.py
+index f97bd23..6d49827 100644
+--- a/bin/tests/test_install_manifest_no_drift.py
++++ b/bin/tests/test_install_manifest_no_drift.py
+@@ -107,10 +107,12 @@ class InstallClosureNoDriftTests(unittest.TestCase):
+         # persona_catalog/orchestration/grounding/merge/apply + requirements_render;
+         # genuine bundle growth so an adopter install actually ships Feature H, not
+         # a fixture dodge).
+-        # v1.6.1 [H5]: 69 → 70 (+references/persona_brief.md, the persona
+-        # prompt Feature H now ships instead of letting the agent compose one).
++        # v1.6.1: 69 -> 72. [H5] +references/persona_brief.md (the persona
++        # prompt Feature H now ships). [S+W] +bin/qpb_gate_witness.py (the
++        # parent session's gate re-run after a subagent Phase 6) and
++        # +references/claims_rules.md (auto-bundled by the references/*.md glob).
+         from bin.qpb_validate import INSTALL_CLOSURE
+-        self.assertEqual(len(INSTALL_CLOSURE), 70)
++        self.assertEqual(len(INSTALL_CLOSURE), 72)
+         paths = [e["path"] for e in INSTALL_CLOSURE]
+         self.assertEqual(len(paths), len(set(paths)),
+                          "duplicate path in INSTALL_CLOSURE")
+diff --git a/bin/tests/test_mode_a_self_execution_contract.py b/bin/tests/test_mode_a_self_execution_contract.py
+index 695df8d..cbf53df 100644
+--- a/bin/tests/test_mode_a_self_execution_contract.py
++++ b/bin/tests/test_mode_a_self_execution_contract.py
+@@ -40,9 +40,17 @@ _AGENTS_MD = _QPB_ROOT / "AGENTS.md"
+ _AGENT_GENERAL = _SKILL_DIR / "agents" / "quality-playbook.agent.md"
+ _AGENT_CLAUDE = _SKILL_DIR / "agents" / "quality-playbook-claude.agent.md"
+ 
+-_AUTOMATION_ONLY_DESC_PREFIX = (
+-    'description: "AUTOMATION ONLY — DO NOT INVOKE FROM AN '
+-    'INTERACTIVE CODING SESSION.'
++# v1.6.1 [S]: the "AUTOMATION ONLY — DO NOT INVOKE FROM AN INTERACTIVE
++# CODING SESSION" description prefix was replaced by the parent-witness
++# rule (per-phase subagents allowed if the parent re-runs the gate after
++# every Phase 6 with qpb_gate_witness.py). The description now carries
++# the rule instead.
++_PARENT_WITNESS_DESC = (
++    "Allowed in interactive sessions under the parent-witness rule"
++)
++_GUARDRAIL_1_HEADER = (
++    "1. **Synchronous execution, or per-phase subagents under the "
++    "parent-witness rule**"
+ )
+ 
+ 
+@@ -133,14 +141,21 @@ class ModeASelfExecutionContractTests(unittest.TestCase):
+             "Mode A intro must forbid Task/Agent-tool sub-agent "
+             "dispatch (A-17)",
+         )
++        # v1.6.1 [S]: the Task/Agent ban is now conditional on the
++        # parent-witness rule.
++        self.assertIn(
++            "unless you follow the parent-witness rule below", section,
++            "Mode A Task/Agent bullet must name the parent-witness "
++            "condition (v1.6.1 [S])",
++        )
+         self.assertIn(
+             "Invoke `python3 -m bin.run_playbook`", section,
+             "Mode A intro must point run_playbook.py at Mode B, not "
+             "the interactive path (A-17)",
+         )
+-        self.assertIn(
+-            "agents/quality-playbook.agent.md", section,
+-        )
++        # v1.6.1 [S]: the Mode A section now points at the Claude
++        # orchestrator file as the per-phase-subagent pattern (the
++        # general-agent "AUTOMATION ONLY" bullet was removed).
+         self.assertIn(
+             "agents/quality-playbook-claude.agent.md", section,
+         )
+@@ -166,7 +181,7 @@ class ModeASelfExecutionContractTests(unittest.TestCase):
+         """
+         guardrail_1 = _slice(
+             _SKILL_MD.read_text(encoding="utf-8"),
+-            "1. **Synchronous execution — no sub-agent delegation.**",
++            _GUARDRAIL_1_HEADER,
+             "\n2. **Don't patch QPB source",
+         )
+         self.assertIn(
+@@ -197,11 +212,16 @@ class ModeASelfExecutionContractTests(unittest.TestCase):
+             "forbidden for execution)",
+         )
+ 
+-    def test_agents_md_orchestrator_rows_marked_automation_only(self) -> None:
++    def test_agents_md_orchestrator_rows_carry_parent_witness_rule(self) -> None:
+         """Both orchestrator-agent rows in AGENTS.md's pointing table
+-        (the doc adopter agents read FIRST) carry the AUTOMATION ONLY
+-        / NOT-for-interactive constraint, so an adopter sees it before
+-        it would dispatch to the orchestrator."""
++        (the doc adopter agents read FIRST) carry the condition under
++        which the orchestrator may be used, so an adopter sees it before
++        it would dispatch to the orchestrator.
++
++        v1.6.1 [S]: was "AUTOMATION ONLY — NOT for interactive
++        sessions"; now the parent-witness rule (per-phase subagents
++        allowed if the parent re-runs the gate with
++        qpb_gate_witness.py after every Phase 6)."""
+         rows = _table_rows_for_agent_files(
+             _AGENTS_MD.read_text(encoding="utf-8")
+         )
+@@ -213,33 +233,35 @@ class ModeASelfExecutionContractTests(unittest.TestCase):
+                       "quality-playbook-claude.agent.md row")
+         for key, row in rows.items():
+             self.assertIn(
+-                "AUTOMATION ONLY", row,
+-                f"AGENTS.md {key} orchestrator row must be marked "
+-                f"AUTOMATION ONLY (A-17)",
++                "parent-witness rule", row,
++                f"AGENTS.md {key} orchestrator row must name the "
++                f"parent-witness rule (v1.6.1 [S])",
+             )
+             self.assertIn(
+-                "NOT for interactive sessions", row,
+-                f"AGENTS.md {key} orchestrator row must say NOT for "
+-                f"interactive sessions (A-17)",
++                "qpb_gate_witness.py", row,
++                f"AGENTS.md {key} orchestrator row must name the "
++                f"witness script (v1.6.1 [S])",
+             )
+         # The Claude row carries the express reproduction citation
+         # (it's the file the express run actually followed).
+         self.assertIn("2026-05-16", rows["claude"])
+ 
+-    def test_orchestrator_agent_files_carry_automation_only_header(self) -> None:
++    def test_orchestrator_agent_files_carry_parent_witness_header(self) -> None:
+         """Both agents/quality-playbook*.agent.md files carry the
+-        AUTOMATION-ONLY frontmatter description prefix AND a "When to
+-        use this file" section that excludes interactive coding
+-        sessions."""
++        parent-witness rule in the frontmatter description AND a "When
++        to use this file" section that states the rule and keeps Mode A
++        valid. v1.6.1 [S]: replaces the AUTOMATION-ONLY ban."""
+         for label, path in (
+             ("general", _AGENT_GENERAL),
+             ("claude", _AGENT_CLAUDE),
+         ):
+             text = path.read_text(encoding="utf-8")
++            desc = next(l for l in text.splitlines()
++                        if l.startswith("description:"))
+             self.assertIn(
+-                _AUTOMATION_ONLY_DESC_PREFIX, text,
++                _PARENT_WITNESS_DESC, desc,
+                 f"{label} agent file frontmatter description must "
+-                f"begin with the AUTOMATION ONLY warning (A-17)",
++                f"carry the parent-witness rule (v1.6.1 [S])",
+             )
+             section = _slice(
+                 text, "## When to use this file", "\n## ",
+@@ -250,15 +272,17 @@ class ModeASelfExecutionContractTests(unittest.TestCase):
+                 f"file' section (A-17)",
+             )
+             self.assertIn(
+-                "DO NOT use this file for interactive coding sessions",
+-                section,
++                "qpb_gate_witness.py", section,
+                 f"{label} agent file 'When to use' section must "
+-                f"exclude interactive coding sessions (A-17)",
++                f"require the parent's witness run (v1.6.1 [S])",
++            )
++            self.assertIn(
++                "MISMATCH", section,
++                f"{label} agent file must say to stop on MISMATCH",
+             )
+             self.assertIn(
+-                "Execute Mode A in your own chat session", section,
+-                f"{label} agent file must redirect interactive "
+-                f"sessions to Mode A (A-17)",
++                "Driving Mode A yourself", section,
++                f"{label} agent file must keep Mode A valid (A-17)",
+             )
+ 
+ 
+diff --git a/bin/tests/test_parent_witness_161.py b/bin/tests/test_parent_witness_161.py
+new file mode 100644
+index 0000000..28804fc
+--- /dev/null
++++ b/bin/tests/test_parent_witness_161.py
+@@ -0,0 +1,206 @@
++"""v1.6.1 [S] + [W] — parent-witness rule for per-phase subagents, and
++the claims rules reference.
++
++[S] Why: on 2026-05-16 a delegated run hand-wrote
++``quality/results/quality-gate.log`` reading PASS while the real gate
++failed, and the parent trusted it. v1.6.1 allows per-phase subagents
++only if the PARENT re-runs the gate after every Phase 6 with
++``qpb_gate_witness.py`` and stops on a mismatch. These tests pin:
++
++  * the witness script's behaviour on a fabricated log (exit 1,
++    ``MISMATCH``), a matching log (exit 0), and a missing log (exit 2);
++  * the conditional rule text in SKILL.md (Mode A), the Claude agent
++    file, the general agent file, and references/orchestrator_protocol.md;
++  * the witness script ships in the install bundle.
++
++[W] pins that references/claims_rules.md exists, carries its rules, and
++is referenced from SKILL.md and the BUGS.md / writeup guidance.
++
++Mutation-bite evidence (executed during v1.6.1 [S] development):
++  M1: in qpb_gate_witness.main, replace ``if diffs:`` with
++      ``if False:`` → test_fabricated_pass_log_is_mismatch FAILS
++      (rc 0, no MISMATCH). Restored → PASS.
++  M2: in SKILL.md, rename "Parent-witness rule" to "Subagent rule" →
++      test_skill_md_mode_a_carries_conditional_rule FAILS. Restored →
++      PASS.
++"""
++
++from __future__ import annotations
++
++import subprocess
++import sys
++import tempfile
++import unittest
++from pathlib import Path
++
++_REPO = Path(__file__).resolve().parents[2]
++_SKILL_DIR = _REPO / "plugins" / "quality-playbook" / "skills" / "quality-playbook"
++_WITNESS = _SKILL_DIR / "scripts" / "qpb_gate_witness.py"
++_GATE = _SKILL_DIR / "scripts" / "quality_gate.py"
++_SKILL_MD = _REPO / "SKILL.md"
++_AGENT_CLAUDE = _SKILL_DIR / "agents" / "quality-playbook-claude.agent.md"
++_AGENT_GENERAL = _SKILL_DIR / "agents" / "quality-playbook.agent.md"
++_ORCH = _REPO / "references" / "orchestrator_protocol.md"
++_CLAIMS = _REPO / "references" / "claims_rules.md"
++_PHASE2_GUIDE = _REPO / "references" / "phase2_generation_guide.md"
++
++_FAKE_PASS_LOG = "Total: 0 FAIL, 0 WARN\nRESULT: GATE PASSED\nexit=0\n"
++
++
++def _run_witness(target: Path) -> subprocess.CompletedProcess:
++    return subprocess.run(
++        [sys.executable, str(_WITNESS), str(target)],
++        capture_output=True, text=True, timeout=600,
++    )
++
++
++def _make_target(tmp: Path) -> Path:
++    """A minimal target whose real gate FAILs (empty quality/)."""
++    target = tmp / "target"
++    (target / "quality" / "results").mkdir(parents=True)
++    subprocess.run(["git", "init", "-q", str(target)], check=False,
++                   capture_output=True)
++    return target
++
++
++def _slice(text: str, header: str, stop: str) -> str:
++    start = text.index(header)
++    end = text.find(stop, start + len(header))
++    return text[start:] if end == -1 else text[start:end]
++
++
++class GateWitnessScriptTests(unittest.TestCase):
++
++    def test_fabricated_pass_log_is_mismatch(self) -> None:
++        """Log claims RESULT: GATE PASSED; the real gate FAILs on this
++        fixture → exit 1 with a MISMATCH line."""
++        with tempfile.TemporaryDirectory() as td:
++            target = _make_target(Path(td))
++            log = target / "quality" / "results" / "quality-gate.log"
++            log.write_text(_FAKE_PASS_LOG, encoding="utf-8")
++            r = _run_witness(target)
++            self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
++            self.assertIn("MISMATCH", r.stdout)
++            self.assertIn("RESULT: GATE FAILED", r.stdout)
++            # The witness must not rewrite the subagent's log.
++            self.assertEqual(log.read_text(encoding="utf-8"), _FAKE_PASS_LOG)
++
++    def test_matching_log_is_exit_0(self) -> None:
++        """Log produced by the real gate (the phase6_auditor.md
++        invocation form) → exit 0, MATCH."""
++        with tempfile.TemporaryDirectory() as td:
++            target = _make_target(Path(td))
++            g = subprocess.run([sys.executable, str(_GATE), "."],
++                               cwd=str(target), capture_output=True,
++                               text=True, timeout=600)
++            log = target / "quality" / "results" / "quality-gate.log"
++            log.write_text(g.stdout + g.stderr + f"exit={g.returncode}\n",
++                           encoding="utf-8")
++            r = _run_witness(target)
++            self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
++            self.assertIn("MATCH:", r.stdout)
++            self.assertNotIn("MISMATCH", r.stdout)
++
++    def test_missing_log_is_exit_2(self) -> None:
++        with tempfile.TemporaryDirectory() as td:
++            target = _make_target(Path(td))
++            r = _run_witness(target)
++            self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
++            self.assertIn("LOG MISSING", r.stdout)
++
++    def test_verdict_lines_takes_last_occurrence(self) -> None:
++        sys.path.insert(0, str(_WITNESS.parent))
++        try:
++            import qpb_gate_witness as w  # type: ignore[import]
++        finally:
++            sys.path.pop(0)
++        text = ("Total: 9 FAIL, 0 WARN\nRESULT: GATE FAILED — 9\n"
++                "noise\n  Total: 0 FAIL, 1 WARN\nRESULT: GATE PASSED\n")
++        self.assertEqual(w.verdict_lines(text),
++                         ("Total: 0 FAIL, 1 WARN", "RESULT: GATE PASSED"))
++        self.assertEqual(w.verdict_lines("nothing"), (None, None))
++
++    def test_witness_ships_in_install_bundle(self) -> None:
++        from bin.install_skill import _bundle_files
++        dests = {str(d) for _s, d in _bundle_files(_SKILL_DIR)}
++        self.assertIn("bin/qpb_gate_witness.py", dests)
++
++
++class ParentWitnessRuleTextTests(unittest.TestCase):
++    """The conditional rule appears in every surface an orchestrating
++    agent reads."""
++
++    def _assert_rule(self, text: str, label: str) -> None:
++        self.assertIn("parent-witness rule", text.lower(),
++                      f"{label}: missing the parent-witness rule")
++        self.assertIn("qpb_gate_witness.py", text,
++                      f"{label}: must name the witness script")
++        self.assertIn("MISMATCH", text,
++                      f"{label}: must say to stop on MISMATCH")
++        self.assertRegex(text.lower(), r"cannot spawn sub-?agents",
++                         f"{label}: must carry the nesting rule")
++
++    def test_skill_md_mode_a_carries_conditional_rule(self) -> None:
++        mode_a = _slice(_SKILL_MD.read_text(encoding="utf-8"),
++                        "### Mode A — skill-direct walkthrough (UI-context)",
++                        "\n### Mode B —")
++        self.assertIn("**Parent-witness rule (per-phase subagents).**", mode_a)
++        self._assert_rule(mode_a, "SKILL.md Mode A")
++        self.assertIn("2026-05-16", mode_a,
++                      "the why-text must still cite the 2026-05-16 failure")
++
++    def test_claude_agent_file_carries_conditional_rule(self) -> None:
++        self._assert_rule(_AGENT_CLAUDE.read_text(encoding="utf-8"),
++                          "quality-playbook-claude.agent.md")
++
++    def test_general_agent_file_carries_conditional_rule(self) -> None:
++        self._assert_rule(_AGENT_GENERAL.read_text(encoding="utf-8"),
++                          "quality-playbook.agent.md")
++
++    def test_orchestrator_protocol_carries_rule_in_phase6_gate(self) -> None:
++        text = _ORCH.read_text(encoding="utf-8")
++        self._assert_rule(text, "orchestrator_protocol.md")
++        phase6 = _slice(text, "- **Phase 6 (Verify):**", "\n### ")
++        self.assertIn("qpb_gate_witness.py", phase6,
++                      "the witness run must be part of the Phase 6 "
++                      "post-phase verification gate")
++        self.assertIn("not required for the gate to pass", text,
++                      "AGENTS.md must be described as written after the "
++                      "gate passes and not required by it")
++
++    def test_old_automation_only_ban_is_gone(self) -> None:
++        for p in (_AGENT_CLAUDE, _AGENT_GENERAL, _SKILL_MD):
++            text = p.read_text(encoding="utf-8")
++            self.assertNotIn("AUTOMATION ONLY", text, str(p))
++            self.assertNotIn(
++                "DO NOT use this file for interactive coding sessions",
++                text, str(p))
++
++
++class ClaimsRulesTests(unittest.TestCase):
++
++    def test_claims_rules_exists_with_rules(self) -> None:
++        text = _CLAIMS.read_text(encoding="utf-8")
++        for marker in ("Tangible", "Objective", "R1.", "R2.", "R3.",
++                       "R6.", "R7.", "R8.", "Pre-output checklist",
++                       "significantly", "ensure",
++                       "supplied by Andrew Stellman (2026-10-01)"):
++            self.assertIn(marker, text, marker)
++
++    def test_claims_rules_referenced_from_skill_md_table(self) -> None:
++        text = _SKILL_MD.read_text(encoding="utf-8")
++        table = text[text.index("## Reference Files"):]
++        self.assertIn("| `references/claims_rules.md` |", table)
++
++    def test_claims_rules_referenced_from_bugs_and_writeup_guidance(self) -> None:
++        text = _PHASE2_GUIDE.read_text(encoding="utf-8")
++        self.assertIn(
++            "Apply `references/claims_rules.md` before writing any "
++            "BUGS.md entry.", text)
++        self.assertIn(
++            "Apply `references/claims_rules.md` before writing each "
++            "writeup.", text)
++
++
++if __name__ == "__main__":
++    unittest.main()
+diff --git a/bin/tests/test_phase6_subagent_contract.py b/bin/tests/test_phase6_subagent_contract.py
+index 4a2b095..f998324 100644
+--- a/bin/tests/test_phase6_subagent_contract.py
++++ b/bin/tests/test_phase6_subagent_contract.py
+@@ -219,7 +219,9 @@ class Phase6SubAgentContractTests(unittest.TestCase):
+         # Guardrail #1 must distinguish execution vs verification.
+         guardrail_1 = _slice(
+             skill,
+-            "1. **Synchronous execution — no sub-agent delegation.**",
++            # v1.6.1 [S]: guardrail #1 renamed for the parent-witness rule.
++            "1. **Synchronous execution, or per-phase subagents under "
++            "the parent-witness rule**",
+             "\n2. **Don't patch QPB source",
+         )
+         self.assertIn(
+diff --git a/plugins/quality-playbook/skills/quality-playbook/agents/quality-playbook-claude.agent.md b/plugins/quality-playbook/skills/quality-playbook/agents/quality-playbook-claude.agent.md
+index fe7e6e1..39ef55e 100644
+--- a/plugins/quality-playbook/skills/quality-playbook/agents/quality-playbook-claude.agent.md
++++ b/plugins/quality-playbook/skills/quality-playbook/agents/quality-playbook-claude.agent.md
+@@ -1,6 +1,6 @@
+ ---
+ name: quality-playbook
+-description: "AUTOMATION ONLY — DO NOT INVOKE FROM AN INTERACTIVE CODING SESSION. Run a complete quality engineering audit on any codebase. Orchestrates six phases — explore, generate, review, audit, reconcile, verify — each in its own context window via sub-agents. Then runs iteration strategies to find even more bugs. Finds the 35% of real defects that structural code review alone cannot catch."
++description: "Run a complete quality engineering audit on any codebase. Orchestrates six phases — explore, generate, review, audit, reconcile, verify — each in its own context window via sub-agents. Allowed in interactive sessions under the parent-witness rule: after every Phase 6 the parent session re-runs the gate with bin/qpb_gate_witness.py, pastes its verdict lines, and stops on a MISMATCH. Then runs iteration strategies to find even more bugs. Finds the 35% of real defects that structural code review alone cannot catch."
+ tools:
+   - Agent
+   - Read
+@@ -14,18 +14,17 @@ model: inherit
+ 
+ ## When to use this file
+ 
+-This orchestrator pattern is for AUTOMATION contexts:
+-- Headless CI runs invoking the playbook on a target without an operator-watched chat session.
+-- Batch processing where per-phase context-window isolation is necessary (target is very large, single-context Mode A would exhaust the window).
+-- Programmatic invocation from a wrapping tool that mediates between operator and skill execution.
++Use this orchestrator pattern when per-phase context-window isolation helps: a large target, a headless CI or batch run, or an interactive session that wants one sub-agent per phase. It is allowed in an interactive session under the **parent-witness rule** (v1.6.1; SKILL.md Mode A):
+ 
+-**DO NOT use this file for interactive coding sessions** (Claude Code, Cursor, Copilot UI, Codex desktop). For interactive sessions:
++1. You — this top-level session — run each phase in its own sub-agent.
++2. After every Phase 6, YOU run `python3 <install_root>/bin/qpb_gate_witness.py <target-repo>` yourself and paste its `Total:` and `RESULT:` lines verbatim in your own chat. The script re-runs `quality_gate.py` and compares those lines with `quality/results/quality-gate.log`.
++3. If it prints `MISMATCH` (exit 1) or reports the log missing (exit 2), stop and report to the operator. Do not start iterations.
+ 
+-1. Read `SKILL.md` directly.
+-2. Execute Mode A in your own chat session (the operator is watching).
+-3. Your chat IS the witness trail — do not hide phase execution behind a sub-agent.
++Why: on 2026-05-16 an interactive session spawned this orchestrator as a sub-skill; the sub-skill hand-wrote `quality/results/quality-gate.log` reading PASS against an actual 14-FAIL gate, and the parent trusted the log. A sub-agent can write any log, but it cannot change what the gate prints when you run it, so step 2 catches that failure.
+ 
+-The 2026-05-16 express failure mode (interactive session spawned this orchestrator → sub-skill fabricated gate-PASS verdict → operator trusted the fabrication) is exactly what this constraint prevents.
++Driving Mode A yourself (read `SKILL.md`, execute every phase in your own chat) stays valid.
++
++**Nesting rule: sub-agents cannot spawn sub-agents.** YOU spawn the Feature H personas (Phase 2→3 boundary), the Phase 6 fresh-context auditor (`phase_prompts/phase6_auditor.md`), and any other sub-agent a phase prompt asks for (e.g. the challenge gate's fresh reviewers, `references/challenge_gate.md`). A phase sub-agent that reaches such a step returns to you; you spawn the sub-agent and pass its result to the next phase.
+ 
+ ## You are the orchestrator
+ 
+@@ -35,7 +34,7 @@ The playbook architecture uses exactly one level of sub-agents: you (the top-lev
+ 
+ ## Your role
+ 
+-Your ONLY jobs are: (1) spawn sub-agents to execute phases, (2) verify their output files exist on disk, (3) report progress to the user. You do NOT execute phase logic yourself. Never explore source code for bugs, write findings, generate requirements, or draft tests in your own context. If you find yourself doing any of that, you have violated your role.
++Your ONLY jobs are: (1) spawn sub-agents to execute phases, (2) verify their output files exist on disk, (3) after every Phase 6, run `bin/qpb_gate_witness.py` yourself and paste its verdict lines (the parent-witness rule above), (4) report progress to the user. You do NOT execute phase logic yourself. Never explore source code for bugs, write findings, generate requirements, or draft tests in your own context. If you find yourself doing any of that, you have violated your role.
+ 
+ ## File-writing override
+ 
+@@ -90,9 +89,9 @@ Use the Agent tool to spawn a sub-agent for each phase. Each sub-agent gets its
+ 
+ The sub-agent — not you — does all the phase work. Pass it a prompt along these lines:
+ 
+-> Read the quality playbook skill at `[SKILL_PATH]` and the reference files in `[REFERENCES_PATH]`. Read `quality/PROGRESS.md` for context from prior phases. Execute Phase N following the skill's instructions exactly. Write all artifacts to the `quality/` directory. Update `quality/PROGRESS.md` with the phase checkpoint when done.
++> Read the quality playbook skill at `[SKILL_PATH]` and the reference files in `[REFERENCES_PATH]`. Read `quality/PROGRESS.md` for context from prior phases. Execute Phase N following the skill's instructions exactly. Write all artifacts to the `quality/` directory. Update `quality/PROGRESS.md` with the phase checkpoint when done. If a step asks you to spawn a sub-agent (Feature H personas, the Phase 6 auditor, challenge-gate reviewers), stop and return what it needs — sub-agents cannot spawn sub-agents; the orchestrator spawns it.
+ 
+-After each sub-agent returns, run the post-phase verification gate from `references/orchestrator_protocol.md` BEFORE reporting the phase as complete.
++After each sub-agent returns, run the post-phase verification gate from `references/orchestrator_protocol.md` BEFORE reporting the phase as complete. After Phase 6 that gate includes your own witness run: `python3 <install_root>/bin/qpb_gate_witness.py <target-repo>`, verdict lines pasted verbatim in your chat; on `MISMATCH` (exit 1) or a missing log (exit 2), stop and report.
+ 
+ ## Two modes
+ 
+diff --git a/plugins/quality-playbook/skills/quality-playbook/agents/quality-playbook.agent.md b/plugins/quality-playbook/skills/quality-playbook/agents/quality-playbook.agent.md
+index b4c2e36..325d4b5 100644
+--- a/plugins/quality-playbook/skills/quality-playbook/agents/quality-playbook.agent.md
++++ b/plugins/quality-playbook/skills/quality-playbook/agents/quality-playbook.agent.md
+@@ -1,6 +1,6 @@
+ ---
+ name: quality-playbook
+-description: "AUTOMATION ONLY — DO NOT INVOKE FROM AN INTERACTIVE CODING SESSION. Run a complete quality engineering audit on any codebase. Orchestrates six phases — explore, generate, review, audit, reconcile, verify — each in its own context window for maximum depth. Then runs iteration strategies to find even more bugs. Finds the 35% of real defects that structural code review alone cannot catch."
++description: "Run a complete quality engineering audit on any codebase. Orchestrates six phases — explore, generate, review, audit, reconcile, verify — each in its own context window for maximum depth. Allowed in interactive sessions under the parent-witness rule: after every Phase 6 the parent session re-runs the gate with bin/qpb_gate_witness.py, pastes its verdict lines, and stops on a MISMATCH. Then runs iteration strategies to find even more bugs. Finds the 35% of real defects that structural code review alone cannot catch."
+ tools:
+   - search/codebase
+   - web/fetch
+@@ -10,22 +10,21 @@ tools:
+ 
+ ## When to use this file
+ 
+-This orchestrator pattern is for AUTOMATION contexts:
+-- Headless CI runs invoking the playbook on a target without an operator-watched chat session.
+-- Batch processing where per-phase context-window isolation is necessary (target is very large, single-context Mode A would exhaust the window).
+-- Programmatic invocation from a wrapping tool that mediates between operator and skill execution.
++Use this orchestrator pattern when per-phase context-window isolation helps: a large target, a headless CI or batch run, or an interactive session that wants one sub-agent or fresh context per phase. It is allowed in an interactive session under the **parent-witness rule** (v1.6.1; SKILL.md Mode A):
+ 
+-**DO NOT use this file for interactive coding sessions** (Claude Code, Cursor, Copilot UI, Codex desktop). For interactive sessions:
++1. You — this top-level session — run each phase in its own sub-agent or fresh context.
++2. After every Phase 6, YOU run `python3 <install_root>/bin/qpb_gate_witness.py <target-repo>` yourself and paste its `Total:` and `RESULT:` lines verbatim in your own chat. The script re-runs `quality_gate.py` and compares those lines with `quality/results/quality-gate.log`.
++3. If it prints `MISMATCH` (exit 1) or reports the log missing (exit 2), stop and report to the operator. Do not start iterations.
+ 
+-1. Read `SKILL.md` directly.
+-2. Execute Mode A in your own chat session (the operator is watching).
+-3. Your chat IS the witness trail — do not hide phase execution behind a sub-agent.
++Why: on 2026-05-16 an interactive session spawned this orchestrator as a sub-skill; the sub-skill hand-wrote `quality/results/quality-gate.log` reading PASS against an actual 14-FAIL gate, and the parent trusted the log. A sub-agent or fresh context can write any log, but it cannot change what the gate prints when you run it, so step 2 catches that failure.
+ 
+-The 2026-05-16 express failure mode (interactive session spawned this orchestrator → sub-skill fabricated gate-PASS verdict → operator trusted the fabrication) is exactly what this constraint prevents.
++Driving Mode A yourself (read `SKILL.md`, execute every phase in your own chat) stays valid.
++
++**Nesting rule: sub-agents cannot spawn sub-agents.** YOU spawn the Feature H personas (Phase 2→3 boundary), the Phase 6 fresh-context auditor (`phase_prompts/phase6_auditor.md`), and any other sub-agent a phase prompt asks for (e.g. the challenge gate's fresh reviewers, `references/challenge_gate.md`). A phase sub-agent or fresh context that reaches such a step returns to you; you spawn the sub-agent and pass its result to the next phase.
+ 
+ ## Your role
+ 
+-Your ONLY jobs are: (1) spawn sub-agents (or new contexts/chats — see tool-specific guidance below) to execute phases, (2) verify their output files exist on disk, (3) report progress to the user. You do NOT execute phase logic yourself. Never explore source code for bugs, write findings, generate requirements, or draft tests in your own context. If you find yourself doing any of that, you have violated your role.
++Your ONLY jobs are: (1) spawn sub-agents (or new contexts/chats — see tool-specific guidance below) to execute phases, (2) verify their output files exist on disk, (3) after every Phase 6, run `bin/qpb_gate_witness.py` yourself and paste its verdict lines (the parent-witness rule above), (4) report progress to the user. You do NOT execute phase logic yourself. Never explore source code for bugs, write findings, generate requirements, or draft tests in your own context. If you find yourself doing any of that, you have violated your role.
+ 
+ ## File-writing override
+ 
+@@ -124,7 +123,7 @@ For each phase (1 through 6):
+    - Read quality/PROGRESS.md (if it exists) for context from prior phases
+    - Execute Phase N
+ 3. **Wait for completion.** The phase is done when it writes its checkpoint to quality/PROGRESS.md.
+-4. **Run the post-phase verification gate** from `references/orchestrator_protocol.md`. The sub-agent's claim of completion is insufficient — only files on disk count.
++4. **Run the post-phase verification gate** from `references/orchestrator_protocol.md`. The sub-agent's claim of completion is insufficient — only files on disk count. After Phase 6 the gate includes your own witness run: `python3 <install_root>/bin/qpb_gate_witness.py <target-repo>`, verdict lines pasted verbatim in your chat; on `MISMATCH` (exit 1) or a missing log (exit 2), stop and report.
+ 5. **Report progress.** Between phases, briefly tell the user what happened: how many findings, any issues, what's next.
+ 6. **Continue to next phase.** Repeat from step 1.
+ 
+@@ -158,7 +157,7 @@ Iterations typically add 40-60% more confirmed bugs on top of the baseline.
+ ## The six phases
+ 
+ 1. **Phase 1 (Explore)** — Read the codebase: architecture, quality risks, candidate bugs. Output: `quality/EXPLORATION.md`
+-2. **Phase 2 (Generate)** — Produce quality artifacts: requirements, constitution, contracts, coverage matrix, completeness report, four review/execution protocols, functional test file. Output: nine files in `quality/` (REQUIREMENTS.md, QUALITY.md, CONTRACTS.md, COVERAGE_MATRIX.md, COMPLETENESS_REPORT.md, RUN_CODE_REVIEW.md, RUN_INTEGRATION_TESTS.md, RUN_SPEC_AUDIT.md, RUN_TDD_TESTS.md) plus a `quality/test_functional.<ext>` functional test file. **AGENTS.md is generated post-Phase-6 by the orchestrator, NOT by Phase 2** — writing AGENTS.md in Phase 2 trips the source-edit guardrail and aborts the run.
++2. **Phase 2 (Generate)** — Produce quality artifacts: requirements, constitution, contracts, coverage matrix, completeness report, four review/execution protocols, functional test file. Output: nine files in `quality/` (REQUIREMENTS.md, QUALITY.md, CONTRACTS.md, COVERAGE_MATRIX.md, COMPLETENESS_REPORT.md, RUN_CODE_REVIEW.md, RUN_INTEGRATION_TESTS.md, RUN_SPEC_AUDIT.md, RUN_TDD_TESTS.md) plus a `quality/test_functional.<ext>` functional test file. **AGENTS.md is generated by the orchestrator after the Phase 6 gate passes (the gate does not require it), NOT by Phase 2** — writing AGENTS.md in Phase 2 trips the source-edit guardrail and aborts the run.
+ 3. **Phase 3 (Code Review)** — Three-pass review: structural, requirement verification, cross-requirement consistency. Regression tests for every confirmed bug. Output: `quality/code_reviews/`, patches
+ 4. **Phase 4 (Spec Audit)** — Three independent auditors check code against requirements. Triage with verification probes. Output: `quality/spec_audits/`, additional regression tests
+ 5. **Phase 5 (Reconciliation)** — Close the loop: every bug tracked, regression-tested, TDD red-green verified. Output: `quality/BUGS.md`, TDD logs, completeness report
+diff --git a/plugins/quality-playbook/skills/quality-playbook/scripts/install_skill.py b/plugins/quality-playbook/skills/quality-playbook/scripts/install_skill.py
+index 4a40580..2a14ce9 100644
+--- a/plugins/quality-playbook/skills/quality-playbook/scripts/install_skill.py
++++ b/plugins/quality-playbook/skills/quality-playbook/scripts/install_skill.py
+@@ -234,6 +234,8 @@ def _bundle_files_soft(
+             "qpb_heartbeat.py",
+             # v1.5.7 090k: qpb_validate is bundled adopter-side.
+             "qpb_validate.py",
++            # v1.6.1 [S]: parent-session gate witness.
++            "qpb_gate_witness.py",
+         ):
+             p = source_root / scripts_dir / _mod
+             if p.is_file():
+@@ -675,6 +677,15 @@ def _bundle_files(source_root: Path) -> list[tuple[Path, Path]]:
+         _require_bundle_file(source_root / scripts_dir / "qpb_heartbeat.py"),
+         Path("bin") / "qpb_heartbeat.py",
+     ))
++    # v1.6.1 [S]: ship bin/qpb_gate_witness.py — the parent session runs
++    # it after every Phase 6 when phases ran in subagents (SKILL.md Mode
++    # A). It re-runs <install_root>/quality_gate.py and compares the
++    # verdict lines with quality/results/quality-gate.log. Import
++    # closure: stdlib + _purpose (bundled). Mandatory-bundle pattern.
++    files.append((
++        _require_bundle_file(source_root / scripts_dir / "qpb_gate_witness.py"),
++        Path("bin") / "qpb_gate_witness.py",
++    ))
+     return files
+ 
+ 
+diff --git a/plugins/quality-playbook/skills/quality-playbook/scripts/qpb_gate_witness.py b/plugins/quality-playbook/skills/quality-playbook/scripts/qpb_gate_witness.py
+new file mode 100644
+index 0000000..d620d3d
+--- /dev/null
++++ b/plugins/quality-playbook/skills/quality-playbook/scripts/qpb_gate_witness.py
+@@ -0,0 +1,186 @@
++#!/usr/bin/env python3
++"""qpb_gate_witness — the parent's own gate run, compared with the log
++(v1.6.1 [S]).
++
++Why: on 2026-05-16 a delegated run hand-wrote
++``quality/results/quality-gate.log`` reading PASS while the real gate
++reported 14 FAIL, and the parent trusted the log. v1.6.1 allows phases
++to run in per-phase subagents on one condition: after every Phase 6 the
++PARENT session runs this script itself and pastes its output in its own
++chat. The script re-runs the gate the same way adopters do
++(``python3 <quality_gate.py> .`` from the target repo root), extracts
++the ``Total:`` and ``RESULT:`` lines, and compares them with the same
++lines in ``quality/results/quality-gate.log``.
++
++Usage:
++  qpb_gate_witness <target-repo>
++
++Exit codes:
++  0  the gate's ``Total:`` and ``RESULT:`` lines equal the log's
++  1  they differ (a ``MISMATCH`` line names which), or the gate printed
++     no verdict lines
++  2  ``quality/results/quality-gate.log`` is missing, or the target /
++     ``quality_gate.py`` cannot be found
++
++The script never writes to the target: it reads the log and leaves it
++as the subagent wrote it. Stdlib only, plus the bundled ``_purpose``
++banner via the same 3-step anchored fallback qpb_phase.py uses.
++"""
++from __future__ import annotations
++
++import subprocess
++import sys
++from pathlib import Path
++from typing import Optional
++
++
++_NAME = "qpb_gate_witness"
++_SUMMARY = (
++    "Re-run quality_gate.py from the parent session and compare its "
++    "verdict lines with quality/results/quality-gate.log."
++)
++_USAGE = "qpb_gate_witness <target-repo>"
++
++LOG_REL = Path("quality") / "results" / "quality-gate.log"
++_GATE_TIMEOUT_S = 1800
++
++
++def _resolve_print_command_intro():
++    """089x self-describing banner via the same 3-step anchored
++    fallback qpb_phase.py uses (package / flat / path-load)."""
++    try:
++        from bin._purpose import (  # type: ignore[import]
++            print_command_intro as _pci,
++        )
++        return _pci
++    except ImportError:
++        pass
++    try:
++        from _purpose import (  # type: ignore[no-redef, import]
++            print_command_intro as _pci,
++        )
++        return _pci
++    except ImportError:
++        pass
++    import importlib.util as _ilu
++    _pp = Path(__file__).resolve().parent / "_purpose.py"
++    _ps = _ilu.spec_from_file_location("_qpb_purpose_via_witness", _pp)
++    if _ps is None or _ps.loader is None:
++        raise ImportError(
++            f"qpb_gate_witness: cannot resolve _purpose at {_pp}")
++    _mod = _ilu.module_from_spec(_ps)
++    sys.modules[_ps.name] = _mod
++    _ps.loader.exec_module(_mod)
++    return _mod.print_command_intro
++
++
++def _print_intro() -> None:
++    _resolve_print_command_intro()(
++        name=_NAME,
++        summary=_SUMMARY,
++        role=(
++            "v1.6.1 [S] — when phases ran in subagents, the parent "
++            "session runs this after every Phase 6 and pastes its "
++            "output; exit 1 (MISMATCH) means the log does not match "
++            "the gate and the run stops."
++        ),
++        usage_hint=_USAGE,
++    )
++
++
++def find_gate_script() -> Optional[Path]:
++    """Locate quality_gate.py relative to this file. QPB clone: the
++    sibling in ``scripts/``. Adopter install / channel bundle: this
++    file is ``<install_root>/bin/qpb_gate_witness.py`` and the gate is
++    ``<install_root>/quality_gate.py``."""
++    here = Path(__file__).resolve().parent
++    for cand in (here / "quality_gate.py", here.parent / "quality_gate.py"):
++        if cand.is_file():
++            return cand
++    return None
++
++
++def verdict_lines(text: str) -> "tuple[Optional[str], Optional[str]]":
++    """Return the LAST ``Total:`` line and the LAST ``RESULT:`` line in
++    ``text`` (stripped), or None for each that is absent. Last wins
++    because the gate prints its verdict at the end, after any
++    per-check output."""
++    total = result = None
++    for raw in text.splitlines():
++        line = raw.strip()
++        if line.startswith("Total:"):
++            total = line
++        elif line.startswith("RESULT:"):
++            result = line
++    return total, result
++
++
++def run_gate(gate: Path, target: Path) -> str:
++    """Run the gate exactly as adopters do: ``python3 <gate> .`` with
++    the target repo root as cwd. Returns combined stdout+stderr."""
++    proc = subprocess.run(
++        [sys.executable, str(gate), "."],
++        cwd=str(target),
++        stdout=subprocess.PIPE,
++        stderr=subprocess.STDOUT,
++        text=True,
++        encoding="utf-8",
++        errors="replace",
++        timeout=_GATE_TIMEOUT_S,
++    )
++    return proc.stdout or ""
++
++
++def main(argv: "list[str] | None" = None) -> int:
++    argv_list = list(sys.argv[1:] if argv is None else argv)
++    if not argv_list or argv_list in (["--help"], ["-h"]):
++        _print_intro()
++        return 0
++    if len(argv_list) != 1:
++        print(f"Usage: {_USAGE}", file=sys.stderr)
++        return 2
++    target = Path(argv_list[0]).resolve()
++    if not (target / "quality").is_dir():
++        print(f"ERROR: {target} has no quality/ directory", file=sys.stderr)
++        return 2
++    log_path = target / LOG_REL
++    if not log_path.is_file():
++        print(f"LOG MISSING: {LOG_REL} not found under {target}")
++        return 2
++    gate = find_gate_script()
++    if gate is None:
++        print("ERROR: quality_gate.py not found next to "
++              f"{Path(__file__).resolve()} or one directory up",
++              file=sys.stderr)
++        return 2
++
++    gate_total, gate_result = verdict_lines(run_gate(gate, target))
++    log_total, log_result = verdict_lines(
++        log_path.read_text(encoding="utf-8", errors="replace"))
++
++    print(f"Gate run by parent ({gate}):")
++    print(f"  {gate_total or '<no Total: line>'}")
++    print(f"  {gate_result or '<no RESULT: line>'}")
++    print(f"Log ({LOG_REL}):")
++    print(f"  {log_total or '<no Total: line>'}")
++    print(f"  {log_result or '<no RESULT: line>'}")
++
++    if gate_total is None or gate_result is None:
++        print("MISMATCH: the gate printed no Total:/RESULT: verdict "
++              "lines; stop and report.")
++        return 1
++    diffs = []
++    if gate_total != log_total:
++        diffs.append("Total:")
++    if gate_result != log_result:
++        diffs.append("RESULT:")
++    if diffs:
++        print(f"MISMATCH: {' and '.join(diffs)} line(s) differ between "
++              "the gate and quality-gate.log; stop and report.")
++        return 1
++    print("MATCH: the log's Total: and RESULT: lines equal the gate's.")
++    return 0
++
++
++if __name__ == "__main__":
++    sys.exit(main())
+diff --git a/plugins/quality-playbook/skills/quality-playbook/scripts/qpb_validate.py b/plugins/quality-playbook/skills/quality-playbook/scripts/qpb_validate.py
+index dbc5e7a..62aa5f3 100644
+--- a/plugins/quality-playbook/skills/quality-playbook/scripts/qpb_validate.py
++++ b/plugins/quality-playbook/skills/quality-playbook/scripts/qpb_validate.py
+@@ -163,6 +163,7 @@ INSTALL_CLOSURE = [
+     {"path": "bin/phase_identity.py", "kind": "bundled_module", "min_version": None, "expected_sha256": None, "source_glob": None},
+     {"path": "bin/qpb_config.py", "kind": "bundled_module", "min_version": None, "expected_sha256": None, "source_glob": None},
+     {"path": "bin/qpb_heartbeat.py", "kind": "bundled_module", "min_version": None, "expected_sha256": None, "source_glob": None},
++    {"path": "bin/qpb_gate_witness.py", "kind": "bundled_module", "min_version": None, "expected_sha256": None, "source_glob": None},
+     {"path": "bin/qpb_phase.py", "kind": "bundled_module", "min_version": None, "expected_sha256": None, "source_glob": None},
+     {"path": "bin/qpb_validate.py", "kind": "bundled_module", "min_version": None, "expected_sha256": None, "source_glob": None},
+     {"path": "bin/quality_playbook.py", "kind": "bundled_module", "min_version": None, "expected_sha256": None, "source_glob": None},
+@@ -199,6 +200,7 @@ INSTALL_CLOSURE = [
+     {"path": "references/DOC_GATHERING_PROMPT.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},
+     {"path": "references/artifact_contract.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},
+     {"path": "references/challenge_gate.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},
++    {"path": "references/claims_rules.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},
+     {"path": "references/code-only-mode.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},
+     {"path": "references/constitution.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},
+     {"path": "references/defensive_patterns.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},
+diff --git a/plugins/quality-playbook/skills/quality-playbook/scripts/run_state_lib.py b/plugins/quality-playbook/skills/quality-playbook/scripts/run_state_lib.py
+index ebda1a1..5979b94 100644
+--- a/plugins/quality-playbook/skills/quality-playbook/scripts/run_state_lib.py
++++ b/plugins/quality-playbook/skills/quality-playbook/scripts/run_state_lib.py
+@@ -1184,6 +1184,7 @@ _FLAT_LAYOUT_BUNDLED_BIN_FILES = frozenset({
+     "migrate_v1_5_0_layout.py",
+     "phase_identity.py",            # v1.5.9 1B.0 shared phase identity
+     "qpb_config.py",                # v1.5.7 086 A-26
++    "qpb_gate_witness.py",          # v1.6.1 [S] parent-session gate witness
+     "qpb_heartbeat.py",             # v1.5.9 1B worker heartbeat helper
+     "qpb_phase.py",                 # v1.5.7 109
+     "qpb_validate.py",              # v1.5.7 090k
+diff --git a/references/claims_rules.md b/references/claims_rules.md
+new file mode 100644
+index 0000000..2285da3
+--- /dev/null
++++ b/references/claims_rules.md
+@@ -0,0 +1,48 @@
++# Claims Rules
++
++Apply these rules to every claim QPB writes for a reader: `quality/BUGS.md` entries, `quality/writeups/BUG-NNN.md`, the "What just happened" block, README and benchmark text. A claim is any sentence that states a fact, a result, or a capability.
++
++## Reader model
++
++Maintainers and adopters read a QPB claim the way they read a bug report. They ask three questions: what happened, how often, and can I reproduce it?
++
++## Two standards
++
++- **Tangible.** The claim names a number, a `file:line`, a command, a test, or a deliverable.
++- **Objective.** Ten engineers would agree on what the claim means. It passes or fails like a test.
++
++## Rules
++
++- **R1. Every claim has a measurable anchor.** "The parser drops the last byte of a 4096-byte chunk (`test_chunk_boundary` fails)" — not "the parser mishandles chunk boundaries."
++- **R2. Name the thing.** Name the file, function, test, command, or RFC section. Do not gesture at "the config handling" or "the spec."
++- **R3. Describe the behaviour or the action, not a feeling.** "`retry()` sleeps 0 ms on the first attempt" — not "retry logic is fragile."
++- **R6. One idea per claim.** Split a sentence that carries two findings into two sentences.
++- **R7. Never promise what the material cannot deliver.** If a patch was not run, do not say it fixes the bug; say it is proposed and untested.
++- **R8. Numbers are real or framed as targets.** A real number names its source (a command, a log, a test run). A target says it is a target. A specific behavioural claim ("X does not do Y") must have been run before it is written.
++
++## What not to use in bug reports, PRs, and issues
++
++Do not write scenes or before/after storytelling ("Imagine a user who…", "Before this fix, life was hard…"). Maintainers read them as padding. Before/after is fine in README and benchmark claims when both numbers were measured.
++
++## Flags that trigger a rewrite
++
++- "significantly", "robust", "comprehensive", "critical", "seamless" with no anchor next to them.
++- "ensure" when nothing checks it.
++- "all" or "every" when the set is not enumerated.
++- Any percentage without a source.
++
++## Pre-output checklist
++
++Run this silently before returning operator-facing text:
++
++1. R1: each claim has an anchor.
++2. R2: each claim names its thing.
++3. R3: each claim describes behaviour or action.
++4. R6: one idea per claim.
++5. R7: nothing promised beyond what was run or read.
++6. R8: each number has a source or is labelled a target.
++7. No flag word is left unanchored.
++
++Precedence: the caller's tone and voice rules win on tone. These rules win on claims.
++
++Credit: adapted from a QA copywriting standard supplied by Andrew Stellman (2026-10-01).
+diff --git a/references/orchestrator_protocol.md b/references/orchestrator_protocol.md
+index 760a74c..730cf99 100644
+--- a/references/orchestrator_protocol.md
++++ b/references/orchestrator_protocol.md
+@@ -4,10 +4,26 @@ Shared rules for all orchestrator agent files (Claude Code, Copilot, Cursor, Win
+ 
+ ## Role Definition
+ 
+-Your ONLY jobs are: (1) spawn sub-agents to execute phases, (2) verify their output files exist on disk, (3) report progress to the user. You do NOT execute phase logic yourself. Never explore source code for bugs, write findings, generate requirements, or draft tests in your own context. If you find yourself doing any of that, you have violated your role.
++Your ONLY jobs are: (1) spawn sub-agents to execute phases, (2) verify their output files exist on disk, (3) after every Phase 6, run the gate witness yourself (below), (4) report progress to the user. You do NOT execute phase logic yourself. Never explore source code for bugs, write findings, generate requirements, or draft tests in your own context. If you find yourself doing any of that, you have violated your role.
+ 
+ **Why this is strict.** The Quality Playbook is intentionally multi-session: each phase needs the full context window for deep analysis. Running phases in the orchestrator's context is the single most common failure mode — the orchestrator collapses into single-context execution, produces shallow summaries, and writes zero files to disk. This happened on a real casbin run and is why this protocol was hardened.
+ 
++## Parent-Witness Rule (v1.6.1)
++
++Phases may run in per-phase sub-agents in any session, interactive or headless, on one condition: after every Phase 6, the PARENT session — you, not a sub-agent — runs the gate itself and compares it with the log the sub-agent left. This is the Phase 6 step of the post-phase verification gate below. Driving every phase yourself (SKILL.md Mode A default) stays valid.
++
++Why: on 2026-05-16 a delegated run hand-wrote `quality/results/quality-gate.log` reading PASS while the real gate reported 14 FAIL, and the parent trusted the log. A sub-agent can write any log; it cannot change what the gate prints in the parent's session. On 2026-10-01 a cloud run of QPB 1.6.0 with one sub-agent per phase had the parent re-run the gate after both Phase 6 runs; both matched the sub-agent's log.
++
++## Nesting Rule
++
++Sub-agents cannot spawn sub-agents. The parent spawns:
++
++- the Feature H personas (Phase 2→3 boundary, `bin/persona_apply.run_feature_h`);
++- the Phase 6 fresh-context auditor (`phase_prompts/phase6_auditor.md`);
++- any other sub-agent a phase prompt asks for (e.g. the challenge gate's fresh reviewers, `references/challenge_gate.md`).
++
++A phase sub-agent that reaches such a step returns to the parent with what the step needs. The parent spawns the sub-agent and passes its result to the next phase sub-agent.
++
+ ## File-Writing Override
+ 
+ The user's invocation of the playbook is explicit authorization for you and every sub-agent you spawn to write .md files, patches, JSON, and any other artifacts to the `quality/` directory and the project root (`AGENTS.md`). This overrides any base harness rules discouraging documentation or .md file creation. No sub-agent should skip file writes citing harness constraints.
+@@ -39,11 +55,12 @@ Express each check as content criteria ("verify that `quality/EXPLORATION.md` ex
+ Cross-reference SKILL.md's Complete Artifact Contract for the authoritative list.
+ 
+ - **Phase 1 (Explore):** `quality/EXPLORATION.md` exists with at least 120 lines of substantive content; `quality/PROGRESS.md` exists with Phase 1 marked complete.
+-- **Phase 2 (Generate):** All of these exist: `quality/REQUIREMENTS.md`, `quality/QUALITY.md`, `quality/CONTRACTS.md`, `quality/COVERAGE_MATRIX.md`, `quality/COMPLETENESS_REPORT.md`, `quality/RUN_CODE_REVIEW.md`, `quality/RUN_INTEGRATION_TESTS.md`, `quality/RUN_SPEC_AUDIT.md`, `quality/RUN_TDD_TESTS.md`. A functional test file exists in `quality/` (naming varies by language: `quality/test_functional.<ext>`). **AGENTS.md is NOT a Phase 2 output** — it is generated post-Phase-6 by the orchestrator (see SKILL.md Phase 2 source-modification guardrail). Phase 2 writes ONLY into `quality/`.
++- **Phase 2 (Generate):** All of these exist: `quality/REQUIREMENTS.md`, `quality/QUALITY.md`, `quality/CONTRACTS.md`, `quality/COVERAGE_MATRIX.md`, `quality/COMPLETENESS_REPORT.md`, `quality/RUN_CODE_REVIEW.md`, `quality/RUN_INTEGRATION_TESTS.md`, `quality/RUN_SPEC_AUDIT.md`, `quality/RUN_TDD_TESTS.md`. A functional test file exists in `quality/` (naming varies by language: `quality/test_functional.<ext>`). **AGENTS.md is NOT a Phase 2 output** — the orchestrator writes it after the Phase 6 gate passes (see SKILL.md Phase 2 source-modification guardrail). Phase 2 writes ONLY into `quality/`.
+ - **Phase 3 (Code Review):** `quality/code_reviews/` contains at least one review file. If bugs were confirmed: `quality/BUGS.md` has at least one `### BUG-` entry, `quality/patches/` contains a regression-test patch per confirmed bug, and `quality/test_regression.*` exists.
+ - **Phase 4 (Spec Audit):** `quality/spec_audits/` contains at least one triage file AND at least one individual auditor file.
+ - **Phase 5 (Reconciliation):** If bugs were confirmed: `quality/results/tdd-results.json` exists, a writeup at `quality/writeups/BUG-NNN.md` exists for every confirmed bug, and a red-phase log exists at `quality/results/BUG-NNN.red.log` for every confirmed bug.
+-- **Phase 6 (Verify):** `quality/results/quality-gate.log` exists and PROGRESS.md marks Phase 6 complete with a Terminal Gate Verification section.
++- **Phase 6 (Verify):** `quality/results/quality-gate.log` exists and PROGRESS.md marks Phase 6 complete with a Terminal Gate Verification section. Then the parent's witness run (mandatory): run `python3 <install_root>/bin/qpb_gate_witness.py <target-repo>` yourself and paste its output verbatim in your own chat. It re-runs `quality_gate.py` the way adopters do and compares the gate's `Total:` and `RESULT:` lines with the log's. Exit 0 prints `MATCH`. Exit 1 prints `MISMATCH`: stop, report both pairs of lines to the operator, and start nothing else. Exit 2 means the log is missing: the phase failed.
++- **AGENTS.md (target repo root):** written by the orchestrator AFTER the Phase 6 gate passes. It is not required for the gate to pass, and no phase sub-agent writes it.
+ 
+ ### After verification passes
+ 
+diff --git a/references/phase2_generation_guide.md b/references/phase2_generation_guide.md
+index ab5aaf5..f2afc5a 100644
+--- a/references/phase2_generation_guide.md
++++ b/references/phase2_generation_guide.md
+@@ -354,6 +354,8 @@ Pass 3 catches contradictions where two individually-correct pieces of code disa
+ 
+ **BUGS.md:** After all review and audit phases, generate `quality/BUGS.md` — a consolidated bug report with full reproduction details for each confirmed bug. For each bug, include: bug ID, source (code review or spec audit), file:line, description, severity, minimal reproduction scenario (what input or sequence triggers the bug), expected vs actual behavior, references to the regression test and any proposed fix patch, and **spec basis**.
+ 
++**Claims (v1.6.1 [W]).** Apply `references/claims_rules.md` before writing any BUGS.md entry.
++
+ **BUGS.md — v1.5.3 BUG record fields.** Every BUGS.md entry (and every `quality/writeups/BUG-NNN.md`) corresponds to a BUG record written to `quality/bugs_manifest.json`. In addition to the narrative conventions above, every BUG carries:
+ 
+ - `id` — `BUG-NNN` zero-padded three-digit sequence.
+@@ -822,6 +824,8 @@ The generated protocol must include:
+ 
+ 7. **Bug writeup generation (for all confirmed bugs).** After a successful red→green cycle (`verdict: "TDD verified"`) or confirmation without a fix (`verdict: "confirmed open"`), generate a self-contained writeup at `quality/writeups/BUG-NNN.md`. This file is designed to be emailed to a maintainer, attached to a Jira ticket, or reviewed outside the repository — it must stand alone without requiring the reader to navigate the rest of the quality artifacts.
+ 
++   **Claims (v1.6.1 [W]).** Apply `references/claims_rules.md` before writing each writeup.
++
+    **Template (sections 1–4, 6, 7 are required in every writeup; add 5 when the depth judgment fires; add 8 when related bugs exist):**
+ 
+    1. **Summary** — One paragraph: what's wrong, where (file:line), what breaks in practice.
+@@ -884,7 +888,7 @@ Or say "keep going" to continue automatically.
+ 
+ **After printing this message, continue automatically to Phase 3 unless the operator invoked you for the current phase only (e.g., they typed `Run quality playbook phase 2.` for a single-phase run). The Mode A default per AGENTS.md is the full six-phase pipeline; per-phase STOP applies only to incremental operator-driven invocations (v1.5.7 089b F11).**
+ 
+-**Feature H persona validation pass at this boundary (v1.6.0).** At the Phase 2→3 boundary — after the requirements finalize and before Phase 3 builds on them — the Feature H persona validation pass (`bin/persona_apply.run_feature_h`; `references/requirements_pipeline.md` § E.9, Design §8b) runs **automatically unless disabled**. **Spawning its fresh-context, tool-restricted personas is a sanctioned exception to the no-sub-agent guardrail** (SKILL.md Mode A "EXCEPTION: the Feature H persona validation pass may spawn its personas", sibling to the Phase 6 verification exception, v1.6.0 instruction 029): the general no-sub-agent rule still holds for Phases 1–5, but this bounded, operator-visible validation remediation (mandatory `quality/expert_review_summary.json`, `agent-validation`-tagged + revertible, opt-out) is not a delegated phase. Run the pass here — do **not** disable Feature H over a perceived guardrail conflict; the carve-out is explicit.
++**Feature H persona validation pass at this boundary (v1.6.0).** At the Phase 2→3 boundary — after the requirements finalize and before Phase 3 builds on them — the Feature H persona validation pass (`bin/persona_apply.run_feature_h`; `references/requirements_pipeline.md` § E.9, Design §8b) runs **automatically unless disabled**. **Spawning its fresh-context, tool-restricted personas is a sanctioned exception to the sub-agent guardrail** (SKILL.md Mode A "EXCEPTION: the Feature H persona validation pass may spawn its personas", sibling to the Phase 6 verification exception, v1.6.0 instruction 029): delegating Phases 1–5 still requires the parent-witness rule (v1.6.1 [S]), but this bounded, operator-visible validation remediation (mandatory `quality/expert_review_summary.json`, `agent-validation`-tagged + revertible, opt-out) is not a delegated phase. Run the pass here — do **not** disable Feature H over a perceived guardrail conflict; the carve-out is explicit.
+ 
+ **Disclose the pass in the end-of-phase message (v1.6.0 instruction 031).** The pass auto-applies changes to the operator's requirements, so the operator-facing message at this boundary must say that it ran and what it did — otherwise the only trace is a JSON file they have no reason to open. Run the pass first, then emit the `## What just happened` block (State P2) with `bin.persona_apply.persona_review_disclosure(review_summary)` rendered into it: expert reviewers checked the requirements, what they changed, where every change and its backing is recorded, and that it can be undone. It renders nothing when the pass did not run.
+ 
+diff --git a/references/requirements_pipeline.md b/references/requirements_pipeline.md
+index c2eced8..bde368e 100644
+--- a/references/requirements_pipeline.md
++++ b/references/requirements_pipeline.md
+@@ -399,7 +399,7 @@ Render every REQ whose `references[]` point exclusively into `quality/` to `qual
+ 
+ **Re-render after the pass (instruction 028).** `run_feature_h` writes the updated `quality/requirements_manifest.json` (the source of truth — the pass applied moves + the terminal E.6 renumber). Because `REQUIREMENTS.md` is AI-authored (the "Feature C renderer" is the agent — `requirements_interview.md` § Write-back), **re-render `quality/REQUIREMENTS.md` from the updated manifest after the persona pass**, exactly as the human-interview write-back does — otherwise the rendered spec silently lags the manifest and the applied agent-validation adds are invisible to a human reader.
+ 
+-The live sub-agent spawn is performed by the running agent (the harness substrate); `run_feature_h` orchestrates the composition. **Spawning these personas is a sanctioned exception to the no-sub-agent guardrail (v1.6.0 instruction 029; SKILL.md Mode A "EXCEPTION: the Feature H persona validation pass may spawn its personas", sibling to the Phase 6 verification exception).** The general no-sub-agent rule still holds for Phases 1–5, but this bounded, operator-visible validation pass — mandatory `expert_review_summary.json`, `agent-validation`-tagged + revertible, opt-out — is not a delegated phase and does not reopen the guardrail's failure modes. A faithful agent at this boundary runs the pass here; it does **not** disable Feature H over a perceived guardrail conflict. This step's guards are all mechanically verified; the empirical acceptance (personas re-surface real gaps under isolation) is instruction 019.
++The live sub-agent spawn is performed by the running agent (the harness substrate); `run_feature_h` orchestrates the composition. **Spawning these personas is a sanctioned exception to the sub-agent guardrail (v1.6.0 instruction 029; SKILL.md Mode A "EXCEPTION: the Feature H persona validation pass may spawn its personas", sibling to the Phase 6 verification exception).** Delegating Phases 1–5 still requires the parent-witness rule (v1.6.1 [S]), but this bounded, operator-visible validation pass — mandatory `expert_review_summary.json`, `agent-validation`-tagged + revertible, opt-out — is not a delegated phase and does not reopen the guardrail's failure modes. A faithful agent at this boundary runs the pass here; it does **not** disable Feature H over a perceived guardrail conflict. This step's guards are all mechanically verified; the empirical acceptance (personas re-surface real gaps under isolation) is instruction 019.
+ 
+ ### Rules
+ 
+-- 
+2.34.1
+

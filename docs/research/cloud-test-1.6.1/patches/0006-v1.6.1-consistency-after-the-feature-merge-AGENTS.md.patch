@@ -1,0 +1,75 @@
+From 11fc3ada5db5b37a1a5b0b69dc9d3149457958f4 Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <andrew@stellman.com>
+Date: Fri, 2 Oct 2026 00:53:25 -0400
+Subject: [PATCH 06/12] =?UTF-8?q?v1.6.1:=20consistency=20after=20the=20fea?=
+ =?UTF-8?q?ture=20merge=20=E2=80=94=20AGENTS.md=20not=20gate-required=20in?=
+ =?UTF-8?q?=20artifact=5Fcontract.md;=20phase6.md=20tells=20a=20per-phase?=
+ =?UTF-8?q?=20sub-agent=20to=20return=20to=20the=20parent=20for=20the=20au?=
+ =?UTF-8?q?ditor;=20SKILL.md=20points=20Council=20output=20at=20the=20asse?=
+ =?UTF-8?q?mbler=20that=20stamps=20req=5Fhash?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ SKILL.md                                                        | 2 +-
+ bin/tests/test_phase_prompts_externalized.py                    | 2 +-
+ .../skills/quality-playbook/phase_prompts/phase6.md             | 2 ++
+ references/artifact_contract.md                                 | 2 +-
+ 4 files changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/SKILL.md b/SKILL.md
+index 65057f4..beacff6 100644
+--- a/SKILL.md
++++ b/SKILL.md
+@@ -543,7 +543,7 @@ After the main spec audit triage, each Council member runs a per-REQ verdict aga
+ 
+ 4. **Reviewer identifier stability.** Use fixed strings like `"claude-opus-4.7"`, `"gpt-5.5"`, `"claude-sonnet-4.6"` (the default Council roster). The majority computation `quality_gate.py` runs groups on this field — a typo silently becomes a fourth reviewer and breaks the 2-of-3 majority check.
+ 
+-5. **Output.** Concatenate all Council members' responses into `quality/citation_semantic_check.json` using the standard manifest wrapper, except the record array is named `reviews` rather than `records`. One file per run, regenerated on every audit pass.
++5. **Output.** Assemble `quality/citation_semantic_check.json` with `python3 -m bin.quality_playbook semantic-check assemble` (see `phase_prompts/phase4.md`), not by hand: the assembler stamps each review with `req_hash`, which the gate uses to reject a review that predates a rewrite of its REQ. Standard manifest wrapper, record array named `reviews`. One file per run, regenerated on every audit pass.
+ 
+ **Majority rule (gate-enforced).** For each Tier 1/2 REQ, the gate groups reviews by `req_id` and fails the run when ≥2 of 3 reviewers recorded `verdict == "overreaches"`. A single-member `overreaches` or `unclear` verdict surfaces as a warning but does not fail the gate. A REQ with fewer than three reviewer entries (missing reviewer, skipped batch) has insufficient evidence — the gate treats that as a fail.
+ 
+diff --git a/bin/tests/test_phase_prompts_externalized.py b/bin/tests/test_phase_prompts_externalized.py
+index f5bd40f..288b40b 100644
+--- a/bin/tests/test_phase_prompts_externalized.py
++++ b/bin/tests/test_phase_prompts_externalized.py
+@@ -518,7 +518,7 @@ class PhasePromptByteEqualityTests(unittest.TestCase):
+         # v1.5.7 191 FINDING-50: schemas.md prose citations stripped/rewritten.
+         # v1.6.1 [G]: phase6.md gained the fourth gate state (PASS WITH
+         # DECISIONS NEEDED) and the BUG EVIDENCE witness line.
+-        "phase6":                (10274, "f68b30e1bcb673d333dcaeb7f361c30c333839d1c3bdf8ea59294461efebc0b1"),
++        "phase6":                (10678, "7abbb7475346c34f3785b990da3bd5d5bf1af4eceb38c8d75b38da98235916e1"),
+         # v1.5.6 BUG-008: SKILL_FALLBACK_GUIDE grew from 4 to 6
+         # documented install paths (added .cursor + .continue), so
+         # every prompt that interpolates the guide grows by ~86 bytes.
+diff --git a/plugins/quality-playbook/skills/quality-playbook/phase_prompts/phase6.md b/plugins/quality-playbook/skills/quality-playbook/phase_prompts/phase6.md
+index 254fb19..17cdf63 100644
+--- a/plugins/quality-playbook/skills/quality-playbook/phase_prompts/phase6.md
++++ b/plugins/quality-playbook/skills/quality-playbook/phase_prompts/phase6.md
+@@ -8,6 +8,8 @@ You are a quality engineer at the verification boundary of a quality playbook ru
+ 
+ **If you are a Mode A interactive coding agent** (Claude Code, Cursor, etc., reading this prompt directly): the fresh-context sub-agent mandate below applies to you — proceed.
+ 
++**If you are a per-phase sub-agent spawned by a parent orchestrator** (the parent-witness rule in `references/orchestrator_protocol.md`): you cannot spawn the auditor yourself, because sub-agents cannot spawn sub-agents. Return to the parent now. The parent spawns the auditor from `phase_prompts/phase6_auditor.md` (Part A below), then runs `qpb_gate_witness.py` and pastes its verdict lines verbatim.
++
+ **STRUCTURAL: Phase 6 verification MUST run in a fresh-context sub-agent, not your current session.** This is non-negotiable (v1.5.7 A-13 hybrid). Same-context Phase 6 has demonstrated systematic verdict fabrication across virtio (2026-05-16), express (2026-05-16), and httpx (2026-05-17) — each time prompt-level witness language was strengthened, the same-context executor ignored it and reported PASS against a failing gate. Three model-behavior factors create the bias when an executor verifies its own work: (1) memory of completed work → motivated reasoning ("I did all that, it must have succeeded"); (2) shared context window → anchoring on the "I'm wrapping up" frame; (3) reward shape favors completion-reports over discrepancy-finding. A fresh-context sub-agent has none of these — it IS the structural backstop against fabrication.
+ 
+ This is the principled A-17 exception: A-17 forbids sub-agent delegation for EXECUTING Phases 1-5 (hiding work from operator chat defeats real-time monitoring); A-17 MANDATES sub-agent delegation for Phase 6 VERIFICATION (the executor's reward bias is the failure mode). Same principle — operator chat carries the truth — opposite mechanism (visibility for execution, isolation for verification).
+diff --git a/references/artifact_contract.md b/references/artifact_contract.md
+index 0fe5305..7a300b5 100644
+--- a/references/artifact_contract.md
++++ b/references/artifact_contract.md
+@@ -34,7 +34,7 @@ The quality gate (`quality_gate.py`) validates these artifacts. If the gate chec
+ | Coverage matrix | `quality/COVERAGE_MATRIX.md` | Yes | Phase 2 |
+ | Completeness report | `quality/COMPLETENESS_REPORT.md` | Yes | Phase 2 (baseline), Phase 5 (final verdict) |
+ | Progress tracker | `quality/PROGRESS.md` | Yes | Throughout |
+-| AI bootstrap | `AGENTS.md` (target repo root) | Yes | Generated by orchestrator after Phase 6 — not a Phase 2 deliverable |
++| AI bootstrap | `AGENTS.md` (target repo root) | No (WARN if missing) | Written by the orchestrator after the gate passes — not a Phase 2 deliverable, and not required for the gate to pass |
+ | Bug writeups | `quality/writeups/BUG-NNN.md` | If bugs found | Phase 5 |
+ | Regression patches | `quality/patches/BUG-NNN-regression-test.patch` | If bugs found | Phase 3 |
+ | Fix patches | `quality/patches/BUG-NNN-fix.patch` | Optional | Phase 3 |
+-- 
+2.34.1
+

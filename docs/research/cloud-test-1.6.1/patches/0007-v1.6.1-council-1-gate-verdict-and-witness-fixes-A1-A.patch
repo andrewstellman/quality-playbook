@@ -1,0 +1,877 @@
+From 292754d0f88c2f29e9b05807f2bbd87ce1f7e601 Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <andrew@stellman.com>
+Date: Fri, 2 Oct 2026 01:17:01 -0400
+Subject: [PATCH 07/12] v1.6.1 [council-1]: gate verdict and witness fixes
+ (A1-A7, B gaps 1-4, C2, C5)
+
+Witness ignores the WARN count in Total: (AGENTS.md written after the
+gate is one WARN) and still compares RESULT: and the FAIL/DECISION/CLEANUP
+counts exactly; protocol and agent files say to run it before AGENTS.md.
+Gate: overreach narration names unlinked bugs instead of none; manifest
+records filtered against BUGS.md even with zero bugs; missing regression
+patch named as such; decisions pass headed 'What needs your decision:';
+verdict_state 'decisions'; multi-repo FAIL lines carry [repo]; generic
+fallback names checks by leading words.
+---
+ bin/tests/test_gate_verdict_honesty_v161.py   | 213 ++++++++++++++++++
+ bin/tests/test_parent_witness_161.py          |  97 ++++++++
+ .../agents/quality-playbook-claude.agent.md   |   2 +-
+ .../agents/quality-playbook.agent.md          |   2 +-
+ .../scripts/qpb_gate_witness.py               |  31 ++-
+ .../quality-playbook/scripts/quality_gate.py  | 191 ++++++++++++----
+ references/orchestrator_protocol.md           |   4 +-
+ 7 files changed, 496 insertions(+), 44 deletions(-)
+
+diff --git a/bin/tests/test_gate_verdict_honesty_v161.py b/bin/tests/test_gate_verdict_honesty_v161.py
+index e894157..af5e44c 100644
+--- a/bin/tests/test_gate_verdict_honesty_v161.py
++++ b/bin/tests/test_gate_verdict_honesty_v161.py
+@@ -310,6 +310,130 @@ class DecisionsNeededTests(_GateFixture):
+         self.assertNotIn("OPERATOR_DECISIONS.md missing", out)
+ 
+ 
++class Council1GateTests(_GateFixture):
++    """v1.6.1 [council-1]: Council round-1 findings A2, A3, A5, A6, A7
++    and B gaps 3-4, end to end through the real gate."""
++
++    def _stale_manifest_zero_bug_tree(self):
++        """BUGS.md has zero bugs; bugs_manifest.json still carries a
++        BUG-001 -> REQ-001 record; REQ-001 overreaches (2/3)."""
++        tree = minimal_zero_bug_tree("1.4.4")
++        tree["formal_docs/virtio-excerpt.txt"] = V150_VIRTIO_EXCERPT_TEXT
++        tree["quality/formal_docs_manifest.json"] = _wrap([{
++            "source_path": "formal_docs/virtio-excerpt.txt",
++            "document_sha256": V150_VIRTIO_SHA, "tier": 2,
++        }])
++        rec = _req_record("REQ-001")
++        tree["quality/requirements_manifest.json"] = _wrap([rec])
++        tree["quality/citation_semantic_check.json"] = _wrap([{
++            "req_id": "REQ-001", "reviewer": m,
++            "verdict": "overreaches" if i < 2 else "supports",
++            "notes": "n", "req_hash": quality_gate.req_review_hash(rec),
++        } for i, m in enumerate(REVIEWERS)], "reviews")
++        tree["quality/INDEX.md"] = build_reproduced_tree(
++            {"BUG-001": "REQ-001"}, [])["quality/INDEX.md"]
++        tree["quality/bugs_manifest.json"] = _wrap([{
++            "id": "BUG-001", "title": "t", "severity": "LOW",
++            "divergence_description": "d", "documented_intent": "i",
++            "code_behavior": "c", "disposition": "code-fix",
++            "disposition_rationale": "r", "req_id": "REQ-001",
++            "proposed_fix": "f", "fix_type": "code",
++        }])
++        return tree
++
++    def test_zero_bugs_stale_manifest_is_operator_decision(self):
++        """Council A3: with zero confirmed bugs, a stale bugs_manifest
++        record is not a confirmed bug resting on the REQ."""
++        out, code = self.gate(self._stale_manifest_zero_bug_tree())
++        self.assertEqual(code, 0, out)
++        self.assertIn("No confirmed bugs in this run.", out)
++        self.assertIn("no confirmed bug rests on REQ-001 — operator "
++                      "decision", out)
++        self.assertNotIn("confirmed bug(s) resting on", out)
++        self.assertIn("RESULT: GATE PASSED WITH DECISIONS NEEDED", out)
++
++    def test_decisions_pass_heading_and_verdict_state(self):
++        """Council A5 + A6 / C2: a decisions pass is headed 'What needs
++        your decision:' (never 'Why it failed') and its sentinel says
++        verdict_state "decisions", matching the lead line."""
++        tree = build_reproduced_tree({"BUG-001": "REQ-001"}, ["REQ-003"])
++        out, code = self.gate(tree)
++        self.assertEqual(code, 0, out)
++        self.assertIn("[WARN] GATE PASSED -- 1 requirement decision(s) "
++                      "need you", out)
++        self.assertIn("\nWhat needs your decision:\n", out)
++        self.assertNotIn("Why it failed", out)
++        self.assertIn("(see 'What needs your decision' above)", out)
++        payload = _sentinel(out)
++        self.assertEqual(payload["gate_result"], "DECISIONS")
++        self.assertEqual(payload["verdict_state"], "decisions")
++
++    def test_bug_to_req_linkage_filters(self):
++        """Council B gap 3 (+ A2): a known-issue record pointing at a
++        flagged REQ is not listed; a manifest record for a bug BUGS.md
++        does not confirm is not listed; a tier-3 REQ carrying a citation
++        counts as questioned in the Bug evidence block. The known-issue
++        bug has no usable req_id, so the overreach narration says the
++        gate cannot rule it out instead of "none"."""
++        tree = build_reproduced_tree(
++            {"BUG-001": "REQ-001", "BUG-002": "REQ-004",
++             "BUG-003": "REQ-002"},
++            ["REQ-002"],
++        )
++        manifest = json.loads(tree["quality/bugs_manifest.json"])
++        for rec in manifest["records"]:
++            if rec["id"] == "BUG-003":
++                rec["classification"] = "known-issue"
++        manifest["records"].append(
++            dict(manifest["records"][0], id="BUG-009", req_id="REQ-002"))
++        tree["quality/bugs_manifest.json"] = json.dumps(manifest)
++        reqs = json.loads(tree["quality/requirements_manifest.json"])
++        for rec in reqs["records"]:
++            if rec["id"] == "REQ-004":
++                rec["tier"] = 3
++        tree["quality/requirements_manifest.json"] = json.dumps(reqs)
++        reviews = json.loads(tree["quality/citation_semantic_check.json"])
++        reviews["reviews"] = [r for r in reviews["reviews"]
++                              if r["req_id"] != "REQ-004"]
++        tree["quality/citation_semantic_check.json"] = json.dumps(reviews)
++        out, code = self.gate(tree)
++        self.assertEqual(code, 1, out)
++        block = out[out.index("── Bug evidence ──"):out.index("\n\n",
++                    out.index("── Bug evidence ──"))]
++        self.assertIn(
++            "1 bug rest on a requirement the reviewers questioned (still "
++            "reproduced; read the requirement note before relying on the "
++            "expected behaviour): BUG-002 (REQ-004)", block)
++        self.assertNotIn("BUG-003", block)
++        self.assertNotIn("BUG-009", block)
++        self.assertNotIn("confirmed bug(s) resting on REQ-002", out)
++        # Council A2: narration does not claim "none".
++        self.assertNotIn("Bugs that rest on these requirements: none.", out)
++        self.assertIn(
++            "Bugs that rest on these requirements: unknown — 1 confirmed "
++            "bug has no req_id in bugs_manifest.json, so the gate cannot "
++            "rule it out.", out)
++
++    def test_multi_repo_lines_name_their_repo(self):
++        """Council A7 / B gap 4: with two repos, each listed FAIL line
++        is prefixed with its repo."""
++        with tempfile.TemporaryDirectory() as td:
++            dirs = []
++            for name in ("alpha", "beta"):
++                d = Path(td) / name
++                d.mkdir()
++                write_tree(d, build_reproduced_tree(
++                    {"BUG-001": "REQ-001"}, ["REQ-003"]))
++                dirs.append(d)
++            out, code = run_gate(dirs[1], args=(str(dirs[0]),))
++        self.assertEqual(code, 0, out)
++        for name in ("alpha", "beta"):
++            self.assertIn(
++                f"      - [{name}] citation_semantic_check.json: "
++                f"record_id=REQ-003: semantic check majority overreaches",
++                out)
++
++
+ class FinalVerdictUnitTests(unittest.TestCase):
+     def test_decisions_only(self):
+         total, result, code = quality_gate._compute_final_verdict(
+@@ -453,6 +577,95 @@ class VerdictPresentationUnitTests(unittest.TestCase):
+             "The gate result below is about other checks; none of them is "
+             "about these logs.", lines)
+ 
++    def test_patch_missing_named_not_logs(self):
++        """Council A4: red and green logs accepted, no regression-test
++        patch -> the line names the missing patch; singular agreement."""
++        summary = quality_gate._summarize_bug_evidence([], ledger=self._ledger(
++            no_regression_patch={"BUG-002"}))
++        self.assertEqual(summary["state"], "partial")
++        lines = quality_gate._bug_evidence_lines(
++            summary, other_checks_failed=True)
++        self.assertIn(
++            "Red and green logs accepted, but no regression-test patch in "
++            "quality/patches/: BUG-002.", lines)
++        self.assertFalse(
++            any(ln.startswith("No red and green evidence") for ln in lines),
++            lines)
++        self.assertTrue(any(ln.startswith(
++            "For the 1 reproduced bug, this shows") for ln in lines), lines)
++
++    def test_two_repo_ledger_prefixes_ids(self):
++        """Council B gap 4: two repos' BUG-001 stay apart."""
++        a = self._ledger(repo="alpha", bug_req={"BUG-001": "REQ-002"},
++                         questioned_reqs={"REQ-002": "overreach"},
++                         tdd_ok={"BUG-001": True, "BUG-002": False})
++        b = self._ledger(repo="beta", bug_req={"BUG-001": "REQ-002"},
++                         questioned_reqs={"REQ-002": "overreach"})
++        summary = quality_gate._summarize_bug_evidence([], ledger=a + b)
++        self.assertEqual(summary["unreproduced"], ["alpha:BUG-002"])
++        self.assertEqual(summary["on_flagged"], [
++            ("alpha:REQ-002", ["alpha:BUG-001"]),
++            ("beta:REQ-002", ["beta:BUG-001"]),
++        ])
++
++    def test_failing_lines_repo_prefix_only_when_multi_repo(self):
++        """Council A7: [repo] prefix only when more than one repo ran."""
++        records = [(quality_gate.VERDICT_SUBSTANTIVE, "x.json: broke")] * 2
++        quality_gate._new_bug_evidence("alpha")
++        quality_gate._new_bug_evidence("beta")
++        out = _capture(quality_gate._emit_operator_verdict, records, [], [],
++                       1, run_provenance=[], fail_repos=["alpha", "beta"])
++        self.assertIn("      - [alpha] x.json: broke\n", out)
++        self.assertIn("      - [beta] x.json: broke\n", out)
++        quality_gate._reset_counters()
++        quality_gate._new_bug_evidence("alpha")
++        out = _capture(quality_gate._emit_operator_verdict, records[:1], [],
++                       [], 1, run_provenance=[], fail_repos=["alpha"])
++        self.assertIn("      - x.json: broke\n", out)
++        self.assertNotIn("[alpha]", out)
++
++    def test_cleanup_heading_unchanged(self):
++        """Council A5: only the decisions pass changes heading; CLEANUP
++        keeps 'Why it failed:'."""
++        records = [(quality_gate.VERDICT_RECORD_KEEPING, "x.json: gap")]
++        out = _capture(quality_gate._emit_operator_verdict, records, [], [],
++                       0, run_provenance=[])
++        self.assertIn("\nWhy it failed:\n", out)
++        self.assertNotIn("What needs your decision", out)
++        self.assertIn("(see 'Why it failed' above — these are audit "
++                      "record-keeping issues", out)
++
++    def test_verdict_state_decisions(self):
++        """Council A6 / C2: verdict_state has a "decisions" value, also
++        when a shallow tell is present (the lead line is the decisions
++        marker either way)."""
++        dec = [(quality_gate.VERDICT_OPERATOR_DECISION, "x")]
++        cvs = quality_gate._compute_verdict_state
++        self.assertEqual(cvs(0, dec, [], []), "decisions")
++        self.assertEqual(cvs(0, dec, [], ["proj"]), "decisions")
++        self.assertEqual(cvs(1, dec, [], []), "failed")
++        self.assertEqual(cvs(0, [], [], ["proj"]), "shallow")
++        self.assertEqual(cvs(0, [], [], []), "solid")
++
++    def test_generic_fallback_names_checks_without_colon(self):
++        """Council C5: messages with no ':' are named by their leading
++        words, deduped, never repeated whole."""
++        msgs = [
++            "BUGS.md missing",
++            "functional test file missing (test_functional.*, "
++            "functional_test.*, FunctionalSpec.*)",
++            "BUGS.md missing",
++            "spec_audits/ directory missing",
++        ]
++        text = quality_gate._narrate_fail_category(
++            quality_gate._FAIL_GENERIC, msgs,
++            quality_gate._summarize_bug_evidence([], ledger=[]),
++        )
++        self.assertIn(
++            "These checks failed: BUGS.md, functional test file, "
++            "spec_audits/ directory.", text)
++        self.assertNotIn("test_functional.*", text)
++
+     def test_noted_reqs_listed_separately(self):
+         summary = quality_gate._summarize_bug_evidence([], ledger=self._ledger(
+             bug_req={"BUG-002": "REQ-009"}, noted_reqs={"REQ-009"}))
+diff --git a/bin/tests/test_parent_witness_161.py b/bin/tests/test_parent_witness_161.py
+index 28804fc..291a04d 100644
+--- a/bin/tests/test_parent_witness_161.py
++++ b/bin/tests/test_parent_witness_161.py
+@@ -120,6 +120,93 @@ class GateWitnessScriptTests(unittest.TestCase):
+                          ("Total: 0 FAIL, 1 WARN", "RESULT: GATE PASSED"))
+         self.assertEqual(w.verdict_lines("nothing"), (None, None))
+ 
++    # v1.6.1 [council-1] (Council A1, B gaps 1-2).
++    def _real_log(self, target: Path) -> str:
++        g = subprocess.run([sys.executable, str(_GATE), "."],
++                           cwd=str(target), capture_output=True,
++                           text=True, timeout=600)
++        text = g.stdout + g.stderr + f"exit={g.returncode}\n"
++        (target / "quality" / "results" / "quality-gate.log").write_text(
++            text, encoding="utf-8")
++        return text
++
++    def test_agents_md_written_after_log_is_match(self) -> None:
++        """Council A1: the orchestrator writes AGENTS.md after the gate
++        passes; that drops the WARN count by one. The witness must not
++        report MISMATCH for it."""
++        with tempfile.TemporaryDirectory() as td:
++            target = _make_target(Path(td))
++            log_text = self._real_log(target)
++            self.assertIn("AGENTS.md not written yet", log_text)
++            (target / "AGENTS.md").write_text("# Agents\n", encoding="utf-8")
++            r = _run_witness(target)
++            self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
++            self.assertIn("MATCH:", r.stdout)
++            self.assertNotIn("MISMATCH", r.stdout)
++            self.assertIn("the WARN count differs", r.stdout)
++            # Both full Total: lines are still printed, and they differ.
++            totals = [ln.strip() for ln in r.stdout.splitlines()
++                      if ln.strip().startswith("Total:")]
++            self.assertEqual(len(totals), 2, r.stdout)
++            self.assertNotEqual(totals[0], totals[1])
++
++    def test_copied_total_with_fabricated_result_is_mismatch(self) -> None:
++        """Council B gap 1: a hand-written log that copies the real
++        Total: line but claims RESULT: GATE PASSED (the 2026-05-16
++        shape) is caught by the RESULT comparison alone."""
++        with tempfile.TemporaryDirectory() as td:
++            target = _make_target(Path(td))
++            real = self._real_log(target)
++            total = [ln for ln in real.splitlines()
++                     if ln.startswith("Total:")][-1]
++            log = target / "quality" / "results" / "quality-gate.log"
++            log.write_text(f"{total}\nRESULT: GATE PASSED\nexit=0\n",
++                           encoding="utf-8")
++            r = _run_witness(target)
++            self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
++            self.assertIn("MISMATCH: RESULT: line(s) differ", r.stdout)
++
++    def test_gate_with_no_verdict_lines_is_mismatch(self) -> None:
++        """Council B gap 2: the gate crashed or printed nothing ->
++        exit 1 with the no-verdict MISMATCH, even if the log looks
++        fine."""
++        sys.path.insert(0, str(_WITNESS.parent))
++        try:
++            import qpb_gate_witness as w  # type: ignore[import]
++        finally:
++            sys.path.pop(0)
++        import io
++        from contextlib import redirect_stdout
++        from unittest import mock
++        with tempfile.TemporaryDirectory() as td:
++            target = _make_target(Path(td))
++            (target / "quality" / "results" / "quality-gate.log").write_text(
++                _FAKE_PASS_LOG, encoding="utf-8")
++            buf = io.StringIO()
++            with mock.patch.object(w, "run_gate",
++                                   return_value="Traceback: boom\n"), \
++                    redirect_stdout(buf):
++                rc = w.main([str(target)])
++            self.assertEqual(rc, 1, buf.getvalue())
++            self.assertIn("MISMATCH: the gate printed no Total:/RESULT: "
++                          "verdict lines", buf.getvalue())
++
++    def test_total_without_warn_keeps_fail_counts(self) -> None:
++        sys.path.insert(0, str(_WITNESS.parent))
++        try:
++            import qpb_gate_witness as w  # type: ignore[import]
++        finally:
++            sys.path.pop(0)
++        self.assertEqual(
++            w.total_without_warn(
++                "Total: 3 FAIL (1 substantive, 2 record-keeping), 7 WARN"),
++            "Total: 3 FAIL (1 substantive, 2 record-keeping)")
++        self.assertEqual(w.total_without_warn("Total: 1 DECISION, 8 WARN"),
++                         "Total: 1 DECISION")
++        self.assertNotEqual(w.total_without_warn("Total: 1 FAIL, 6 WARN"),
++                            w.total_without_warn("Total: 2 FAIL, 6 WARN"))
++        self.assertIsNone(w.total_without_warn(None))
++
+     def test_witness_ships_in_install_bundle(self) -> None:
+         from bin.install_skill import _bundle_files
+         dests = {str(d) for _s, d in _bundle_files(_SKILL_DIR)}
+@@ -168,6 +255,16 @@ class ParentWitnessRuleTextTests(unittest.TestCase):
+                       "AGENTS.md must be described as written after the "
+                       "gate passes and not required by it")
+ 
++    def test_witness_runs_before_agents_md(self) -> None:
++        """v1.6.1 [council-1] (Council A1): every surface that tells the
++        parent to run the witness says to run it before AGENTS.md."""
++        for path in (_AGENT_CLAUDE, _AGENT_GENERAL):
++            self.assertIn("Run it before you write AGENTS.md.",
++                          path.read_text(encoding="utf-8"), path.name)
++        orch = _ORCH.read_text(encoding="utf-8")
++        self.assertIn("Run the witness before you write AGENTS.md.", orch)
++        self.assertIn("AFTER the parent's witness run", orch)
++
+     def test_old_automation_only_ban_is_gone(self) -> None:
+         for p in (_AGENT_CLAUDE, _AGENT_GENERAL, _SKILL_MD):
+             text = p.read_text(encoding="utf-8")
+diff --git a/plugins/quality-playbook/skills/quality-playbook/agents/quality-playbook-claude.agent.md b/plugins/quality-playbook/skills/quality-playbook/agents/quality-playbook-claude.agent.md
+index 39ef55e..8560164 100644
+--- a/plugins/quality-playbook/skills/quality-playbook/agents/quality-playbook-claude.agent.md
++++ b/plugins/quality-playbook/skills/quality-playbook/agents/quality-playbook-claude.agent.md
+@@ -17,7 +17,7 @@ model: inherit
+ Use this orchestrator pattern when per-phase context-window isolation helps: a large target, a headless CI or batch run, or an interactive session that wants one sub-agent per phase. It is allowed in an interactive session under the **parent-witness rule** (v1.6.1; SKILL.md Mode A):
+ 
+ 1. You — this top-level session — run each phase in its own sub-agent.
+-2. After every Phase 6, YOU run `python3 <install_root>/bin/qpb_gate_witness.py <target-repo>` yourself and paste its `Total:` and `RESULT:` lines verbatim in your own chat. The script re-runs `quality_gate.py` and compares those lines with `quality/results/quality-gate.log`.
++2. After every Phase 6, YOU run `python3 <install_root>/bin/qpb_gate_witness.py <target-repo>` yourself and paste its `Total:` and `RESULT:` lines verbatim in your own chat. The script re-runs `quality_gate.py` and compares those lines with `quality/results/quality-gate.log`. Run it before you write AGENTS.md.
+ 3. If it prints `MISMATCH` (exit 1) or reports the log missing (exit 2), stop and report to the operator. Do not start iterations.
+ 
+ Why: on 2026-05-16 an interactive session spawned this orchestrator as a sub-skill; the sub-skill hand-wrote `quality/results/quality-gate.log` reading PASS against an actual 14-FAIL gate, and the parent trusted the log. A sub-agent can write any log, but it cannot change what the gate prints when you run it, so step 2 catches that failure.
+diff --git a/plugins/quality-playbook/skills/quality-playbook/agents/quality-playbook.agent.md b/plugins/quality-playbook/skills/quality-playbook/agents/quality-playbook.agent.md
+index 325d4b5..1c4d4d2 100644
+--- a/plugins/quality-playbook/skills/quality-playbook/agents/quality-playbook.agent.md
++++ b/plugins/quality-playbook/skills/quality-playbook/agents/quality-playbook.agent.md
+@@ -13,7 +13,7 @@ tools:
+ Use this orchestrator pattern when per-phase context-window isolation helps: a large target, a headless CI or batch run, or an interactive session that wants one sub-agent or fresh context per phase. It is allowed in an interactive session under the **parent-witness rule** (v1.6.1; SKILL.md Mode A):
+ 
+ 1. You — this top-level session — run each phase in its own sub-agent or fresh context.
+-2. After every Phase 6, YOU run `python3 <install_root>/bin/qpb_gate_witness.py <target-repo>` yourself and paste its `Total:` and `RESULT:` lines verbatim in your own chat. The script re-runs `quality_gate.py` and compares those lines with `quality/results/quality-gate.log`.
++2. After every Phase 6, YOU run `python3 <install_root>/bin/qpb_gate_witness.py <target-repo>` yourself and paste its `Total:` and `RESULT:` lines verbatim in your own chat. The script re-runs `quality_gate.py` and compares those lines with `quality/results/quality-gate.log`. Run it before you write AGENTS.md.
+ 3. If it prints `MISMATCH` (exit 1) or reports the log missing (exit 2), stop and report to the operator. Do not start iterations.
+ 
+ Why: on 2026-05-16 an interactive session spawned this orchestrator as a sub-skill; the sub-skill hand-wrote `quality/results/quality-gate.log` reading PASS against an actual 14-FAIL gate, and the parent trusted the log. A sub-agent or fresh context can write any log, but it cannot change what the gate prints when you run it, so step 2 catches that failure.
+diff --git a/plugins/quality-playbook/skills/quality-playbook/scripts/qpb_gate_witness.py b/plugins/quality-playbook/skills/quality-playbook/scripts/qpb_gate_witness.py
+index d620d3d..00c265a 100644
+--- a/plugins/quality-playbook/skills/quality-playbook/scripts/qpb_gate_witness.py
++++ b/plugins/quality-playbook/skills/quality-playbook/scripts/qpb_gate_witness.py
+@@ -16,9 +16,18 @@ Usage:
+   qpb_gate_witness <target-repo>
+ 
+ Exit codes:
+-  0  the gate's ``Total:`` and ``RESULT:`` lines equal the log's
++  0  the gate's ``RESULT:`` line equals the log's, and its ``Total:``
++     line equals the log's once the trailing ``, N WARN`` part is
++     removed from both
+   1  they differ (a ``MISMATCH`` line names which), or the gate printed
+      no verdict lines
++
++v1.6.1 [council-1]: the WARN count is left out of the comparison
++because it can change between the subagent's gate run and the
++parent's: the orchestrator writes AGENTS.md after the gate passes, and
++a missing AGENTS.md is one WARN. FAIL / DECISION / CLEANUP counts and
++the RESULT line are still compared exactly. Both full lines are
++printed.
+   2  ``quality/results/quality-gate.log`` is missing, or the target /
+      ``quality_gate.py`` cannot be found
+ 
+@@ -28,6 +37,7 @@ banner via the same 3-step anchored fallback qpb_phase.py uses.
+ """
+ from __future__ import annotations
+ 
++import re
+ import subprocess
+ import sys
+ from pathlib import Path
+@@ -115,6 +125,18 @@ def verdict_lines(text: str) -> "tuple[Optional[str], Optional[str]]":
+     return total, result
+ 
+ 
++_WARN_TAIL_RE = re.compile(r",\s*\d+\s+WARN\s*$")
++
++
++def total_without_warn(total: Optional[str]) -> Optional[str]:
++    """v1.6.1 [council-1]: the ``Total:`` line with its trailing
++    ``, N WARN`` part removed (WARN counts may legitimately change
++    after the gate passes, e.g. AGENTS.md written later)."""
++    if total is None:
++        return None
++    return _WARN_TAIL_RE.sub("", total)
++
++
+ def run_gate(gate: Path, target: Path) -> str:
+     """Run the gate exactly as adopters do: ``python3 <gate> .`` with
+     the target repo root as cwd. Returns combined stdout+stderr."""
+@@ -170,7 +192,7 @@ def main(argv: "list[str] | None" = None) -> int:
+               "lines; stop and report.")
+         return 1
+     diffs = []
+-    if gate_total != log_total:
++    if total_without_warn(gate_total) != total_without_warn(log_total):
+         diffs.append("Total:")
+     if gate_result != log_result:
+         diffs.append("RESULT:")
+@@ -178,6 +200,11 @@ def main(argv: "list[str] | None" = None) -> int:
+         print(f"MISMATCH: {' and '.join(diffs)} line(s) differ between "
+               "the gate and quality-gate.log; stop and report.")
+         return 1
++    if gate_total != log_total:
++        print("MATCH: the log's RESULT: line and its Total: counts other "
++              "than WARN equal the gate's (the WARN count differs; WARNs "
++              "do not change the verdict).")
++        return 0
+     print("MATCH: the log's Total: and RESULT: lines equal the gate's.")
+     return 0
+ 
+diff --git a/plugins/quality-playbook/skills/quality-playbook/scripts/quality_gate.py b/plugins/quality-playbook/skills/quality-playbook/scripts/quality_gate.py
+index d33142c..490eadf 100755
+--- a/plugins/quality-playbook/skills/quality-playbook/scripts/quality_gate.py
++++ b/plugins/quality-playbook/skills/quality-playbook/scripts/quality_gate.py
+@@ -170,6 +170,10 @@ _VALID_VERDICT_CATEGORIES = (
+ # with the counters. main() splits this for the three-state verdict.
+ _FAIL_RECORDS = []
+ 
++# v1.6.1 [council-1]: the repo each _FAIL_RECORDS entry came from (same
++# index), so a multi-repo verdict can say which repo a line is about.
++_FAIL_REPOS: list = []
++
+ # v1.5.7 090v: every warn() message recorded for the operator verdict-
+ # explanation layer (additive presentation only — see
+ # ``_emit_operator_verdict``). The WARN counter (`WARN`) remains the
+@@ -228,6 +232,13 @@ def _new_bug_evidence(repo_name, q=None):
+         "questioned_reqs": {},
+         # REQ ids one reviewer flagged (1/3 overreach WARN).
+         "noted_reqs": set(),
++        # v1.6.1 [council-1]: True once check_bugs_heading counted
++        # BUGS.md (including zero bugs); _bug_req_map then keeps only
++        # the bugs BUGS.md confirms.
++        "bugs_counted": False,
++        # v1.6.1 [council-1]: confirmed bugs with no req_id, recorded
++        # when an overreach FAIL could not rule them out.
++        "unlinked_bugs": [],
+     }
+     _BUG_EVIDENCE.append(entry)
+     return entry
+@@ -267,8 +278,11 @@ def _bug_req_map(q):
+             continue
+         out[bid] = rid
+     entry = _bug_evidence_current(q)
+-    if entry.get("q") == str(q) and entry.get("bug_ids"):
+-        confirmed = set(entry["bug_ids"])
++    # v1.6.1 [council-1] (Council A3): filter whenever BUGS.md was
++    # counted, including zero bugs — a stale manifest record is not a
++    # confirmed bug.
++    if entry.get("q") == str(q) and entry.get("bugs_counted"):
++        confirmed = set(entry.get("bug_ids") or [])
+         out = {b: r for b, r in out.items() if b in confirmed}
+     return out
+ 
+@@ -315,11 +329,30 @@ def verdict_category(category):
+     return _decorate
+ 
+ 
++def _has_shallow_signal(fail_records, warn_records, zero_bug_repos):
++    """v1.6.1 [council-1]: the shallow-pass tells (zero-bug repo, no
++    test functions, weak-model signal), split out so a decisions pass
++    can still print the shallow narration."""
++    weak_model = _has_weak_model_signal(
++        fail_records, zero_bug_repos, warn_records
++    )
++    return (
++        bool(zero_bug_repos)
++        or any("no test functions found" in w for w in warn_records)
++        or weak_model
++    )
++
++
+ def _compute_verdict_state(exit_code, fail_records,
+                              warn_records, zero_bug_repos):
+     """v1.5.7 109 — pure helper that returns the verdict-state
+-    slug ("solid" | "shallow" | "failed") matching the operator-
+-    verdict lead line in ``_emit_operator_verdict``.
++    slug ("solid" | "shallow" | "decisions" | "failed") matching the
++    operator-verdict lead line in ``_emit_operator_verdict``.
++
++    v1.6.1 [council-1]: "decisions" = exit 0 with at least one
++    operator_decision FAIL (RESULT: GATE PASSED WITH DECISIONS NEEDED);
++    the lead line for that state is the decisions marker, so the
++    sentinel says "decisions" too.
+ 
+     Extracted so the 109 ``::QPB::`` gate-result sentinel can
+     emit the same state without re-running the lead-line
+@@ -331,15 +364,11 @@ def _compute_verdict_state(exit_code, fail_records,
+     """
+     if exit_code != 0:
+         return "failed"
+-    weak_model = _has_weak_model_signal(
+-        fail_records, zero_bug_repos, warn_records
+-    )
+-    is_shallow_pass = (
+-        bool(zero_bug_repos)
+-        or any("no test functions found" in w for w in warn_records)
+-        or weak_model
+-    )
+-    return "shallow" if is_shallow_pass else "solid"
++    if any(cat == VERDICT_OPERATOR_DECISION for cat, _m in fail_records):
++        return "decisions"
++    if _has_shallow_signal(fail_records, warn_records, zero_bug_repos):
++        return "shallow"
++    return "solid"
+ 
+ 
+ def _resolve_phase_identity():
+@@ -907,6 +936,12 @@ def _summarize_bug_evidence(fail_records, ledger=None):
+     fired = {_classify_fail(msg) for _cat, msg in fail_records}
+     total = reproduced = logs_ok = 0
+     unreproduced = []
++    # v1.6.1 [council-1] (Council A4): red and green logs accepted, but
++    # no regression-test patch.
++    patch_missing_only = []
++    # v1.6.1 [council-1] (Council A2): confirmed bugs with no req_id
++    # that an overreach FAIL could not rule out.
++    unlinked = []
+     on_flagged = []
+     on_noted = []
+     flagged_bids_all_ok = True
+@@ -921,6 +956,10 @@ def _summarize_bug_evidence(fail_records, ledger=None):
+         ok_ids = {b for b in ids if tdd_ok.get(b) and b not in no_patch}
+         reproduced += len(ok_ids)
+         unreproduced.extend(prefix + b for b in ids if b not in ok_ids)
++        patch_missing_only.extend(
++            prefix + b for b in ids if tdd_ok.get(b) and b in no_patch
++        )
++        unlinked.extend(prefix + b for b in entry.get("unlinked_bugs") or [])
+         bug_req = entry.get("bug_req") or {}
+         questioned = entry.get("questioned_reqs") or {}
+         for rid in sorted(questioned):
+@@ -951,6 +990,8 @@ def _summarize_bug_evidence(fail_records, ledger=None):
+         "logs_ok": logs_ok,
+         "logs_expected": 2 * total,
+         "unreproduced": unreproduced,
++        "patch_missing_only": patch_missing_only,
++        "unlinked": unlinked,
+         "on_flagged": on_flagged,
+         "on_noted": on_noted,
+         "all_flagged_reproduced": flagged_bids_all_ok,
+@@ -997,24 +1038,37 @@ def _bug_evidence_lines(summary, *, other_checks_failed):
+                 "is about these logs."
+             )
+     elif state == "partial":
+-        missing = summary["unreproduced"]
+-        shown = ", ".join(missing[:_VERDICT_LINE_LIMIT])
+-        more = (
+-            f" (+{len(missing) - _VERDICT_LINE_LIMIT} more)"
+-            if len(missing) > _VERDICT_LINE_LIMIT else ""
+-        )
++        # v1.6.1 [council-1] (Council A4): a bug whose red and green logs
++        # were accepted but which has no regression-test patch is named
++        # for the missing patch, not for missing logs.
++        no_patch = set(summary.get("patch_missing_only") or [])
++        missing_logs = [b for b in summary["unreproduced"] if b not in no_patch]
++        missing_patch = [b for b in summary["unreproduced"] if b in no_patch]
++
++        def _shown(ids):
++            more = (
++                f" (+{len(ids) - _VERDICT_LINE_LIMIT} more)"
++                if len(ids) > _VERDICT_LINE_LIMIT else ""
++            )
++            return ", ".join(ids[:_VERDICT_LINE_LIMIT]) + more
++
+         lines.append(
+             f"Partly reproduced: {r} of {n} bugs have a regression test "
+             f"that fails on the current code and passes with its fix."
+         )
+-        if missing:
++        if missing_logs:
+             lines.append(
+                 f"No red and green evidence the gate accepted: "
+-                f"{shown}{more}."
++                f"{_shown(missing_logs)}."
++            )
++        if missing_patch:
++            lines.append(
++                f"Red and green logs accepted, but no regression-test patch "
++                f"in quality/patches/: {_shown(missing_patch)}."
+             )
+         lines.append(
+-            f"For the {r} reproduced bugs, this shows each fix changes the "
+-            f"behaviour its test checks. {caveat}"
++            f"For the {r} reproduced bug{'s' if r != 1 else ''}, this shows "
++            f"each fix changes the behaviour its test checks. {caveat}"
+         )
+     else:
+         lines.append(
+@@ -1047,6 +1101,21 @@ def _bug_evidence_lines(summary, *, other_checks_failed):
+     return lines
+ 
+ 
++_CHECK_NAME_STOP_RE = re.compile(r" missing\b| \(| — | - |;|,")
++
++
++def _check_name(msg):
++    """v1.6.1 [council-1] (Council C5): a short name for the check a FAIL
++    line came from. With a ``path:`` prefix, the path; otherwise the
++    leading words before " missing" / " (" / " — " (at most four), so
++    a whole message is never repeated as a "file" name."""
++    first = msg.strip()
++    if ":" in first:
++        return first.split(":", 1)[0].strip()
++    head = _CHECK_NAME_STOP_RE.split(first, 1)[0].strip() or first
++    return " ".join(head.split()[:4])
++
++
+ def _narrate_fail_category(category, msgs, summary):
+     """v1.6.1 [G] (G3): plain-English narration for one FAIL category.
+     Static texts come from ``_FAIL_NARRATION``; the requirement and
+@@ -1058,6 +1127,21 @@ def _narrate_fail_category(category, msgs, summary):
+             if rid.split(":")[-1] in reqs
+         ]
+         bugs_text = _format_req_bug_groups(dependent) if dependent else "none"
++        # v1.6.1 [council-1] (Council A2): confirmed bugs with no req_id
++        # make "none" unprovable; say how many the gate cannot rule out.
++        unlinked = summary.get("unlinked") or []
++        if unlinked:
++            k = len(unlinked)
++            unknown = (
++                f"{k} confirmed bug{'s' if k != 1 else ''} "
++                f"{'have' if k != 1 else 'has'} no req_id in "
++                f"bugs_manifest.json, so the gate cannot rule "
++                f"{'them' if k != 1 else 'it'} out"
++            )
++            bugs_text = (
++                f"{bugs_text}; {unknown}" if dependent
++                else f"unknown — {unknown}"
++            )
+         return (
+             f"{len(reqs)} requirement(s) say more than the passage they "
+             f"quote; at least two of three reviewers agreed. This is about "
+@@ -1103,8 +1187,7 @@ def _narrate_fail_category(category, msgs, summary):
+     # files were reported as "This check failed: requirements_manifest.json").
+     files = []
+     for msg in msgs:
+-        first = msg.strip()
+-        short = first.split(":", 1)[0] if ":" in first else first
++        short = _check_name(msg)
+         if short not in files:
+             files.append(short)
+     lead = "This check failed" if len(files) == 1 else "These checks failed"
+@@ -1142,7 +1225,8 @@ def _group_reviewer_warns(actionable):
+ 
+ 
+ def _emit_operator_verdict(fail_records, warn_records, zero_bug_repos,
+-                            exit_code, run_provenance=None):
++                            exit_code, run_provenance=None,
++                            fail_repos=None):
+     """v1.5.7 090v — print the operator-facing verdict-explanation
+     block AFTER ``total_line`` + ``result_line``.
+ 
+@@ -1175,13 +1259,19 @@ def _emit_operator_verdict(fail_records, warn_records, zero_bug_repos,
+     verdict_state = _compute_verdict_state(
+         exit_code, fail_records, warn_records, zero_bug_repos,
+     )
+-    is_shallow_pass = (verdict_state == "shallow")
+     # v1.6.1 [G] (G4): decisions-only pass (no substantive FAIL, at
+-    # least one operator_decision FAIL).
++    # least one operator_decision FAIL). v1.6.1 [council-1]: read from
++    # the shared verdict_state so the lead line and the sentinel agree;
++    # a decisions pass still prints the shallow narration when a
++    # shallow tell is present (as before).
+     n_decisions = sum(
+         1 for cat, _m in fail_records if cat == VERDICT_OPERATOR_DECISION
+     )
+-    decisions_pass = exit_code == 0 and n_decisions > 0
++    decisions_pass = verdict_state == "decisions"
++    is_shallow_pass = verdict_state == "shallow" or (
++        decisions_pass
++        and _has_shallow_signal(fail_records, warn_records, zero_bug_repos)
++    )
+     evidence = _summarize_bug_evidence(fail_records)
+ 
+     # === Section 1: lead verdict line ===
+@@ -1199,6 +1289,8 @@ def _emit_operator_verdict(fail_records, warn_records, zero_bug_repos,
+         lead = "[FAIL] GATE FAILED"
+     elif decisions_pass:
+         # v1.6.1 [G] (G4): same [WARN] marker family as the shallow pass.
++        # Checked before is_shallow_pass: the lead line follows
++        # verdict_state ("decisions").
+         lead = (
+             f"[WARN] GATE PASSED -- {n_decisions} requirement "
+             f"decision(s) need you"
+@@ -1226,14 +1318,30 @@ def _emit_operator_verdict(fail_records, warn_records, zero_bug_repos,
+         # checks fired.
+         seen: list[str] = []
+         per_category_msgs: dict[str, list[str]] = {}
+-        for _cat, msg in fail_records:
++        # v1.6.1 [council-1] (Council A7): in a multi-repo run each
++        # listed line says which repo it came from.
++        repos = (
++            list(fail_repos)
++            if fail_repos is not None and len(fail_repos) == len(fail_records)
++            else [None] * len(fail_records)
++        )
++        multi_repo = len({r for r in repos if r}) > 1 or len(_BUG_EVIDENCE) > 1
++        per_category_lines: dict[str, list[str]] = {}
++        for (_cat, msg), repo in zip(fail_records, repos):
+             classified = _classify_fail(msg)
+             if classified not in per_category_msgs:
+                 per_category_msgs[classified] = []
++                per_category_lines[classified] = []
+                 seen.append(classified)
+             per_category_msgs[classified].append(msg)
++            per_category_lines[classified].append(
++                f"[{repo}] {msg.strip()}" if multi_repo and repo
++                else msg.strip()
++            )
+         print("")
+-        print("Why it failed:")
++        # v1.6.1 [council-1] (Council A5): a decisions pass did not fail.
++        print("What needs your decision:" if decisions_pass
++              else "Why it failed:")
+         for category in seen:
+             msgs = per_category_msgs[category]
+             label = (
+@@ -1246,7 +1354,7 @@ def _emit_operator_verdict(fail_records, warn_records, zero_bug_repos,
+             # (deduped, capped) so the operator need not grep. The
+             # per-check lines carry no "FAIL:" prefix by design (see
+             # fail()); this list is where they are gathered.
+-            unique = list(dict.fromkeys(m.strip() for m in msgs))
++            unique = list(dict.fromkeys(per_category_lines[category]))
+             for m in unique[:_VERDICT_LINE_LIMIT]:
+                 print(f"      - {m}")
+             if len(unique) > _VERDICT_LINE_LIMIT:
+@@ -1431,7 +1539,7 @@ def _failure_reason(fail_records, evidence):
+     if other:
+         files = []
+         for msg in other:
+-            short = msg.split(":", 1)[0].strip() if ":" in msg else msg.strip()
++            short = _check_name(msg)
+             if short not in files:
+                 files.append(short)
+         shown = ", ".join(files[:3]) + (
+@@ -1520,8 +1628,9 @@ def _emit_what_happened_what_next(*, fail_records, warn_records,
+     if decisions_pass:
+         print(
+             f"Result: it passed the checkpoint; {n_decisions} "
+-            f"requirement decision(s) need you (see 'Why it failed' "
+-            f"above). No confirmed bug rests on those requirements."
++            f"requirement decision(s) need you (see 'What needs your "
++            f"decision' above). No confirmed bug rests on those "
++            f"requirements."
+         )
+     elif cleanup_only and exit_code == 0:
+         # CLEANUP path — must read as a pass, not a fail.
+@@ -1586,8 +1695,9 @@ def _emit_what_happened_what_next(*, fail_records, warn_records,
+     print("── What to do next ──")
+     if decisions_pass:
+         print(
+-            f"Decide the {n_decisions} requirement(s) listed in 'Why it "
+-            f"failed' above: quality/OPERATOR_DECISIONS.md gives each "
++            f"Decide the {n_decisions} requirement(s) listed in 'What "
++            f"needs your decision' above: quality/OPERATOR_DECISIONS.md "
++            f"gives each "
+             f"one with its quoted passage, the reviewers' notes and "
+             f"ready-to-apply options. The bug findings in "
+             f"quality/BUGS.md do not depend on them."
+@@ -2087,6 +2197,7 @@ def _reset_counters():
+     # category context stack so a fresh main()/check_repo run starts
+     # clean (tests that call check_repo directly must reset too).
+     _FAIL_RECORDS.clear()
++    _FAIL_REPOS.clear()
+     _CHECK_CATEGORY_STACK.clear()
+     # v1.5.7 090s Task B: also clear the zero-bug-repos tracker so
+     # the verdict qualifier doesn't carry stale state across runs.
+@@ -2152,6 +2263,7 @@ def fail(msg, reason=None, *, line=None, category=None):
+             f"{_VALID_VERDICT_CATEGORIES}"
+         )
+     _FAIL_RECORDS.append((category, rendered.strip()))
++    _FAIL_REPOS.append(_BUG_EVIDENCE[-1]["repo"] if _BUG_EVIDENCE else None)
+ 
+ 
+ def pass_(msg):
+@@ -3613,6 +3725,7 @@ def check_bugs_heading(q):
+     _ev = _bug_evidence_current(q)
+     _ev["bug_count"] = bug_count
+     _ev["bug_ids"] = list(bug_ids) if bug_count > 0 else []
++    _ev["bugs_counted"] = True
+     _ev["bug_req"] = _bug_req_map(q) if bug_count > 0 else {}
+ 
+     return bug_count, bug_ids
+@@ -6388,6 +6501,8 @@ def check_v1_5_0_semantic_check(q):
+             # the classifier needle — keep it contiguous.
+             _ev["questioned_reqs"][rid] = "overreach"
+             dependents = _bugs_resting_on(rid, bug_req)
++            if unlinked_bugs:
++                _ev["unlinked_bugs"] = list(unlinked_bugs)
+             if dependents:
+                 tail = (
+                     f"; confirmed bug(s) resting on {rid}: "
+@@ -9236,7 +9351,7 @@ def main(argv=None):
+     # docs/design/QPB_v1.6.x_Verdict_Explanation_Proposal.md.
+     _emit_operator_verdict(
+         _FAIL_RECORDS, _WARN_RECORDS, _ZERO_BUG_REPOS, exit_code,
+-        run_provenance=_RUN_PROVENANCE,
++        run_provenance=_RUN_PROVENANCE, fail_repos=_FAIL_REPOS,
+     )
+     # v1.5.10 058 (D2): multi-language disclosure block(s) — additive,
+     # AFTER the load-bearing RESULT/verdict lines and BEFORE the trailing
+diff --git a/references/orchestrator_protocol.md b/references/orchestrator_protocol.md
+index 730cf99..c8410f5 100644
+--- a/references/orchestrator_protocol.md
++++ b/references/orchestrator_protocol.md
+@@ -59,8 +59,8 @@ Cross-reference SKILL.md's Complete Artifact Contract for the authoritative list
+ - **Phase 3 (Code Review):** `quality/code_reviews/` contains at least one review file. If bugs were confirmed: `quality/BUGS.md` has at least one `### BUG-` entry, `quality/patches/` contains a regression-test patch per confirmed bug, and `quality/test_regression.*` exists.
+ - **Phase 4 (Spec Audit):** `quality/spec_audits/` contains at least one triage file AND at least one individual auditor file.
+ - **Phase 5 (Reconciliation):** If bugs were confirmed: `quality/results/tdd-results.json` exists, a writeup at `quality/writeups/BUG-NNN.md` exists for every confirmed bug, and a red-phase log exists at `quality/results/BUG-NNN.red.log` for every confirmed bug.
+-- **Phase 6 (Verify):** `quality/results/quality-gate.log` exists and PROGRESS.md marks Phase 6 complete with a Terminal Gate Verification section. Then the parent's witness run (mandatory): run `python3 <install_root>/bin/qpb_gate_witness.py <target-repo>` yourself and paste its output verbatim in your own chat. It re-runs `quality_gate.py` the way adopters do and compares the gate's `Total:` and `RESULT:` lines with the log's. Exit 0 prints `MATCH`. Exit 1 prints `MISMATCH`: stop, report both pairs of lines to the operator, and start nothing else. Exit 2 means the log is missing: the phase failed.
+-- **AGENTS.md (target repo root):** written by the orchestrator AFTER the Phase 6 gate passes. It is not required for the gate to pass, and no phase sub-agent writes it.
++- **Phase 6 (Verify):** `quality/results/quality-gate.log` exists and PROGRESS.md marks Phase 6 complete with a Terminal Gate Verification section. Then the parent's witness run (mandatory): run `python3 <install_root>/bin/qpb_gate_witness.py <target-repo>` yourself and paste its output verbatim in your own chat. It re-runs `quality_gate.py` the way adopters do and compares the gate's `Total:` and `RESULT:` lines with the log's. Exit 0 prints `MATCH`. Exit 1 prints `MISMATCH`: stop, report both pairs of lines to the operator, and start nothing else. Exit 2 means the log is missing: the phase failed. Run the witness before you write AGENTS.md. (The witness leaves the WARN count out of the `Total:` comparison, because writing AGENTS.md removes one WARN; the FAIL, DECISION and CLEANUP counts and the `RESULT:` line must still match.)
++- **AGENTS.md (target repo root):** written by the orchestrator AFTER the Phase 6 gate passes and AFTER the parent's witness run. It is not required for the gate to pass, and no phase sub-agent writes it.
+ 
+ ### After verification passes
+ 
+-- 
+2.34.1
+

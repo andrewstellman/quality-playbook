@@ -1,0 +1,5 @@
+assertj-01 | line | Both `hashCode` (`Objects.hash(value)`) and `equals` (`value == other.value`) plainly ignore the `unit` field, which a reviewer sees just by reading lines 99-111.
+assertj-02 | input | The reviewer has to try the case offset value = 0 with identical temporals and see that `getDifference(...) >= value` becomes `0 >= 0`, which is always true; the `>=` looks correct for a strict "less than" offset until that case is tried.
+assertj-03 | line | Line 53 checks `value >= 0` but its message says "greater than zero", so the condition and the message disagree within the one line.
+assertj-04 | input | The reviewer has to think of extreme temporals (such as `Instant.MIN`/`MAX` at a fine unit) for which `unit.between` overflows a long; the sibling `getBeyondOffsetDifferenceDescription` catches `ArithmeticException` but `isBeyondOffset` does not, and that gap only matters once such a case is in mind.
+assertj-05 | line | Line 62 casts a double straight to `(int)` for whole-number values, and a reviewer reading that cast can see it saturates for any value above `Integer.MAX_VALUE`.

@@ -1,0 +1,244 @@
+[
+  {
+    "finding_id": "NL-01",
+    "project": "aiohttp",
+    "title": "StreamReader.readuntil misses delimiter spanning buffer chunks",
+    "historical_report": "repos/secbench2_widenet/wn-py-09-aiohttp/quality/BUGS.md",
+    "historical_finding_id": "BUG-006",
+    "historical_local_checkout_head": "5d922ee574df62e2d55aa975cd245e903ab304cb",
+    "historical_head_warning": "Local checkout HEAD is not proven discovery revision; artifacts may predate current checkout.",
+    "current_upstream": {
+      "head": "25f30573cc01da08f5b962128eebb16b9701ada3",
+      "commit": "2026-09-27T19:18:20+01:00 Deprecate TCPConnector ssl (#13829)",
+      "remote": "https://github.com/aio-libs/aiohttp.git",
+      "branch": "master"
+    },
+    "validity": "verified",
+    "validation_basis": "actual-implementation execution",
+    "prior_disclosure": "potentially_unreported",
+    "upstream_links": [],
+    "fresh_evidence": "docs/research/triage-2026-09-27/nonlinux/evidence/aiohttp-actual.log",
+    "new_submission_rank": 1,
+    "expected_behavior_argument": "Documented read-until-byte-sequence contract; one-buffer vs two-buffer control.",
+    "impact": "Medium correctness / framing impact; no remotely exploitable security claim established.",
+    "adjudicator": "Codex Sol historical triage subagent; human review pending",
+    "date": "2026-09-27"
+  },
+  {
+    "finding_id": "NL-02",
+    "project": "flatted",
+    "title": "Python stringify merges distinct equal composites into aliases",
+    "historical_report": "repos/secbench2_widenet/wn-jsts-01-flatted/quality/BUGS.md",
+    "historical_finding_id": "BUG-002",
+    "historical_local_checkout_head": "0bdba705d130f00892b1b8fcc80cf4cdea0631e3",
+    "historical_head_warning": "Local checkout HEAD is not proven discovery revision; artifacts may predate current checkout.",
+    "current_upstream": {
+      "head": "e6f5ca700c4ca8104a6a83472c8219e267bd5e84",
+      "commit": "2026-07-30T11:52:52+02:00 3.4.4",
+      "remote": "https://github.com/WebReflection/flatted.git",
+      "branch": "main"
+    },
+    "validity": "unresolved",
+    "validation_basis": "actual-implementation execution",
+    "prior_disclosure": "unknown",
+    "upstream_links": [],
+    "fresh_evidence": "docs/research/triage-2026-09-27/nonlinux/evidence/flatted-actual.log",
+    "new_submission_rank": 2,
+    "expected_behavior_argument": "JS reference preserves identity; current Python own test expects equality dedup, so intent conflict remains.",
+    "impact": "Medium data topology corruption, subject to contract adjudication.",
+    "adjudicator": "Codex Sol historical triage subagent; human review pending",
+    "date": "2026-09-27"
+  },
+  {
+    "finding_id": "NL-03",
+    "project": "chi",
+    "title": "SupressNotFound pollutes live RoutePattern",
+    "historical_report": "repos/chi-1.5.8/quality/BUGS.md",
+    "historical_finding_id": "BUG-002",
+    "historical_local_checkout_head": "746bfebfb9baef773d1721ef96de9769420c917f",
+    "historical_head_warning": "Local checkout HEAD is not proven discovery revision; artifacts may predate current checkout.",
+    "current_upstream": {
+      "head": "3d1777a1ef8881f7d1da0b02c76ca8f0a29cd2bc",
+      "commit": "2026-09-18T13:51:53+02:00 middleware: honor Discard when flushing (#1185)",
+      "remote": "https://github.com/go-chi/chi.git",
+      "branch": "master"
+    },
+    "validity": "verified",
+    "validation_basis": "actual-implementation execution",
+    "prior_disclosure": "related_previously_disclosed",
+    "upstream_links": [
+      "https://github.com/go-chi/chi/issues/939",
+      "https://github.com/go-chi/chi/pull/940"
+    ],
+    "fresh_evidence": "docs/research/triage-2026-09-27/nonlinux/evidence/chi-actual.log",
+    "new_submission_rank": 3,
+    "expected_behavior_argument": "RoutePattern reports matched route; adding only preflight middleware duplicates it. Prior report exposes same mutable-context root cause.",
+    "impact": "Low/medium instrumentation impact in executed case; historical high label not adopted.",
+    "adjudicator": "Codex Sol historical triage subagent; human review pending",
+    "date": "2026-09-27"
+  },
+  {
+    "finding_id": "NL-04",
+    "project": "chi",
+    "title": "ContentCharset rejects valid quoted charset on nonempty request",
+    "historical_report": "repos/chi-1.5.8/quality/BUGS.md",
+    "historical_finding_id": "BUG-005",
+    "historical_local_checkout_head": "746bfebfb9baef773d1721ef96de9769420c917f",
+    "historical_head_warning": "Local checkout HEAD is not proven discovery revision; artifacts may predate current checkout.",
+    "current_upstream": {
+      "head": "3d1777a1ef8881f7d1da0b02c76ca8f0a29cd2bc",
+      "commit": "2026-09-18T13:51:53+02:00 middleware: honor Discard when flushing (#1185)",
+      "remote": "https://github.com/go-chi/chi.git",
+      "branch": "master"
+    },
+    "validity": "verified",
+    "validation_basis": "actual-implementation execution",
+    "prior_disclosure": "previously_disclosed",
+    "upstream_links": [
+      "https://github.com/go-chi/chi/pull/1139"
+    ],
+    "fresh_evidence": "docs/research/triage-2026-09-27/nonlinux/evidence/chi-actual.log",
+    "new_submission_rank": null,
+    "expected_behavior_argument": "Go mime.ParseMediaType accepts quoted/unquoted utf-8; ContentCharset claims to admit allowed charsets.",
+    "impact": "Low/medium valid-request rejection; empty-body bypass is a compensating guard.",
+    "adjudicator": "Codex Sol historical triage subagent; human review pending",
+    "date": "2026-09-27"
+  },
+  {
+    "finding_id": "NL-05",
+    "project": "chi",
+    "title": "Compression uses gzip even when q=0 and for x-gzip",
+    "historical_report": "repos/chi-1.5.8/quality/BUGS.md",
+    "historical_finding_id": "BUG-001",
+    "historical_local_checkout_head": "746bfebfb9baef773d1721ef96de9769420c917f",
+    "historical_head_warning": "Local checkout HEAD is not proven discovery revision; artifacts may predate current checkout.",
+    "current_upstream": {
+      "head": "3d1777a1ef8881f7d1da0b02c76ca8f0a29cd2bc",
+      "commit": "2026-09-18T13:51:53+02:00 middleware: honor Discard when flushing (#1185)",
+      "remote": "https://github.com/go-chi/chi.git",
+      "branch": "master"
+    },
+    "validity": "verified",
+    "validation_basis": "actual-implementation execution",
+    "prior_disclosure": "previously_disclosed",
+    "upstream_links": [
+      "https://github.com/go-chi/chi/issues/1069",
+      "https://github.com/go-chi/chi/pull/1177"
+    ],
+    "fresh_evidence": "docs/research/triage-2026-09-27/nonlinux/evidence/chi-actual.log",
+    "new_submission_rank": null,
+    "expected_behavior_argument": "Accept-Encoding rejection semantics; exact source matches strings.Contains.",
+    "impact": "Medium interoperability; no new submission warranted while many duplicate PRs exist.",
+    "adjudicator": "Codex Sol historical triage subagent; human review pending",
+    "date": "2026-09-27"
+  },
+  {
+    "finding_id": "NL-06",
+    "project": "ljharb-shell-quote",
+    "title": "Special shell parameter drops first trailing character",
+    "historical_report": "repos/secbench2_widenet/wn-jsts-02-shell-quote/quality/BUGS.md",
+    "historical_finding_id": "BUG-001",
+    "historical_local_checkout_head": "22ebec04349065a45ad8afc8cc8d53c4624634a6",
+    "historical_head_warning": "Local checkout HEAD is not proven discovery revision; artifacts may predate current checkout.",
+    "current_upstream": {
+      "head": "35c9b97a744211091b772f145bef0b6a5562b68e",
+      "commit": "2026-07-14T18:23:43-07:00 [Fix] `quote`: preserve empty glob patterns",
+      "remote": "https://github.com/ljharb/shell-quote.git",
+      "branch": "main"
+    },
+    "validity": "verified",
+    "validation_basis": "actual-implementation execution",
+    "prior_disclosure": "previously_disclosed",
+    "upstream_links": [
+      "https://github.com/ljharb/shell-quote/pull/30"
+    ],
+    "fresh_evidence": "docs/research/triage-2026-09-27/nonlinux/evidence/shell-quote-actual.log",
+    "new_submission_rank": null,
+    "expected_behavior_argument": "README interpolates variables and existing test/env.js supports special parameters; no syntax justifies dropping following literal.",
+    "impact": "Medium argument corruption; historical high severity not adopted without impact context.",
+    "adjudicator": "Codex Sol historical triage subagent; human review pending",
+    "date": "2026-09-27"
+  },
+  {
+    "finding_id": "NL-07",
+    "project": "minimatch",
+    "title": "POSIX print class matches controls instead of printable characters",
+    "historical_report": "repos/secbench2_widenet/wn-jsts-06-minimatch/quality/BUGS.md",
+    "historical_finding_id": "BUG-001",
+    "historical_local_checkout_head": "1a62a2a667db92078811f2b7fc345737deded17a",
+    "historical_head_warning": "Local checkout HEAD is not proven discovery revision; artifacts may predate current checkout.",
+    "current_upstream": {
+      "head": "ded1bbd01beca62a5978bc1650ed0a1ccf9039d5",
+      "commit": "2026-07-27T11:59:48-07:00 10.2.6",
+      "remote": "https://github.com/isaacs/minimatch.git",
+      "branch": "main"
+    },
+    "validity": "unresolved",
+    "validation_basis": "source inspection only",
+    "prior_disclosure": "previously_disclosed",
+    "upstream_links": [
+      "https://github.com/isaacs/minimatch/pull/309"
+    ],
+    "fresh_evidence": null,
+    "new_submission_rank": null,
+    "expected_behavior_argument": "Current table misses negation flag; exact open PR already supplies reproduction.",
+    "impact": "Medium correctness; no fresh implementation execution performed here.",
+    "adjudicator": "Codex Sol historical triage subagent; human review pending",
+    "date": "2026-09-27"
+  },
+  {
+    "finding_id": "NL-08",
+    "project": "defu",
+    "title": "DefuInstance promises function properties absent from runtime",
+    "historical_report": "repos/secbench2_widenet/wn-jsts-05-defu/quality/BUGS.md",
+    "historical_finding_id": "BUG-001",
+    "historical_local_checkout_head": "d3ef16dabe861713192ba8679c5db8e0ac143f9b",
+    "historical_head_warning": "Local checkout HEAD is not proven discovery revision; artifacts may predate current checkout.",
+    "current_upstream": {
+      "head": "82632b66f5914e9946edce300e10633a3d5c0cb7",
+      "commit": "2026-05-17T01:55:13Z chore(deps): update all non-major dependencies (#161)",
+      "remote": "https://github.com/unjs/defu.git",
+      "branch": "main"
+    },
+    "validity": "unresolved",
+    "validation_basis": "source inspection only",
+    "prior_disclosure": "previously_disclosed",
+    "upstream_links": [
+      "https://github.com/unjs/defu/pull/174"
+    ],
+    "fresh_evidence": null,
+    "new_submission_rank": null,
+    "expected_behavior_argument": "src/types.ts fn/arrayFn/extend declarations vs bare createDefu function cast.",
+    "impact": "Low public type/runtime mismatch; exact open PR exists.",
+    "adjudicator": "Codex Sol historical triage subagent; human review pending",
+    "date": "2026-09-27"
+  },
+  {
+    "finding_id": "NL-09",
+    "project": "immutable-js",
+    "title": "Repeat.lastIndexOf returns size instead of size minus one",
+    "historical_report": "repos/secbench2_widenet/wn-jsts-03-immutable-js/quality/BUGS.md",
+    "historical_finding_id": "BUG-001",
+    "historical_local_checkout_head": "6f772de1e44dcde14128e48d19081a7a077f2162",
+    "historical_head_warning": "Local checkout HEAD is not proven discovery revision; artifacts may predate current checkout.",
+    "current_upstream": {
+      "head": "686b8baf1dc825419f5ded2968b48e3432644aff",
+      "commit": "2026-09-02T22:04:10+02:00 Merge pull request #2273 from immutable-js/fix-2272",
+      "remote": "https://github.com/immutable-js/immutable-js.git",
+      "branch": "main"
+    },
+    "validity": "rejected",
+    "validation_basis": "source inspection only",
+    "prior_disclosure": "fixed_and_previously_disclosed",
+    "upstream_links": [
+      "https://github.com/immutable-js/immutable-js/pull/2227",
+      "https://github.com/immutable-js/immutable-js/security/advisories/GHSA-wf6x-7x77-mvgw"
+    ],
+    "fresh_evidence": null,
+    "new_submission_rank": null,
+    "expected_behavior_argument": "Current src/Repeat.js returns size-1 and guards size zero; current changelog records fix in 5.1.7.",
+    "impact": "Not a current defect; historical report date June23 is after public fix June22.",
+    "adjudicator": "Codex Sol historical triage subagent; human review pending",
+    "date": "2026-09-27"
+  }
+]

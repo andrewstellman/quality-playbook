@@ -1,0 +1,5 @@
+assertj-01 | line | equals/hashCode compare only `value` while the class has a second field `unit` declared a few lines above, so the omission is visible in the same method.
+assertj-02 | nearby | The reviewer would compare `>= value` with the Javadoc ("strict less than") and the sibling within-offset class, then try value 0. The constructor accepting 0 lives in the parent class.
+assertj-03 | nearby | The check is `value >= 0` but the method name and message say "positive"/"greater than zero", so the reviewer compares the code against its own name and message. It is one line, but it only looks wrong against those.
+assertj-04 | input | `abs(unit.between(...))` looks fine until the reviewer picks extreme temporals such as Instant.MIN/MAX and runs them. The sibling `getBeyondOffsetDifferenceDescription` catches ArithmeticException, which hints at the problem, but only after a specific input is thought up.
+assertj-05 | input | `(int) value` looks reasonable, but the reviewer must think of values above Integer.MAX_VALUE, where the cast saturates to 2147483647.

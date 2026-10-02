@@ -1,0 +1,32 @@
+# old -> new IDs (target inserted as XX)
+
+bionemo-06 -> bionemo-01
+bionemo-23 -> bionemo-02
+bionemo-XX -> bionemo-03
+bionemo-14 -> bionemo-04
+bionemo-25 -> bionemo-05
+bionemo-15 -> bionemo-06
+bionemo-16 -> bionemo-07
+bionemo-08 -> bionemo-08
+bionemo-09 -> bionemo-09
+bionemo-10 -> bionemo-10
+bionemo-02 -> bionemo-11
+bionemo-11 -> bionemo-12
+bionemo-19 -> bionemo-13
+bionemo-13 -> bionemo-14
+bionemo-29 -> bionemo-15
+bionemo-01 -> bionemo-16
+bionemo-07 -> bionemo-17
+bionemo-24 -> bionemo-18
+bionemo-26 -> bionemo-19
+bionemo-04 -> bionemo-20
+bionemo-22 -> bionemo-21
+bionemo-12 -> bionemo-22
+bionemo-18 -> bionemo-23
+bionemo-17 -> bionemo-24
+bionemo-21 -> bionemo-25
+bionemo-28 -> bionemo-26
+bionemo-27 -> bionemo-27
+bionemo-03 -> bionemo-28
+bionemo-05 -> bionemo-29
+bionemo-20 -> bionemo-30

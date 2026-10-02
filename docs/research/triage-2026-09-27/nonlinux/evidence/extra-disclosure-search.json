@@ -1,0 +1,512 @@
+{
+  "aiohttp-all-readuntil": {
+    "query": "repo:aio-libs/aiohttp readuntil",
+    "total_count": 23,
+    "items": [
+      {
+        "number": 13686,
+        "title": "Document the real readuntil() signature",
+        "html_url": "https://github.com/aio-libs/aiohttp/pull/13686",
+        "state": "closed",
+        "created_at": "2026-09-11T03:54:41Z",
+        "body": "## What do these changes do?\n\n`docs/streams.rst` documents `StreamReader.readuntil` as taking a `str` separator:\n\n```rst\n.. method:: StreamReader.readuntil(separator=\"\\n\")\n```\n\nThe implementation takes `bytes` (`aiohttp/streams.py:381`), so the documented call raises `TypeError`. The prose directly under the directive already says \"*where `separator` is a sequence of bytes*\", so the signature line contradicts the sentence below it as well as the code. `max_size` is keyword-only and appears nowhere in `docs/`.\n\n## Are there changes in behavior for the user?\n\nNo. Documentation only \u2014 the rendered signature becomes `readuntil(separator=b'\\n', *, max_size=None)`.\n\n## Is it a substantial burden for the maintainers to support this?\n\nNo. One directive line plus one `:param:` in a single `.rst`.\n\n## Related issue number\n\nNone filed; found by comparing documented signatures against real ones.\n\n## Checklist\n\n- [x] I think the code is well written\n- [ ] Unit tests for the changes exist\n- [x] Documentation reflects the changes\n- [x] Added to `CONTRIBUTORS.txt`\n- [x] Added a news fragment in `CHANGES/`\n\nVerified on macOS arm64, Python 3.14, pure-Python mode: `tests/test_streams.py` 136 passed, and the docs build renders the corrected signature. I did not run the full suite or build the Cython extensions, which this does not touch.\n\nDrafted with Claude Opus 5; reviewed by hxperl.\n",
+        "pull_request": {
+          "url": "https://api.github.com/repos/aio-libs/aiohttp/pulls/13686",
+          "html_url": "https://github.com/aio-libs/aiohttp/pull/13686",
+          "diff_url": "https://github.com/aio-libs/aiohttp/pull/13686.diff",
+          "patch_url": "https://github.com/aio-libs/aiohttp/pull/13686.patch",
+          "merged_at": "2026-09-24T21:42:59Z"
+        }
+      },
+      {
+        "number": 13807,
+        "title": "[PR #13686/802216ec backport][3.14] Document the real readuntil() signature",
+        "html_url": "https://github.com/aio-libs/aiohttp/pull/13807",
+        "state": "closed",
+        "created_at": "2026-09-24T21:43:24Z",
+        "body": "**This is a backport of PR #13686 as merged into master (802216ec739038f4b238f194c32e38ee89d7c170).**\n\n## What do these changes do?\n\n`docs/streams.rst` documents `StreamReader.readuntil` as taking a `str` separator:\n\n```rst\n.. method:: StreamReader.readuntil(separator=\"\\n\")\n```\n\nThe implementation takes `bytes` (`aiohttp/streams.py:381`), so the documented call raises `TypeError`. The prose directly under the directive already says \"*where `separator` is a sequence of bytes*\", so the signature line contradicts the sentence below it as well as the code. `max_size` is keyword-only and appears nowhere in `docs/`.\n\n## Are there changes in behavior for the user?\n\nNo. Documentation only \u2014 the rendered signature becomes `readuntil(separator=b'\\n', *, max_size=None)`.\n\n## Is it a substantial burden for the maintainers to support this?\n\nNo. One directive line plus one `:param:` in a single `.rst`.\n\n## Related issue number\n\nNone filed; found by comparing documented signatures against real ones.\n\n## Checklist\n\n- [x] I think the code is well written\n- [ ] Unit tests for the changes exist\n- [x] Documentation reflects the changes\n- [x] Added to `CONTRIBUTORS.txt`\n- [x] Added a news fragment in `CHANGES/`\n\nVerified on macOS arm64, Python 3.14, pure-Python mode: `tests/test_streams.py` 136 passed, and the docs build renders the corrected signature. I did not run the full suite or build the Cython extensions, which this does not touch.\n\nDrafted with Claude Opus 5; reviewed by hxperl.\n",
+        "pull_request": {
+          "url": "https://api.github.com/repos/aio-libs/aiohttp/pulls/13807",
+          "html_url": "https://github.com/aio-libs/aiohttp/pull/13807",
+          "diff_url": "https://github.com/aio-libs/aiohttp/pull/13807.diff",
+          "patch_url": "https://github.com/aio-libs/aiohttp/pull/13807.patch",
+          "merged_at": "2026-09-24T22:14:46Z"
+        }
+      },
+      {
+        "number": 13806,
+        "title": "[PR #13686/802216ec backport][3.15] Document the real readuntil() signature",
+        "html_url": "https://github.com/aio-libs/aiohttp/pull/13806",
+        "state": "closed",
+        "created_at": "2026-09-24T21:43:13Z",
+        "body": "**This is a backport of PR #13686 as merged into master (802216ec739038f4b238f194c32e38ee89d7c170).**\n\n## What do these changes do?\n\n`docs/streams.rst` documents `StreamReader.readuntil` as taking a `str` separator:\n\n```rst\n.. method:: StreamReader.readuntil(separator=\"\\n\")\n```\n\nThe implementation takes `bytes` (`aiohttp/streams.py:381`), so the documented call raises `TypeError`. The prose directly under the directive already says \"*where `separator` is a sequence of bytes*\", so the signature line contradicts the sentence below it as well as the code. `max_size` is keyword-only and appears nowhere in `docs/`.\n\n## Are there changes in behavior for the user?\n\nNo. Documentation only \u2014 the rendered signature becomes `readuntil(separator=b'\\n', *, max_size=None)`.\n\n## Is it a substantial burden for the maintainers to support this?\n\nNo. One directive line plus one `:param:` in a single `.rst`.\n\n## Related issue number\n\nNone filed; found by comparing documented signatures against real ones.\n\n## Checklist\n\n- [x] I think the code is well written\n- [ ] Unit tests for the changes exist\n- [x] Documentation reflects the changes\n- [x] Added to `CONTRIBUTORS.txt`\n- [x] Added a news fragment in `CHANGES/`\n\nVerified on macOS arm64, Python 3.14, pure-Python mode: `tests/test_streams.py` 136 passed, and the docs build renders the corrected signature. I did not run the full suite or build the Cython extensions, which this does not touch.\n\nDrafted with Claude Opus 5; reviewed by hxperl.\n",
+        "pull_request": {
+          "url": "https://api.github.com/repos/aio-libs/aiohttp/pulls/13806",
+          "html_url": "https://github.com/aio-libs/aiohttp/pull/13806",
+          "diff_url": "https://github.com/aio-libs/aiohttp/pull/13806.diff",
+          "patch_url": "https://github.com/aio-libs/aiohttp/pull/13806.patch",
+          "merged_at": "2026-09-24T22:14:27Z"
+        }
+      },
+      {
+        "number": 13825,
+        "title": "Correct API reference signatures that drifted from the code",
+        "html_url": "https://github.com/aio-libs/aiohttp/pull/13825",
+        "state": "open",
+        "created_at": "2026-09-27T12:36:33Z",
+        "body": "## What do these changes do?\n\nCorrects five API reference signatures that no longer match the code, and adds a test that parses the reST signatures and compares them against the real objects so the documented defaults cannot silently drift again.\n\n- `FormData.add_field()` still documented `content_transfer_encoding`, removed in #8303. Passing it raises `TypeError`. The signature also omitted the keyword-only marker on `content_type` and `filename`, and the prose claimed that passing `bytes` derives the filename from the field name, but the code only derives a filename for `io.IOBase` values.\n- `run_app()` documented `keepalive_timeout=3630`, which is the `RequestHandler` default, rather than its own `75.0`.\n- `Response()` documented `zlib_executor_size=sentinel`, but the default is the 4096 byte `MAX_SYNC_CHUNK_SIZE`.\n- `BodyPartReader.get_charset()` documented `default=None`, but the argument is required.\n- `ClientTimeout()` omitted the `ceil_threshold` field, which the class accepts and the timeout scheduler reads. The narrative page in `client_quickstart.rst` mentions it, but the canonical API reference did not.\n\n## Are there changes in behavior for the user?\n\nNo. This only corrects the documentation. No runtime behavior changes.\n\n## Is it a substantial burden for the maintainers to support this?\n\nNo. The change is documentation only, plus a self-contained test module. `tests/test_docs_signatures.py` reads the `docs/*.rst` files that already ship in the repository and compares the documented defaults against `inspect.signature` of the real objects, so it needs no extra fixtures or dependencies.\n\n## Related issue number\n\nN/A. This corrects stale documentation that has drifted silently; there is no single tracking issue. Follows the precedent of #13686 (\"Fix documented readuntil() signature\").\n\n## Checklist\n\n- [x] I think the code is well written\n- [x] Unit tests for the changes exist\n- [x] Documentation reflects the changes\n- [x] If you provide code modification, please add yourself to `CONTRIBUTORS.txt`\n  * The format is <Name> <Surname>.\n  * Please keep alphabetical order, the file is sorted by names.\n- [x] Add a new news fragment into the `CHANGES/` folder\n  * name it `<issue_or_pr_num>.<type>.rst` (e.g. `588.bugfix.rst`)\n  * if you don't have an issue number, change it to the pull request\n    number after creating the PR\n  * Make sure to use full sentences with correct case and punctuation.\n\n## Verification\n\nAll checks were run locally against `master` at `040c65ee1` in the pure-Python configuration (`AIOHTTP_NO_EXTENSIONS=1`).\n\n- `tests/test_docs_signatures.py`: 6 passed. The five targeted tests were confirmed to fail against the pre-change documentation (`git stash` of the three `docs/*.rst` files), so they genuinely pin the corrections.\n- `tests/test_docs_signatures.py tests/test_formdata.py`: 44 passed.\n- `black`, `isort`, `codespell`, `check-changes`, `changelogs-user-role`, `pyupgrade` and the rest of `pre-commit` pass on the changed files. The `flake8` hook errors in this sandbox because its isolated environment cannot load the `flake8-requirements` plugin (`No module named 'pkg_resources'`); running `flake8` directly with the project's `setup.cfg` rules reports no findings for the new file.\n- `mypy` reports no errors in the new file. The 31 errors mypy reports in `aiohttp/web_runner.py` and `aiohttp/worker.py` are pre-existing on unmodified `master` in this environment.\n- `sphinx-build` succeeds. It initially reported one bad cross-reference from the new changelog fragment, which was corrected to `aiohttp.BodyPartReader.get_charset`; the remaining three build warnings are pre-existing or environmental (a `type` cross-reference at `client_reference.rst:2083` outside this diff, an unrelated towncrier fragment, and a missing `dot` binary).\n\n<details>\n<summary>Test and lint output</summary>\n\n```\n$ AIOHTTP_NO_EXTENSIONS=1 PYTHONPATH='.' pytest tests/test_docs_signatures.py -q --no-cov\n........                                                                  [100%]\n6 passed in 1.49s\n\n$ AIOHTTP_NO_EXTENSIONS=1 PYTHONPATH='.' pytest tests/test_docs_signatures.py tests/test_formdata.py -q --no-cov\n............................................                               [100%]\n44 passed in 1.64s\n\n$ flake8 --isolated --max-line-length=88 --extend-ignore=N801,N802,N803,NIC002,NIC102,E203,E226,E305,W504,E252,E301,E302,E501,E704,W503,W504,D1,D4 tests/test_docs_signatures.py\n(no output, exit 0)\n\n$ mypy --config-file .mypy.ini tests/test_docs_signatures.py\n(no errors in test_docs_signatures.py)\n\n$ sphinx-build -b html docs /tmp/docbuild\nbuild succeeded, 3 warnings.\n```\n\nProof the tests pin the corrections, run against the original documentation:\n\n```\n$ git stash push -- docs/client_reference.rst docs/web_reference.rst docs/multipart_reference.rst\n$ pytest tests/test_docs_signatures.py -q --no-cov\nFAILED tests/test_docs_signatures.py::test_run_app_documents_keepalive_timeout_default\nFAILED tests/test_docs_signatures.py::test_get_charset_default_is_required\nFAILED tests/test_docs_signatures.py::test_client_timeout_documents_ceil_threshold\nFAILED tests/test_docs_signatures.py::test_response_documents_zlib_executor_size_default\nFAILED tests/test_docs_signatures.py::test_add_field_documents_no_removed_parameter\n5 failed, 3 passed in 1.47s\n```\n\n</details>\n\nDrafted with an AI coding agent; awaiting human review before leaving draft.\n",
+        "pull_request": {
+          "url": "https://api.github.com/repos/aio-libs/aiohttp/pulls/13825",
+          "html_url": "https://github.com/aio-libs/aiohttp/pull/13825",
+          "diff_url": "https://github.com/aio-libs/aiohttp/pull/13825.diff",
+          "patch_url": "https://github.com/aio-libs/aiohttp/pull/13825.patch",
+          "merged_at": null
+        }
+      },
+      {
+        "number": 1800,
+        "title": "Marking response.force_close() doesn't prevent lingering",
+        "html_url": "https://github.com/aio-libs/aiohttp/issues/1800",
+        "state": "closed",
+        "created_at": "2017-04-09T06:05:59Z",
+        "body": "## Long story short\r\n\r\nReturning a response with `force_close()` before the request is fully read still causes lingering.\r\n\r\n## Expected behaviour\r\n\r\nConnection should be closed immediately after the response is written.\r\n\r\n## Actual behaviour\r\n\r\nThe lingering logic in `web_protocol.py` is activated.",
+        "pull_request": null
+      },
+      {
+        "number": 12393,
+        "title": "Clarify `LineTooLong` error messages with context label",
+        "html_url": "https://github.com/aio-libs/aiohttp/pull/12393",
+        "state": "closed",
+        "created_at": "2026-04-19T08:13:55Z",
+        "body": "## What do these changes do?\n\nCloses #7177.\n\nThe `LineTooLong` exception previously produced a generic error message:\n\n```\nGot more than 8190 bytes when reading: b'GET /pathttttt...'.\n```\n\n\u2026regardless of which part of the HTTP message actually overflowed the\nlimit. That was especially confusing for long URLs, where older versions\nlabelled the overflow as a \"Status line is too long\" (see the logs in\n#7177). Even after that text was removed, the resulting message still\ngave no hint about whether the URL, the status reason, a header, or a\ntrailer was at fault.\n\nThis PR adds an optional `context` parameter to\n`aiohttp.http_exceptions.LineTooLong` and wires it through every call\nsite so the message now looks like:\n\n```\nGot more than 8190 bytes when reading request URL: b'GET /pathttttt...'.\nGot more than 8190 bytes when reading header field name: b'ttt...'.\nGot more than 8190 bytes when reading request/status line: b'...'.\n```\n\nThe addition is fully backwards-compatible: the parameter defaults to\n`\"line\"`, so existing call-sites that have not been updated still\nproduce a coherent (if slightly less specific) message.\n\n### Changes\n\n- `aiohttp/http_exceptions.py` \u2013 accept and display `context` in `LineTooLong`.\n- `aiohttp/_http_parser.pyx` \u2013 pass `\"request URL\"` / `\"status reason phrase\"` /\n  `\"header field name\"` / `\"header field value\"` from the Cython callbacks.\n- `aiohttp/http_parser.py` \u2013 pass `\"request/status line\"` /\n  `\"header line with continuations\"` / `\"chunk size line\"` /\n  `\"trailer line\"` from the pure-Python parser paths.\n- `aiohttp/streams.py` \u2013 label `StreamReader.readuntil` overflows as\n  `\"stream until separator\"`.\n\n### Tests\n\n- `tests/test_http_exceptions.py::TestLineTooLong` \u2013 added\n  `test_ctor_with_context` and `test_pickle_with_context`, updated the\n  existing message assertions for the new default label.\n- `tests/test_http_parser.py::test_http_request_max_status_line_mentions_request_line`\n  \u2013 new regression test asserting that a too-long request line is\n  described as such in the error message.\n\nAll existing `match=...` regex assertions anchor on the prefix\n`\"Got more than N bytes when reading\"` (no trailing colon), so they\ncontinue to pass unchanged.\n\n## Are there changes in behavior for the user?\n\nThe wording of the `LineTooLong` error message changes to include a\ncontext label. Code that parses the message string could need updates;\ncode that catches the exception or reads `err.args = (line, limit, context)`\nis unaffected.\n\n## Related issue number\n\nCloses #7177.\n\n## Checklist\n\n- [x] I think the code is well written\n- [x] Unit tests for the changes exist\n- [ ] Documentation reflects the changes\n- [x] Add a new news fragment into the `CHANGES/` folder\n  * name it `<issue_id>.<type>.rst` (e.g. `588.bugfix.rst`)\n  * if you don't have an `issue_id`, change it to the PR number after\n    creating the PR\n  * ensure type is one of the following:\n    * `.feature`: Signifying a new feature.\n    * `.bugfix`: Signifying a bug fix.\n    * `.doc`: Signifying a documentation improvement.\n    * `.removal`: Signifying a deprecation or removal of public API.\n    * `.misc`: A ticket has been closed, but it is not of interest to users.\n  * Make sure to use full sentences with correct case and punctuation,\n    for example: \"Fix issue with non-ascii contents in doctest text files.\"\n\n## Disclosure\n\nAI assistance (Claude) was used to draft these changes. I reviewed every\nline and ran the relevant tests locally.",
+        "pull_request": {
+          "url": "https://api.github.com/repos/aio-libs/aiohttp/pulls/12393",
+          "html_url": "https://github.com/aio-libs/aiohttp/pull/12393",
+          "diff_url": "https://github.com/aio-libs/aiohttp/pull/12393.diff",
+          "patch_url": "https://github.com/aio-libs/aiohttp/pull/12393.patch",
+          "merged_at": null
+        }
+      },
+      {
+        "number": 13467,
+        "title": "fix: resume paused transport after websocket upgrade",
+        "html_url": "https://github.com/aio-libs/aiohttp/pull/13467",
+        "state": "closed",
+        "created_at": "2026-08-17T20:33:06Z",
+        "body": "## Summary\n\nFixes #13432.\n\nA pipelined HTTP burst can pause the transport while the request queue is full. If one queued request upgrades to WebSocket, `set_parser()` switches to the WebSocket parser but does not clear the message-queue pause. The upgraded connection can then stop reading frames after a successful `101 Switching Protocols` response.\n\nResume the paused transport when installing the WebSocket parser. At that point the handler is upgraded, so `_resume_msg_queue_reading()` skips HTTP tail reparsing and safely hands reading back to the WebSocket path.\n\n## Regression coverage\n\n- Unit coverage for installing a WebSocket parser while the message queue has paused transport reading\n- Functional coverage for 64 pipelined requests with the 32nd request upgrading to WebSocket, followed by a ping/pong exchange\n\n## Validation\n\n- Regression test fails against the previous `set_parser()` behavior\n- `pytest tests/test_web_protocol.py tests/test_web_websocket_functional.py -q` \u2192 65 passed\n- Added a `CHANGES/13432.bugfix.rst` fragment\n",
+        "pull_request": {
+          "url": "https://api.github.com/repos/aio-libs/aiohttp/pulls/13467",
+          "html_url": "https://github.com/aio-libs/aiohttp/pull/13467",
+          "diff_url": "https://github.com/aio-libs/aiohttp/pull/13467.diff",
+          "patch_url": "https://github.com/aio-libs/aiohttp/pull/13467.patch",
+          "merged_at": null
+        }
+      },
+      {
+        "number": 12208,
+        "title": "Restrict multipart header sizes",
+        "html_url": "https://github.com/aio-libs/aiohttp/pull/12208",
+        "state": "closed",
+        "created_at": "2026-03-07T16:13:32Z",
+        "body": null,
+        "pull_request": {
+          "url": "https://api.github.com/repos/aio-libs/aiohttp/pulls/12208",
+          "html_url": "https://github.com/aio-libs/aiohttp/pull/12208",
+          "diff_url": "https://github.com/aio-libs/aiohttp/pull/12208.diff",
+          "patch_url": "https://github.com/aio-libs/aiohttp/pull/12208.patch",
+          "merged_at": "2026-03-10T19:23:08Z"
+        }
+      },
+      {
+        "number": 12262,
+        "title": "fix: reject HTTP/1.1 requests without Host header per RFC 9112",
+        "html_url": "https://github.com/aio-libs/aiohttp/pull/12262",
+        "state": "closed",
+        "created_at": "2026-03-19T11:40:21Z",
+        "body": "## Summary\r\nFixes #10600\r\n**Root cause:** The request parser did not validate Host header presence for HTTP/1.1 requests, violating RFC 9112 Section 3.2.\r\n**Fix:** Added Host header validation that returns 400 Bad Request for HTTP/1.1 requests missing the Host header.\r\n## Changes\r\n- `aiohttp/web_protocol.py`: Added Host header presence check in data_received before appending to message queue; HTTP/1.1 requests without Host are converted to 400 Bad Request per RFC 9112.\r\n## Testing\r\n- Verified fix rejects requests without Host header\r\n- HTTP/1.0 requests are unaffected (Host is optional for HTTP/1.0)\r\n\r\nMade with [Cursor](https://cursor.com)",
+        "pull_request": {
+          "url": "https://api.github.com/repos/aio-libs/aiohttp/pulls/12262",
+          "html_url": "https://github.com/aio-libs/aiohttp/pull/12262",
+          "diff_url": "https://github.com/aio-libs/aiohttp/pull/12262.diff",
+          "patch_url": "https://github.com/aio-libs/aiohttp/pull/12262.patch",
+          "merged_at": null
+        }
+      },
+      {
+        "number": 3881,
+        "title": "await content.read() reads partial content under high load",
+        "html_url": "https://github.com/aio-libs/aiohttp/issues/3881",
+        "state": "closed",
+        "created_at": "2019-07-01T13:56:57Z",
+        "body": "## Long story short\r\n\r\nUnder heavy network load + high latency, aiohttp client's `await` read()` is sometimes truncated.\r\n\r\n## Expected behaviour\r\n\r\nawait read() always returns full content in the buffer\r\n\r\n## Actual behaviour\r\n\r\nThe returned content is sometimes truncated\r\n\r\n## Steps to reproduce\r\n\r\nI haven't been able to successfully repro the intermittent issue in a test-bed yet. I'll update the ticket once I have a reliable repro. I know it's not actionable without it, but I create the ticket anyway to see if you have any inkling/intuition of what might be going on.\r\n\r\nI laid out a few leads that I have not followed up thoroughly and will update the post when I discover more clues.\r\n\r\n## Analysis\r\n\r\nI wonder if, under heavy load, there's time window where the StreamReader's internal buffer is empty that it terminates prematurely. \r\n\r\nI'm dealing with ~100 concurrent downloads, about ~1 - 3 MB content-length per download that I push to disk or S3. When writing to SSD locally it almost never fails, it fails more often when I swapped the SSD to S3. It looks like higher latency increases the likelihood of it happening.\r\n\r\nWhen I reduce the concurrent payload to <10 downloads, the problem goes away. I used `asyncio.gather(*futures)` to set up the download. This points to the number of concurrent coroutines affect the likelihood of the issue.\r\n\r\nThe issue is more likely when dealing with payload > 2.5 MB. This may suggest there could be a flaw in the buffer resizing in StreamReader.\r\n\r\nI'm running without response content-length, so `await read()` supposed to read until EOF.\r\n\r\nI'm running with TCPConnector:\r\n```\r\nsession = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=3600),\r\n                                        connector=aiohttp.TCPConnector(keepalive_timeout=600))\r\n```\r\n\r\nI'm running with a single main event loop.\r\n\r\nfwiw, setting a breakpoint in the buffering step reliably fixes the problem, so it could be memory barrier related? I'm still hypothesizing.\r\n\r\n## Your environment\r\n\r\nOS: ubuntu 18.04\r\npython: 3.7.2\r\naiohttp: 3.5.4\r\n\r\naiohttp client only.\r\n\r\nI'm running with pipenv (both dockerized and local execution)\r\n\r\nPlenty of RAM/CPU/network bandwidth -- I swapped aiohttp with `requests`, the load takes ~30 mins slower staging all the payloads in mem, but they complete without the content corruption.\r\n\r\nLet me know if you have any questions!\r\n\r\n## Potential Solution\r\n\r\nI've also noticed aiohttp version of StreamReader doesn't have `readuntil(separator=b'\\n')` as introduced in Streams package since 3.5.2, this would be handy for me dealing with data-pull from web-services that don't return reliable Content-Length. -- this is the follow-up of the hypothesis that under heavy load, it's possible that read() can find its internal buffer being empty and terminate prematurely.\r\n\r\nThe RFE ticket for `readuntil` was closed because nobody needed it: https://github.com/aio-libs/aiohttp/issues/1151, I wonder if this is enough justification for us to re-open.",
+        "pull_request": null
+      },
+      {
+        "number": 4397,
+        "title": "Occasional errors `ClientPayloadError: Response payload is not completed` in client requests",
+        "html_url": "https://github.com/aio-libs/aiohttp/issues/4397",
+        "state": "closed",
+        "created_at": "2019-11-27T22:54:52Z",
+        "body": "Hi, \r\n\r\nI'm noticing errors `ClientPayloadError: Response payload is not completed` with some urls. You can request the same url multiple times and sometimes it fails.\r\n\r\nMight be related to https://github.com/aio-libs/aiohttp/issues/2954\r\n\r\nPlease see the traceback below:\r\n\r\n\r\n```python\r\nIn [20]: r = await s.get('http://rayih.com/podcast/0001.xml')\r\n\r\nIn [21]: await r.read()\r\n---------------------------------------------------------------------------\r\nClientPayloadError                        Traceback (most recent call last)\r\n<ipython-input-21-39c3a552a171> in async-def-wrapper()\r\n\r\n***/lib/python3.7/site-packages/aiohttp/client_reqrep.py in read(self)\r\n    971         if self._body is None:\r\n    972             try:\r\n--> 973                 self._body = await self.content.read()\r\n    974                 for trace in self._traces:\r\n    975                     await trace.send_response_chunk_received(self._body)\r\n\r\n***/lib/python3.7/site-packages/aiohttp/streams.py in read(self, n)\r\n    356             blocks = []\r\n    357             while True:\r\n--> 358                 block = await self.readany()\r\n    359                 if not block:\r\n    360                     break\r\n\r\n***/lib/python3.7/site-packages/aiohttp/streams.py in readany(self)\r\n    378         # without feeding any data\r\n    379         while not self._buffer and not self._eof:\r\n--> 380             await self._wait('readany')\r\n    381\r\n    382         return self._read_nowait(-1)\r\n\r\n***/lib/python3.7/site-packages/aiohttp/streams.py in _wait(self, func_name)\r\n    294             if self._timer:\r\n    295                 with self._timer:\r\n--> 296                     await waiter\r\n    297             else:\r\n    298                 await waiter\r\n\r\nClientPayloadError: Response payload is not completed\r\n```\r\n\r\n## Steps to reproduce\r\n\r\nPlease run this script several times. In my case it fails 1 out of 10. \r\ncurl 7.54.0 and Firefox 71.0b12 work fine and stable.\r\n\r\n```python\r\nimport aiohttp\r\n\r\nasync with aiohttp.ClientSession as session:\r\n    async with session.get('http://rayih.com/podcast/0001.xml') as response:\r\n        await response.read()\r\n```\r\n\r\n## Your environment\r\n\r\nclient aiohttp 3.6.2, python 3.7.5, OS X 10.12.6 (Sierra)\r\n",
+        "pull_request": null
+      },
+      {
+        "number": 8643,
+        "title": "Multipart reader fails on Transfer-Encoding: chunked",
+        "html_url": "https://github.com/aio-libs/aiohttp/issues/8643",
+        "state": "closed",
+        "created_at": "2024-08-08T09:45:56Z",
+        "body": "### Describe the bug\r\n\r\nThe multipart reader will not parse if `Transfer-Encoding` is `chunked`.\r\nThe reader merges two different parts into one larger multipart.\r\n\r\nThis request-dump is also required (125 MB; github limits to 25 MB)\r\nhttp://doppelbauer.name/request-data.txt\r\n\r\n### To Reproduce\r\n\r\nThe test case is a bit clumsy, but reproduces the problem.\r\n\r\n````python\r\nimport asyncio, base64, hashlib\r\nfrom aiohttp.multipart import MultipartReader\r\n\r\nheaders = {\r\n    'Content-Type': 'multipart/form-data; boundary=f9nvedV9b8roNRgHQEYH75IQSkw6UCOJsJSIzCXWhVAXCwPSMrs73NjPQTH5rKARGsWAFa',\r\n}\r\n\r\n# http://doppelbauer.name/request-data.txt\r\nfp = open('request-data.txt')\r\nclass FakeReader:\r\n    async def read(self, n=-1):\r\n        kind, data = fp.readline().split('\\t')\r\n        assert kind == 'read'\r\n        return base64.b64decode( data.encode() )\r\n\r\n    async def readline(self, separator=b\"\\n\"):\r\n        kind, data = fp.readline().split('\\t')\r\n        assert kind == 'readuntil'\r\n        return base64.b64decode( data.encode() )\r\n\r\n    def at_eof(self):\r\n        return False\r\n\r\n    def unread_data(self, data):\r\n        pass\r\n\r\nasync def test_multipart():\r\n    multipart = MultipartReader( headers, FakeReader() )\r\n    part_index = 0\r\n    async for part in multipart:\r\n        part_index += 1\r\n        body = b''\r\n        while True:\r\n            chunk = await part.read_chunk()\r\n            if not chunk:\r\n                break\r\n            body += chunk\r\n        blake2 = hashlib.blake2b( body ).hexdigest()\r\n\r\n        if int(part.headers['Content-Length']) == len(body) and part.headers['Content-BLAKE2'] == blake2:\r\n            continue\r\n\r\n        # Huh!? Boundary within body\r\n        assert b'f9nvedV9b8roNRgHQEYH75IQSkw6UCOJsJSIzCXWhVAXCwPSMrs73NjPQTH5rKARGsWAFa' in body\r\n        print( 'Multipart', '#' + str(part_index), part.filename )\r\n        print( 'Size invalid:', len(body), 'instead of:', int(part.headers['Content-Length']) )\r\n        print( 'Hash:', blake2, part.headers['Content-BLAKE2'],  )\r\n        print()\r\n\r\nloop = asyncio.get_event_loop()\r\nasyncio.ensure_future(test_multipart())\r\nloop.run_forever()\r\nloop.close()\r\n````\r\n\r\n### Expected behavior\r\n\r\nCorrectly parse multipart\r\n\r\n### Logs/tracebacks\r\n\r\n```python-traceback\r\n#\r\n```\r\n\r\n\r\n### Python Version\r\n\r\n```console\r\npython 3.12\r\n```\r\n\r\n\r\n### aiohttp Version\r\n\r\n```console\r\nVersion: 3.10.1\r\n```\r\n\r\n\r\n### multidict Version\r\n\r\n```console\r\n$\r\n```\r\n\r\n\r\n### yarl Version\r\n\r\n```console\r\n$\r\n```\r\n\r\n\r\n### OS\r\n\r\nLinux\r\n\r\n### Related component\r\n\r\nServer\r\n\r\n### Additional context\r\n\r\n_No response_\r\n\r\n### Code of Conduct\r\n\r\n- [X] I agree to follow the aio-libs Code of Conduct",
+        "pull_request": null
+      },
+      {
+        "number": 6810,
+        "title": "Fix readuntil work ",
+        "html_url": "https://github.com/aio-libs/aiohttp/pull/6810",
+        "state": "closed",
+        "created_at": "2022-07-04T09:48:45Z",
+        "body": "<!-- Thank you for your contribution! -->\r\n\r\n## What do these changes do?\r\n\r\nFix work `readuntil()` with separator length more one character\r\n<!-- Please give a short brief about these changes. -->\r\n\r\n## Are there changes in behavior for the user?\r\nNo\r\n<!-- Outline any notable behaviour for the end users. -->\r\n\r\n## Related issue number\r\nFixes #6701\r\n<!-- Are there any issues opened that will be resolved by merging this change? -->\r\n\r\n## Checklist\r\n\r\n- [x] I think the code is well written\r\n- [x] Unit tests for the changes exist\r\n- [x] Documentation reflects the changes\r\n- [x] If you provide code modification, please add yourself to `CONTRIBUTORS.txt`\r\n  * The format is &lt;Name&gt; &lt;Surname&gt;.\r\n  * Please keep alphabetical order, the file is sorted by names.\r\n- [x] Add a new news fragment into the `CHANGES` folder\r\n  * name it `<issue_id>.<type>` for example (588.bugfix)\r\n  * if you don't have an `issue_id` change it to the pr id after creating the pr\r\n  * ensure type is one of the following:\r\n    * `.feature`: Signifying a new feature.\r\n    * `.bugfix`: Signifying a bug fix.\r\n    * `.doc`: Signifying a documentation improvement.\r\n    * `.removal`: Signifying a deprecation or removal of public API.\r\n    * `.misc`: A ticket has been closed, but it is not of interest to users.\r\n  * Make sure to use full sentences with correct case and punctuation, for example: \"Fix issue with non-ascii contents in doctest text files.\"\r\n",
+        "pull_request": {
+          "url": "https://api.github.com/repos/aio-libs/aiohttp/pulls/6810",
+          "html_url": "https://github.com/aio-libs/aiohttp/pull/6810",
+          "diff_url": "https://github.com/aio-libs/aiohttp/pull/6810.diff",
+          "patch_url": "https://github.com/aio-libs/aiohttp/pull/6810.patch",
+          "merged_at": "2022-11-10T19:27:48Z"
+        }
+      },
+      {
+        "number": 6701,
+        "title": "Error in StreamReader#readuntil",
+        "html_url": "https://github.com/aio-libs/aiohttp/issues/6701",
+        "state": "closed",
+        "created_at": "2022-04-14T09:05:15Z",
+        "body": "### Describe the bug\r\n\r\nHi there, it looks like StreamReader#readuntil function [here](https://github.com/aio-libs/aiohttp/blob/3.8/aiohttp/streams.py#L328) has an error.\r\n\r\nMy original use case was to read CSV files directly from ClientResponse line-by-line when the line terminator is `\\r\\n`.\r\nThe example I've provided is very similar.\r\n\r\nWhen the separator has more than one symbol, it splits lines in a strange way.\r\nFor instance, when separator is `b'ab'`, it splits as follows:\r\n```\r\nb'11a'\r\nb'b\\n22a'\r\nb'b\\n33a'\r\nb'b'\r\n```\r\ne.g. at the middle of the separator.\r\n\r\nI think that this part wasn't updated at the time when it was `readline` function with only `\\n` (one symbol length) separator available.\r\n\r\nProbably this line should be:\r\n```python\r\nichar = self._buffer[0].find(separator, offset) + len(separator) \r\n```\r\n\r\nso that it will contain the whole separator instead of 'splitting' it.\r\n\r\n### To Reproduce\r\n\r\nRun this thing https://gist.github.com/vitaliihonta/b9be77deb0dfea1e9a411e695e6f15c9\r\n\r\n### Expected behavior\r\n\r\nEach line should contain the whole separator\r\n```\r\nb'11ab'\r\nb'\\n22ab'\r\nb'\\n33ab'\r\n```\r\n\r\n### Logs/tracebacks\r\n\r\n```python-traceback\r\nNone\r\n```\r\n\r\n\r\n### Python Version\r\n\r\n```console\r\nPython 3.8.9\r\n```\r\n\r\n\r\n### aiohttp Version\r\n\r\n```console\r\n3.8.1\r\n```\r\n\r\n\r\n### multidict Version\r\n\r\n```console\r\nName: multidict\r\nVersion: 6.0.2\r\n```\r\n\r\n\r\n### yarl Version\r\n\r\n```console\r\nName: yarl\r\nVersion: 1.7.2\r\n```\r\n\r\n\r\n### OS\r\n\r\nmacOS\r\n\r\n### Related component\r\n\r\nClient\r\n\r\n### Additional context\r\n\r\n_No response_\r\n\r\n### Code of Conduct\r\n\r\n- [X] I agree to follow the aio-libs Code of Conduct",
+        "pull_request": null
+      },
+      {
+        "number": 7079,
+        "title": "[PR #6810/ec714c82 backport][3.9] Fix readuntil work ",
+        "html_url": "https://github.com/aio-libs/aiohttp/pull/7079",
+        "state": "closed",
+        "created_at": "2022-11-10T19:27:59Z",
+        "body": "**This is a backport of PR #6810 as merged into master (ec714c820fd12aebe8d5d8594cd50345164d6bb0).**\n\n<!-- Thank you for your contribution! -->\r\n\r\n## What do these changes do?\r\n\r\nFix work `readuntil()` with separator length more one character\r\n<!-- Please give a short brief about these changes. -->\r\n\r\n## Are there changes in behavior for the user?\r\nNo\r\n<!-- Outline any notable behaviour for the end users. -->\r\n\r\n## Related issue number\r\nFixes #6701\r\n<!-- Are there any issues opened that will be resolved by merging this change? -->\r\n\r\n## Checklist\r\n\r\n- [x] I think the code is well written\r\n- [x] Unit tests for the changes exist\r\n- [x] Documentation reflects the changes\r\n- [x] If you provide code modification, please add yourself to `CONTRIBUTORS.txt`\r\n  * The format is &lt;Name&gt; &lt;Surname&gt;.\r\n  * Please keep alphabetical order, the file is sorted by names.\r\n- [x] Add a new news fragment into the `CHANGES` folder\r\n  * name it `<issue_id>.<type>` for example (588.bugfix)\r\n  * if you don't have an `issue_id` change it to the pr id after creating the pr\r\n  * ensure type is one of the following:\r\n    * `.feature`: Signifying a new feature.\r\n    * `.bugfix`: Signifying a bug fix.\r\n    * `.doc`: Signifying a documentation improvement.\r\n    * `.removal`: Signifying a deprecation or removal of public API.\r\n    * `.misc`: A ticket has been closed, but it is not of interest to users.\r\n  * Make sure to use full sentences with correct case and punctuation, for example: \"Fix issue with non-ascii contents in doctest text files.\"\r\n",
+        "pull_request": {
+          "url": "https://api.github.com/repos/aio-libs/aiohttp/pulls/7079",
+          "html_url": "https://github.com/aio-libs/aiohttp/pull/7079",
+          "diff_url": "https://github.com/aio-libs/aiohttp/pull/7079.diff",
+          "patch_url": "https://github.com/aio-libs/aiohttp/pull/7079.patch",
+          "merged_at": "2022-11-11T18:18:52Z"
+        }
+      },
+      {
+        "number": 4054,
+        "title": "Implement StreamReader.readuntil() method",
+        "html_url": "https://github.com/aio-libs/aiohttp/issues/4054",
+        "state": "closed",
+        "created_at": "2019-09-10T18:48:54Z",
+        "body": "Long story short:\r\nShould be mimic to asyncio.StreamReader counterpart: https://docs.python.org/3/library/asyncio-stream.html#asyncio.StreamReader.readuntil\r\n\r\n(Re-opening https://github.com/aio-libs/aiohttp/issues/1151)\r\n\r\nThis solution is great to have in the toolbox dealing with pulling high-load data from servers that don't declare their response content-length. Currently I run into partial content.read() intermittently under high-load situations e.g. (https://github.com/aio-libs/aiohttp/issues/3881). \r\n\r\n",
+        "pull_request": null
+      },
+      {
+        "number": 4734,
+        "title": "Implemented readuntil in StreamResponse ",
+        "html_url": "https://github.com/aio-libs/aiohttp/pull/4734",
+        "state": "closed",
+        "created_at": "2020-05-11T08:14:32Z",
+        "body": "<!-- Thank you for your contribution! -->\r\n\r\n## What do these changes do?\r\n\r\nAdded `readuntil` method, heavily mimicking `asyncio.streams` and recycling the code of readline in current `StreamResponse` class. With this change `readline` uses `readuntil` with `\\n` as a separator\r\nSame for the tests that just use different separators.\r\n\r\n<!-- Please give a short brief about these changes. -->\r\n\r\n## Are there changes in behavior for the user?\r\n\r\nNew way to wait for new data\r\n\r\n<!-- Outline any notable behaviour for the end users. -->\r\n\r\n## Related issue number\r\n\r\n<!-- Are there any issues opened that will be resolved by merging this change? -->\r\n\r\n#4054 \r\n\r\n## Checklist\r\n\r\n- [x] I think the code is well written\r\n- [x] Unit tests for the changes exist\r\n- [ ] Documentation reflects the changes\r\n- [x] If you provide code modification, please add yourself to `CONTRIBUTORS.txt` This change is inside another PR I submitted #4732 \r\n- [x] Add a new news fragment into the `CHANGES` folder\r\n  * name it `<issue_id>.<type>` for example (588.bugfix)\r\n  * if you don't have an `issue_id` change it to the pr id after creating the pr\r\n  * ensure type is one of the following:\r\n    * `.feature`: Signifying a new feature.\r\n    * `.bugfix`: Signifying a bug fix.\r\n    * `.doc`: Signifying a documentation improvement.\r\n    * `.removal`: Signifying a deprecation or removal of public API.\r\n    * `.misc`: A ticket has been closed, but it is not of interest to users.\r\n  * Make sure to use full sentences with correct case and punctuation, for example: \"Fix issue with non-ascii contents in doctest text files.\"\r\n",
+        "pull_request": {
+          "url": "https://api.github.com/repos/aio-libs/aiohttp/pulls/4734",
+          "html_url": "https://github.com/aio-libs/aiohttp/pull/4734",
+          "diff_url": "https://github.com/aio-libs/aiohttp/pull/4734.diff",
+          "patch_url": "https://github.com/aio-libs/aiohttp/pull/4734.patch",
+          "merged_at": "2020-11-02T22:42:56Z"
+        }
+      },
+      {
+        "number": 5196,
+        "title": "[3.8] Implemented readuntil in StreamResponse  (#4734)",
+        "html_url": "https://github.com/aio-libs/aiohttp/pull/5196",
+        "state": "closed",
+        "created_at": "2020-11-02T22:43:19Z",
+        "body": "Backports the following commits to 3.8:\n - Implemented readuntil in StreamResponse  (#4734)",
+        "pull_request": {
+          "url": "https://api.github.com/repos/aio-libs/aiohttp/pulls/5196",
+          "html_url": "https://github.com/aio-libs/aiohttp/pull/5196",
+          "diff_url": "https://github.com/aio-libs/aiohttp/pull/5196.diff",
+          "patch_url": "https://github.com/aio-libs/aiohttp/pull/5196.patch",
+          "merged_at": "2020-11-02T22:55:08Z"
+        }
+      },
+      {
+        "number": 1150,
+        "title": "Document streams",
+        "html_url": "https://github.com/aio-libs/aiohttp/pull/1150",
+        "state": "closed",
+        "created_at": "2016-09-10T07:38:06Z",
+        "body": "Explicitly document streaming API.\n\nFixes #1106\n\nAlso don't inherit `aiohttp.StreamReader` from `asyncio.StreamReader`.\n\nThe inheritance makes a mess.\n\nFor example `asyncio.StreamReader` has `readuntil()` method but calling it from `aiohttp.StreamReader` leads to crash because internal implementation differs.\n",
+        "pull_request": {
+          "url": "https://api.github.com/repos/aio-libs/aiohttp/pulls/1150",
+          "html_url": "https://github.com/aio-libs/aiohttp/pull/1150",
+          "diff_url": "https://github.com/aio-libs/aiohttp/pull/1150.diff",
+          "patch_url": "https://github.com/aio-libs/aiohttp/pull/1150.patch",
+          "merged_at": "2016-09-10T09:16:47Z"
+        }
+      },
+      {
+        "number": 681,
+        "title": "ParserBuffer can be easily implemented through asyncio ReadStream",
+        "html_url": "https://github.com/aio-libs/aiohttp/issues/681",
+        "state": "closed",
+        "created_at": "2015-12-14T19:13:24Z",
+        "body": "https://github.com/python/asyncio/pull/297 will implement `readuntil`. So everything of ParserBuffer class may be implemented without reinventing wheel.\n",
+        "pull_request": null
+      },
+      {
+        "number": 1689,
+        "title": "ClientDisconnectedError when server returns buggy redirect",
+        "html_url": "https://github.com/aio-libs/aiohttp/issues/1689",
+        "state": "closed",
+        "created_at": "2017-02-28T11:40:59Z",
+        "body": "## Long story short\r\n\r\n<!-- Please describe your problem and why the fix is important. -->\r\nThere are some servers which do redirects in a strange way. Some examples are `http://fwmedia.com/`, `http://ebooks.artistsnetwork.com/`, `http://artistsnetwork.tv/`.\r\nThe common point between them is that they return redirect and close connection *immediately* after sending `Location` header:\r\n```\r\n $ curl -v http://artistsnetwork.tv/\r\n*   Trying 216.59.59.63...\r\n* TCP_NODELAY set\r\n* Connected to artistsnetwork.tv (216.59.59.63) port 80 (#0)\r\n> GET / HTTP/1.1\r\n> Host: artistsnetwork.tv\r\n> User-Agent: curl/7.52.1\r\n> Accept: */*\r\n>\r\n< HTTP/1.1 301 Moved Permanently\r\n< Location: http://www.artistsnetwork.tv/\r\n* Curl_http_done: called premature == 0\r\n* Connection #0 to host artistsnetwork.tv left intact\r\n```\r\nNotice there is no empty line returned after `Location` header.\r\n\r\nWhile `requests` library, `curl` and browsers tolerate this behaviour and recognize it as a redirect, `aiohttp.client` fails.\r\n\r\n## Expected behaviour\r\n\r\n<!-- What is the behaviour you expect? -->\r\nThere should be a way to handle such responses. Ideally I think such \"unexpectedly broken\" connections should be recognized in a special way, so that if there is enough information then we consider them \"good\".\r\n\r\n## Actual behaviour\r\n\r\n<!-- What's actually happening? -->\r\n```\r\nTraceback (most recent call last):\r\n  File \"/tmp/env/lib/python3.6/site-packages/aiohttp/client.py\", line 220, in _request\r\n    yield from resp.start(conn, read_until_eof)\r\n  File \"/tmp/env/lib/python3.6/site-packages/aiohttp/client_reqrep.py\", line 614, in start\r\n    message = yield from httpstream.read()\r\n  File \"/tmp/env/lib/python3.6/site-packages/aiohttp/streams.py\", line 625, in read\r\n    result = yield from super().read()\r\n  File \"/tmp/env/lib/python3.6/site-packages/aiohttp/streams.py\", line 456, in read\r\n    yield from self._waiter\r\naiohttp.errors.ServerDisconnectedError\r\n\r\nThe above exception was the direct cause of the following exception:\r\n\r\nTraceback (most recent call last):\r\n  File \"<stdin>\", line 1, in <module>\r\n  File \"/usr/lib/python3.6/asyncio/base_events.py\", line 466, in run_until_complete\r\n    return future.result()\r\n  File \"/tmp/env/lib/python3.6/site-packages/aiohttp/client.py\", line 227, in _request\r\n    raise aiohttp.ClientResponseError() from exc\r\naiohttp.errors.ClientResponseError\r\n```\r\n\r\n## Steps to reproduce\r\n\r\n<!-- Please describe steps to reproduce the issue.\r\n     If you have a script that does that please include it here within\r\n     markdown code markup -->\r\n```\r\nimport asyncio, aiohttp\r\nloop = asyncio.get_event_loop()\r\nloop.run_until_complete(aiohttp.client.get('http://artistsnetwork.tv/'))\r\n```\r\n\r\n## Your environment\r\n\r\n<!-- Describe the environment you have that lead to your issue.\r\n     This includes project version, OS, proxy server and other bits that\r\n     are related to your case. -->\r\n```\r\nPython 3.6.0\r\naiohttp==1.3.3\r\nyarl==0.9.8\r\n```\r\n",
+        "pull_request": null
+      },
+      {
+        "number": 1151,
+        "title": "Implement StreamReader.readuntil() method",
+        "html_url": "https://github.com/aio-libs/aiohttp/issues/1151",
+        "state": "closed",
+        "created_at": "2016-09-10T07:39:08Z",
+        "body": "Should be mimic to `asyncio.StreamReader` counterpart: https://docs.python.org/3/library/asyncio-stream.html#asyncio.StreamReader.readuntil\n",
+        "pull_request": null
+      },
+      {
+        "number": 579,
+        "title": "Memory leak in ParserBuffer",
+        "html_url": "https://github.com/aio-libs/aiohttp/issues/579",
+        "state": "closed",
+        "created_at": "2015-10-21T07:34:57Z",
+        "body": "It looks like there is a memory leak in the ParserBuffer, caused by the `_writer` generator. This simplification shows the issue:\n\n``` python\nimport gc\ngc.collect() # => make sure we start clean\n\nclass ParserBuffer:\n    # defined __slots__ in this simplification so we produce the same garbage result\n    __slots__ = ('_writer', ) \n\n    def __init__(self):\n        self._writer = self._feed_data()\n        next(self._writer)\n\n    def _feed_data(self):\n        while True:\n            chunk = yield\n\nparserBuffer = ParserBuffer()\nparserBuffer = None\ngc.set_debug(gc.DEBUG_LEAK)\nprint(gc.collect())   # => Collects 3 objects\n```\n\nThe generator is not closed and holds a reference to `self` and therefore creates a reference cycle. Is it really necessary to use a generator? (Or can we somehow make sure the generator is closed using `self._writer.close()` ?)\n",
+        "pull_request": null
+      }
+    ]
+  },
+  "defu-exact": {
+    "query": "repo:unjs/defu \"DefuInstance\"",
+    "total_count": 4,
+    "items": [
+      {
+        "number": 174,
+        "title": "fix: attach fn, arrayFn, extend to defu function to match its type",
+        "html_url": "https://github.com/unjs/defu/pull/174",
+        "state": "open",
+        "created_at": "2026-05-31T02:41:32Z",
+        "body": "DefuInstance interface declares these properties but defu = createDefu() just returns a bare function, the as DefuInstance cast was lying to TypeScript. Anyone calling defu.fn(), defu.arrayFn(), or defu.extend() would get a runtime crash despite passing typecheck.\r\n\r\nReordered defuFn/defuArrayFn before defu so they can be referenced, then used Object.assign to attach them to the function object. CJS bridge (lib/defu.cjs) auto-picks these up via module.exports = defu.\n\n<!-- This is an auto-generated comment: release notes by coderabbit.ai -->\n\n## Summary by CodeRabbit\n\n* **New Features**\n  * Extended the main export with additional utility functions and helper properties for enhanced flexibility and functionality.\n\n<!-- end of auto-generated comment: release notes by coderabbit.ai -->",
+        "pull_request": {
+          "url": "https://api.github.com/repos/unjs/defu/pulls/174",
+          "html_url": "https://github.com/unjs/defu/pull/174",
+          "diff_url": "https://github.com/unjs/defu/pull/174.diff",
+          "patch_url": "https://github.com/unjs/defu/pull/174.patch",
+          "merged_at": null
+        }
+      },
+      {
+        "number": 170,
+        "title": "feat: add skipNullish option to preserve null and undefined",
+        "html_url": "https://github.com/unjs/defu/pull/170",
+        "state": "closed",
+        "created_at": "2026-05-25T08:58:23Z",
+        "body": "## Summary\n- Add optional `{ skipNullish: false }` as the last `defu()` argument\n- When enabled, explicit `null` and `undefined` source values override defaults\n- Default behavior remains unchanged (nullish values are skipped)\n\nFixes #95\n\n## Test plan\n- [x] `pnpm test`\n\n<!-- This is an auto-generated comment: release notes by coderabbit.ai -->\n## Summary by CodeRabbit\n\n* **New Features**\n  * Added an optional skipNullish option to control preservation of null and undefined during merges (defaults to skipping them).\n\n* **Documentation**\n  * README updated to document the nullish handling behavior.\n\n* **Tests**\n  * Added tests covering preservation of null/undefined when skipNullish is disabled.\n\n<!-- review_stack_entry_start -->\n\n[![Review Change Stack](https://storage.googleapis.com/coderabbit_public_assets/review-stack-in-coderabbit-ui.svg)](https://app.coderabbit.ai/change-stack/unjs/defu/pull/170?utm_source=github_walkthrough&utm_medium=github&utm_campaign=change_stack)\n\n<!-- review_stack_entry_end -->\n<!-- end of auto-generated comment: release notes by coderabbit.ai -->",
+        "pull_request": {
+          "url": "https://api.github.com/repos/unjs/defu/pulls/170",
+          "html_url": "https://github.com/unjs/defu/pull/170",
+          "diff_url": "https://github.com/unjs/defu/pull/170.diff",
+          "patch_url": "https://github.com/unjs/defu/pull/170.patch",
+          "merged_at": null
+        }
+      },
+      {
+        "number": 157,
+        "title": "fix(defu.d.cts): export Defu types",
+        "html_url": "https://github.com/unjs/defu/pull/157",
+        "state": "closed",
+        "created_at": "2026-04-03T08:17:30Z",
+        "body": "<!--\r\nPLEASE DO THIS BEFORE SUBMITTING A PR\r\n\r\n1) Make sure there is an issue covering the problem or idea first. If not, please create one. Reference it in the PR via \"resolves #12312312\" \r\n2) Please keep your changes minimal and split them if you need to.\r\n3) Ensure there is a minimal reproduction attached for bug fixes.\r\n\r\nThis will greatly help speed up the review process.\r\n\r\nThanks for your contribution \u2764\ufe0f\r\n-->\r\nhttps://github.com/unjs/defu/commit/407b51645c41a57da6efac5b40967f2c60ce4f12#r181346453\n\n<!-- This is an auto-generated comment: release notes by coderabbit.ai -->\n\n## Summary by CodeRabbit\n\n* **New Features**\n  * Enhanced TypeScript support with improved generic type inference for merged results.\n\n* **Refactor**\n  * Reorganized exported namespace members for better API clarity and type declaration structure.\n\n<!-- end of auto-generated comment: release notes by coderabbit.ai -->",
+        "pull_request": {
+          "url": "https://api.github.com/repos/unjs/defu/pulls/157",
+          "html_url": "https://github.com/unjs/defu/pull/157",
+          "diff_url": "https://github.com/unjs/defu/pull/157.diff",
+          "patch_url": "https://github.com/unjs/defu/pull/157.patch",
+          "merged_at": "2026-04-07T09:27:12Z"
+        }
+      },
+      {
+        "number": 160,
+        "title": "build: correct the `types` export entry",
+        "html_url": "https://github.com/unjs/defu/pull/160",
+        "state": "closed",
+        "created_at": "2026-04-07T06:08:41Z",
+        "body": "<!--\r\nPLEASE DO THIS BEFORE SUBMITTING A PR\r\n\r\n1) Make sure there is an issue covering the problem or idea first. If not, please create one. Reference it in the PR via \"resolves #12312312\" \r\n2) Please keep your changes minimal and split them if you need to.\r\n3) Ensure there is a minimal reproduction attached for bug fixes.\r\n\r\nThis will greatly help speed up the review process.\r\n\r\nThanks for your contribution \u2764\ufe0f\r\n-->\r\n\r\nresolves https://github.com/unjs/defu/issues/159\r\n\r\nRelated PR https://github.com/unjs/defu/pull/157, which would error with:\r\n<img width=\"1040\" height=\"378\" alt=\"image\" src=\"https://github.com/user-attachments/assets/ae06d15c-34e9-43a9-a872-b3d8f60a2bb9\" />\r\n\r\nEven after changing to:\r\n\r\n```ts\r\n// \u2193 diff\r\nexport default defuProxy;\r\n// \u2193 diff\r\nexport type { Defu, DefuFn, DefuInstance }\r\n```\r\n\r\nIt still doesn't seem right:\r\n> Semantically incorrect. The CJS runtime (lib/defu.cjs:3) does\r\n module.exports = defu \u2014 the function IS the export, not\r\n module.exports.default. export default in .d.cts represents\r\n module.exports.default = ..., which is a different runtime shape. Works with\r\n bundler resolution due to leniency, but misrepresents the actual CJS contract\r\n and may break node16/nodenext consumers.\r\n> \r\n> review by AI\n\n<!-- This is an auto-generated comment: release notes by coderabbit.ai -->\n\n## Summary by CodeRabbit\n\n* **Chores**\n  * Updated TypeScript type definitions source location in package configuration.\n\n<!-- end of auto-generated comment: release notes by coderabbit.ai -->",
+        "pull_request": {
+          "url": "https://api.github.com/repos/unjs/defu/pulls/160",
+          "html_url": "https://github.com/unjs/defu/pull/160",
+          "diff_url": "https://github.com/unjs/defu/pull/160.diff",
+          "patch_url": "https://github.com/unjs/defu/pull/160.patch",
+          "merged_at": "2026-04-07T09:19:27Z"
+        }
+      }
+    ]
+  },
+  "flatted-all-python": {
+    "query": "repo:WebReflection/flatted python",
+    "total_count": 13,
+    "items": [
+      {
+        "number": 89,
+        "title": "Fixing recursion issue in Python too",
+        "html_url": "https://github.com/WebReflection/flatted/pull/89",
+        "state": "closed",
+        "created_at": "2026-03-09T09:49:43Z",
+        "body": "This MR is a follow up for https://github.com/WebReflection/flatted/pull/88 targeting the **Python** variant.",
+        "pull_request": {
+          "url": "https://api.github.com/repos/WebReflection/flatted/pulls/89",
+          "html_url": "https://github.com/WebReflection/flatted/pull/89",
+          "diff_url": "https://github.com/WebReflection/flatted/pull/89.diff",
+          "patch_url": "https://github.com/WebReflection/flatted/pull/89.patch",
+          "merged_at": "2026-03-09T10:33:13Z"
+        }
+      },
+      {
+        "number": 86,
+        "title": "Testing Framework for CI / CD",
+        "html_url": "https://github.com/WebReflection/flatted/issues/86",
+        "state": "closed",
+        "created_at": "2026-03-03T18:59:10Z",
+        "body": "Hey @WebReflection !\n\nCan we have a chat about a (universal) testing framework?\n\nAs mentioned in the PR, I would love to have a `json` file.\n\n```json\n[\n  { \n    \"file\": \"file://tests/foo.json\",\n    \"normal_sha256\": \"....\",\n    \"flattened_sha256\": \"....\"\n  },\n  { \n    \"file\": \"https:://somewhere/extenal/foo.json,\n    \"normal_sha256\": \"....\",\n    \"flattened_sha256\": \"....\"\n  }\n]\n```\n\nWe normalize the json, and do a sha256.\n\n```bash\ncat foo.json | jq --sort-keys -r . | sha256sum | awk '{ print $1 }')\n```\n\nAfter the flatten, we also normalize and sha256 and validate the sum.\n\nAnd then we unflatten and validate the original sum.\n\nWe run this for every implementation. We need to get the same sha256.\n\nIt is also ok, if we use the original implementation and we generate a flattened json using cyclic graphs. \n\n",
+        "pull_request": null
+      },
+      {
+        "number": 90,
+        "title": "Exclude PHP, golang and python version from the npm package",
+        "html_url": "https://github.com/WebReflection/flatted/issues/90",
+        "state": "closed",
+        "created_at": "2026-03-10T17:21:44Z",
+        "body": "Hello,\n\nLooks like you are including the PHP, golang ang python version in the npm package.\n\nhttps://app.unpkg.com/flatted@3.4.1\n\nWould be super if you could exclude these for multiple number of reasons\n\nThanks!",
+        "pull_request": null
+      },
+      {
+        "number": 99,
+        "title": "npm package includes non-JavaScript language implementations, causing downstream tooling issues and unnecessary package bloat",
+        "html_url": "https://github.com/WebReflection/flatted/issues/99",
+        "state": "closed",
+        "created_at": "2026-04-10T00:44:43Z",
+        "body": "The published npm package for flatted currently includes implementations for other languages, for example:\n\t\u2022\tgolang/pkg/flatted/flatted.go\n\t\u2022\tphp/flatted.php\n\t\u2022\tpython/flatted.py\n\nThese files are not needed for JavaScript consumers and introduce a couple of downstream issues:\n\t\u2022\tUnnecessary package bloat: JavaScript users receive additional files that are not used at runtime.\n\t\u2022\tTooling conflicts: Some environments scan installed dependencies and infer behavior from file types. In one case, the presence of golang/pkg/flatted/flatted.go in node_modules caused the package to be treated as Go source, triggering a validation failure.\n\nWhile downstream tooling can be improved, including unrelated language implementations in the npm artifact increases the likelihood of these issues.\n\n## Requested change\n\nPlease consider excluding non-JavaScript implementations from the published npm package.\n\nPossible approaches include:\n\t\u2022\tNarrowing the files field in package.json\n\t\u2022\tPublishing from a JavaScript-only subdirectory\n\t\u2022\tExplicitly excluding golang/, php/, and python/ from the npm artifact\n\n## Clarification\n\nThis request concerns only the contents of the npm package, not the repository itself. The issue is specifically that these files are included in the published artifact consumed by JavaScript tooling.\n\nThank you for considering this.",
+        "pull_request": null
+      },
+      {
+        "number": 87,
+        "title": "fix: ignore non-JS languages when packaging for npm",
+        "html_url": "https://github.com/WebReflection/flatted/pull/87",
+        "state": "closed",
+        "created_at": "2026-03-04T01:05:43Z",
+        "body": "[Version 3.3.4 published to npm](https://www.npmjs.com/package/flatted/v/3.3.4?activeTab=code) accidentally published the Go, PHP, and Python code that's also in the repository. Add these folders to `.npmignore` so that future releases to npm don't include it.",
+        "pull_request": {
+          "url": "https://api.github.com/repos/WebReflection/flatted/pulls/87",
+          "html_url": "https://github.com/WebReflection/flatted/pull/87",
+          "diff_url": "https://github.com/WebReflection/flatted/pull/87.diff",
+          "patch_url": "https://github.com/WebReflection/flatted/pull/87.patch",
+          "merged_at": null
+        }
+      },
+      {
+        "number": 85,
+        "title": "Golang port",
+        "html_url": "https://github.com/WebReflection/flatted/pull/85",
+        "state": "closed",
+        "created_at": "2026-02-13T18:40:29Z",
+        "body": "I finally finished my golang port.\r\n\r\nPlease test.",
+        "pull_request": {
+          "url": "https://api.github.com/repos/WebReflection/flatted/pulls/85",
+          "html_url": "https://github.com/WebReflection/flatted/pull/85",
+          "diff_url": "https://github.com/WebReflection/flatted/pull/85.diff",
+          "patch_url": "https://github.com/WebReflection/flatted/pull/85.patch",
+          "merged_at": "2026-03-02T08:43:00Z"
+        }
+      },
+      {
+        "number": 72,
+        "title": "golang implementation",
+        "html_url": "https://github.com/WebReflection/flatted/issues/72",
+        "state": "closed",
+        "created_at": "2023-10-02T08:43:44Z",
+        "body": "Is there any implementation as golang project?\r\n\r\nThx.",
+        "pull_request": null
+      },
+      {
+        "number": 80,
+        "title": "Library flatted.cpython-311.pyc created by a very old, unsupported - Python 2",
+        "html_url": "https://github.com/WebReflection/flatted/issues/80",
+        "state": "closed",
+        "created_at": "2024-11-18T13:09:01Z",
+        "body": "Library flatted.cpython-311.pyc created by a very old, unsupported - Python 2\r\nhttps://www.activestate.com/products/python/python-2-end-of-life-security-updates/",
+        "pull_request": null
+      },
+      {
+        "number": 81,
+        "title": "In the zip released by mistake the cache was not cleaned, so there is an old bytecode-compiled in __pychache__",
+        "html_url": "https://github.com/WebReflection/flatted/issues/81",
+        "state": "closed",
+        "created_at": "2024-11-18T14:50:58Z",
+        "body": "In the zip released by mistake the cache was not cleaned, so there is an old bytecode-compiled in __pychache__\r\npackage\\python\\__pycache__\\flatted.cpython-311.pyc\r\nwhich is reported as an issue by Team Reviewer\r\nThe zip is https://registry.npmjs.org/flatted/-/flatted-3.3.1.tgz\r\nTo see the bytecode just extract the zip.",
+        "pull_request": null
+      },
+      {
+        "number": 76,
+        "title": "Exclude Go, PHP and Python files from NPM package",
+        "html_url": "https://github.com/WebReflection/flatted/issues/76",
+        "state": "closed",
+        "created_at": "2024-03-19T15:49:44Z",
+        "body": "Some of our dependencies use this NPM package as a dependency. Unfortunately, this NPM package includes a PHP file.\r\n\r\nCan you exclude the php executable file from the distributed NPM package?",
+        "pull_request": null
+      },
+      {
+        "number": 71,
+        "title": "Added Python version of the very same thing",
+        "html_url": "https://github.com/WebReflection/flatted/pull/71",
+        "state": "closed",
+        "created_at": "2023-09-16T10:38:26Z",
+        "body": "This MR adds also Python for this module and the status is currently *make it work* but surely there are better performance tricks ... so far it's really based on the same PHP logic and it works like a charm.",
+        "pull_request": {
+          "url": "https://api.github.com/repos/WebReflection/flatted/pulls/71",
+          "html_url": "https://github.com/WebReflection/flatted/pull/71",
+          "diff_url": "https://github.com/WebReflection/flatted/pull/71.diff",
+          "patch_url": "https://github.com/WebReflection/flatted/pull/71.patch",
+          "merged_at": "2023-09-16T11:04:54Z"
+        }
+      },
+      {
+        "number": 66,
+        "title": "fix: drop php code from Node.js package",
+        "html_url": "https://github.com/WebReflection/flatted/pull/66",
+        "state": "closed",
+        "created_at": "2023-04-22T06:08:40Z",
+        "body": "There is very small to 0 profit in having a file with PHP code as a part of the final Node.js package. End users will probably rely on its Javascript/TypeScript part as part of the npm ecosystem. Besides dropping, it also will cut some bytes from network traffic. This may be important for a so widely used package\r\n\r\nReferences #60 and commit 197796db",
+        "pull_request": {
+          "url": "https://api.github.com/repos/WebReflection/flatted/pulls/66",
+          "html_url": "https://github.com/WebReflection/flatted/pull/66",
+          "diff_url": "https://github.com/WebReflection/flatted/pull/66.diff",
+          "patch_url": "https://github.com/WebReflection/flatted/pull/66.patch",
+          "merged_at": null
+        }
+      },
+      {
+        "number": 48,
+        "title": "Extract PHP implementation to separate (Composer) package",
+        "html_url": "https://github.com/WebReflection/flatted/issues/48",
+        "state": "closed",
+        "created_at": "2021-07-07T15:40:57Z",
+        "body": "This package brings a PHP implementation which is very unexpected from a Node/NPM package.\r\n\r\nFor a clear separation I suggest to extract the PHP implementation to a separate package/repository and publish it via Packagist.",
+        "pull_request": null
+      }
+    ]
+  }
+}

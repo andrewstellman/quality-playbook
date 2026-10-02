@@ -1,0 +1,4 @@
+actual source /Users/andrewstellman/Documents/QPB/repos/validation-2026-09-27/nonlinux/aiohttp/aiohttp/__init__.py
+chunks (b'abc\r\nrest',) readuntil b'abc\r\n' remainder b'rest'
+chunks (b'abc\r', b'\nrest') readuntil b'abc\r\nrest' remainder b''
+CONFIRMED: same byte stream changes result with feed_data boundaries

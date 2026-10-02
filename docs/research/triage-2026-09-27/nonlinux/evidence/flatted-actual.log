@@ -1,0 +1,6 @@
+module /Users/andrewstellman/Documents/QPB/repos/validation-2026-09-27/nonlinux/flatted/python/flatted.py
+original distinct True
+encoded [["1", "1"], {"x": 1}]
+decoded distinct False
+after mutating first [{'x': 2}, {'x': 2}]
+CONFIRMED: distinct equal objects alias after roundtrip

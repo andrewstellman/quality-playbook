@@ -1,5 +1,7 @@
 # Quality Playbook — Bug-Report PR Automation (v1.6.x candidate)
 
+> **2026-10-01: partly superseded.** `submit-pr` is now Feature R in `QPB_v1.6.1_Design.md` §2b, rewritten around `evidence/SUBMISSION-PROTOCOL.md`: one bug per invocation, draft-only, with no `--all` and no multi-bug PRs. This proposal's throughput rationale ("payoff scales linearly with the number of bug reports filed") no longer applies. The mechanics below still apply: patch application, test-runner detection, red/green verification, and halt-and-resume.
+
 *Status: NEW v1.6.x track, opened **2026-05-29**. Owner: Andrew Stellman. Depends on: v1.5.7 (shipping — gives us BUGS.md + `quality/patches/` artifact structure that this feature consumes). Not coupled to v1.6.0's NFR-discovery + FP-audit work; can ship in any order.*
 
 *Motivated by the keto BUG-001 finding from the 2026-05-29 acceptance retest. That bug — gRPC/HTTP unknown-namespace parity in `internal/check/handler.go` — has a clean QPB-produced regression test, an obvious five-line fix, and the entire PR workflow ahead of it is mechanical. Doing it by hand is fine for one bug; doing it by hand for every QPB-derived finding across a 12-repo track-record campaign is not. The operator workflow is captured in `Quality Playbook/v1.5.7_runner/BUG_REPORT_WORKFLOW.md` (the two-commit red-then-green pattern); this feature is the automation of that workflow as a QPB subcommand.*

@@ -1,0 +1,2307 @@
+From 82ec2e56cee86459d39da79b6882ef1150f29617 Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <andrew@stellman.com>
+Date: Fri, 2 Oct 2026 00:28:25 -0400
+Subject: [PATCH 01/12] =?UTF-8?q?v1.6.1=20[G]:=20gate=20verdict=20honesty?=
+ =?UTF-8?q?=20=E2=80=94=20bug=20evidence=20block,=20DECISIONS=20NEEDED=20s?=
+ =?UTF-8?q?tate,=20curated=20requirement=20FAILs,=20stale=20Council=20revi?=
+ =?UTF-8?q?ews,=20AGENTS.md=20WARN,=20.rst=20in=20cite/?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ bin/run_playbook.py                           |   4 +
+ bin/tests/test_gate_verdict_honesty_v161.py   | 615 ++++++++++++++
+ bin/tests/test_phase6_subagent_contract.py    |  11 +-
+ bin/tests/test_phase_prompts_externalized.py  |   4 +-
+ bin/tests/test_quality_gate_gates.py          |  33 +-
+ .../quality-playbook/phase_prompts/phase6.md  |  16 +-
+ .../phase_prompts/phase6_auditor.md           |  46 +-
+ .../quality-playbook/scripts/archive_lib.py   |  13 +-
+ .../scripts/council_semantic_check.py         |  88 +-
+ .../quality-playbook/scripts/quality_gate.py  | 804 +++++++++++++++++-
+ .../scripts/validate_phase_artifacts.py       |   7 +-
+ 11 files changed, 1569 insertions(+), 72 deletions(-)
+ create mode 100644 bin/tests/test_gate_verdict_honesty_v161.py
+
+diff --git a/bin/run_playbook.py b/bin/run_playbook.py
+index d4bb7b2..a8724d8 100644
+--- a/bin/run_playbook.py
++++ b/bin/run_playbook.py
+@@ -4352,6 +4352,10 @@ def _log_phase_completion(
+             # schemas.md §11 / _INDEX_VALID_VERDICTS.
+             if "WITH CLEANUP NEEDED" in gate_result:
+                 verdict = "pass-with-cleanup"
++            elif "WITH DECISIONS NEEDED" in gate_result:
++                # v1.6.1 [G]: the fourth gate state — requirement
++                # decisions only (exit 0); see _INDEX_VALID_VERDICTS.
++                verdict = "pass-with-decisions"
+             else:
+                 verdict = "pass"
+         elif finalizer_status == "pass" and "warn" in gate_result.lower():
+diff --git a/bin/tests/test_gate_verdict_honesty_v161.py b/bin/tests/test_gate_verdict_honesty_v161.py
+new file mode 100644
+index 0000000..e894157
+--- /dev/null
++++ b/bin/tests/test_gate_verdict_honesty_v161.py
+@@ -0,0 +1,615 @@
++"""v1.6.1 [G] — gate verdict honesty.
++
++Motivating run (2026-10-01, QPB 1.6.0 on collective/icalendar): 90 bugs,
++each with a regression test, a fix and executed red and green logs. The
++gate printed `RESULT: GATE FAILED — 7 substantive issue(s)` and the
++verdict said the run "can't be trusted", because six requirement-
++overreach FAILs and a missing post-gate AGENTS.md fell to the generic
++fallback, which named only the first failing file.
++
++These tests build the same shape in a temp dir ("every bug reproduced;
++the gate fails only on requirement overreach + AGENTS.md") and pin:
++the `── Bug evidence ──` block, the curated overreach / tier-mismatch
++narration, dependent-bug listing, the fourth gate state (GATE PASSED
++WITH DECISIONS NEEDED, exit 0), the generic fallback naming every file,
++stale Council reviews (req_hash), `.rst` in reference_docs/cite/, and
++the grouped reviewer WARNs.
++"""
++
++from __future__ import annotations
++
++import io
++import json
++import re
++import shutil
++import sys
++import tempfile
++import unittest
++from contextlib import redirect_stdout
++from pathlib import Path
++
++sys.path.insert(0, str(Path(__file__).resolve().parent))
++from test_quality_gate_gates import (  # noqa: E402
++    SCRIPT_PATH,
++    V150_VIRTIO_EXCERPT,
++    V150_VIRTIO_EXCERPT_TEXT,
++    V150_VIRTIO_SHA,
++    add_one_bug,
++    minimal_zero_bug_tree,
++    quality_gate,
++    run_gate,
++    write_tree,
++)
++
++_REPO_ROOT = Path(__file__).resolve().parents[2]
++if str(_REPO_ROOT) not in sys.path:
++    sys.path.insert(0, str(_REPO_ROOT))
++
++REVIEWERS = ("claude-opus-4.7", "gpt-5.5", "claude-sonnet-4.6")
++
++
++def _wrap(records, key="records"):
++    return json.dumps({
++        "schema_version": "1.4.6",
++        "generated_at": "2026-04-19T14:30:22Z",
++        key: records,
++    })
++
++
++def _req_record(rid):
++    return {
++        "id": rid,
++        "title": f"Title {rid}",
++        "description": f"Description {rid}",
++        "tier": 2,
++        "functional_section": "Device initialization",
++        "citation": {
++            "document": "formal_docs/virtio-excerpt.txt",
++            "document_sha256": V150_VIRTIO_SHA,
++            "section": "2.4",
++            "citation_excerpt": V150_VIRTIO_EXCERPT,
++        },
++    }
++
++
++def build_reproduced_tree(bug_reqs, overreach_reqs, *, agents_md=False):
++    """Every bug has a regression patch, a fix patch, a writeup, and RED
++    and GREEN logs; every REQ has a valid tier-2 citation and three
++    Council reviews; the REQs in ``overreach_reqs`` get 2/3 `overreaches`.
++    AGENTS.md is absent by default (the icalendar shape)."""
++    version = "1.4.4"
++    tree = minimal_zero_bug_tree(version)
++    if not agents_md:
++        del tree["AGENTS.md"]
++    bug_ids = sorted(bug_reqs)
++    for bid in bug_ids:
++        add_one_bug(tree, version, bid)
++    tree["quality/BUGS.md"] = "# Bugs\n\n" + "".join(
++        f"### {b}: Example\n\nDescription.\n\n" for b in bug_ids
++    )
++    tdd = json.loads(tree["quality/results/tdd-results.json"])
++    template = tdd["bugs"][0]
++    tdd["bugs"] = [
++        dict(template, id=b, requirement=bug_reqs[b],
++             writeup_path=f"quality/writeups/{b}.md")
++        for b in bug_ids
++    ]
++    tdd["summary"].update(total=len(bug_ids), verified=len(bug_ids))
++    tree["quality/results/tdd-results.json"] = json.dumps(tdd)
++    tree["formal_docs/virtio-excerpt.txt"] = V150_VIRTIO_EXCERPT_TEXT
++    tree["quality/formal_docs_manifest.json"] = _wrap([{
++        "source_path": "formal_docs/virtio-excerpt.txt",
++        "document_sha256": V150_VIRTIO_SHA,
++        "tier": 2,
++    }])
++    req_ids = sorted(set(bug_reqs.values()) | set(overreach_reqs))
++    recs = [_req_record(r) for r in req_ids]
++    tree["quality/requirements_manifest.json"] = _wrap(recs)
++    tree["quality/bugs_manifest.json"] = _wrap([{
++        "id": b, "title": "t", "severity": "LOW",
++        "divergence_description": "d", "documented_intent": "i",
++        "code_behavior": "c", "disposition": "code-fix",
++        "disposition_rationale": "r", "req_id": bug_reqs[b],
++        "proposed_fix": "f", "fix_type": "code",
++    } for b in bug_ids])
++    reviews = []
++    for rec in recs:
++        rid = rec["id"]
++        for idx, member in enumerate(REVIEWERS):
++            verdict = (
++                "overreaches" if rid in overreach_reqs and idx < 2
++                else "supports"
++            )
++            reviews.append({
++                "req_id": rid, "reviewer": member, "verdict": verdict,
++                "notes": f"{member} on {rid}",
++                "req_hash": quality_gate.req_review_hash(rec),
++            })
++    tree["quality/citation_semantic_check.json"] = _wrap(reviews, "reviews")
++    tree["quality/INDEX.md"] = "# Run Index\n\n```json\n" + json.dumps({
++        "run_timestamp_start": "2026-04-19T14:30:22Z",
++        "run_timestamp_end": "2026-04-19T14:45:22Z",
++        "duration_seconds": 900, "qpb_version": "1.4.6",
++        "target_repo_path": ".", "target_repo_git_sha": "abc123",
++        "target_role_breakdown": None, "phases_executed": [],
++        "summary": {"requirements": {}, "bugs": {}, "gate_verdict": "pass"},
++        "artifacts": [],
++    }) + "\n```\n"
++    return tree
++
++
++def _sentinel(stdout):
++    lines = [ln for ln in stdout.splitlines() if ln.startswith("::QPB:: ")]
++    return json.loads(lines[-1][len("::QPB:: "):])
++
++
++class _GateFixture(unittest.TestCase):
++    def setUp(self):
++        self._tmp = tempfile.TemporaryDirectory()
++        self.repo = Path(self._tmp.name) / "proj"
++        self.repo.mkdir()
++
++    def tearDown(self):
++        self._tmp.cleanup()
++
++    def gate(self, tree):
++        write_tree(self.repo, tree)
++        return run_gate(self.repo)
++
++
++class ReproducedButOverreachTests(_GateFixture):
++    """Every bug reproduced; FAILs only on overreach (one REQ with
++    dependent bugs, one without) + missing AGENTS.md."""
++
++    def setUp(self):
++        super().setUp()
++        tree = build_reproduced_tree(
++            {"BUG-001": "REQ-001", "BUG-002": "REQ-002",
++             "BUG-003": "REQ-002"},
++            ["REQ-002", "REQ-003"],
++        )
++        self.out, self.code = self.gate(tree)
++
++    def test_bug_evidence_block_says_reproduced_n_of_n(self):
++        self.assertIn(
++            "[FAIL] GATE FAILED\n── Bug evidence ──\n"
++            "Reproduced: 3 of 3 bugs. Each has a regression test that "
++            "fails on the current code and passes with its fix (red and "
++            "green logs checked: 6 of 6).\n",
++            self.out,
++        )
++        self.assertIn(
++            "It does not show the expected behaviour is right or that the "
++            "bug is unreported upstream", self.out,
++        )
++        self.assertIn(
++            "The gate result below is about other checks; none of them is "
++            "about these logs.", self.out,
++        )
++
++    def test_dependent_bugs_listed_by_id(self):
++        self.assertIn(
++            "2 bugs rest on a requirement the reviewers questioned (still "
++            "reproduced; read the requirement note before relying on the "
++            "expected behaviour): BUG-002, BUG-003 (REQ-002)", self.out,
++        )
++        self.assertIn(
++            "record_id=REQ-002: semantic check majority overreaches", self.out,
++        )
++        self.assertIn(
++            "confirmed bug(s) resting on REQ-002: BUG-002, BUG-003", self.out,
++        )
++
++    def test_dependent_overreach_keeps_gate_failed(self):
++        self.assertEqual(self.code, 1)
++        self.assertIn(
++            "Total: 2 FAIL (1 substantive, 0 record-keeping, "
++            "1 operator-decision), ", self.out,
++        )
++        self.assertIn(
++            "RESULT: GATE FAILED — 1 substantive issue(s) must be fixed",
++            self.out,
++        )
++
++    def test_overreach_gets_curated_message_and_lines(self):
++        self.assertIn("• [requirement_overreach] (2 FAILs)", self.out)
++        self.assertIn(
++            "2 requirement(s) say more than the passage they quote; at "
++            "least two of three reviewers agreed. This is about how the "
++            "requirement is written, not about the code.", self.out,
++        )
++        self.assertIn(
++            "Bugs that rest on these requirements: BUG-002, BUG-003 "
++            "(REQ-002).", self.out,
++        )
++        self.assertNotIn("[generic]", self.out)
++        # The failing lines are listed under the category, without a
++        # "FAIL:" prefix (fail() lines stay grep-parseable).
++        self.assertRegex(
++            self.out,
++            r"\n      - citation_semantic_check\.json: record_id=REQ-003: "
++            r"semantic check majority overreaches",
++        )
++        self.assertNotIn("FAIL: citation_semantic_check.json", self.out)
++
++    def test_reason_does_not_say_untrustworthy(self):
++        self.assertNotIn("can be trusted", self.out)
++        self.assertNotIn("decides whether this run's results", self.out)
++        self.assertIn(
++            "Result: it did not pass the checkpoint — the bugs are "
++            "reproduced; what failed is the paperwork behind 2 "
++            "requirements.", self.out,
++        )
++
++    def test_agents_md_is_warn_not_fail(self):
++        self.assertIn(
++            "WARN: AGENTS.md not written yet — the orchestrator writes it "
++            "after the gate passes; it does not affect the findings.",
++            self.out,
++        )
++        self.assertNotIn("AGENTS.md missing (required at project root)",
++                         self.out)
++
++    def test_operator_decisions_file_missing_warns(self):
++        self.assertIn(
++            "WARN: OPERATOR_DECISIONS.md missing — 2 requirement(s) were "
++            "questioned (REQ-002, REQ-003)", self.out,
++        )
++
++    def test_sentinel_machine_fields(self):
++        payload = _sentinel(self.out)
++        self.assertEqual(payload["gate_result"], "FAIL")
++        self.assertEqual(payload["bug_evidence"], "reproduced")
++        self.assertEqual(payload["bugs"], 3)
++        self.assertEqual(payload["bugs_reproduced"], 3)
++        self.assertEqual(payload["bugs_on_flagged_reqs"], 2)
++        # Existing keys are untouched.
++        for key in ("v", "kind", "verdict_state", "ts"):
++            self.assertIn(key, payload)
++
++
++class DecisionsNeededTests(_GateFixture):
++    """Overreach only on a REQ no confirmed bug rests on -> exit 0."""
++
++    def test_decisions_needed_passes_with_exit_zero(self):
++        tree = build_reproduced_tree(
++            {"BUG-001": "REQ-001", "BUG-002": "REQ-002"}, ["REQ-003"],
++        )
++        out, code = self.gate(tree)
++        self.assertEqual(code, 0, out)
++        self.assertRegex(out, r"\nTotal: 1 DECISION, \d+ WARN\n")
++        self.assertIn(
++            "RESULT: GATE PASSED WITH DECISIONS NEEDED — 1 requirement "
++            "decision(s)\n", out,
++        )
++        self.assertIn(
++            "[WARN] GATE PASSED -- 1 requirement decision(s) need you", out,
++        )
++        self.assertIn("Bugs that rest on these requirements: none.", out)
++        self.assertIn("no confirmed bug rests on REQ-003", out)
++        self.assertEqual(_sentinel(out)["gate_result"], "DECISIONS")
++        self.assertEqual(_sentinel(out)["bugs_on_flagged_reqs"], 0)
++
++    def test_unlinked_bug_keeps_overreach_substantive(self):
++        """A confirmed bug with no req_id in bugs_manifest.json means the
++        gate cannot prove no bug rests on the REQ -> stays GATE FAILED."""
++        tree = build_reproduced_tree({"BUG-001": "REQ-001"}, ["REQ-003"])
++        manifest = json.loads(tree["quality/bugs_manifest.json"])
++        del manifest["records"][0]["req_id"]
++        tree["quality/bugs_manifest.json"] = json.dumps(manifest)
++        out, code = self.gate(tree)
++        self.assertEqual(code, 1, out)
++        self.assertIn("cannot rule out a bug resting on REQ-003", out)
++
++    def test_operator_decisions_file_present_passes(self):
++        tree = build_reproduced_tree({"BUG-001": "REQ-001"}, ["REQ-003"])
++        tree["quality/OPERATOR_DECISIONS.md"] = "# Decisions\n"
++        out, code = self.gate(tree)
++        self.assertEqual(code, 0, out)
++        self.assertIn("PASS: OPERATOR_DECISIONS.md present", out)
++        self.assertNotIn("OPERATOR_DECISIONS.md missing", out)
++
++
++class FinalVerdictUnitTests(unittest.TestCase):
++    def test_decisions_only(self):
++        total, result, code = quality_gate._compute_final_verdict(
++            [(quality_gate.VERDICT_OPERATOR_DECISION, "x")] * 2, 3,
++        )
++        self.assertEqual(total, "Total: 2 DECISION, 3 WARN")
++        self.assertEqual(
++            result,
++            "RESULT: GATE PASSED WITH DECISIONS NEEDED — 2 requirement "
++            "decision(s)",
++        )
++        self.assertEqual(code, 0)
++
++    def test_decisions_plus_cleanup(self):
++        total, result, code = quality_gate._compute_final_verdict(
++            [(quality_gate.VERDICT_OPERATOR_DECISION, "x"),
++             (quality_gate.VERDICT_RECORD_KEEPING, "y")], 0,
++        )
++        self.assertEqual(total, "Total: 1 DECISION, 1 CLEANUP, 0 WARN")
++        self.assertTrue(result.endswith(
++            "1 requirement decision(s), 1 audit record-keeping gap(s)"))
++        self.assertEqual(code, 0)
++
++    def test_pre_161_lines_unchanged_without_decisions(self):
++        self.assertEqual(
++            quality_gate._compute_final_verdict(
++                [(quality_gate.VERDICT_SUBSTANTIVE, "a"),
++                 (quality_gate.VERDICT_RECORD_KEEPING, "b")], 1)[0],
++            "Total: 2 FAIL (1 substantive, 1 record-keeping), 1 WARN",
++        )
++        self.assertEqual(
++            quality_gate._compute_final_verdict(
++                [(quality_gate.VERDICT_RECORD_KEEPING, "b")], 0)[1],
++            "RESULT: GATE PASSED WITH CLEANUP NEEDED — 1 audit "
++            "record-keeping gap(s)",
++        )
++
++
++def _capture(func, *args, **kwargs):
++    buf = io.StringIO()
++    with redirect_stdout(buf):
++        func(*args, **kwargs)
++    return buf.getvalue()
++
++
++class VerdictPresentationUnitTests(unittest.TestCase):
++    def setUp(self):
++        quality_gate._reset_counters()
++
++    def tearDown(self):
++        quality_gate._reset_counters()
++
++    def test_generic_fallback_lists_every_file(self):
++        msgs = [
++            "requirements_manifest.json: record_id=REQ-016: weird thing",
++            "requirements_manifest.json: record_id=REQ-017: weird thing",
++            "use_cases_manifest.json: record_id=UC-01: odd",
++        ]
++        text = quality_gate._narrate_fail_category(
++            quality_gate._FAIL_GENERIC, msgs,
++            quality_gate._summarize_bug_evidence([], ledger=[]),
++        )
++        self.assertIn(
++            "These checks failed: requirements_manifest.json, "
++            "use_cases_manifest.json.", text,
++        )
++
++    def test_failing_lines_capped_with_more(self):
++        records = [
++            (quality_gate.VERDICT_SUBSTANTIVE, f"file{i}.json: broke {i}")
++            for i in range(12)
++        ]
++        out = _capture(quality_gate._emit_operator_verdict,
++                       records, [], [], 1, run_provenance=[])
++        self.assertIn("      - file9.json: broke 9\n", out)
++        self.assertNotIn("      - file10.json", out)
++        self.assertIn("      +2 more\n", out)
++
++    def test_tier_mismatch_narration(self):
++        msgs = [
++            "requirements_manifest.json: record_id=REQ-016: is tier 3 but "
++            "carries a citation block (citations are for Tier 1/2 only per "
++            "schemas.md §10 invariant #1)",
++        ]
++        self.assertEqual(
++            quality_gate._classify_fail(msgs[0]),
++            quality_gate._FAIL_REQ_TIER_MISMATCH,
++        )
++        text = quality_gate._narrate_fail_category(
++            quality_gate._FAIL_REQ_TIER_MISMATCH, msgs,
++            quality_gate._summarize_bug_evidence([], ledger=[]),
++        )
++        self.assertTrue(text.startswith(
++            "1 requirement(s) quote a document but are still marked as "
++            "code-derived (tier 3). This usually comes from the "
++            "expert-review (Feature H) step."), text)
++        self.assertIn("Fix: set the tier to the cited document's tier, or "
++                      "remove the citation.", text)
++
++    def _ledger(self, **kw):
++        entry = {
++            "repo": "r", "q": None, "bug_ids": ["BUG-001", "BUG-002"],
++            "bug_count": 2, "tdd_ok": {"BUG-001": True, "BUG-002": True},
++            "logs_ok": 4, "no_regression_patch": set(), "bug_req": {},
++            "questioned_reqs": {}, "noted_reqs": set(),
++        }
++        entry.update(kw)
++        return [entry]
++
++    def test_states(self):
++        s = quality_gate._summarize_bug_evidence
++        self.assertEqual(s([], ledger=self._ledger())["state"], "reproduced")
++        partial = s([], ledger=self._ledger(
++            tdd_ok={"BUG-001": True, "BUG-002": False}, logs_ok=3))
++        self.assertEqual(partial["state"], "partial")
++        self.assertEqual(partial["unreproduced"], ["BUG-002"])
++        lines = quality_gate._bug_evidence_lines(
++            partial, other_checks_failed=True)
++        self.assertIn("No red and green evidence the gate accepted: "
++                      "BUG-002.", lines)
++        unverified = [(quality_gate.VERDICT_SUBSTANTIVE,
++                       "tdd-results.json missing (2 bugs require it)")]
++        self.assertEqual(
++            s(unverified, ledger=self._ledger())["state"], "not_reproduced")
++        none = s([], ledger=self._ledger(bug_ids=[], bug_count=0))
++        self.assertEqual(none["state"], "none")
++        self.assertEqual(
++            quality_gate._bug_evidence_lines(none, other_checks_failed=True),
++            ["No confirmed bugs in this run."],
++        )
++
++    def test_overclaim_blocks_reproduced_and_other_checks_line(self):
++        overclaim = [(quality_gate.VERDICT_SUBSTANTIVE,
++                      "1 TDD receipt(s) overclaim: tagged RED/GREEN")]
++        summary = quality_gate._summarize_bug_evidence(
++            overclaim, ledger=self._ledger())
++        self.assertEqual(summary["state"], "partial")
++        lines = quality_gate._bug_evidence_lines(
++            summary, other_checks_failed=True)
++        self.assertNotIn(
++            "The gate result below is about other checks; none of them is "
++            "about these logs.", lines)
++
++    def test_noted_reqs_listed_separately(self):
++        summary = quality_gate._summarize_bug_evidence([], ledger=self._ledger(
++            bug_req={"BUG-002": "REQ-009"}, noted_reqs={"REQ-009"}))
++        lines = quality_gate._bug_evidence_lines(
++            summary, other_checks_failed=False)
++        self.assertIn(
++            "1 bug rest on a requirement noted by one reviewer: "
++            "BUG-002 (REQ-009)", lines)
++
++    def test_reviewer_warns_grouped(self):
++        warns = [
++            "citation_semantic_check.json: record_id=REQ-001: 1/3 reviewer "
++            "(a) flagged as `overreaches` — surfaced for human review; not a "
++            "gate failure unless ≥2 agree",
++            "citation_semantic_check.json: record_id=REQ-004: 1/3 reviewer "
++            "(b) flagged as `overreaches` — surfaced for human review; not a "
++            "gate failure unless ≥2 agree",
++            "citation_semantic_check.json: record_id=REQ-002: 1/3 "
++            "reviewer(s) flagged as `unclear` (c) — surfaced for human review",
++            "integration-results.json not present",
++        ]
++        lines = quality_gate._group_reviewer_warns(warns)
++        self.assertEqual(lines, [
++            "integration-results.json not present",
++            "2 requirement(s) flagged as `overreaches` by one reviewer (not "
++            "a gate failure): REQ-001, REQ-004",
++            "1 requirement(s) flagged as `unclear` by a reviewer (not a gate "
++            "failure): REQ-002",
++        ])
++
++
++class StaleReviewTests(unittest.TestCase):
++    def setUp(self):
++        self._tmp = tempfile.TemporaryDirectory()
++        self.q = Path(self._tmp.name) / "quality"
++        self.q.mkdir()
++        quality_gate._reset_counters()
++        self.rec = _req_record("REQ-001")
++        (self.q / "requirements_manifest.json").write_text(_wrap([self.rec]))
++
++    def tearDown(self):
++        self._tmp.cleanup()
++        quality_gate._reset_counters()
++
++    def _reviews(self, req_hash):
++        rows = []
++        for m in REVIEWERS:
++            row = {"req_id": "REQ-001", "reviewer": m, "verdict": "supports",
++                   "notes": ""}
++            if req_hash is not None:
++                row["req_hash"] = req_hash
++            rows.append(row)
++        (self.q / "citation_semantic_check.json").write_text(
++            _wrap(rows, "reviews"))
++
++    def _run(self):
++        quality_gate.FAIL = quality_gate.WARN = 0
++        out = _capture(quality_gate.check_v1_5_0_semantic_check, self.q)
++        return quality_gate.FAIL, quality_gate.WARN, out
++
++    def test_current_hash_counts(self):
++        self._reviews(quality_gate.req_review_hash(self.rec))
++        fails, warns, out = self._run()
++        self.assertEqual((fails, warns), (0, 0), out)
++
++    def test_rewritten_req_makes_reviews_stale(self):
++        old = dict(self.rec, title="An earlier wording")
++        self._reviews(quality_gate.req_review_hash(old))
++        fails, _warns, out = self._run()
++        self.assertEqual(fails, 1, out)
++        self.assertIn("record_id=REQ-001: fewer than 3 reviews (0 present)",
++                      out)
++        self.assertIn("review predates a rewrite of REQ-001", out)
++
++    def test_missing_hash_warns_once_not_fail(self):
++        self._reviews(None)
++        fails, warns, out = self._run()
++        self.assertEqual((fails, warns), (0, 1), out)
++        self.assertIn("3 review entries carry no req_hash", out)
++
++    def test_hash_covers_title_conditions_and_excerpt(self):
++        base = quality_gate.req_review_hash(self.rec)
++        self.assertRegex(base, r"^[0-9a-f]{64}$")
++        for change in (
++            {"title": "x"},
++            {"conditions_of_satisfaction": "y"},
++            {"citation": dict(self.rec["citation"], citation_excerpt="z")},
++        ):
++            self.assertNotEqual(
++                base, quality_gate.req_review_hash(dict(self.rec, **change)),
++                change,
++            )
++        # Fields outside the canonical set do not change the hash.
++        self.assertEqual(
++            base, quality_gate.req_review_hash(dict(self.rec, tier=1)))
++
++    def test_writer_stamps_matching_hash(self):
++        from bin import council_semantic_check as csc
++        entries = [csc.ReviewEntry(req_id="REQ-001", reviewer=m,
++                                   verdict="supports", notes="")
++                   for m in REVIEWERS]
++        path = csc.write_semantic_check(self.q.parent, entries,
++                                        schema_version="1.6.1")
++        data = json.loads(path.read_text())
++        self.assertEqual(
++            {r["req_hash"] for r in data["reviews"]},
++            {quality_gate.req_review_hash(self.rec)},
++        )
++        fails, warns, out = self._run()
++        self.assertEqual((fails, warns), (0, 0), out)
++
++
++class RstCiteTests(unittest.TestCase):
++    def test_rst_in_cite_passes(self):
++        with tempfile.TemporaryDirectory() as tmp:
++            repo = Path(tmp)
++            cite = repo / "reference_docs" / "cite"
++            cite.mkdir(parents=True)
++            (cite / "virtio.rst").write_text("Title\n=====\n\nBody.\n")
++            quality_gate.FAIL = 0
++            out = _capture(quality_gate.check_v1_5_0_cite_extensions, repo)
++            self.assertEqual(quality_gate.FAIL, 0, out)
++            self.assertNotIn("unsupported extension", out)
++            (cite / "spec.pdf").write_text("x")
++            out = _capture(quality_gate.check_v1_5_0_cite_extensions, repo)
++            self.assertIn("allows only .txt, .md, .rst", out)
++
++
++class GateStateConsumerTests(unittest.TestCase):
++    """The fourth RESULT line reaches every pattern-matching consumer."""
++
++    _LINE = ("RESULT: GATE PASSED WITH DECISIONS NEEDED — 6 requirement "
++             "decision(s)")
++
++    def test_archive_lib_maps_to_pass_with_decisions(self):
++        from bin import archive_lib as al
++        m = al._GATE_RESULT_PATTERN.search("Total: 6 DECISION, 1 WARN\n"
++                                           + self._LINE + "\n")
++        self.assertEqual(m.group(1), "PASSED WITH DECISIONS NEEDED")
++        self.assertEqual(al._GATE_RESULT_TO_VERDICT[m.group(1)],
++                         "pass-with-decisions")
++
++    def test_index_enum_accepts_pass_with_decisions(self):
++        from bin import validate_phase_artifacts as vpa
++        self.assertIn("pass-with-decisions", vpa._INDEX_VALID_VERDICTS)
++
++    def test_run_playbook_reader_returns_decisions_line(self):
++        from bin.run_playbook import _gate_pass, _read_gate_verdict_from_log
++        with tempfile.TemporaryDirectory() as tmp:
++            log = Path(tmp) / "quality-gate.log"
++            log.write_text("Total: 6 DECISION, 1 WARN\n" + self._LINE
++                           + "\n\n--- Operator Verdict ---\n"
++                           "::QPB:: {\"gate_result\":\"DECISIONS\"}\n")
++            line = _read_gate_verdict_from_log(log)
++            self.assertEqual(line, self._LINE)
++            self.assertTrue(_gate_pass(line, Path(tmp)))
++
++
++if __name__ == "__main__":
++    unittest.main()
+diff --git a/bin/tests/test_phase6_subagent_contract.py b/bin/tests/test_phase6_subagent_contract.py
+index d989131..4a2b095 100644
+--- a/bin/tests/test_phase6_subagent_contract.py
++++ b/bin/tests/test_phase6_subagent_contract.py
+@@ -164,7 +164,16 @@ class Phase6SubAgentContractTests(unittest.TestCase):
+         # FAILs" rule is retired; pin the three-state contract +
+         # the substantive-FAILs-block rule + the AUDITOR VERDICT
+         # cleanup state instead.
+-        self.assertIn("Three-state verdict (v1.5.7 089c F15)", auditor)
++        # v1.6.1 [G]: four states (adds PASS WITH DECISIONS NEEDED)
++        # and the required BUG EVIDENCE line after AUDITOR VERDICT.
++        self.assertIn(
++            "Four-state verdict (v1.6.1; extends the v1.5.7 089c F15 "
++            "three-state", auditor)
++        self.assertIn("AUDITOR VERDICT: PASS WITH DECISIONS NEEDED", auditor)
++        self.assertIn(
++            "    AUDITOR VERDICT: [PASS | PASS WITH CLEANUP NEEDED | PASS "
++            "WITH DECISIONS NEEDED | FAIL]\n    BUG EVIDENCE: "
++            "<bug_evidence> (<bugs_reproduced>/<bugs>)", auditor)
+         self.assertIn(
+             "No PASS / PASS WITH CLEANUP NEEDED claim if there are "
+             "ANY substantive", auditor,
+diff --git a/bin/tests/test_phase_prompts_externalized.py b/bin/tests/test_phase_prompts_externalized.py
+index 8f8947a..f5bd40f 100644
+--- a/bin/tests/test_phase_prompts_externalized.py
++++ b/bin/tests/test_phase_prompts_externalized.py
+@@ -516,7 +516,9 @@ class PhasePromptByteEqualityTests(unittest.TestCase):
+         # baseline update IS the sanctioned change-acknowledgement
+         # signal.
+         # v1.5.7 191 FINDING-50: schemas.md prose citations stripped/rewritten.
+-        "phase6":                ( 9151, "b64921d1ea22c3c777e7cc244fe9795917c33b43a44ebea58f2ea166c24e2017"),
++        # v1.6.1 [G]: phase6.md gained the fourth gate state (PASS WITH
++        # DECISIONS NEEDED) and the BUG EVIDENCE witness line.
++        "phase6":                (10274, "f68b30e1bcb673d333dcaeb7f361c30c333839d1c3bdf8ea59294461efebc0b1"),
+         # v1.5.6 BUG-008: SKILL_FALLBACK_GUIDE grew from 4 to 6
+         # documented install paths (added .cursor + .continue), so
+         # every prompt that interpolates the guide grows by ~86 bytes.
+diff --git a/bin/tests/test_quality_gate_gates.py b/bin/tests/test_quality_gate_gates.py
+index f84dc75..244220d 100644
+--- a/bin/tests/test_quality_gate_gates.py
++++ b/bin/tests/test_quality_gate_gates.py
+@@ -669,12 +669,19 @@ class TestFileExistence(FixtureBase):
+         self.assertEqual(code, 1)
+ 
+     def test_missing_agents_md(self):
++        # v1.6.1 [G] (G7): AGENTS.md is written by the orchestrator only
++        # after the gate passes, so its absence is a WARN, not a FAIL.
+         tree = minimal_zero_bug_tree()
+         del tree["AGENTS.md"]
+         self.write(tree)
+         stdout, code = self.gate()
+-        self.assertIn("AGENTS.md missing (required at project root)", stdout)
+-        self.assertEqual(code, 1)
++        self.assertIn(
++            "WARN: AGENTS.md not written yet — the orchestrator writes it "
++            "after the gate passes; it does not affect the findings.",
++            stdout,
++        )
++        self.assertNotIn("AGENTS.md missing (required at project root)", stdout)
++        self.assertEqual(code, 0)
+ 
+     def test_missing_exploration_md(self):
+         tree = minimal_zero_bug_tree()
+@@ -3504,8 +3511,26 @@ class V150SemanticCheckFixtureBase(V150FixtureBase):
+             })
+         self.write_manifest("requirements_manifest.json", "records", records)
+ 
+-    def write_reviews(self, reviews):
+-        """Seed citation_semantic_check.json with the given reviews list."""
++    def write_reviews(self, reviews, *, stamp_hash=True):
++        """Seed citation_semantic_check.json with the given reviews list.
++
++        v1.6.1 [G] (G6): entries are stamped with the current
++        ``req_hash`` (as the 1.6.1 writer does) unless they already
++        carry one or ``stamp_hash=False`` (pre-1.6.1 shape)."""
++        if stamp_hash:
++            manifest = self.q / "requirements_manifest.json"
++            recs = {}
++            if manifest.is_file():
++                for rec in json.loads(manifest.read_text()).get("records", []):
++                    if isinstance(rec, dict):
++                        recs[rec.get("id")] = rec
++            stamped = []
++            for r in reviews:
++                if isinstance(r, dict) and "req_hash" not in r:
++                    r = dict(r, req_hash=quality_gate.req_review_hash(
++                        recs.get(r.get("req_id"), {})))
++                stamped.append(r)
++            reviews = stamped
+         payload = {
+             "schema_version": "1.4.6",
+             "generated_at": "2026-04-19T14:30:22Z",
+diff --git a/plugins/quality-playbook/skills/quality-playbook/phase_prompts/phase6.md b/plugins/quality-playbook/skills/quality-playbook/phase_prompts/phase6.md
+index d6ec87a..254fb19 100644
+--- a/plugins/quality-playbook/skills/quality-playbook/phase_prompts/phase6.md
++++ b/plugins/quality-playbook/skills/quality-playbook/phase_prompts/phase6.md
+@@ -4,7 +4,7 @@ You are a quality engineer at the verification boundary of a quality playbook ru
+ 
+ **First, determine your mode (environment-based).** If this `phase6.md` prompt was fed to you by a CLI subprocess via stdin / `--print` — i.e. `python3 -m bin.run_playbook` spawned you as a per-phase agent — you are **Mode B**. If you opened `phase6.md` yourself by following SKILL.md's Mode A walkthrough in an operator-watched interactive session, you are **Mode A**.
+ 
+-**If you are a Mode B per-phase CLI subprocess:** you ARE already an isolated fresh context with none of the same-context executor bias — Mode B's structural separation IS the per-phase CLI subprocess itself (instruction 071 explicitly does NOT extend the sub-agent mandate to Mode B). Execute the verification directly: run mechanical verify, run `quality_gate.py`, capture the verbatim `Total: N FAIL, M WARN` / `RESULT: GATE PASSED` lines, run `python3 -m bin.validate_phase_artifacts . --phase 6` and capture its final `RESULT:` line. DO NOT spawn a nested sub-agent — your subprocess IS the auditor. Honor the same witness contract (the **MANDATORY gate-verdict witness** + the **No PASS/PASS-WITH-CLEANUP claim if any substantive FAILs** rule — the 089c F15 three-state taxonomy in Part B) and the State P6 emit; the STRUCTURAL sub-agent mandate below + Part A spawn are the Mode-A path — skip them.
++**If you are a Mode B per-phase CLI subprocess:** you ARE already an isolated fresh context with none of the same-context executor bias — Mode B's structural separation IS the per-phase CLI subprocess itself (instruction 071 explicitly does NOT extend the sub-agent mandate to Mode B). Execute the verification directly: run mechanical verify, run `quality_gate.py`, capture the verbatim `Total: N FAIL, M WARN` / `RESULT: GATE PASSED` lines, run `python3 -m bin.validate_phase_artifacts . --phase 6` and capture its final `RESULT:` line. DO NOT spawn a nested sub-agent — your subprocess IS the auditor. Honor the same witness contract (the **MANDATORY gate-verdict witness** + the **No PASS/PASS-WITH-CLEANUP claim if any substantive FAILs** rule — the four-state taxonomy in Part B, which extends 089c F15) and the State P6 emit; the STRUCTURAL sub-agent mandate below + Part A spawn are the Mode-A path — skip them.
+ 
+ **If you are a Mode A interactive coding agent** (Claude Code, Cursor, etc., reading this prompt directly): the fresh-context sub-agent mandate below applies to you — proceed.
+ 
+@@ -19,7 +19,7 @@ If you are codex desktop or another runtime where sub-agent dispatch requires op
+ ### Part A — Spawn the Phase 6 auditor sub-agent
+ 
+ **If your runtime has fresh-context sub-agents (Claude Code, Cursor, etc.):**
+-Use your Task tool / Agent primitive to spawn ONE sub-agent whose prompt is the contents of `phase_prompts/phase6_auditor.md` (resolve via the same install-location fallback list documented above for `references/`). That auditor runs mechanical verify, runs `quality_gate.py`, captures the **MANDATORY gate-verdict witness** (the verbatim `Total: N FAIL, M WARN` / `RESULT: GATE PASSED` lines), runs `python3 -m bin.validate_phase_artifacts . --phase 6` and captures its final `RESULT:` line verbatim, and returns a structured verdict. The auditor — not you — does the verification work and owns the **No PASS/PASS-WITH-CLEANUP claim if any substantive FAILs** rule (089c F15 three-state — see Part B).
++Use your Task tool / Agent primitive to spawn ONE sub-agent whose prompt is the contents of `phase_prompts/phase6_auditor.md` (resolve via the same install-location fallback list documented above for `references/`). That auditor runs mechanical verify, runs `quality_gate.py`, captures the **MANDATORY gate-verdict witness** (the verbatim `Total: N FAIL, M WARN` / `RESULT: GATE PASSED` lines), runs `python3 -m bin.validate_phase_artifacts . --phase 6` and captures its final `RESULT:` line verbatim, and returns a structured verdict. The auditor — not you — does the verification work and owns the **No PASS/PASS-WITH-CLEANUP claim if any substantive FAILs** rule (four-state, extending 089c F15 — see Part B).
+ 
+ **If your runtime lacks sub-agent primitives:** HALT and tell the operator:
+ 
+@@ -37,21 +37,27 @@ After receiving the auditor's verdict, your State P6 "What just happened" chat e
+     Total: N FAIL, M WARN
+     RESULT: GATE PASSED
+        (or: RESULT: GATE PASSED WITH CLEANUP NEEDED — N audit record-keeping gap(s)
++        or: RESULT: GATE PASSED WITH DECISIONS NEEDED — N requirement decision(s)
+         or: RESULT: GATE FAILED — N substantive issue(s) must be fixed)
+ 
+     VALIDATOR WITNESS (verbatim):
+     RESULT: VALIDATION PASSED (phase 6)   (or: RESULT: VALIDATION FAILED (phase 6 — X FAIL, Y PASS))
+ 
+     AUDITOR VERDICT: PASS
+-       (or: PASS WITH CLEANUP NEEDED   or: FAIL)
++       (or: PASS WITH CLEANUP NEEDED   or: PASS WITH DECISIONS NEEDED   or: FAIL)
++    BUG EVIDENCE: reproduced (N/N)
++       (or: partial (R/N)   or: not_reproduced (R/N)   or: none (0/0))
+ 
+-**Three-state verdict (v1.5.7 089c F15).** The gate no longer treats audit record-keeping gaps the same as substantive failure. Map the gate's quoted `RESULT:` line to your `AUDITOR VERDICT`:
++**Four-state verdict (v1.6.1; extends the v1.5.7 089c F15 three-state taxonomy).** The gate no longer treats audit record-keeping gaps, or requirement-wording decisions only the operator can make, the same as substantive failure. Map the gate's quoted `RESULT:` line to your `AUDITOR VERDICT`:
+ 
+ - `RESULT: GATE PASSED` (zero FAILs) → `AUDITOR VERDICT: PASS`
+ - `RESULT: GATE PASSED WITH CLEANUP NEEDED — N audit record-keeping gap(s)` (the review completed and the bug findings stand; only audit-trail paperwork is incomplete) → `AUDITOR VERDICT: PASS WITH CLEANUP NEEDED`
++- `RESULT: GATE PASSED WITH DECISIONS NEEDED — N requirement decision(s)` (no substantive FAIL; N requirements say more than the passage they quote and no confirmed bug rests on them — the operator decides each one from `quality/OPERATOR_DECISIONS.md`) → `AUDITOR VERDICT: PASS WITH DECISIONS NEEDED`
+ - `RESULT: GATE FAILED — N substantive issue(s) must be fixed` (the work itself wasn't done correctly) → `AUDITOR VERDICT: FAIL`
+ 
+-The old rule was "No PASS claim without N=0 FAILs". It is now: **No PASS (or PASS WITH CLEANUP NEEDED) claim if there are ANY substantive FAILs.** `PASS WITH CLEANUP NEEDED` is a legitimate, non-blocking outcome when the gate's `RESULT:` line is exactly `RESULT: GATE PASSED WITH CLEANUP NEEDED` AND the validator line is `RESULT: VALIDATION PASSED (phase 6)` — the bug findings are real and reviewed; only the audit records have gaps. If the gate reports `RESULT: GATE FAILED` (any substantive issue), or the validator still sees `gate_verdict: "pending"` / missing required INDEX.md fields, the verdict is FAIL: report the substantive FAIL count and failing checks; do NOT report PASS, PASS WITH CLEANUP NEEDED, "complete", or "no remaining work". If `quality/results/quality-gate.log` is empty or lacks the two verdict lines, the gate was never invoked — the auditor must re-run it before returning anything. Fabricating a PASS (or PASS WITH CLEANUP NEEDED) claim against a substantively-failing (or never-run) gate is the exact credibility defect this hybrid contract closes — an adopter reading your chat can verify the verbatim witness lines against actual gate + validator output, and the auditor's reward shape (`pass`/`pass-with-cleanup`/`partial`/`fail` — the `gate_verdict` enum, where `pass-with-cleanup` is the 089c three-state cleanup-needed value — is what the gate actually said, not what you hoped) is structurally separated from your executor reward bias.
++The `BUG EVIDENCE:` line is quoted from the gate's last line (the `::QPB::` JSON): `<bug_evidence> (<bugs_reproduced>/<bugs>)`. It is reported on every outcome, including FAIL, because the gate result and the bug evidence are separate facts: a run can fail on requirement paperwork while every bug has red and green logs (the gate's `── Bug evidence ──` block says which).
++
++The old rule was "No PASS claim without N=0 FAILs". It is now: **No PASS (or PASS WITH CLEANUP NEEDED, or PASS WITH DECISIONS NEEDED) claim if there are ANY substantive FAILs.** `PASS WITH CLEANUP NEEDED` is a legitimate, non-blocking outcome when the gate's `RESULT:` line is exactly `RESULT: GATE PASSED WITH CLEANUP NEEDED` AND the validator line is `RESULT: VALIDATION PASSED (phase 6)` — the bug findings are real and reviewed; only the audit records have gaps. If the gate reports `RESULT: GATE FAILED` (any substantive issue), or the validator still sees `gate_verdict: "pending"` / missing required INDEX.md fields, the verdict is FAIL: report the substantive FAIL count and failing checks; do NOT report PASS, PASS WITH CLEANUP NEEDED, "complete", or "no remaining work". If `quality/results/quality-gate.log` is empty or lacks the two verdict lines, the gate was never invoked — the auditor must re-run it before returning anything. Fabricating a PASS (or PASS WITH CLEANUP NEEDED) claim against a substantively-failing (or never-run) gate is the exact credibility defect this hybrid contract closes — an adopter reading your chat can verify the verbatim witness lines against actual gate + validator output, and the auditor's reward shape (`pass`/`pass-with-cleanup`/`pass-with-decisions`/`partial`/`fail` — the `gate_verdict` enum, where `pass-with-cleanup` is the 089c cleanup-needed value and `pass-with-decisions` the v1.6.1 decisions-needed value — is what the gate actually said, not what you hoped) is structurally separated from your executor reward bias.
+ 
+ Mark Phase 6 complete in PROGRESS.md (use the checkbox format `- [x] Phase 6 - Verify` — do NOT switch to a table).
+ 
+diff --git a/plugins/quality-playbook/skills/quality-playbook/phase_prompts/phase6_auditor.md b/plugins/quality-playbook/skills/quality-playbook/phase_prompts/phase6_auditor.md
+index 078826a..b14628d 100644
+--- a/plugins/quality-playbook/skills/quality-playbook/phase_prompts/phase6_auditor.md
++++ b/plugins/quality-playbook/skills/quality-playbook/phase_prompts/phase6_auditor.md
+@@ -39,8 +39,9 @@ You WILL:
+ You will NOT:
+ - Write new artifacts (no EXPLORATION.md, no manifests, no patches).
+ - Fix any FAIL the gate reports (your job is to REPORT it, not fix it).
+-- Claim PASS or PASS WITH CLEANUP NEEDED when the gate's verbatim
+-  `RESULT:` line is `RESULT: GATE FAILED` (any substantive issue).
++- Claim PASS, PASS WITH CLEANUP NEEDED or PASS WITH DECISIONS NEEDED
++  when the gate's verbatim `RESULT:` line is `RESULT: GATE FAILED` (any
++  substantive issue).
+ 
+ ## Step 1 — Mechanical verify (if applicable)
+ 
+@@ -71,6 +72,7 @@ Extract the literal last two verdict lines — the gate prints exactly:
+     Total: N FAIL, M WARN
+     RESULT: GATE PASSED
+        (or: RESULT: GATE PASSED WITH CLEANUP NEEDED — N audit record-keeping gap(s)
++        or: RESULT: GATE PASSED WITH DECISIONS NEEDED — N requirement decision(s)
+         or: RESULT: GATE FAILED — N substantive issue(s) must be fixed)
+ 
+ This is the **MANDATORY gate-verdict witness** (v1.5.7 A-13). QUOTE THESE
+@@ -80,9 +82,11 @@ contain these two lines, the gate did not run successfully — it was never
+ invoked or its output was not captured; re-run it before returning
+ anything.
+ 
+-**Three-state verdict (v1.5.7 089c F15).** The gate distinguishes
+-substantive failure (the work wasn't done correctly) from audit
+-record-keeping gaps (the work happened; the paperwork is incomplete).
++**Four-state verdict (v1.6.1; extends the v1.5.7 089c F15 three-state
++taxonomy).** The gate distinguishes substantive failure (the work wasn't
++done correctly) from audit record-keeping gaps (the work happened; the
++paperwork is incomplete) and from requirement decisions (a requirement
++says more than the passage it quotes, and no confirmed bug rests on it).
+ Map the gate's `RESULT:` line to your verdict:
+ 
+ - `RESULT: GATE PASSED` → `AUDITOR VERDICT: PASS`
+@@ -90,13 +94,26 @@ Map the gate's `RESULT:` line to your verdict:
+   gap(s)` → `AUDITOR VERDICT: PASS WITH CLEANUP NEEDED` (legitimate,
+   non-blocking — the bug findings are real and reviewed; only audit
+   records have gaps)
++- `RESULT: GATE PASSED WITH DECISIONS NEEDED — N requirement
++  decision(s)` → `AUDITOR VERDICT: PASS WITH DECISIONS NEEDED`
++  (legitimate, non-blocking — the operator decides each requirement
++  from `quality/OPERATOR_DECISIONS.md`; you do not rewrite them)
+ - `RESULT: GATE FAILED — N substantive issue(s) must be fixed` →
+   `AUDITOR VERDICT: FAIL`
+ 
+ **No PASS / PASS WITH CLEANUP NEEDED claim if there are ANY substantive
+ FAILs.** A PASS WITH CLEANUP NEEDED verdict is legitimate ONLY when the
+ `RESULT:` line is exactly `RESULT: GATE PASSED WITH CLEANUP NEEDED`
+-(zero substantive FAILs); PASS only on `RESULT: GATE PASSED`.
++(zero substantive FAILs); PASS WITH DECISIONS NEEDED only when it starts
++`RESULT: GATE PASSED WITH DECISIONS NEEDED`; PASS only on
++`RESULT: GATE PASSED`.
++
++**Bug evidence (v1.6.1).** The gate's last line is a `::QPB::` JSON
++object carrying `bug_evidence` (`reproduced` | `partial` |
++`not_reproduced` | `none`), `bugs` and `bugs_reproduced`. Quote them as
++the `BUG EVIDENCE:` line in Step 4 on every outcome. The gate result and
++the bug evidence are separate facts: the gate can fail on requirement
++paperwork while every bug has red and green logs.
+ 
+ ## Step 3 — Run validate_phase_artifacts for Phase 6
+ 
+@@ -106,7 +123,8 @@ Resolve `bin/` via the documented install-root fallback —
+ `PYTHONPATH=<install_root> python3 -m bin.validate_phase_artifacts . --phase 6`
+ for an `install_skill.py`-layout adopter. `--phase 6` re-checks
+ `quality/INDEX.md` presence + the required INDEX.md fields AND
+-requires `summary.gate_verdict` to be one of `pass` / `partial` / `fail`
++requires `summary.gate_verdict` to be one of `pass` / `pass-with-cleanup`
++/ `pass-with-decisions` / `partial` / `fail`
+ (it is `"pending"` after Phase 5 — Phase 6 MUST have updated it to the real
+ verdict). The validator emits a self-authenticating final `RESULT:` line:
+ 
+@@ -122,12 +140,13 @@ Your return to the parent MUST contain exactly:
+ 
+     GATE WITNESS (verbatim):
+     Total: <N> FAIL, <M> WARN
+-    RESULT: GATE [PASSED | PASSED WITH CLEANUP NEEDED — N audit record-keeping gap(s) | FAILED — N substantive issue(s) must be fixed]
++    RESULT: GATE [PASSED | PASSED WITH CLEANUP NEEDED — N audit record-keeping gap(s) | PASSED WITH DECISIONS NEEDED — N requirement decision(s) | FAILED — N substantive issue(s) must be fixed]
+ 
+     VALIDATOR WITNESS (verbatim):
+     RESULT: VALIDATION [PASSED|FAILED] (phase 6 — ...)
+ 
+-    AUDITOR VERDICT: [PASS | PASS WITH CLEANUP NEEDED | FAIL]
++    AUDITOR VERDICT: [PASS | PASS WITH CLEANUP NEEDED | PASS WITH DECISIONS NEEDED | FAIL]
++    BUG EVIDENCE: <bug_evidence> (<bugs_reproduced>/<bugs>)
+ 
+     Audit notes:
+     - <key findings: any reproducibility issues, missing artifacts,
+@@ -140,7 +159,14 @@ CLEANUP NEEDED` is legitimate when the gate line is exactly `RESULT:
+ GATE PASSED WITH CLEANUP NEEDED` (only record-keeping gaps, zero
+ substantive FAILs) AND the validator shows `RESULT: VALIDATION PASSED
+ (phase 6)` — the review completed and the bug findings stand; only the
+-audit trail has gaps (non-blocking). If the gate shows `RESULT: GATE
++audit trail has gaps (non-blocking). `AUDITOR VERDICT: PASS WITH
++DECISIONS NEEDED` is legitimate when the gate line starts `RESULT: GATE
++PASSED WITH DECISIONS NEEDED` AND the validator shows `RESULT:
++VALIDATION PASSED (phase 6)`. The `BUG EVIDENCE:` line is REQUIRED
++directly after the `AUDITOR VERDICT:` line, quoted from the gate's
++`::QPB::` line (for example `BUG EVIDENCE: reproduced (90/90)`); if the
++log has no `::QPB::` line, write `BUG EVIDENCE: unknown (gate emitted
++no ::QPB:: line)`. If the gate shows `RESULT: GATE
+ FAILED` (any substantive issue) OR the validator shows `FAILED`, your
+ verdict is `FAIL`. There is no value in helping the parent look good —
+ that is precisely the bug this auditor role fixes.
+diff --git a/plugins/quality-playbook/skills/quality-playbook/scripts/archive_lib.py b/plugins/quality-playbook/skills/quality-playbook/scripts/archive_lib.py
+index b22cc3d..eae3382 100644
+--- a/plugins/quality-playbook/skills/quality-playbook/scripts/archive_lib.py
++++ b/plugins/quality-playbook/skills/quality-playbook/scripts/archive_lib.py
+@@ -117,6 +117,8 @@ _PHASE_CHECK_PATTERN = re.compile(r"^-\s*\[x\]\s*Phase\s*([0-9a-zA-Z]+)", re.MUL
+ # three lines:
+ #     RESULT: GATE PASSED
+ #     RESULT: GATE PASSED WITH CLEANUP NEEDED — N audit record-keeping gap(s)
++#     RESULT: GATE PASSED WITH DECISIONS NEEDED — N requirement decision(s)
++#       (v1.6.1 [G]: a fourth line; maps to "pass-with-decisions")
+ #     RESULT: GATE FAILED — N substantive issue(s) must be fixed
+ # Group 1 captures the verdict tail; _GATE_RESULT_TO_VERDICT maps it
+ # to the schemas.md §11 gate_verdict enum value (incl. the F17
+@@ -127,7 +129,8 @@ _PHASE_CHECK_PATTERN = re.compile(r"^-\s*\[x\]\s*Phase\s*([0-9a-zA-Z]+)", re.MUL
+ # Mode B archive wrote gate_verdict: "unknown" for every run, which
+ # the validator then rejected).
+ _GATE_RESULT_PATTERN = re.compile(
+-    r"^RESULT:\s+GATE\s+(PASSED WITH CLEANUP NEEDED|PASSED|FAILED)\b",
++    r"^RESULT:\s+GATE\s+(PASSED WITH CLEANUP NEEDED|PASSED WITH DECISIONS NEEDED"
++    r"|PASSED|FAILED)\b",
+     re.MULTILINE,
+ )
+ 
+@@ -148,6 +151,8 @@ _GATE_RESULT_TO_VERDICT = {
+     # v1.5.7 (089d F18) — quality-gate.log shapes:
+     "PASSED": "pass",
+     "PASSED WITH CLEANUP NEEDED": "pass-with-cleanup",
++    # v1.6.1 [G]: requirement decisions only, no substantive FAIL.
++    "PASSED WITH DECISIONS NEEDED": "pass-with-decisions",
+     "FAILED": "fail",
+     # Legacy (pre-v1.5.7) — run-*.json key=value shapes:
+     "PASS": "pass",
+@@ -563,7 +568,11 @@ def build_index_payload(
+     """
+     start, end, duration = _resolve_bounds(repo, run_folder)
+     verdict = gate_verdict_override or _extract_gate_verdict(run_folder)
+-    if verdict not in ("pass", "fail", "partial"):
++    # v1.6.1 [G]: keep the two pass-with-* gate states (schemas.md §11
++    # enum) instead of demoting them to "partial" — "partial" means an
++    # aborted or WARN-only run, which neither of them is.
++    if verdict not in ("pass", "pass-with-cleanup", "pass-with-decisions",
++                       "fail", "partial"):
+         verdict = "partial"
+     merged_flags: Dict[str, object] = {"no_formal_docs": False}
+     if invocation_flags:
+diff --git a/plugins/quality-playbook/skills/quality-playbook/scripts/council_semantic_check.py b/plugins/quality-playbook/skills/quality-playbook/scripts/council_semantic_check.py
+index c9b7d33..cc119e4 100644
+--- a/plugins/quality-playbook/skills/quality-playbook/scripts/council_semantic_check.py
++++ b/plugins/quality-playbook/skills/quality-playbook/scripts/council_semantic_check.py
+@@ -400,6 +400,65 @@ def _schema_version(qpb_root: Optional[Path] = None) -> str:
+     return version or "unknown"
+ 
+ 
++def _req_review_hash_fn():
++    """v1.6.1 [G] (G6): the gate's canonical REQ hash helper — one
++    definition (quality_gate.req_review_hash) shared by writer and gate.
++    Imported lazily so loading this module does not load the gate.
++
++    Resolution: the package sibling (source clone, where bin/ re-exports
++    scripts/), a top-level ``quality_gate`` on sys.path, then a path-load
++    of ``quality_gate.py`` beside this file or one directory up (the
++    installed layout keeps the gate at the install root and this module
++    under ``<install>/bin/``). Returns None when none resolves; the
++    writer then omits ``req_hash`` and the gate WARNs (back-compat)."""
++    try:
++        from . import quality_gate as _qg  # type: ignore[attr-defined]
++        return _qg.req_review_hash
++    except ImportError:
++        pass
++    try:
++        import quality_gate as _qg  # type: ignore[no-redef]
++        return _qg.req_review_hash
++    except ImportError:
++        pass
++    import importlib.util as _ilu
++    here = Path(__file__).resolve().parent
++    for cand in (here / "quality_gate.py", here.parent / "quality_gate.py"):
++        if cand.is_file():
++            spec = _ilu.spec_from_file_location("_csc_quality_gate", cand)
++            if spec is not None and spec.loader is not None:
++                mod = _ilu.module_from_spec(spec)
++                spec.loader.exec_module(mod)
++                return mod.req_review_hash
++    return None
++
++
++def current_req_hashes(quality_dir: Path) -> Dict[str, str]:
++    """v1.6.1 [G] (G6): {req_id: req_hash} for every REQ record in
++    quality/requirements_manifest.json (empty when absent/unparseable)."""
++    path = Path(quality_dir) / "requirements_manifest.json"
++    try:
++        data = json.loads(path.read_text(encoding="utf-8"))
++    except (OSError, json.JSONDecodeError, UnicodeDecodeError):
++        return {}
++    records = data.get("records") if isinstance(data, dict) else None
++    if not isinstance(records, list):
++        return {}
++    req_hash = _req_review_hash_fn()
++    if req_hash is None:
++        print(
++            "semantic_check: quality_gate.req_review_hash not found — "
++            "writing reviews without req_hash (the gate will WARN)",
++            file=sys.stderr,
++        )
++        return {}
++    out: Dict[str, str] = {}
++    for rec in records:
++        if isinstance(rec, dict) and isinstance(rec.get("id"), str):
++            out[rec["id"]] = req_hash(rec)
++    return out
++
++
+ def write_semantic_check(
+     repo_dir: Path,
+     reviews: List[ReviewEntry],
+@@ -412,21 +471,32 @@ def write_semantic_check(
+ 
+     Returns the written path. Overwrites an existing file (one emission
+     per run).
++
++    v1.6.1 [G] (G6): each entry carries ``req_hash`` — the hash of the
++    REQ's title, conditions of satisfaction and citation excerpt at
++    write time — so the gate can tell a review of an earlier wording
++    (stale) from a current one. An entry whose REQ is not in the
++    manifest gets no ``req_hash``.
+     """
+     quality_dir = Path(repo_dir) / "quality"
+     quality_dir.mkdir(parents=True, exist_ok=True)
++    hashes = current_req_hashes(quality_dir)
++
++    def _entry(e: ReviewEntry) -> dict:
++        row = {
++            "req_id": e.req_id,
++            "reviewer": e.reviewer,
++            "verdict": e.verdict,
++            "notes": e.notes,
++        }
++        if e.req_id in hashes:
++            row["req_hash"] = hashes[e.req_id]
++        return row
++
+     payload = {
+         "schema_version": schema_version or _schema_version(qpb_root),
+         "generated_at": archive_lib.utc_extended_timestamp(now),
+-        "reviews": [
+-            {
+-                "req_id": e.req_id,
+-                "reviewer": e.reviewer,
+-                "verdict": e.verdict,
+-                "notes": e.notes,
+-            }
+-            for e in reviews
+-        ],
++        "reviews": [_entry(e) for e in reviews],
+     }
+     path = quality_dir / "citation_semantic_check.json"
+     path.write_text(
+diff --git a/plugins/quality-playbook/skills/quality-playbook/scripts/quality_gate.py b/plugins/quality-playbook/skills/quality-playbook/scripts/quality_gate.py
+index 4b71716..d33142c 100755
+--- a/plugins/quality-playbook/skills/quality-playbook/scripts/quality_gate.py
++++ b/plugins/quality-playbook/skills/quality-playbook/scripts/quality_gate.py
+@@ -16,7 +16,10 @@ Usage:
+ Exit codes:
+     0 — GATE PASSED, or GATE PASSED WITH CLEANUP NEEDED (only audit
+         record-keeping gaps remain; the review completed and its
+-        findings stand — see the v1.5.7 089c F15 taxonomy block below)
++        findings stand — see the v1.5.7 089c F15 taxonomy block below),
++        or GATE PASSED WITH DECISIONS NEEDED (v1.6.1 [G]: only
++        requirement-wording decisions that no confirmed bug rests on,
++        plus any record-keeping gaps)
+     1 — GATE FAILED (one or more substantive issues — the work itself
+         wasn't done correctly)
+ 
+@@ -24,6 +27,7 @@ Runs on Python 3.8+ with only the standard library.
+ """
+ 
+ import functools
++import hashlib
+ import json
+ import os
+ import re
+@@ -153,7 +157,14 @@ WARN = 0
+ 
+ VERDICT_SUBSTANTIVE = "substantive"
+ VERDICT_RECORD_KEEPING = "record_keeping"
+-_VALID_VERDICT_CATEGORIES = (VERDICT_SUBSTANTIVE, VERDICT_RECORD_KEEPING)
++# v1.6.1 [G]: a FAIL only the operator can resolve — a requirement the
++# Council says overreaches its citation, with NO confirmed bug resting
++# on it. It does not block (exit 0, GATE PASSED WITH DECISIONS NEEDED);
++# the same FAIL on a REQ a bug depends on stays substantive.
++VERDICT_OPERATOR_DECISION = "operator_decision"
++_VALID_VERDICT_CATEGORIES = (
++    VERDICT_SUBSTANTIVE, VERDICT_RECORD_KEEPING, VERDICT_OPERATOR_DECISION,
++)
+ 
+ # (category, rendered_message) for every fail() emitted this run. Reset
+ # with the counters. main() splits this for the three-state verdict.
+@@ -189,6 +200,83 @@ _WARN_RECORDS: list[str] = []
+ # self-report vs gate mismatch is flagged informationally.
+ _RUN_PROVENANCE: list[dict] = []
+ 
++# v1.6.1 [G]: per-repo bug-evidence ledger for the "── Bug evidence ──"
++# block. The 2026-10-01 icalendar run had red and green logs for all 90
++# bugs, yet the verdict said the run "can't be trusted" because the
++# failing checks were about requirement wording and a post-gate file.
++# The ledger records what the TDD checks already established per bug so
++# the verdict can say so. Filled by check_bugs_heading / check_tdd_logs
++# / check_patches / the requirement checks; reset with the counters.
++_BUG_EVIDENCE: list[dict] = []
++
++
++def _new_bug_evidence(repo_name, q=None):
++    """v1.6.1 [G]: start a fresh ledger entry for one repo."""
++    entry = {
++        "repo": repo_name,
++        "q": str(q) if q is not None else None,
++        "bug_ids": [],
++        "bug_count": 0,
++        # bug id -> True when its red log is RED and its green log is
++        # GREEN and no 090p / 089o / 089q / sidecar check rejected it.
++        "tdd_ok": {},
++        "logs_ok": 0,
++        "no_regression_patch": set(),
++        # bug id -> primary req_id from bugs_manifest.json.
++        "bug_req": {},
++        # REQ id -> "overreach" | "tier" (a FAIL questioned it).
++        "questioned_reqs": {},
++        # REQ ids one reviewer flagged (1/3 overreach WARN).
++        "noted_reqs": set(),
++    }
++    _BUG_EVIDENCE.append(entry)
++    return entry
++
++
++def _bug_evidence_current(q=None):
++    """v1.6.1 [G]: the ledger entry for the repo being checked. Check
++    functions called directly (tests) get a scratch entry so recording
++    never raises."""
++    if _BUG_EVIDENCE:
++        entry = _BUG_EVIDENCE[-1]
++        if q is None or entry.get("q") in (None, str(q)):
++            return entry
++    return _new_bug_evidence("<repo>", q)
++
++
++def _bug_req_map(q):
++    """v1.6.1 [G]: {bug_id: primary req_id} from bugs_manifest.json.
++
++    Defensive: an absent / malformed manifest, a record without a
++    string ``req_id``, or a ``known-issue`` record yields no entry.
++    When the gate already counted this repo's BUGS.md ids, only those
++    ids are kept (a manifest record for a bug BUGS.md does not confirm
++    is not a confirmed bug)."""
++    path = Path(q) / "bugs_manifest.json"
++    data = load_json(path) if path.is_file() else None
++    if not isinstance(data, dict) or not isinstance(data.get("records"), list):
++        return {}
++    out = {}
++    for rec in data["records"]:
++        if not isinstance(rec, dict):
++            continue
++        bid, rid = rec.get("id"), rec.get("req_id")
++        if not isinstance(bid, str) or not isinstance(rid, str) or not rid:
++            continue
++        if rec.get("classification") == "known-issue":
++            continue
++        out[bid] = rid
++    entry = _bug_evidence_current(q)
++    if entry.get("q") == str(q) and entry.get("bug_ids"):
++        confirmed = set(entry["bug_ids"])
++        out = {b: r for b, r in out.items() if b in confirmed}
++    return out
++
++
++def _bugs_resting_on(req_id, bug_req):
++    """v1.6.1 [G]: sorted bug ids whose primary req_id is ``req_id``."""
++    return sorted(b for b, r in bug_req.items() if r == req_id)
++
+ # Category context stack. @verdict_category pushes on call entry and
+ # pops on exit; fail() reads the top (or an explicit category= override;
+ # or VERDICT_SUBSTANTIVE when the stack is empty — conservative default).
+@@ -295,7 +383,8 @@ def _resolve_phase_identity():
+ 
+ def _format_gate_sentinel(*, gate_result: str,
+                             verdict_state: str,
+-                            ts: "str | None" = None) -> str:
++                            ts: "str | None" = None,
++                            extra: "dict | None" = None) -> str:
+     """v1.5.7 109 — return the single ``::QPB:: {json}`` line
+     for the gate-result sentinel. Unit-testable; the gate calls
+     this once at the end of main(), after the operator-verdict
+@@ -324,6 +413,11 @@ def _format_gate_sentinel(*, gate_result: str,
+         "verdict_state": verdict_state,
+         "ts": ts or _utc_now_iso(),
+     }
++    # v1.6.1 [G]: additive machine fields (bug_evidence, bugs, ...).
++    # Never overrides an existing key.
++    if extra:
++        for key, value in extra.items():
++            payload.setdefault(key, value)
+     return _resolve_phase_identity().format_qpb_envelope(payload)
+ 
+ 
+@@ -345,6 +439,9 @@ def _compute_final_verdict(fail_records, warn_count):
+ 
+       - zero fails                  -> GATE PASSED                  exit 0
+       - any substantive fail        -> GATE FAILED                  exit 1
++      - operator_decision fails, no
++        substantive (v1.6.1 [G])    -> GATE PASSED WITH DECISIONS
++                                       NEEDED                       exit 0
+       - only record_keeping fails   -> GATE PASSED WITH CLEANUP
+                                        NEEDED                       exit 0
+ 
+@@ -359,6 +456,10 @@ def _compute_final_verdict(fail_records, warn_count):
+     n_clean = sum(
+         1 for r in fail_records if r[0] == VERDICT_RECORD_KEEPING
+     )
++    # v1.6.1 [G]: requirement decisions no confirmed bug rests on.
++    n_dec = sum(
++        1 for r in fail_records if r[0] == VERDICT_OPERATOR_DECISION
++    )
+     if n_total == 0:
+         return (
+             f"Total: 0 FAIL, {warn_count} WARN",
+@@ -368,14 +469,31 @@ def _compute_final_verdict(fail_records, warn_count):
+     if n_sub > 0:
+         # Any substantive failure blocks. Break out the cleanup count
+         # so the operator sees how much of the total is record-keeping.
++        # v1.6.1 [G]: the decision count is appended only when non-zero
++        # so the pre-1.6.1 Total line stays byte-identical otherwise.
++        dec_part = f", {n_dec} operator-decision" if n_dec else ""
+         return (
+             f"Total: {n_total} FAIL "
+-            f"({n_sub} substantive, {n_clean} record-keeping), "
++            f"({n_sub} substantive, {n_clean} record-keeping{dec_part}), "
+             f"{warn_count} WARN",
+             f"RESULT: GATE FAILED — {n_sub} substantive "
+             f"issue(s) must be fixed",
+             1,
+         )
++    if n_dec > 0:
++        # v1.6.1 [G]: only requirement decisions (and maybe cleanup)
++        # remain. No confirmed bug rests on these REQs, so the run's
++        # findings stand; the operator owns the wording call (exit 0).
++        clean_total = f", {n_clean} CLEANUP" if n_clean else ""
++        clean_result = (
++            f", {n_clean} audit record-keeping gap(s)" if n_clean else ""
++        )
++        return (
++            f"Total: {n_dec} DECISION{clean_total}, {warn_count} WARN",
++            f"RESULT: GATE PASSED WITH DECISIONS NEEDED — "
++            f"{n_dec} requirement decision(s){clean_result}",
++            0,
++        )
+     # Only record-keeping fails remain: the review completed and its
+     # findings stand on their own; the audit trail just has gaps. This
+     # is NOT a hard failure (exit 0) — adopters/CI must be able to tell
+@@ -429,8 +547,19 @@ _FAIL_SETUP_FAILURE_RED = "setup_failure_red"
+ # motivating shape.
+ _FAIL_BUGS_UNVERIFIED = "bugs_unverified"
+ _FAIL_MISSING_ARTIFACT = "missing_artifact"
++# v1.6.1 [G] (G3): requirement-wording FAILs. Neither says anything about
++# the code or the bug evidence; before 1.6.1 both fell to the generic
++# fallback, which named only the first failing file.
++_FAIL_REQ_OVERREACH = "requirement_overreach"
++_FAIL_REQ_TIER_MISMATCH = "requirement_tier_mismatch"
+ _FAIL_GENERIC = "generic"
+ 
++# v1.6.1 [G]: FAIL categories that are about the bug evidence itself.
++# Only these may make the verdict say the bugs are unverified.
++_BUG_EVIDENCE_FAIL_CATEGORIES = frozenset({
++    _FAIL_BUGS_UNVERIFIED, _FAIL_TDD_OVERCLAIM, _FAIL_SETUP_FAILURE_RED,
++})
++
+ # Substring-match table; first match wins.
+ #
+ # v1.5.7 090x: the ``bugs_unverified`` cluster is placed BEFORE the
+@@ -444,6 +573,13 @@ _FAIL_GENERIC = "generic"
+ #   * check_patches         — test_regression.* / regression-test
+ #                              patch missing
+ _FAIL_CLASSIFIER: "tuple[tuple[str, str], ...]" = (
++    # v1.6.1 [G] (G3) — requirement wording. Keyed to the emit strings
++    # in check_v1_5_0_semantic_check (invariant #17) and
++    # check_v1_5_0_requirements_manifest / _check_citation_block
++    # (invariants #1 and #14).
++    ("semantic check majority overreaches", _FAIL_REQ_OVERREACH),
++    ("but carries a citation block", _FAIL_REQ_TIER_MISMATCH),
++    ("does not match cited FORMAL_DOC", _FAIL_REQ_TIER_MISMATCH),
+     # 090s — no-op / all-trivial functional test.
+     ("trivial / no-assertion stubs", _FAIL_NOOP_FUNCTIONAL),
+     # 089o / 090p — TDD claimed RED/GREEN over a by-inspection body.
+@@ -728,6 +864,283 @@ _FAIL_NARRATION = {
+ }
+ 
+ 
++# ============================================================
++# v1.6.1 [G] — Bug evidence + requirement-decision presentation.
++#
++# The 2026-10-01 icalendar run (QPB 1.6.0): 90 bugs, each with a
++# regression test, a fix, and executed red and green logs. The gate
++# printed GATE FAILED and the verdict said the run "can't be trusted",
++# because 7 FAILs about requirement wording and one about a post-gate
++# file went to the generic fallback. These helpers state what the TDD
++# checks established about the bugs, separately from the other checks.
++# ============================================================
++
++_REQ_ID_IN_MSG_RE = re.compile(r"record_id=(REQ-[A-Za-z0-9_.-]+)")
++_TIER_CARRIES_CITATION_RE = re.compile(
++    r"is tier (\d+) but carries a citation block"
++)
++_TIER_LABELS = {3: "code-derived", 4: "informal-doc", 5: "inferred"}
++_VERDICT_LINE_LIMIT = 10
++
++
++def _req_ids_in(msgs):
++    """Distinct REQ ids named by ``record_id=`` in ``msgs``, in order."""
++    seen = []
++    for msg in msgs:
++        for rid in _REQ_ID_IN_MSG_RE.findall(msg):
++            if rid not in seen:
++                seen.append(rid)
++    return seen
++
++
++def _summarize_bug_evidence(fail_records, ledger=None):
++    """v1.6.1 [G] (G1): fold the per-repo ledger into one summary.
++
++    Returns a dict: ``state`` ("reproduced" | "partial" |
++    "not_reproduced" | "none"), ``bugs``, ``reproduced``, ``logs_ok``,
++    ``logs_expected``, ``unreproduced`` (bug ids), ``on_flagged`` /
++    ``on_noted`` (lists of (req_id, [bug ids])), ``all_flagged_reproduced``
++    and ``evidence_fail`` (a bug-evidence FAIL category fired)."""
++    if ledger is None:
++        ledger = _BUG_EVIDENCE
++    multi = len(ledger) > 1
++    fired = {_classify_fail(msg) for _cat, msg in fail_records}
++    total = reproduced = logs_ok = 0
++    unreproduced = []
++    on_flagged = []
++    on_noted = []
++    flagged_bids_all_ok = True
++    for entry in ledger:
++        prefix = f"{entry.get('repo')}:" if multi else ""
++        ids = list(entry.get("bug_ids") or [])
++        count = len(ids) if ids else int(entry.get("bug_count") or 0)
++        total += count
++        logs_ok += int(entry.get("logs_ok") or 0)
++        tdd_ok = entry.get("tdd_ok") or {}
++        no_patch = entry.get("no_regression_patch") or set()
++        ok_ids = {b for b in ids if tdd_ok.get(b) and b not in no_patch}
++        reproduced += len(ok_ids)
++        unreproduced.extend(prefix + b for b in ids if b not in ok_ids)
++        bug_req = entry.get("bug_req") or {}
++        questioned = entry.get("questioned_reqs") or {}
++        for rid in sorted(questioned):
++            bids = _bugs_resting_on(rid, bug_req)
++            if bids:
++                on_flagged.append((prefix + rid, [prefix + b for b in bids]))
++                if any(b not in ok_ids for b in bids):
++                    flagged_bids_all_ok = False
++        for rid in sorted(entry.get("noted_reqs") or set()):
++            if rid in questioned:
++                continue
++            bids = _bugs_resting_on(rid, bug_req)
++            if bids:
++                on_noted.append((prefix + rid, [prefix + b for b in bids]))
++    evidence_fail = bool(fired & _BUG_EVIDENCE_FAIL_CATEGORIES)
++    if total == 0:
++        state = "none"
++    elif _FAIL_BUGS_UNVERIFIED in fired or reproduced == 0:
++        state = "not_reproduced"
++    elif reproduced == total and not evidence_fail:
++        state = "reproduced"
++    else:
++        state = "partial"
++    return {
++        "state": state,
++        "bugs": total,
++        "reproduced": reproduced,
++        "logs_ok": logs_ok,
++        "logs_expected": 2 * total,
++        "unreproduced": unreproduced,
++        "on_flagged": on_flagged,
++        "on_noted": on_noted,
++        "all_flagged_reproduced": flagged_bids_all_ok,
++        "evidence_fail": evidence_fail,
++    }
++
++
++def _format_req_bug_groups(groups):
++    """'BUG-012 (REQ-013); BUG-016, BUG-031 (REQ-021)'."""
++    return "; ".join(
++        f"{', '.join(bids)} ({rid})" for rid, bids in groups
++    )
++
++
++def _bug_evidence_lines(summary, *, other_checks_failed):
++    """v1.6.1 [G] (G1): the lines under '── Bug evidence ──'.
++
++    ``other_checks_failed``: the gate failed or needs decisions; when no
++    bug-evidence FAIL fired the block says the result is about other
++    checks."""
++    n, r = summary["bugs"], summary["reproduced"]
++    state = summary["state"]
++    lines = []
++    caveat = (
++        "It does not show the expected behaviour is right or that the bug "
++        "is unreported upstream; that is the job of a confirmation step."
++    )
++    if state == "none":
++        return ["No confirmed bugs in this run."]
++    if state == "reproduced":
++        lines.append(
++            f"Reproduced: {r} of {n} bugs. Each has a regression test that "
++            f"fails on the current code and passes with its fix (red and "
++            f"green logs checked: {summary['logs_ok']} of "
++            f"{summary['logs_expected']})."
++        )
++        lines.append(
++            f"This shows each fix changes the behaviour its test checks. "
++            f"{caveat}"
++        )
++        if other_checks_failed and not summary["evidence_fail"]:
++            lines.append(
++                "The gate result below is about other checks; none of them "
++                "is about these logs."
++            )
++    elif state == "partial":
++        missing = summary["unreproduced"]
++        shown = ", ".join(missing[:_VERDICT_LINE_LIMIT])
++        more = (
++            f" (+{len(missing) - _VERDICT_LINE_LIMIT} more)"
++            if len(missing) > _VERDICT_LINE_LIMIT else ""
++        )
++        lines.append(
++            f"Partly reproduced: {r} of {n} bugs have a regression test "
++            f"that fails on the current code and passes with its fix."
++        )
++        if missing:
++            lines.append(
++                f"No red and green evidence the gate accepted: "
++                f"{shown}{more}."
++            )
++        lines.append(
++            f"For the {r} reproduced bugs, this shows each fix changes the "
++            f"behaviour its test checks. {caveat}"
++        )
++    else:
++        lines.append(
++            f"Not reproduced: {r} of {n} bugs have red and green test "
++            f"evidence the gate accepted. Treat the findings in "
++            f"quality/BUGS.md as candidates until their tests run."
++        )
++    flagged = summary["on_flagged"]
++    if flagged:
++        k = sum(len(b) for _r, b in flagged)
++        note = (
++            "still reproduced; read the requirement note before relying "
++            "on the expected behaviour"
++            if summary["all_flagged_reproduced"] and state != "not_reproduced"
++            else "read the requirement note before relying on the "
++                 "expected behaviour"
++        )
++        lines.append(
++            f"{k} bug{'s' if k != 1 else ''} rest on a requirement the "
++            f"reviewers questioned ({note}): "
++            f"{_format_req_bug_groups(flagged)}"
++        )
++    noted = summary["on_noted"]
++    if noted:
++        k = sum(len(b) for _r, b in noted)
++        lines.append(
++            f"{k} bug{'s' if k != 1 else ''} rest on a requirement noted by "
++            f"one reviewer: {_format_req_bug_groups(noted)}"
++        )
++    return lines
++
++
++def _narrate_fail_category(category, msgs, summary):
++    """v1.6.1 [G] (G3): plain-English narration for one FAIL category.
++    Static texts come from ``_FAIL_NARRATION``; the requirement and
++    generic categories are built from the messages themselves."""
++    if category == _FAIL_REQ_OVERREACH:
++        reqs = _req_ids_in(msgs)
++        dependent = [
++            (rid, bids) for rid, bids in summary["on_flagged"]
++            if rid.split(":")[-1] in reqs
++        ]
++        bugs_text = _format_req_bug_groups(dependent) if dependent else "none"
++        return (
++            f"{len(reqs)} requirement(s) say more than the passage they "
++            f"quote; at least two of three reviewers agreed. This is about "
++            f"how the requirement is written, not about the code. Each "
++            f"needs your decision: narrow it to what the passage says, "
++            f"quote a passage that covers the rest, or keep it and accept "
++            f"the note. See quality/OPERATOR_DECISIONS.md. Bugs that rest "
++            f"on these requirements: {bugs_text}."
++        )
++    if category == _FAIL_REQ_TIER_MISMATCH:
++        carries = [m for m in msgs if _TIER_CARRIES_CITATION_RE.search(m)]
++        differs = [m for m in msgs if m not in carries]
++        parts = []
++        if carries:
++            tiers = sorted({
++                int(t) for m in carries
++                for t in _TIER_CARRIES_CITATION_RE.findall(m)
++            })
++            if len(tiers) == 1 and tiers[0] in _TIER_LABELS:
++                marked = f"{_TIER_LABELS[tiers[0]]} (tier {tiers[0]})"
++            else:
++                marked = "tier " + "/".join(str(t) for t in tiers)
++            parts.append(
++                f"{len(_req_ids_in(carries))} requirement(s) quote a "
++                f"document but are still marked as {marked}. This usually "
++                f"comes from the expert-review (Feature H) step."
++            )
++        if differs:
++            parts.append(
++                f"{len(_req_ids_in(differs))} requirement(s) carry a tier "
++                f"that differs from the tier of the document they cite."
++            )
++        parts.append(
++            "Fix: set the tier to the cited document's tier, or remove "
++            "the citation."
++        )
++        return " ".join(parts)
++    narration = _FAIL_NARRATION.get(category)
++    if narration is not None:
++        return narration
++    # Generic fallback — v1.6.1 [G] (G3): name EVERY distinct failing
++    # check file, not only the first (icalendar: 7 FAILs across two
++    # files were reported as "This check failed: requirements_manifest.json").
++    files = []
++    for msg in msgs:
++        first = msg.strip()
++        short = first.split(":", 1)[0] if ":" in first else first
++        if short not in files:
++            files.append(short)
++    lead = "This check failed" if len(files) == 1 else "These checks failed"
++    return (
++        f"{lead}: {', '.join(files)}. The failing lines are listed below."
++    )
++
++
++def _group_reviewer_warns(actionable):
++    """v1.6.1 [G] (G10): collapse the per-REQ single-reviewer
++    `overreaches` WARNs and the `unclear` WARNs into one line each
++    (count + REQ ids). Returns the list of lines to print."""
++    over, unclear, rest = [], [], []
++    for w in actionable:
++        if "flagged as `overreaches`" in w:
++            over.append(w)
++        elif "flagged as `unclear`" in w:
++            unclear.append(w)
++        else:
++            rest.append(w.strip().splitlines()[0][:120])
++    lines = list(rest)
++    if over:
++        reqs = _req_ids_in(over)
++        lines.append(
++            f"{len(reqs)} requirement(s) flagged as `overreaches` by one "
++            f"reviewer (not a gate failure): {', '.join(reqs)}"
++        )
++    if unclear:
++        reqs = _req_ids_in(unclear)
++        lines.append(
++            f"{len(reqs)} requirement(s) flagged as `unclear` by a "
++            f"reviewer (not a gate failure): {', '.join(reqs)}"
++        )
++    return lines
++
++
+ def _emit_operator_verdict(fail_records, warn_records, zero_bug_repos,
+                             exit_code, run_provenance=None):
+     """v1.5.7 090v — print the operator-facing verdict-explanation
+@@ -763,6 +1176,13 @@ def _emit_operator_verdict(fail_records, warn_records, zero_bug_repos,
+         exit_code, fail_records, warn_records, zero_bug_repos,
+     )
+     is_shallow_pass = (verdict_state == "shallow")
++    # v1.6.1 [G] (G4): decisions-only pass (no substantive FAIL, at
++    # least one operator_decision FAIL).
++    n_decisions = sum(
++        1 for cat, _m in fail_records if cat == VERDICT_OPERATOR_DECISION
++    )
++    decisions_pass = exit_code == 0 and n_decisions > 0
++    evidence = _summarize_bug_evidence(fail_records)
+ 
+     # === Section 1: lead verdict line ===
+     # v1.5.7 185 FINDING-27: ASCII verdict markers
+@@ -777,12 +1197,27 @@ def _emit_operator_verdict(fail_records, warn_records, zero_bug_repos,
+     print("--- Operator Verdict ---")
+     if exit_code != 0:
+         lead = "[FAIL] GATE FAILED"
++    elif decisions_pass:
++        # v1.6.1 [G] (G4): same [WARN] marker family as the shallow pass.
++        lead = (
++            f"[WARN] GATE PASSED -- {n_decisions} requirement "
++            f"decision(s) need you"
++        )
+     elif is_shallow_pass:
+         lead = "[WARN] GATE PASSED -- but this run looks shallow"
+     else:
+         lead = "[PASS] GATE PASSED -- this run looks solid"
+     print(lead)
+ 
++    # === Section 1b (v1.6.1 [G], G1): bug evidence, on every outcome ===
++    # Directly under the lead line; the block ends at the next blank
++    # line (references/what_just_happened.md tells agents to copy it).
++    print("── Bug evidence ──")
++    for line in _bug_evidence_lines(
++        evidence, other_checks_failed=(exit_code != 0 or decisions_pass),
++    ):
++        print(line)
++
+     # === Section 2: plain-English "why + what to do" for FAILs ===
+     if fail_records:
+         # Group FAILs by curated category to avoid repeating the
+@@ -805,20 +1240,17 @@ def _emit_operator_verdict(fail_records, warn_records, zero_bug_repos,
+                 f"  • [{category}] ({len(msgs)} FAIL{'s' if len(msgs) > 1 else ''})"
+             )
+             print(label)
+-            narration = _FAIL_NARRATION.get(category)
+-            if narration is None:
+-                # Generic fallback — name the failing check from
+-                # the first message so the operator has a pointer.
+-                first = msgs[0].strip()
+-                # Strip leading line-number prefix if present.
+-                short = first.split(":", 1)[0] if ":" in first else first
+-                narration = (
+-                    f"This check failed: {short}. See the line "
+-                    f"above for the specific check output; the "
+-                    f"v1.6.x verdict-explanation expansion will "
+-                    f"add a curated message for this code."
+-                )
++            narration = _narrate_fail_category(category, msgs, evidence)
+             print(f"    {narration}")
++            # v1.6.1 [G] (G3): list the failing lines themselves
++            # (deduped, capped) so the operator need not grep. The
++            # per-check lines carry no "FAIL:" prefix by design (see
++            # fail()); this list is where they are gathered.
++            unique = list(dict.fromkeys(m.strip() for m in msgs))
++            for m in unique[:_VERDICT_LINE_LIMIT]:
++                print(f"      - {m}")
++            if len(unique) > _VERDICT_LINE_LIMIT:
++                print(f"      +{len(unique) - _VERDICT_LINE_LIMIT} more")
+ 
+     # === Section 3: shallow-PASS narration + three-bucket attribution ===
+     #
+@@ -884,7 +1316,7 @@ def _emit_operator_verdict(fail_records, warn_records, zero_bug_repos,
+             "Do NOT swap models; the model is not the problem."
+         )
+     if (not weak_model and not env_failure and not is_shallow_pass
+-            and exit_code == 0):
++            and exit_code == 0 and not decisions_pass):
+         print("")
+         print(
+             "Attribution: no shallow / fabrication signals "
+@@ -909,9 +1341,9 @@ def _emit_operator_verdict(fail_records, warn_records, zero_bug_repos,
+             print("")
+             print(f"{n} actionable {warn_word} above — review:")
+             # Quote a short prefix of each so the operator can
+-            # spot the topic without scrolling.
+-            for w in actionable:
+-                excerpt = w.strip().splitlines()[0][:120]
++            # spot the topic without scrolling. v1.6.1 [G] (G10):
++            # per-REQ reviewer WARNs collapse to one line per kind.
++            for excerpt in _group_reviewer_warns(actionable):
+                 print(f"  • {excerpt}")
+ 
+     # === Section 5: run provenance (v1.5.7 090w) ===
+@@ -963,15 +1395,73 @@ def _emit_operator_verdict(fail_records, warn_records, zero_bug_repos,
+         weak_model=weak_model,
+         env_failure=env_failure,
+         run_provenance=run_provenance,
++        evidence=evidence,
+     )
+ 
+     print("───────────────────────────────────────────")
+ 
+ 
++def _failure_reason(fail_records, evidence):
++    """v1.6.1 [G] (G2): one-clause reason built from the FAIL categories
++    that actually fired, e.g. "the bugs are reproduced; what failed is
++    the paperwork behind 7 requirements and 1 other check
++    (requirements_manifest.json)". Never says the bugs are untrustworthy
++    unless a bug-evidence category fired (the callers route those
++    before reaching this helper)."""
++    per_cat = {}
++    for _cat, msg in fail_records:
++        per_cat.setdefault(_classify_fail(msg), []).append(msg)
++    parts = []
++    req_msgs = (per_cat.get(_FAIL_REQ_OVERREACH, [])
++                + per_cat.get(_FAIL_REQ_TIER_MISMATCH, []))
++    if req_msgs:
++        n = len(_req_ids_in(req_msgs)) or len(req_msgs)
++        parts.append(
++            f"the paperwork behind {n} requirement{'s' if n != 1 else ''}"
++        )
++    if per_cat.get(_FAIL_MISSING_ARTIFACT):
++        n = len(per_cat[_FAIL_MISSING_ARTIFACT])
++        parts.append(f"{n} missing file{'s' if n != 1 else ''}")
++    other = []
++    for cat, msgs in per_cat.items():
++        if cat in (_FAIL_REQ_OVERREACH, _FAIL_REQ_TIER_MISMATCH,
++                   _FAIL_MISSING_ARTIFACT):
++            continue
++        other.extend(msgs)
++    if other:
++        files = []
++        for msg in other:
++            short = msg.split(":", 1)[0].strip() if ":" in msg else msg.strip()
++            if short not in files:
++                files.append(short)
++        shown = ", ".join(files[:3]) + (
++            f", +{len(files) - 3} more" if len(files) > 3 else ""
++        )
++        parts.append(
++            f"{len(other)} other check{'s' if len(other) != 1 else ''} "
++            f"({shown})"
++        )
++    if not parts:
++        parts.append("the checks listed in 'Why it failed' above")
++    what = parts[0] if len(parts) == 1 else (
++        ", ".join(parts[:-1]) + " and " + parts[-1]
++    )
++    state = (evidence or {}).get("state", "none")
++    if state == "reproduced":
++        return f"the bugs are reproduced; what failed is {what}"
++    if state == "none":
++        return f"what failed is {what}"
++    return (
++        f"{evidence['reproduced']} of {evidence['bugs']} bugs are "
++        f"reproduced; what failed is {what}"
++    )
++
++
+ def _emit_what_happened_what_next(*, fail_records, warn_records,
+                                     zero_bug_repos, exit_code,
+                                     is_shallow_pass, weak_model,
+-                                    env_failure, run_provenance):
++                                    env_failure, run_provenance,
++                                    evidence=None):
+     """v1.5.7 090y — emit the "What happened" + "What to do next"
+     newcomer-oriented sections at the END of the operator verdict
+     block.
+@@ -987,6 +1477,13 @@ def _emit_what_happened_what_next(*, fail_records, warn_records,
+     for _cat, msg in fail_records:
+         fired_categories.add(_classify_fail(msg))
+     bugs_unverified_fired = _FAIL_BUGS_UNVERIFIED in fired_categories
++    if evidence is None:
++        evidence = _summarize_bug_evidence(fail_records)
++    # v1.6.1 [G] (G4): decisions-only pass.
++    n_decisions = sum(
++        1 for cat, _msg in fail_records if cat == VERDICT_OPERATOR_DECISION
++    )
++    decisions_pass = exit_code == 0 and n_decisions > 0
+     # Detect CLEANUP path (only record-keeping fails exist).
+     cleanup_only = False
+     if fail_records:
+@@ -994,7 +1491,7 @@ def _emit_what_happened_what_next(*, fail_records, warn_records,
+             1 for cat, _msg in fail_records
+             if cat == VERDICT_SUBSTANTIVE
+         )
+-        cleanup_only = substantive_count == 0
++        cleanup_only = substantive_count == 0 and not decisions_pass
+     # Bug counts (gate-counted) — used to enrich the solid path.
+     total_bug_count = 0
+     if run_provenance:
+@@ -1012,12 +1509,21 @@ def _emit_what_happened_what_next(*, fail_records, warn_records,
+         "do, reviewing the code against that, and verifying "
+         "findings with tests."
+     )
++    # v1.6.1 [G] (G2): say what the gate checks, not that it decides
++    # whether the results are "trustworthy".
+     print(
+-        "The gate is the final quality checkpoint that decides "
+-        "whether this run's results are trustworthy."
++        "The gate checks the run's evidence (the bug tests and their "
++        "red and green logs) and its paperwork (requirements, "
++        "citations, manifests and required files)."
+     )
+     # State-specific summary line.
+-    if cleanup_only and exit_code == 0:
++    if decisions_pass:
++        print(
++            f"Result: it passed the checkpoint; {n_decisions} "
++            f"requirement decision(s) need you (see 'Why it failed' "
++            f"above). No confirmed bug rests on those requirements."
++        )
++    elif cleanup_only and exit_code == 0:
+         # CLEANUP path — must read as a pass, not a fail.
+         # (Instruction 090y Task A: "It passed, with some
+         # bookkeeping gaps to tidy up".)
+@@ -1045,10 +1551,8 @@ def _emit_what_happened_what_next(*, fail_records, warn_records,
+                 "complete its checks"
+             )
+         else:
+-            reason = (
+-                "the gate flagged quality issues that need "
+-                "fixing before this run can be trusted"
+-            )
++            # v1.6.1 [G] (G2): built from the categories that fired.
++            reason = _failure_reason(fail_records, evidence)
+         print(f"Result: it did not pass the checkpoint — {reason}.")
+     elif is_shallow_pass:
+         # ⚠️ shallow — name the why.
+@@ -1080,7 +1584,15 @@ def _emit_what_happened_what_next(*, fail_records, warn_records,
+     # ===== Section 6.2: "What to do next" =====
+     print("")
+     print("── What to do next ──")
+-    if cleanup_only and exit_code == 0:
++    if decisions_pass:
++        print(
++            f"Decide the {n_decisions} requirement(s) listed in 'Why it "
++            f"failed' above: quality/OPERATOR_DECISIONS.md gives each "
++            f"one with its quoted passage, the reviewers' notes and "
++            f"ready-to-apply options. The bug findings in "
++            f"quality/BUGS.md do not depend on them."
++        )
++    elif cleanup_only and exit_code == 0:
+         # CLEANUP — "Mostly good — a few bookkeeping artifacts
+         # need tidying; see 'Why it failed' for which."
+         print(
+@@ -1588,6 +2100,8 @@ def _reset_counters():
+     # v1.5.10 058 (D2): clear the per-repo multi-language disclosure
+     # ledger so the post-RESULT disclosure block reads only this run.
+     _LANGUAGE_DISCLOSURES.clear()
++    # v1.6.1 [G]: clear the bug-evidence ledger (one entry per repo).
++    _BUG_EVIDENCE.clear()
+ 
+ 
+ def fail(msg, reason=None, *, line=None, category=None):
+@@ -2978,7 +3492,13 @@ def check_file_existence(repo_dir, q, strictness):
+     if (repo_dir / "AGENTS.md").is_file():
+         pass_("AGENTS.md exists")
+     else:
+-        fail("AGENTS.md missing (required at project root)")
++        # v1.6.1 [G] (G7): WARN, not FAIL. AGENTS.md is a post-gate
++        # orientation file — run_playbook.py writes it only after the
++        # gate passed — so requiring it before the gate is circular.
++        warn(
++            "AGENTS.md not written yet — the orchestrator writes it after "
++            "the gate passes; it does not affect the findings."
++        )
+ 
+     if (q / "EXPLORATION.md").is_file():
+         pass_("EXPLORATION.md exists")
+@@ -3089,6 +3609,12 @@ def check_bugs_heading(q):
+     filtered = [b for b in raw if re.fullmatch(r"BUG-(?:[HML][0-9]+|[0-9]+)", b)]
+     bug_ids = sorted(set(filtered))
+ 
++    # v1.6.1 [G]: record the confirmed bugs for the Bug evidence block.
++    _ev = _bug_evidence_current(q)
++    _ev["bug_count"] = bug_count
++    _ev["bug_ids"] = list(bug_ids) if bug_count > 0 else []
++    _ev["bug_req"] = _bug_req_map(q) if bug_count > 0 else {}
++
+     return bug_count, bug_ids
+ 
+ 
+@@ -3238,6 +3764,10 @@ def check_tdd_logs(q, bug_count, bug_ids, tdd_data):
+     # when the Phase 5 probe shows the runner available, a RED/
+     # GREEN receipt with no signature is an overclaim-by-omission.
+     red_green_receipts = []
++    # v1.6.1 [G]: per-bug tags for the Bug evidence ledger.
++    _ev_red_tag = {}
++    _ev_green_tag = {}
++    _ev_bad_bids = set()
+ 
+     for bid in bug_ids:
+         red_log = results_dir / f"{bid}.red.log"
+@@ -3283,6 +3813,8 @@ def check_tdd_logs(q, bug_count, bug_ids, tdd_data):
+                     )
+             else:
+                 green_missing += 1
++        _ev_red_tag[bid] = red_tag
++        _ev_green_tag[bid] = green_tag
+ 
+         # 089m: a bug counts as "TDD-not-executed" if either its
+         # red receipt OR its green receipt (when expected) is
+@@ -3559,6 +4091,7 @@ def check_tdd_logs(q, bug_count, bug_ids, tdd_data):
+             (b, p) for b, p, has_sig in red_green_receipts
+             if not has_sig and (b, p) not in _d1_flagged
+         ]
++        _ev_bad_bids.update(b for b, _p in omission_receipts)
+         for bid, phase in omission_receipts:
+             tag = "RED" if phase == "red" else "GREEN"
+             fail(
+@@ -3692,9 +4225,11 @@ def check_tdd_logs(q, bug_count, bug_ids, tdd_data):
+                 xv_checked += 1
+                 if sidecar_red == "fail" and log_tag != "RED":
+                     xv_mismatch += 1
++                    _ev_bad_bids.add(bid)
+                     fail(f"{bid}: sidecar red_phase='{sidecar_red}' but log first-line is '{log_tag}' (expected RED)")
+                 elif sidecar_red == "pass" and log_tag != "GREEN":
+                     xv_mismatch += 1
++                    _ev_bad_bids.add(bid)
+                     fail(f"{bid}: sidecar red_phase='{sidecar_red}' but log first-line is '{log_tag}' (expected GREEN)")
+ 
+             green_log = results_dir / f"{bid}.green.log"
+@@ -3703,9 +4238,11 @@ def check_tdd_logs(q, bug_count, bug_ids, tdd_data):
+                 xv_checked += 1
+                 if sidecar_green == "pass" and log_tag != "GREEN":
+                     xv_mismatch += 1
++                    _ev_bad_bids.add(bid)
+                     fail(f"{bid}: sidecar green_phase='{sidecar_green}' but log first-line is '{log_tag}' (expected GREEN)")
+                 elif sidecar_green == "fail" and log_tag != "RED":
+                     xv_mismatch += 1
++                    _ev_bad_bids.add(bid)
+                     fail(f"{bid}: sidecar green_phase='{sidecar_green}' but log first-line is '{log_tag}' (expected RED)")
+ 
+         if xv_checked > 0 and xv_mismatch == 0:
+@@ -3713,6 +4250,22 @@ def check_tdd_logs(q, bug_count, bug_ids, tdd_data):
+         elif xv_checked == 0:
+             info("Sidecar-to-log cross-validation: no matching pairs to check")
+ 
++    # v1.6.1 [G]: record per-bug red/green evidence. A bug counts only
++    # when its red log is tagged RED, its green log is tagged GREEN, and
++    # no 090p (setup-failure / untied), 089o / 089q (overclaim) or
++    # sidecar cross-validation check rejected it.
++    _ev_bad_bids.update(bugs_invalidated_by_090p)
++    _ev_bad_bids.update(b for b, _p, _m in overclaim_receipts)
++    _ev = _bug_evidence_current(q)
++    _ev["logs_ok"] = 0
++    for bid in bug_ids:
++        red_ok = _ev_red_tag.get(bid) == "RED"
++        green_ok = _ev_green_tag.get(bid) == "GREEN"
++        _ev["logs_ok"] += int(red_ok) + int(green_ok)
++        _ev["tdd_ok"][bid] = (
++            red_ok and green_ok and bid not in _ev_bad_bids
++        )
++
+     # TDD_TRACEABILITY.md
+     if red_found > 0:
+         if (q / "TDD_TRACEABILITY.md").is_file():
+@@ -4454,11 +5007,14 @@ def check_patches(q, bug_count, bug_ids, strictness):
+     reg_patch_count = 0
+     fix_patch_count = 0
+     reg_patch_missing = 0
++    _ev = _bug_evidence_current(q)
+     for bid in bug_ids:
+         if first_file_matching(patches_dir, [f"{bid}-regression*.patch"]) is not None:
+             reg_patch_count += 1
+         else:
+             reg_patch_missing += 1
++            # v1.6.1 [G]: no regression test -> not reproduced.
++            _ev["no_regression_patch"].add(bid)
+         if first_file_matching(patches_dir, [f"{bid}-fix*.patch"]) is not None:
+             fix_patch_count += 1
+ 
+@@ -4734,7 +5290,10 @@ _V150_ILLEGAL_FIX_PAIRS = {
+     ("upstream-spec-issue", "code"),
+     ("mis-read", "both"),
+ }
+-_V150_SUPPORTED_EXTENSIONS = (".txt", ".md")
++# v1.6.1 [G] (G8): `.rst` added to match reference_docs_ingest.py's
++# SUPPORTED_EXTENSIONS (accepted since v1.5.7 instruction 060, A-12);
++# the gate had kept FAILing files the ingest step accepts.
++_V150_SUPPORTED_EXTENSIONS = (".txt", ".md", ".rst")
+ # v1.5.4 Part 1 / Round 1 Council finding C2-1: INDEX schema is now
+ # version-routed. New runs MUST emit schema_version "2.0" with
+ # target_role_breakdown; legacy archives carry schema_version "1.0"
+@@ -4892,7 +5451,7 @@ def _v150_manifest(q, name):
+ 
+ @verdict_category(VERDICT_SUBSTANTIVE)
+ def check_v1_5_0_cite_extensions(repo_dir):
+-    """§10 invariant #9 — reference_docs/cite/ contains only .txt/.md.
++    """§10 invariant #9 — reference_docs/cite/ contains only .txt/.md/.rst.
+ 
+     v1.5.2 collapsed the old formal_docs/+informal_docs/ split into a single
+     reference_docs/ tree with reference_docs/cite/ holding citable material.
+@@ -4923,7 +5482,7 @@ def check_v1_5_0_cite_extensions(repo_dir):
+             rel = path.relative_to(repo_dir).as_posix()
+             fail(
+                 f"{rel}: unsupported extension {ext or '(none)'} under reference_docs/cite/ "
+-                "(schemas.md §2 allows only .txt, .md; §10 invariant #9)"
++                "(schemas.md §2 allows only .txt, .md, .rst; §10 invariant #9)"
+             )
+     if any_file:
+         pass_("reference_docs/cite/: all files use supported extensions")
+@@ -5021,6 +5580,10 @@ def _check_citation_block(repo_dir, req_id, citation, formal_docs_by_path, req_t
+         return
+     fd_tier = fd_rec.get("tier")
+     if fd_tier != req_tier:
++        # v1.6.1 [G]: the REQ's tier is questioned (Bug evidence block).
++        _bug_evidence_current().setdefault(
++            "questioned_reqs", {}
++        ).setdefault(req_id, "tier")
+         fail(
+             "requirements_manifest.json",
+             f"record_id={req_id}: tier={req_tier} does not match cited FORMAL_DOC "
+@@ -5124,6 +5687,10 @@ def check_v1_5_0_requirements_manifest(repo_dir, q):
+             _check_citation_block(repo_dir, req_id, citation, formal_docs_by_path, tier)
+         elif tier in (3, 4, 5):
+             if citation is not None:
++                # v1.6.1 [G]: the REQ's tier is questioned.
++                _bug_evidence_current(q)["questioned_reqs"].setdefault(
++                    req_id, "tier"
++                )
+                 fail(
+                     "requirements_manifest.json",
+                     f"record_id={req_id}: is tier {tier} but carries a citation block "
+@@ -5584,6 +6151,44 @@ def check_v1_5_0_index_md(q):
+ _V150_VALID_VERDICTS = ("supports", "overreaches", "unclear")
+ 
+ 
++def req_review_hash(rec):
++    """v1.6.1 [G] (G6): the canonical hash of the REQ content a Council
++    semantic review judged — the ONE definition shared by the writer
++    (council_semantic_check.write_semantic_check stamps it on every
++    review entry as ``req_hash``) and this gate (which treats an entry
++    whose ``req_hash`` no longer matches as stale).
++
++    Canonical serialization: sha256 hex of the UTF-8 JSON object
++    ``{"citation_excerpt", "conditions_of_satisfaction", "title"}``
++    with sorted keys, ``separators=(",", ":")``, ``ensure_ascii=False``.
++    Missing / non-string fields serialize as "". A REQ without
++    ``conditions_of_satisfaction`` uses its ``description`` in that
++    slot (older manifests carry only ``description``)."""
++    if not isinstance(rec, dict):
++        rec = {}
++
++    def _s(value):
++        return value if isinstance(value, str) else ""
++
++    citation = rec.get("citation")
++    if not isinstance(citation, dict):
++        citation = {}
++    cos = rec.get("conditions_of_satisfaction")
++    if not isinstance(cos, str):
++        cos = _s(rec.get("description"))
++    canonical = json.dumps(
++        {
++            "title": _s(rec.get("title")),
++            "conditions_of_satisfaction": cos,
++            "citation_excerpt": _s(citation.get("citation_excerpt")),
++        },
++        sort_keys=True,
++        separators=(",", ":"),
++        ensure_ascii=False,
++    )
++    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
++
++
+ @verdict_category(VERDICT_SUBSTANTIVE)
+ def check_v1_5_0_semantic_check(q):
+     """§10 invariant #17 — Council-of-Three majority-overreaches rule.
+@@ -5597,6 +6202,14 @@ def check_v1_5_0_semantic_check(q):
+       - <3 reviews for any Tier 1/2 REQ → FAIL (schemas.md §9.4).
+       - review entry for a Tier 3/4/5 REQ → FAIL (only Tier 1/2 are
+         semantically reviewable since they carry citations).
++      - v1.6.1 [G] (G6): an entry whose ``req_hash`` no longer matches
++        ``req_review_hash`` of the current REQ is stale — it reviewed
++        an earlier wording — and is treated as missing. Entries with
++        no ``req_hash`` (pre-1.6.1 writers) count, with one WARN.
++      - v1.6.1 [G] (G4): a majority-overreach FAIL on a REQ that no
++        confirmed bug's primary ``req_id`` names is an operator
++        decision (VERDICT_OPERATOR_DECISION — non-blocking); on a REQ
++        a bug rests on it stays substantive and names the bugs.
+ 
+     When requirements_manifest.json has zero Tier 1/2 REQs the
+     citation_semantic_check.json file is still expected (emitted with
+@@ -5605,6 +6218,8 @@ def check_v1_5_0_semantic_check(q):
+     """
+     req_data = _v150_manifest(q, "requirements_manifest.json")
+     tier_by_req = {}
++    # v1.6.1 [G] (G6): current content hash per REQ.
++    hash_by_req = {}
+     if req_data and isinstance(req_data.get("records"), list):
+         for rec in req_data["records"]:
+             if isinstance(rec, dict):
+@@ -5612,6 +6227,7 @@ def check_v1_5_0_semantic_check(q):
+                 tier = rec.get("tier")
+                 if isinstance(rid, str) and isinstance(tier, int) and not isinstance(tier, bool):
+                     tier_by_req[rid] = tier
++                    hash_by_req[rid] = req_review_hash(rec)
+     tier_12_req_ids = {rid for rid, t in tier_by_req.items() if t in (1, 2)}
+ 
+     sc_path = q / "citation_semantic_check.json"
+@@ -5642,6 +6258,9 @@ def check_v1_5_0_semantic_check(q):
+ 
+     by_req = {}
+     seen_reviewers = {}
++    # v1.6.1 [G] (G6): stale reviews per REQ, and pre-1.6.1 entries.
++    stale_by_req = {}
++    unhashed_entries = 0
+     for idx, entry in enumerate(reviews):
+         if not isinstance(entry, dict):
+             fail(
+@@ -5705,17 +6324,53 @@ def check_v1_5_0_semantic_check(q):
+             )
+             continue
+         pair_key.add(reviewer)
++        # v1.6.1 [G] (G6): a review of an earlier REQ wording is stale.
++        if "req_hash" not in entry:
++            unhashed_entries += 1
++        elif entry.get("req_hash") != hash_by_req.get(rid):
++            stale_by_req.setdefault(rid, []).append(reviewer)
++            continue
+         by_req.setdefault(rid, []).append(entry)
+ 
++    if unhashed_entries:
++        _entries_word = (
++            "entry carries" if unhashed_entries == 1 else "entries carry"
++        )
++        warn(
++            f"citation_semantic_check.json: {unhashed_entries} review "
++            f"{_entries_word} no req_hash (written before v1.6.1) — the "
++            "gate cannot tell whether a review predates a rewrite of its "
++            "REQ; re-run the semantic check to stamp req_hash "
++            "(schemas.md §9.2)"
++        )
++    # v1.6.1 [G] (G4): which confirmed bugs rest on each REQ. Confirmed
++    # bugs with no req_id in bugs_manifest.json make "no bug rests on
++    # this REQ" unprovable, so their overreach FAILs stay substantive
++    # (the gate's ambiguous -> substantive default).
++    bug_req = _bug_req_map(q)
++    _ev = _bug_evidence_current(q)
++    unlinked_bugs = sorted(
++        b for b in (_ev.get("bug_ids") or [])
++        if _ev.get("q") == str(q) and b not in bug_req
++    )
++
+     # §9.4: every Tier 1/2 REQ needs at least 3 reviews.
+     for rid in sorted(tier_12_req_ids):
+         entries = by_req.get(rid, [])
+         if len(entries) < 3:
++            stale = stale_by_req.get(rid, [])
++            stale_note = (
++                f"; review predates a rewrite of {rid} "
++                f"({len(stale)} stale review(s) from: "
++                f"{', '.join(sorted(stale))}) — re-run the semantic "
++                f"check for {rid}"
++                if stale else ""
++            )
+             fail(
+                 "citation_semantic_check.json",
+                 f"record_id={rid}: fewer than 3 reviews ({len(entries)} present) "
+                 "— schemas.md §9.4 requires one entry per council member for "
+-                "every Tier 1/2 REQ",
++                f"every Tier 1/2 REQ{stale_note}",
+             )
+             continue
+         overreach_count = sum(1 for e in entries if e.get("verdict") == "overreaches")
+@@ -5728,13 +6383,40 @@ def check_v1_5_0_semantic_check(q):
+                     if e.get("verdict") == "overreaches"
+                 )
+             )
++            # v1.6.1 [G] (G4): route by whether a confirmed bug rests on
++            # this REQ. The "semantic check majority overreaches" text is
++            # the classifier needle — keep it contiguous.
++            _ev["questioned_reqs"][rid] = "overreach"
++            dependents = _bugs_resting_on(rid, bug_req)
++            if dependents:
++                tail = (
++                    f"; confirmed bug(s) resting on {rid}: "
++                    f"{', '.join(dependents)}"
++                )
++                category = VERDICT_SUBSTANTIVE
++            elif unlinked_bugs:
++                tail = (
++                    f"; {len(unlinked_bugs)} confirmed bug(s) have no req_id "
++                    f"in bugs_manifest.json, so the gate cannot rule out a "
++                    f"bug resting on {rid}"
++                )
++                category = VERDICT_SUBSTANTIVE
++            else:
++                tail = (
++                    f"; no confirmed bug rests on {rid} — operator "
++                    "decision (see quality/OPERATOR_DECISIONS.md)"
++                )
++                category = VERDICT_OPERATOR_DECISION
+             fail(
+                 "citation_semantic_check.json",
+                 f"record_id={rid}: semantic check majority overreaches "
+                 f"({overreach_count}/{len(entries)} reviewers flagged: "
+-                f"{reviewers_flagged}) — schemas.md §10 invariant #17",
++                f"{reviewers_flagged}) — schemas.md §10 invariant #17"
++                f"{tail}",
++                category=category,
+             )
+         elif overreach_count == 1:
++            _ev["noted_reqs"].add(rid)
+             flagged = next(
+                 str(e.get("reviewer"))
+                 for e in entries
+@@ -8320,6 +9002,32 @@ def check_requirements_review(q):
+     pass_("REQUIREMENTS_REVIEW.md present, organized by Wiegers attribute")
+ 
+ 
++@verdict_category(VERDICT_SUBSTANTIVE)
++def check_operator_decisions_file(q):
++    """v1.6.1 [G] (G5): when the requirement checks questioned a REQ
++    (majority overreach or tier mismatch), Phase 5 writes
++    quality/OPERATOR_DECISIONS.md with one entry per REQ and ready-to-
++    apply options (references/phase5_reconciliation_guide.md). Missing
++    file -> WARN, never FAIL: the decisions are the operator's, the file
++    only hands them over."""
++    questioned = _bug_evidence_current(q).get("questioned_reqs") or {}
++    if not questioned:
++        return
++    print("[Operator Decisions]")
++    if (q / "OPERATOR_DECISIONS.md").is_file():
++        pass_(
++            f"OPERATOR_DECISIONS.md present ({len(questioned)} questioned "
++            "requirement(s))"
++        )
++        return
++    warn(
++        f"OPERATOR_DECISIONS.md missing — {len(questioned)} requirement(s) "
++        f"were questioned ({', '.join(sorted(questioned))}); Phase 5 writes "
++        "this file so the operator can decide each one "
++        "(references/phase5_reconciliation_guide.md)"
++    )
++
++
+ def check_repo(repo_dir, version_arg, strictness, language=None):
+     """Run all checks for one repo. Writes output via pass_/fail_/warn/info.
+ 
+@@ -8335,6 +9043,8 @@ def check_repo(repo_dir, version_arg, strictness, language=None):
+     print("")
+     print(f"=== {repo_name} ===")
+ 
++    # v1.6.1 [G]: one bug-evidence ledger entry per repo.
++    _new_bug_evidence(repo_name, q)
+     check_file_existence(repo_dir, q, strictness)
+     bug_count, bug_ids = check_bugs_heading(q)
+     tdd_data = check_tdd_sidecar(q, bug_count)
+@@ -8380,6 +9090,9 @@ def check_repo(repo_dir, version_arg, strictness, language=None):
+     check_run_metadata(q)
+     check_compensation_asymmetry_promotion(q)
+     check_v1_5_0_gate_invariants(repo_dir, q)
++    # v1.6.1 [G] (G5): Phase 5 owes the operator a decisions file when
++    # requirement-wording FAILs fired (WARN, never FAIL).
++    check_operator_decisions_file(q)
+ 
+     # v1.5.10 058 (D2): record the per-repo multi-language disclosure (if
+     # >=2 testable languages clear the threshold) for emission after the
+@@ -8539,16 +9252,29 @@ def main(argv=None):
+     # their specific line patterns, unaffected by this additive
+     # line. For live display only: the harness's authoritative
+     # gate result for grading stays facts.rerun_installed_gate.
++    # v1.6.1 [G] (G4): "DECISIONS" for GATE PASSED WITH DECISIONS NEEDED
++    # (checked first — that RESULT line may also mention record-keeping).
+     _gate_result = (
+         "FAIL" if exit_code != 0
+-        else ("CLEANUP" if "CLEANUP NEEDED" in result_line
+-              else "PASS")
++        else ("DECISIONS" if "DECISIONS NEEDED" in result_line
++              else ("CLEANUP" if "CLEANUP NEEDED" in result_line
++                    else "PASS"))
+     )
+     _verdict_state = _compute_verdict_state(
+         exit_code, _FAIL_RECORDS, _WARN_RECORDS, _ZERO_BUG_REPOS,
+     )
++    # v1.6.1 [G] (G1): additive bug-evidence machine fields.
++    _evidence = _summarize_bug_evidence(_FAIL_RECORDS)
+     print(_format_gate_sentinel(
+         gate_result=_gate_result, verdict_state=_verdict_state,
++        extra={
++            "bug_evidence": _evidence["state"],
++            "bugs": _evidence["bugs"],
++            "bugs_reproduced": _evidence["reproduced"],
++            "bugs_on_flagged_reqs": sum(
++                len(b) for _r, b in _evidence["on_flagged"]
++            ),
++        },
+     ))
+     return exit_code
+ 
+diff --git a/plugins/quality-playbook/skills/quality-playbook/scripts/validate_phase_artifacts.py b/plugins/quality-playbook/skills/quality-playbook/scripts/validate_phase_artifacts.py
+index 404a7b1..a2111e3 100644
+--- a/plugins/quality-playbook/skills/quality-playbook/scripts/validate_phase_artifacts.py
++++ b/plugins/quality-playbook/skills/quality-playbook/scripts/validate_phase_artifacts.py
+@@ -159,7 +159,12 @@ _INDEX_REQUIRED_SUMMARY_KEYS = ("requirements", "bugs", "gate_verdict")
+ # audit record-keeping is incomplete; non-blocking, exit 0). Mirrors
+ # schemas.md §11 + SKILL.md + references/run_state_schema.md +
+ # references/phase6_verify_guide.md.
+-_INDEX_VALID_VERDICTS = ("pass", "pass-with-cleanup", "partial", "fail")
++# v1.6.1 [G]: "pass-with-decisions" added — the INDEX value for the gate's
++# `RESULT: GATE PASSED WITH DECISIONS NEEDED` line (no substantive FAIL;
++# only requirement decisions no confirmed bug rests on; exit 0).
++_INDEX_VALID_VERDICTS = (
++    "pass", "pass-with-cleanup", "pass-with-decisions", "partial", "fail",
++)
+ 
+ _RECORD_SHAPED_MANIFESTS = (
+     "formal_docs_manifest.json",
+-- 
+2.34.1
+

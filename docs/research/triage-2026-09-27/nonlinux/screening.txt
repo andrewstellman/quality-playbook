@@ -1,0 +1,2048 @@
+
+FILE repos/archive/chi-1.3.45/quality.gate-failed-20260619T003750Z/previous_runs/20260413T232837Z/quality/BUGS.md
+# Confirmed Bugs: chi
+### BUG-001: Compression negotiation accepts encodings rejected with `q=0`
+### BUG-002: `RouteHeaders` never matches documented Host routes on real server requests
+### BUG-003: `WrapResponseWriter` double-counts bytes on tee-enabled `ReadFrom`
+### BUG-004: `CleanPath` skips mounted child `RoutePath` normalization
+### BUG-005: `PathRewrite` rewrites `r.URL.Path` but not the mounted child route path
+### BUG-006: `SupressNotFound` pollutes live route metadata on matched requests
+### BUG-007: mounted `RedirectSlashes` drops the mount prefix from `Location`
+### BUG-008: mounted `Heartbeat` never matches the child endpoint
+### BUG-009: mounted `PageRoute` never matches the child shortcut route
+### BUG-010: `AllowContentEncoding` rejects legal comma-separated header values
+
+FILE repos/archive/chi-1.3.45/quality.gate-failed-20260619T003750Z/previous_runs/20260501T181923Z/quality/BUGS.md
+# Confirmed Bugs: chi
+### BUG-001: Compression negotiation accepts encodings rejected with `q=0`
+### BUG-002: `RouteHeaders` never matches documented Host routes on real server requests
+### BUG-003: `WrapResponseWriter` double-counts bytes on tee-enabled `ReadFrom`
+### BUG-004: `CleanPath` skips mounted child `RoutePath` normalization
+### BUG-005: `PathRewrite` rewrites `r.URL.Path` but not the mounted child route path
+### BUG-006: `SupressNotFound` pollutes live route metadata on matched requests
+### BUG-007: mounted `RedirectSlashes` drops the mount prefix from `Location`
+### BUG-008: mounted `Heartbeat` never matches the child endpoint
+### BUG-009: mounted `PageRoute` never matches the child shortcut route
+### BUG-010: `AllowContentEncoding` rejects legal comma-separated header values
+
+FILE repos/archive/chi-1.3.45/quality.gate-failed-20260619T003750Z/previous_runs/20260504T005937Z/quality/BUGS.md
+# Confirmed Bugs: chi
+### BUG-001: Compression negotiation accepts encodings rejected with `q=0`
+### BUG-002: `RouteHeaders` never matches documented Host routes on real server requests
+### BUG-003: `WrapResponseWriter` double-counts bytes on tee-enabled `ReadFrom`
+### BUG-004: `CleanPath` skips mounted child `RoutePath` normalization
+### BUG-005: `PathRewrite` rewrites `r.URL.Path` but not the mounted child route path
+### BUG-006: `SupressNotFound` pollutes live route metadata on matched requests
+### BUG-007: mounted `RedirectSlashes` drops the mount prefix from `Location`
+### BUG-008: mounted `Heartbeat` never matches the child endpoint
+### BUG-009: mounted `PageRoute` never matches the child shortcut route
+### BUG-010: `AllowContentEncoding` rejects legal comma-separated header values
+
+FILE repos/archive/chi-1.3.45/quality.gate-failed-20260619T003750Z/previous_runs/20260507T145226Z/quality/BUGS.md
+# Confirmed Bugs: chi
+### BUG-001: Compression negotiation accepts encodings rejected with `q=0`
+### BUG-002: `RouteHeaders` never matches documented Host routes on real server requests
+### BUG-003: `WrapResponseWriter` double-counts bytes on tee-enabled `ReadFrom`
+### BUG-004: `CleanPath` skips mounted child `RoutePath` normalization
+### BUG-005: `PathRewrite` rewrites `r.URL.Path` but not the mounted child route path
+### BUG-006: `SupressNotFound` pollutes live route metadata on matched requests
+### BUG-007: mounted `RedirectSlashes` drops the mount prefix from `Location`
+### BUG-008: mounted `Heartbeat` never matches the child endpoint
+### BUG-009: mounted `PageRoute` never matches the child shortcut route
+### BUG-010: `AllowContentEncoding` rejects legal comma-separated header values
+
+FILE repos/archive/chi-1.3.45/quality.gate-failed-20260619T003750Z/previous_runs/20260618T194138Z/quality/BUGS.md
+# Confirmed Bugs: chi
+### BUG-001: Compression negotiation accepts encodings rejected with `q=0`
+### BUG-002: `RouteHeaders` never matches documented Host routes on real server requests
+### BUG-003: `WrapResponseWriter` double-counts bytes on tee-enabled `ReadFrom`
+### BUG-004: `CleanPath` skips mounted child `RoutePath` normalization
+### BUG-005: `PathRewrite` rewrites `r.URL.Path` but not the mounted child route path
+### BUG-006: `SupressNotFound` pollutes live route metadata on matched requests
+### BUG-007: mounted `RedirectSlashes` drops the mount prefix from `Location`
+### BUG-008: mounted `Heartbeat` never matches the child endpoint
+### BUG-009: mounted `PageRoute` never matches the child shortcut route
+### BUG-010: `AllowContentEncoding` rejects legal comma-separated header values
+
+FILE repos/archive/chi-1.3.45/quality.gate-failed-20260619T003750Z/previous_runs/20260618T201924Z/quality/BUGS.md
+# Confirmed Bugs: chi
+### BUG-001: Compression negotiation accepts encodings rejected with `q=0`
+### BUG-002: `RouteHeaders` never matches documented Host routes on real server requests
+### BUG-003: `WrapResponseWriter` double-counts bytes on tee-enabled `ReadFrom`
+### BUG-004: `CleanPath` skips mounted child `RoutePath` normalization
+### BUG-005: `PathRewrite` rewrites `r.URL.Path` but not the mounted child route path
+### BUG-006: `SupressNotFound` pollutes live route metadata on matched requests
+### BUG-007: mounted `RedirectSlashes` drops the mount prefix from `Location`
+### BUG-008: mounted `Heartbeat` never matches the child endpoint
+### BUG-009: mounted `PageRoute` never matches the child shortcut route
+### BUG-010: `AllowContentEncoding` rejects legal comma-separated header values
+
+FILE repos/archive/chi-1.5.1/quality.gate-failed-20260619T013236Z/previous_runs/20260422T220441Z/quality/BUGS.md
+# Confirmed Bugs
+## Summary
+### BUG-001
+### BUG-002
+### BUG-003
+### BUG-004
+### BUG-005
+### BUG-006
+### BUG-007
+### BUG-008
+### BUG-009
+
+FILE repos/archive/chi-1.5.1/quality.gate-failed-20260619T013236Z/previous_runs/20260501T235737Z/quality/BUGS.md
+# Confirmed Bugs — chi v1.5.1 (2026-05-01)
+### BUG-001: CleanPath panics when chi.RouteContext is nil
+### BUG-002: GetHead panics when chi.RouteContext is nil
+### BUG-003: SupressNotFound panics when chi.RouteContext is nil
+### BUG-004: SupressNotFound mutates live RouteContext during preflight Match probe
+### BUG-005: Compress.matchAcceptEncoding does substring containment instead of RFC-7231 tokenization
+### BUG-006: AllowContentEncoding does not split combined header values on `,`
+### BUG-007: Recoverer Connection-header check is exact-string equality
+### BUG-008: chi.Handle with mALL does not back-fill methods registered via RegisterMethod after the route
+### BUG-009: BasicAuth short-circuits ConstantTimeCompare on missing user (timing leak)
+### BUG-010: Timeout writes 504 over an already-completed response
+### BUG-011: RequestID accepts unsanitized client-supplied X-Request-Id (log injection)
+### BUG-012: RouteHeaders precedence is non-deterministic (Go map iteration)
+### BUG-013: RealIP overwrites RemoteAddr with bare IP and fails to trim XFF whitespace
+### BUG-014: Profiler builds redirect URLs by string concatenation, breaking query strings
+### BUG-015: WrapResponseWriter ReadFrom double-counts bytes when tee is set
+### BUG-016: StripPrefix does not update rctx.RoutePath when chi context is present
+## Self-check (Lever 2 confirmation)
+| REQ-001/cell-NIL_CHECK_RCTX-CleanPath | BUG-001 |
+| REQ-001/cell-NIL_CHECK_RCTX-GetHead | BUG-002 |
+| REQ-001/cell-NIL_CHECK_RCTX-SupressNotFound | BUG-003 |
+| REQ-002/cell-FRESH_TCTX_FOR_PROBE-SupressNotFound | BUG-004 |
+| REQ-003/cell-RFC_7230_TOKEN_PARSING-Compress | BUG-005 |
+| REQ-003/cell-RFC_7230_TOKEN_PARSING-AllowContentEncoding | BUG-006 |
+| REQ-003/cell-RFC_7230_TOKEN_PARSING-Recoverer | BUG-007 |
+| REQ-009/cell-POST_REGISTER_BACKFILL-tree.setEndpoint | BUG-008 |
+
+FILE repos/archive/chi-1.5.1/quality.gate-failed-20260619T013236Z/previous_runs/20260507T033609Z/quality/BUGS.md
+# Confirmed Bugs — chi v1.5.1 (2026-05-01)
+### BUG-001: CleanPath panics when chi.RouteContext is nil
+### BUG-002: GetHead panics when chi.RouteContext is nil
+### BUG-003: SupressNotFound panics when chi.RouteContext is nil
+### BUG-004: SupressNotFound mutates live RouteContext during preflight Match probe
+### BUG-005: Compress.matchAcceptEncoding does substring containment instead of RFC-7231 tokenization
+### BUG-006: AllowContentEncoding does not split combined header values on `,`
+### BUG-007: Recoverer Connection-header check is exact-string equality
+### BUG-008: chi.Handle with mALL does not back-fill methods registered via RegisterMethod after the route
+### BUG-009: BasicAuth short-circuits ConstantTimeCompare on missing user (timing leak)
+### BUG-010: Timeout writes 504 over an already-completed response
+### BUG-011: RequestID accepts unsanitized client-supplied X-Request-Id (log injection)
+### BUG-012: RouteHeaders precedence is non-deterministic (Go map iteration)
+### BUG-013: RealIP overwrites RemoteAddr with bare IP and fails to trim XFF whitespace
+### BUG-014: Profiler builds redirect URLs by string concatenation, breaking query strings
+### BUG-015: WrapResponseWriter ReadFrom double-counts bytes when tee is set
+### BUG-016: StripPrefix does not update rctx.RoutePath when chi context is present
+## Self-check (Lever 2 confirmation)
+| REQ-001/cell-NIL_CHECK_RCTX-CleanPath | BUG-001 |
+| REQ-001/cell-NIL_CHECK_RCTX-GetHead | BUG-002 |
+| REQ-001/cell-NIL_CHECK_RCTX-SupressNotFound | BUG-003 |
+| REQ-002/cell-FRESH_TCTX_FOR_PROBE-SupressNotFound | BUG-004 |
+| REQ-003/cell-RFC_7230_TOKEN_PARSING-Compress | BUG-005 |
+| REQ-003/cell-RFC_7230_TOKEN_PARSING-AllowContentEncoding | BUG-006 |
+| REQ-003/cell-RFC_7230_TOKEN_PARSING-Recoverer | BUG-007 |
+| REQ-009/cell-POST_REGISTER_BACKFILL-tree.setEndpoint | BUG-008 |
+
+FILE repos/archive/chi-1.5.1/quality.gate-failed-20260619T013236Z/previous_runs/20260507T044646Z/quality/BUGS.md
+# Confirmed Bugs — chi (github.com/go-chi/chi v5)
+### BUG-001: `matchAcceptEncoding` substring match honors `q=0` and matches `x-gzip` as `gzip`
+### BUG-002: `AllowContentEncoding` rejects RFC-valid `Content-Encoding: gzip, br` with 415
+### BUG-003: `Recoverer` exact `Connection` match misses upgrade token-list
+### BUG-004: `RouteHeaders` map-iteration produces non-deterministic precedence
+### BUG-005: `BasicAuth` `||` short-circuit skips constant-time compare on unknown user
+### BUG-006: `CleanPath` NPE when composed outside chi.Mux
+### BUG-007: `SupressNotFound` NPE when composed outside chi.Mux
+### BUG-008: `URLFormat` shaves dot-prefixed last segments (`/foo/.config`)
+### BUG-009: `RegisterMethod` after `Handle("/x", h)` does not retroactively route the new verb
+### BUG-010: `Mount` collision probe blind to base-path stubs
+### BUG-011: `realIP` does not trim leading whitespace before `net.ParseIP`
+### BUG-012: `Sunset` middleware emits HTTP-date as `Deprecation`, not RFC-9745 structured field
+## Compensation grid self-check
+
+FILE repos/archive/chi-1.5.1/quality.gate-failed-20260619T013236Z/previous_runs/20260618T212035Z/quality/BUGS.md
+# Bug Report — chi v5 HTTP Router
+### BUG-001: GetHead middleware panics on nil RouteContext (no chi router in handler chain)
+### BUG-002: CleanPath middleware panics on nil RouteContext (no chi router in handler chain)
+### BUG-003: matchAcceptEncoding accepts q=0 encodings and matches encoding name substrings
+### BUG-004: AllowContentEncoding does not split comma-separated Content-Encoding values
+### BUG-005: Recoverer writes 500 during WebSocket upgrade for lowercase or multi-value Connection header
+### BUG-006: RouteHeaders.Handler iterates header map non-deterministically when multiple headers have matchers
+## Dismissed Findings
+### DISMISSED-001: Pattern.Match label-boundary (EXPLORATION.md example was incorrect)
+### DISMISSED-002: Timeout cooperative deadline (documented design, not a bug)
+
+FILE repos/archive/express-1.3.50/quality/previous_runs/20260415T002640Z/quality/BUGS.md
+# Bug Report — Express.js 5.2.1
+## Bug Tracker Summary
+| BUG-005 | JSONP Callback Validation Incomplete | **HIGH** | CONFIRMED | Security | response.js |
+| BUG-010 | Freshness Check Only in send(), Not json() | **MEDIUM** | CONFIRMED | Caching | response.js |
+| BUG-013 | send(null) Diverges from json(null) | **MEDIUM** | CONFIRMED | Dispatcher | response.js |
+| BUG-006 | ETag Not Generated for Large Bodies | **MEDIUM** | FALSE POSITIVE | ETag | response.js |
+| BUG-002 | Routing Settings Not Finalized Before First Request | **MEDIUM** | NOT CONFIRMED | Configuration | application.js |
+| BUG-004 | View.lookup Returns Undefined on Miss | **MEDIUM** | CONFIRMED | View Rendering | view.js |
+| BUG-001 | Prototype Restoration Skipped on Error in mounted_app | **HIGH** | NOT CONFIRMED | Error Handling | application.js |
+| BUG-003 | Uninformative Error for Missing Template Engine | **LOW** | CONFIRMED | View Rendering | view.js |
+| BUG-007 | Query Parser Null Result Silent | **LOW** | NOT CONFIRMED | Query | request.js |
+| BUG-008 | Trust Proxy Inheritance Overly Complex | **LOW** | NOT CONFIRMED | Configuration | application.js |
+| BUG-009 | app.use Weak Type Check for Apps | **LOW** | CONFIRMED | Middleware | application.js |
+| BUG-011 | Query Parser Fallback Behavior Undocumented | **LOW** | NOT CONFIRMED | Query | utils.js |
+| BUG-012 | ETag Weak/Strong Symmetric Support Unclear | **LOW** | NOT CONFIRMED | ETag | utils.js |
+| BUG-014 | send(undefined) Behavior Undocumented | **LOW** | CONFIRMED | Dispatcher | response.js |
+| BUG-015 | res.location() 'back' Keyword Not Implemented | **MEDIUM** | CONFIRMED | Response | response.js |
+| BUG-016 | res.links() Header Escaping Vulnerability | **MEDIUM** | CONFIRMED | Security/Headers | response.js |
+| BUG-017 | res.links() Type Coercion on Link Values | **LOW** | CONFIRMED | Type Handling | response.js |
+| BUG-018 | Query Parser Null Prototype Object Methods | **LOW** | CONFIRMED | API Consistency | request.js |
+| BUG-019 | res.redirect() 'back' Keyword Not Implemented | **MEDIUM** | CONFIRMED | API Contract | response.js |
+| BUG-020 | res.sendFile() Error Handling Inconsistency | **MEDIUM** | CONFIRMED | Error Handling | response.js |
+| BUG-021 | set()/append() Content-Type Incompatibility | **MEDIUM** | CONFIRMED | API Consistency | response.js |
+| OLD-015 | res.set/append Consistency Not Verified | **LOW** | DEFER | Headers | response.js |
+### BUG-005: JSONP Callback Validation Incomplete
+### Category: Security Vulnerability
+### Description
+### Code Location
+### Evidence
+### Specification Basis
+### Root Cause
+### Impact
+### Recommended Action
+### Regression Test
+### Patch Files
+### BUG-010: Freshness Check Only in send(), Not json()
+### Category: Caching / HTTP Semantics
+### Description
+### Code Location
+### Evidence
+### Specification Basis
+### Root Cause
+### Impact
+### Recommended Action
+### Regression Test
+### Patch Files
+### BUG-013: send(null) Diverges from json(null)
+### Category: Type Dispatcher Consistency
+### Description
+### Code Location
+### Evidence
+### Specification Basis
+### Root Cause
+### Impact
+### Recommended Action
+### Regression Test
+### Patch Files
+### BUG-006: ETag Not Generated for Large Bodies
+### Category: ETag Generation
+### Description
+### Code Location
+### Evidence
+### Issue Analysis
+### Finding
+### Status: **NOT CONFIRMED** (re-evaluated as false positive)
+### Recommendation
+### BUG-004: View.lookup Returns Undefined on Miss
+### Category: View Rendering / Error Handling
+### Description
+### Code Location
+### Evidence
+### Specification Basis
+### Root Cause
+### Impact
+### Recommended Action
+### Status: **CONFIRMED** (but mitigated by app.render)
+### Regression Test
+### BUG-002: Routing Settings Not Finalized Before First Request
+### Category: Configuration
+### Description
+### Code Location
+### Evidence
+### Specification Basis
+### Issue Analysis
+### Status: **NOT CONFIRMED** (this is intentional by design)
+### Recommendation
+### BUG-001: Prototype Restoration Skipped on Error in mounted_app
+### Category: Error Handling
+### Description
+### Code Location
+### Evidence
+### Issue Analysis
+### Status: **NOT CONFIRMED** (mitigated by architecture, unlikely in practice)
+### Recommendation
+### BUG-003: Uninformative Error for Missing Template Engine
+### Category: View Rendering / Error UX
+### Description
+### Code Location
+### Evidence
+### Specification Basis
+### Impact
+### Recommended Action
+### Status: **CONFIRMED** (low priority improvement)
+### Regression Test
+### BUG-009: app.use Weak Type Check for Apps
+### Category: Middleware Registration
+### Description
+### Code Location
+### Evidence
+### Specification Basis
+### Impact
+### Recommended Action
+### Status: **CONFIRMED** (minor issue, likely not encountered in practice)
+### Regression Test
+### BUG-014: send(undefined) Behavior Undocumented
+### Category: Type Dispatcher
+### Description
+### Code Location
+### Evidence
+### Impact
+### Status: **CONFIRMED** (documentation gap, not a functional bug)
+## Summary of Confirmed Bugs
+### HIGH Severity (1)
+### MEDIUM Severity (3)
+### LOW Severity (3)
+### False Positives / Design Decisions (4)
+## Patch Status
+| BUG-005 | ✓ Created | ✓ Available | PRIORITY: Security issue |
+| BUG-010 | ✓ Created | ✓ Available | |
+| BUG-013 | ✓ Created | ✓ Available | Requires design decision |
+| BUG-004 | ✓ Created | ✓ Available | |
+| BUG-003 | ✓ Created | ✓ Available | Low priority |
+| BUG-009 | ✓ Created | ✓ Available | Low priority |
+| BUG-014 | ✓ Created | ~ Optional | Documentation fix |
+### BUG-015: res.location() 'back' Keyword Not Implemented
+### Category: API Contract Violation
+### Description
+### Code Location
+### Evidence
+### Specification Basis
+### Root Cause
+### Impact
+### Recommended Action
+### Regression Test
+### Patch Files
+### BUG-016: res.links() Header Escaping Vulnerability
+### Category: HTTP Header Handling / Security
+### Description
+### Code Location
+### Evidence
+### Specification Basis
+### Root Cause
+### Impact
+### Recommended Action
+### Regression Test
+### Patch Files
+### BUG-017: res.links() Type Coercion on Link Values
+### Category: Type Handling
+### Description
+### Code Location
+### Evidence
+### Impact
+### Recommended Action
+### Regression Test
+### Patch Files
+### BUG-018: Query Parser Null Prototype Object Methods
+### Category: API Consistency
+### Description
+### Code Location
+### Evidence
+### Specification Basis
+### Root Cause
+### Impact
+### Recommended Action
+### Regression Test
+### Patch Files
+### BUG-019: res.redirect() 'back' Keyword Not Implemented
+### Category: API Contract Violation / URL Handling
+### Description
+### Code Location
+### Evidence
+### Specification Basis
+### Root Cause
+### Impact
+### Recommended Action
+### Regression Test
+### Patch Files
+### BUG-020: res.sendFile() Error Handling Inconsistency
+### Category: Error Handling / Dispatch Parity
+### Description
+### Code Location
+### Evidence
+### Specification Basis
+### Root Cause
+### Impact
+### Recommended Action
+### Regression Test
+### Patch Files
+### BUG-021: set()/append() Content-Type Incompatibility
+
+FILE repos/archive/express-1.3.50/quality/previous_runs/20260504T032022Z/quality/BUGS.md
+# Bug Report — Express.js 5.2.1
+## Bug Tracker Summary
+| BUG-005 | JSONP Callback Validation Incomplete | **HIGH** | CONFIRMED | Security | response.js |
+| BUG-010 | Freshness Check Only in send(), Not json() | **MEDIUM** | CONFIRMED | Caching | response.js |
+| BUG-013 | send(null) Diverges from json(null) | **MEDIUM** | CONFIRMED | Dispatcher | response.js |
+| BUG-006 | ETag Not Generated for Large Bodies | **MEDIUM** | FALSE POSITIVE | ETag | response.js |
+| BUG-002 | Routing Settings Not Finalized Before First Request | **MEDIUM** | NOT CONFIRMED | Configuration | application.js |
+| BUG-004 | View.lookup Returns Undefined on Miss | **MEDIUM** | CONFIRMED | View Rendering | view.js |
+| BUG-001 | Prototype Restoration Skipped on Error in mounted_app | **HIGH** | NOT CONFIRMED | Error Handling | application.js |
+| BUG-003 | Uninformative Error for Missing Template Engine | **LOW** | CONFIRMED | View Rendering | view.js |
+| BUG-007 | Query Parser Null Result Silent | **LOW** | NOT CONFIRMED | Query | request.js |
+| BUG-008 | Trust Proxy Inheritance Overly Complex | **LOW** | NOT CONFIRMED | Configuration | application.js |
+| BUG-009 | app.use Weak Type Check for Apps | **LOW** | CONFIRMED | Middleware | application.js |
+| BUG-011 | Query Parser Fallback Behavior Undocumented | **LOW** | NOT CONFIRMED | Query | utils.js |
+| BUG-012 | ETag Weak/Strong Symmetric Support Unclear | **LOW** | NOT CONFIRMED | ETag | utils.js |
+| BUG-014 | send(undefined) Behavior Undocumented | **LOW** | CONFIRMED | Dispatcher | response.js |
+| BUG-015 | res.location() 'back' Keyword Not Implemented | **MEDIUM** | CONFIRMED | Response | response.js |
+| BUG-016 | res.links() Header Escaping Vulnerability | **MEDIUM** | CONFIRMED | Security/Headers | response.js |
+| BUG-017 | res.links() Type Coercion on Link Values | **LOW** | CONFIRMED | Type Handling | response.js |
+| BUG-018 | Query Parser Null Prototype Object Methods | **LOW** | CONFIRMED | API Consistency | request.js |
+| BUG-019 | res.redirect() 'back' Keyword Not Implemented | **MEDIUM** | CONFIRMED | API Contract | response.js |
+| BUG-020 | res.sendFile() Error Handling Inconsistency | **MEDIUM** | CONFIRMED | Error Handling | response.js |
+| BUG-021 | set()/append() Content-Type Incompatibility | **MEDIUM** | CONFIRMED | API Consistency | response.js |
+| OLD-015 | res.set/append Consistency Not Verified | **LOW** | DEFER | Headers | response.js |
+### BUG-005: JSONP Callback Validation Incomplete
+### Category: Security Vulnerability
+### Description
+### Code Location
+### Evidence
+### Specification Basis
+### Root Cause
+### Impact
+### Recommended Action
+### Regression Test
+### Patch Files
+### BUG-010: Freshness Check Only in send(), Not json()
+### Category: Caching / HTTP Semantics
+### Description
+### Code Location
+### Evidence
+### Specification Basis
+### Root Cause
+### Impact
+### Recommended Action
+### Regression Test
+### Patch Files
+### BUG-013: send(null) Diverges from json(null)
+### Category: Type Dispatcher Consistency
+### Description
+### Code Location
+### Evidence
+### Specification Basis
+### Root Cause
+### Impact
+### Recommended Action
+### Regression Test
+### Patch Files
+### BUG-006: ETag Not Generated for Large Bodies
+### Category: ETag Generation
+### Description
+### Code Location
+### Evidence
+### Issue Analysis
+### Finding
+### Status: **NOT CONFIRMED** (re-evaluated as false positive)
+### Recommendation
+### BUG-004: View.lookup Returns Undefined on Miss
+### Category: View Rendering / Error Handling
+### Description
+### Code Location
+### Evidence
+### Specification Basis
+### Root Cause
+### Impact
+### Recommended Action
+### Status: **CONFIRMED** (but mitigated by app.render)
+### Regression Test
+### BUG-002: Routing Settings Not Finalized Before First Request
+### Category: Configuration
+### Description
+### Code Location
+### Evidence
+### Specification Basis
+### Issue Analysis
+### Status: **NOT CONFIRMED** (this is intentional by design)
+### Recommendation
+### BUG-001: Prototype Restoration Skipped on Error in mounted_app
+### Category: Error Handling
+### Description
+### Code Location
+### Evidence
+### Issue Analysis
+### Status: **NOT CONFIRMED** (mitigated by architecture, unlikely in practice)
+### Recommendation
+### BUG-003: Uninformative Error for Missing Template Engine
+### Category: View Rendering / Error UX
+### Description
+### Code Location
+### Evidence
+### Specification Basis
+### Impact
+### Recommended Action
+### Status: **CONFIRMED** (low priority improvement)
+### Regression Test
+### BUG-009: app.use Weak Type Check for Apps
+### Category: Middleware Registration
+### Description
+### Code Location
+### Evidence
+### Specification Basis
+### Impact
+### Recommended Action
+### Status: **CONFIRMED** (minor issue, likely not encountered in practice)
+### Regression Test
+### BUG-014: send(undefined) Behavior Undocumented
+### Category: Type Dispatcher
+### Description
+### Code Location
+### Evidence
+### Impact
+### Status: **CONFIRMED** (documentation gap, not a functional bug)
+## Summary of Confirmed Bugs
+### HIGH Severity (1)
+### MEDIUM Severity (3)
+### LOW Severity (3)
+### False Positives / Design Decisions (4)
+## Patch Status
+| BUG-005 | ✓ Created | ✓ Available | PRIORITY: Security issue |
+| BUG-010 | ✓ Created | ✓ Available | |
+| BUG-013 | ✓ Created | ✓ Available | Requires design decision |
+| BUG-004 | ✓ Created | ✓ Available | |
+| BUG-003 | ✓ Created | ✓ Available | Low priority |
+| BUG-009 | ✓ Created | ✓ Available | Low priority |
+| BUG-014 | ✓ Created | ~ Optional | Documentation fix |
+### BUG-015: res.location() 'back' Keyword Not Implemented
+### Category: API Contract Violation
+### Description
+### Code Location
+### Evidence
+### Specification Basis
+### Root Cause
+### Impact
+### Recommended Action
+### Regression Test
+### Patch Files
+### BUG-016: res.links() Header Escaping Vulnerability
+### Category: HTTP Header Handling / Security
+### Description
+### Code Location
+### Evidence
+### Specification Basis
+### Root Cause
+### Impact
+### Recommended Action
+### Regression Test
+### Patch Files
+### BUG-017: res.links() Type Coercion on Link Values
+### Category: Type Handling
+### Description
+### Code Location
+### Evidence
+### Impact
+### Recommended Action
+### Regression Test
+### Patch Files
+### BUG-018: Query Parser Null Prototype Object Methods
+### Category: API Consistency
+### Description
+### Code Location
+### Evidence
+### Specification Basis
+### Root Cause
+### Impact
+### Recommended Action
+### Regression Test
+### Patch Files
+### BUG-019: res.redirect() 'back' Keyword Not Implemented
+### Category: API Contract Violation / URL Handling
+### Description
+### Code Location
+### Evidence
+### Specification Basis
+### Root Cause
+### Impact
+### Recommended Action
+### Regression Test
+### Patch Files
+### BUG-020: res.sendFile() Error Handling Inconsistency
+### Category: Error Handling / Dispatch Parity
+### Description
+### Code Location
+### Evidence
+### Specification Basis
+### Root Cause
+### Impact
+### Recommended Action
+### Regression Test
+### Patch Files
+### BUG-021: set()/append() Content-Type Incompatibility
+
+FILE repos/archive/express-1.3.50/quality/previous_runs/20260618T232924Z/quality/BUGS.md
+# Bug Report — Express.js v5.2.1
+### BUG-001: res.sendFile() ignores per-request `{etag: false}` option and bypasses compiled etag function
+### BUG-002: `parseExtendedQueryString` passes `allowPrototypes: true` to `qs.parse`, enabling prototype pollution
+### BUG-003: `req.host` uses deprecated `.trimRight()`, leaving leading whitespace; asymmetric with `req.protocol`
+### BUG-004: `req.protocol` returns empty string when `X-Forwarded-Proto` has an empty leftmost token
+### BUG-005: `defaultConfiguration` writes `x-powered-by` as own property, shadowing parent's disabled setting on sub-app mount
+### BUG-006: `app.set('etag', value)` writes settings before `compileETag` throws, leaving partial state
+### BUG-007: `res.set(object)` uses `for...in` loop, iterating inherited prototype properties into headers
+### BUG-008: `res.attachment(filename)` sets Content-Type to `application/octet-stream` for extensionless filenames
+### BUG-009: `res.format()` emits `Vary: Accept` unconditionally, including on the 406 path
+### BUG-010: `res.set('Content-Type', value)` sets the literal string `'false'` when `mime.contentType()` returns `false`
+### BUG-011: `req.subdomains` splits bracketed IPv6-mapped IPv4 addresses on dots, returning incorrect subdomain array
+### BUG-012: `res.cookie()` silently ignores non-numeric `maxAge` instead of throwing a method-named TypeError
+### BUG-013: `app.render()` has no path-containment check before caching views resolved outside the views root
+## Bug Tracker Summary
+| BUG-001: sendFile ignores etag option | MEDIUM | `lib/response.js:400` | REQ-023 |
+| BUG-002: prototype pollution via allowPrototypes | HIGH | `lib/utils.js:269` | REQ-024 |
+| BUG-003: req.host trimRight asymmetry | MEDIUM | `lib/request.js:427` | REQ-002 |
+| BUG-004: req.protocol empty leftmost token | HIGH | `lib/request.js:312-313` | REQ-001 |
+| BUG-005: x-powered-by own property shadowing | MEDIUM | `lib/application.js:94` | REQ-004 |
+| BUG-006: app.set partial state on compile error | MEDIUM | `lib/application.js:360,365` | REQ-022 |
+| BUG-007: res.set for...in prototype leak | MEDIUM | `lib/response.js:681` | REQ-008 |
+| BUG-008: res.attachment extensionless type overwrite | MEDIUM | `lib/response.js:606` | REQ-009 |
+| BUG-009: res.format Vary:Accept unconditional | LOW | `lib/response.js:580` | REQ-010 |
+| BUG-010: res.set Content-Type false value | MEDIUM | `lib/response.js:676` | REQ-005 |
+| BUG-011: req.subdomains IPv6-mapped IPv4 split | LOW | `lib/request.js:389` | REQ-003 |
+| BUG-012: res.cookie NaN maxAge silent | LOW | `lib/response.js:759-765` | REQ-006 |
+| BUG-013: app.render path traversal cached | MEDIUM | `lib/application.js:568` | REQ-011 |
+
+FILE repos/chi-1.5.8/quality/BUGS.md
+# Bug Report — go-chi/chi v1.5.8
+### BUG-001: `matchAcceptEncoding` substring-matches Accept-Encoding, compressing `q=0`-rejected and bogus-token clients
+### BUG-002: `SupressNotFound` passes the live routing context into the probe `Match`, corrupting the served request's `RoutePattern()`
+### BUG-003: `PageRoute` / `PathRewrite` operate on raw `r.URL.Path`, never firing / silently no-op under `Mount()`
+### BUG-004: `realIP` does not trim the leftmost X-Forwarded-For element, silently dropping space-padded entries
+### BUG-005: `contentEncoding` does not strip quotes from a quoted charset, rejecting spec-valid `charset="utf-8"`
+### BUG-006: `Mux.Find` omits the wildcard-URLParam reset that the live mount closure performs
+### BUG-007: `replaceWildcards` textual `/*/`→`/` collapse erases a literal interior `*` segment from `RoutePattern()`
+## Closure table
+| BUG-001 | MEDIUM | `TestBUG001_AcceptEncoding_qZero_and_bogusToken` | FAIL | PASS | yes |
+| BUG-002 | HIGH | `TestBUG002_SupressNotFound_LiveContextMutation` | FAIL | PASS | yes |
+| BUG-003 | MEDIUM | `TestBUG003_PageRoute_PathRewrite_UnderMount` | FAIL | PASS | yes |
+| BUG-004 | MEDIUM | `TestBUG004_RealIP_TrimsLeftmostXFF` | FAIL | PASS | yes |
+| BUG-005 | MEDIUM | `TestBUG005_ContentCharset_QuotedCharset` | FAIL | PASS | yes |
+| BUG-006 | MEDIUM | `TestBUG006_Find_MountedWildcardURLParamReset` | FAIL | PASS | yes |
+| BUG-007 | LOW | `TestBUG007_RoutePattern_LiteralInteriorWildcard` | FAIL | n/a | EXEMPTION |
+
+FILE repos/chi-1.6.0/quality/BUGS.md
+# Bug Report — go-chi/chi v1.6.0
+### BUG-001: `Mux.Find` omits the wildcard-URLParam reset that the live `Mount` closure performs
+### BUG-002: `PageRoute`/`PathRewrite` operate on raw `r.URL.Path`, never firing/no-op under `Mount()`
+### BUG-003: `SupressNotFound` passes the live routing context into the probe `Match`, corrupting the served request's `RoutePattern()`
+### BUG-004: `matchAcceptEncoding` substring-matches Accept-Encoding, compressing `q=0`-rejected and bogus-token clients
+### BUG-005: `realIP` does not trim the leftmost X-Forwarded-For element, silently dropping space-padded entries
+### BUG-006: `contentEncoding` does not strip quotes from a quoted charset, rejecting spec-valid `charset="utf-8"`
+### BUG-007: `AllowContentEncoding` checks each raw header line against the allow-list without splitting on commas
+### BUG-008: `Recoverer` recognizes only the exact string "Upgrade" for `Connection`, missing the RFC-legal token-list form
+### BUG-009: `RegisterMethod` races concurrent request-serving goroutines over shared method-dispatch globals
+### BUG-010: `reference_docs/13_api_reference.md` documents `Use(...) Router`, contradicting chi's actual `Use` signature
+### BUG-011: `findRoute`'s node-type dispatch has no runtime assertion that its `default` branch is reached only by `ntCatchAll`
+### BUG-013: Client-supplied `X-Request-Id` is adopted verbatim and written unescaped into log output
+### BUG-014: `GetHead` misses a mounted sub-router's dedicated HEAD handler
+### MISREAD-001: SEED-007/BUG-007 (chi-1.5.8) — literal interior wildcard scenario is unreachable, premise disproven
+## Deferred to the Human Gate (not filed as bugs)
+## Reviewed and dismissed
+### Retired finding — `RealIP` provides no trusted-proxy boundary, so `RemoteAddr` is spoofable by any client that can reach the service directly
+## Closure table
+| BUG-001 | MEDIUM | `TestMount_Find_WildcardURLParamStale` | PASS (documents defect) | yes |
+| BUG-002 | MEDIUM | `TestPageRoute_NoFireUnderMount` | PASS (documents defect) | yes |
+| BUG-003 | HIGH (observability) | `TestSupressNotFound_CorruptsRoutePattern` | PASS, logged `"/users/{id}/users/{id}"` | yes |
+| BUG-004 | MEDIUM | `TestMatchAcceptEncoding_QZero_SelectsAnyway` / `_BogusToken_SelectsAnyway` | PASS (documents defect) | yes |
+| BUG-005 | MEDIUM | `TestRealIP_LeadingSpace_DropsSilently` | PASS (documents defect) | yes |
+| BUG-006 | MEDIUM | `TestContentCharset_Quoted_RejectedSpuriously` | PASS (documents defect) | yes |
+| BUG-007 | MEDIUM | `TestAllowContentEncoding_CommaList_RejectedSpuriously` | PASS (documents defect) | yes |
+| BUG-008 | MEDIUM | `TestRecoverer_MultiTokenUpgrade_WritesAnyway` | PASS, logged status 500 | yes |
+| BUG-009 | MEDIUM | `TestQPB_RegisterMethod_RacesWithServing` (`-race`) | **`WARNING: DATA RACE`** (executed) | yes |
+| BUG-010 | LOW | N/A (documentation) | citation comparison | N/A (doc-only) |
+| BUG-011 | LOW | N/A (no live defect) | re-extraction | yes (defensive assertion) |
+| BUG-013 | MEDIUM | `TestBUG013_RequestID_ControlCharacters_NotSanitized` | RED FAIL → GREEN PASS | yes |
+| BUG-014 | MEDIUM | `TestBUG014_GetHead_FindsHeadHandler_UnderMount` | RED FAIL → GREEN PASS | yes |
+
+FILE repos/chi-1.6.0.bak-20260726T020949Z/quality/BUGS.md
+# Confirmed Bugs — chi (go-chi/chi v5)
+### BUG-002: NotFound() set inside a Route() builder closure permanently blocks the parent's later NotFound propagation
+### BUG-004: PageRoute matches paths case-insensitively; chi's radix tree does not
+
+FILE repos/express-1.5.8/quality/BUGS.md
+# Confirmed Bugs — Express v5.2.1
+### BUG-001: `req.protocol` returns `''` (and `req.secure` false) for a trusted `X-Forwarded-Proto` with an empty leading element
+### BUG-002: `res.cookie` with sub-second `maxAge` emits `Max-Age=0` alongside a future `Expires`
+### BUG-003: `res.redirect` emits literal `undefined` in body/title for an in-range status absent from `statuses.message`
+### BUG-004: Charset asymmetry — `res.send` forces `charset=utf-8` for string bodies but preserves the caller's charset for Buffer bodies and via `res.set`
+### BUG-005: `acceptParams` splits quoted parameter values on an inner `;` and does not clamp `q` to `[0,1]`
+### BUG-006: `req.host`/`req.hostname`/`req.subdomains` resolve to `undefined`/`[]` for a trusted `X-Forwarded-Host` with a leading comma
+## Grid self-check (Phase 3 advisory)
+## Demoted (not confirmed)
+
+FILE repos/express-accept/quality/BUGS.md
+# BUGS.md — Consolidated bug report
+## Summary
+### BUG-001: `res.location`'s JSDoc documents a "back" magic-string behavior the code does not implement
+## Pattern-tagged REQ grid outcomes (Lever 2, v1.5.2)
+## Areas reviewed with no confirmed bug
+## Bugs manifest
+
+FILE repos/qpb-ff/flatted/quality/BUGS.md
+# BUGS — flatted (security audit)
+### BUG-001 — JavaScript: Out-of-bounds index dereference
+### BUG-002 — Python: Out-of-bounds index dereference
+### BUG-003 — Go: Unbounded recursion on self-referential indices
+### BUG-004 — Go: Ignored Atoi error allows out-of-bounds
+### BUG-005 — All languages: Top-level non-array causes error divergence
+### BUG-006 — Python/PHP: Negative index wraps to end of array
+### BUG-007 — JavaScript: Silent undefined substitution on OOB
+### BUG-008 — PHP: Unset array access on invalid key
+### BUG-009 — Go: Out-of-bounds panic on large index
+### BUG-010 — All languages: Missing validation on input array length
+### BUG-011 — PHP: Missing string-to-index validation in loop()
+## Summary of findings
+| BUG-001 | HIGH | REQ-S2 | JS: no bounds check on index |
+| BUG-002 | HIGH | REQ-S2 | Python: no bounds check; negative wrap |
+| BUG-003 | HIGH | REQ-S3 | Go: unbounded recursion on cyclic indices |
+| BUG-004 | MEDIUM | REQ-S2 | Go: ignored Atoi error defaults to 0 |
+| BUG-005 | MEDIUM | REQ-S4 | All: no top-level array validation |
+| BUG-006 | MEDIUM | REQ-S2 | Python/PHP: negative index wraps |
+| BUG-007 | MEDIUM | REQ-S5 | JS: silent undefined on OOB |
+| BUG-008 | MEDIUM | REQ-S2 | PHP: unset access on invalid key |
+| BUG-009 | MEDIUM | REQ-S1 | Go: panic on OOB index |
+| BUG-010 | MEDIUM | REQ-S4 | All: no empty array check |
+| BUG-011 | LOW | REQ-S2 | PHP: no string-content validation |
+
+FILE repos/secbench/CASE-001-setuptools/quality/BUGS.md
+# BUGS — CASE-001-setuptools (security audit, QPB Mode A)
+### BUG-001: Arbitrary file write via percent-encoded absolute path in download filename resolution
+### Location
+### Mechanism
+### Reachability / threat model
+### Reproduction (verified)
+### Fix
+
+FILE repos/secbench/CASE-002-jspdf/quality/BUGS.md
+# BUGS — jsPDF (CASE-002-jspdf) security audit
+| BUG-001 | MEDIUM | Cryptographic / Broken access control | src/libs/pdfsecurity.js:43 |
+| BUG-002 | MEDIUM | Resource exhaustion / Input validation | src/libs/BMPDecoder.js:84-85 |
+| BUG-003 | MEDIUM | Input validation / Cross-impl consistency | src/libs/BMPDecoder.js:58-59,104,133-145 |
+| BUG-004 | HIGH | Injection (XSS) | src/jspdf.js:3100-3119 |
+| BUG-005 | HIGH | Injection (XSS) | src/jspdf.js:3135-3149 |
+| BUG-006 | MEDIUM | Injection (XSS) | src/jspdf.js:3167-3178 |
+| BUG-007 | MEDIUM | Input validation / Resource exhaustion | src/modules/jpeg_support.js:34-54 |
+| BUG-008 | MEDIUM | SSRF / Path handling | src/modules/fileloading.js:68,101-104 |
+| BUG-009 | LOW | Input validation / ReDoS | src/modules/total_pages.js:49 |
+| BUG-010 | LOW | Cryptographic hygiene | src/libs/rc4.js:24-41 |
+| BUG-011 | LOW | Cryptographic hygiene | src/libs/md5.js:203-206 |
+### BUG-001 — PDFSecurity permission validation is inert; invalid perms corrupt key
+### BUG-002 — BMP decoder allocates a buffer sized from unvalidated header dims
+### BUG-003 — BMP palette length unbounded + missing index bounds in bit1/bit4
+### BUG-004 — `pdfobjectnewwindow` injects unescaped options into document.write HTML
+### BUG-005 — `pdfjsnewwindow` injects unescaped filename into iframe src and title
+### BUG-006 — `dataurlnewwindow` writes unescaped data URI/filename via document.write
+### BUG-007 — JPEG dimension parser reads markers without bounds checks
+### BUG-008 — `loadFile` enables SSRF (browser) and arbitrary file read (Node)
+### BUG-009 — `putTotalPages` builds a RegExp from caller input (ReDoS)
+### BUG-010 — RC4 keystream-state cache is dead code
+### BUG-011 — MD5 self-test reads its own flag during initialization
+## Negative results (audited, no defect recorded)
+
+FILE repos/secbench/CASE-003-keras/quality/BUGS.md
+# BUGS — CASE-003-keras (security audit)
+| BUG-001 | HIGH | Insecure deserialization / RCE | keras/src/layers/core/lambda_layer.py:184 |
+| BUG-002 | HIGH | Path traversal (zip-slip) | keras/src/utils/file_utils.py:115-117 |
+| BUG-003 | MEDIUM | Path/file handling (containment) | keras/src/utils/file_utils.py:46-47 |
+| BUG-004 | MEDIUM | Resource exhaustion (decompression bomb) | keras/src/utils/file_utils.py:117,120; keras/src/saving/saving_lib.py:946 |
+| BUG-005 | MEDIUM | Cryptographic verification (MD5 downgrade) | keras/src/utils/file_utils.py:354-363 |
+| BUG-006 | LOW | Cryptographic verification (opt-in integrity) | keras/src/utils/file_utils.py:267-338 |
+| BUG-007 | LOW | Insecure deserialization (pickle) | keras/src/datasets/imdb.py:86; keras/src/datasets/cifar.py:3 |
+| BUG-008 | LOW | Path/file handling (symlink check) | keras/src/utils/file_utils.py:50-52 |
+### BUG-001 — Lambda `from_config` defaults safe_mode with `or`, enabling arbitrary code execution
+### BUG-002 — `extract_archive` extracts ZIP members without path filtering (zip-slip)
+### BUG-003 — `is_path_in_dir` uses prefix `startswith` without a separator
+### BUG-004 — Unbounded archive extraction (zip/tar decompression bomb)
+### BUG-005 — `resolve_hasher` silently downgrades integrity to MD5
+### BUG-006 — `get_file` performs no integrity verification by default
+### BUG-007 — Dataset loaders deserialize pickle (`allow_pickle=True` / `cPickle.load`)
+### BUG-008 — Symlink containment check inherits the prefix-containment weakness
+
+FILE repos/secbench/CASE-004-cpython/quality/BUGS.md
+# BUGS — CASE-004-cpython (security audit)
+## Summary
+## Confirmed security findings
+## Surfaces examined and cleared (with mechanism, file:line)
+| 11 | http.client validators | injection | control-char regexes for path/host/method (CVE-2019-9740/18348) | canonical | Lib/http/client.py:139-154,1268-1291 |
+| 12 | urllib.request `http_error_302` | SSRF / access control | redirect scheme allowlist http/https/ftp | canonical | Lib/urllib/request.py:660-718 |
+| 17 | tempfile `_mkstemp_inner`/openflags | broken access control / race | O_EXCL\|O_NOFOLLOW, 0o600, per-pid CSPRNG | canonical | Lib/tempfile.py:52-58,132-153,244-272 |
+| 18 | email.utils `parseaddr`/`getaddresses` | input validation / injection | strict=True default + pre/post validation (CVE-2023-27043) | canonical | Lib/email/utils.py:149-227,326-354 |
+## Notes on resource exhaustion
+
+FILE repos/secbench/CASE-005-avro/quality/BUGS.md
+# BUGS.md — Apache Avro (CASE-005-avro) — Security Audit
+| BUG-001 | HIGH | Resource exhaustion / input validation | lang/py/avro/io.py:211,308,314 | Python decoder allocates an unbounded buffer from an attacker-controlled `long` length (no SystemLimitException analogue) |
+| BUG-002 | HIGH | Resource exhaustion | lang/py/avro/io.py:798-806, 835-844 | Python `read_array`/`read_map` honor an unbounded (incl. negative-form) block count with no collection limit |
+| BUG-003 | MEDIUM | Resource exhaustion (decompression bomb) | lang/py/avro/codecs.py:126,142,179-187 | Codec decompress paths inflate untrusted blocks into memory with no output-size ceiling |
+| BUG-004 | LOW | Cryptographic/config hardening (doc-vs-code) | lang/java/avro/.../SystemLimitException.java:30,53 | Javadoc documents the bytes-limit property as `...limits.byte.maxLength`; code reads `...limits.bytes.maxLength` — operators silently get no bytes guard |
+| BUG-005 | MEDIUM | Injection (code execution) | lang/py/avro/__main__.py:79 | `avro cat --filter` passes its expression to `eval()` — code execution if the filter ever originates outside the operator |
+| BUG-006 | LOW | Input validation (native length underflow) | lang/java/avro/.../SnappyCodec.java:69,70,75 | Snappy `decompress` computes `in.remaining() - 4` and `getInt(limit-4)` without checking the block holds ≥4 bytes |
+### BUG-001 — Unbounded allocation from attacker-controlled length (Python)
+### BUG-002 — Unbounded array/map item count (Python)
+### BUG-003 — Decompression bomb in codec decompress paths (Python)
+### BUG-004 — Documented bytes-limit property name does not match the code (Java)
+### BUG-005 — `eval()` of the CLI `--filter` expression (Python)
+### BUG-006 — Snappy decompress length underflow on short blocks (Java)
+
+FILE repos/secbench/CASE-006-budibase/quality/BUGS.md
+# BUGS.md — Budibase (CASE-006) Security Findings
+| BUG-001 | HIGH | SSRF redirect bypass in REST datasource integration | packages/server/src/integrations/rest.ts:754,778 | SSRF |
+| BUG-002 | MEDIUM | SQL injection via Postgres `search_path` config interpolation | packages/server/src/integrations/postgres.ts:355-358 | Injection |
+| BUG-003 | MEDIUM | SSRF blacklist disabled in dev mode for automation egress | packages/server/src/automations/steps/utils.ts:30-37 | SSRF |
+| BUG-004 | LOW | CSRF validation skipped when session has no token | packages/backend-core/src/middleware/csrf.ts:69-72 | Broken access control / CSRF |
+| BUG-005 | LOW | AES-256-CTR vs documented AES-256-CBC; no integrity | packages/backend-core/src/security/encryption.ts:7 | Cryptographic/verification |
+### BUG-001 — SSRF redirect bypass in REST datasource integration (HIGH)
+### BUG-002 — SQL injection via Postgres `search_path` config interpolation (MEDIUM)
+### BUG-003 — SSRF blacklist disabled in dev mode for automation egress (MEDIUM)
+### BUG-004 — CSRF validation skipped when session has no token (LOW)
+### BUG-005 — AES-256-CTR vs documented AES-256-CBC; no integrity (LOW)
+## Notes on areas reviewed and found sound (not findings)
+
+FILE repos/secbench/CASE-007-spark/quality/BUGS.md
+# BUGS — CASE-007-spark (security-scoped)
+| BUG-001 | HIGH | REQ-001 | core/.../ui/JettyUtils.scala:204 | SSRF / access control |
+| BUG-002 | MEDIUM | REQ-002 | core/.../MapOutputTracker.scala:1601 | Insecure deserialization |
+| BUG-003 | MEDIUM | REQ-002 | sql/connect/.../UdfPacket.scala:59 | Insecure deserialization |
+### BUG-001 — Reverse-proxy SSRF: destination allowlist removed (HIGH)
+### BUG-002 — Unfiltered Java deserialization of RPC map-output statuses (MEDIUM)
+### BUG-003 — Unfiltered Java deserialization of Connect UDF packets (MEDIUM)
+## Dismissed candidates (challenge-gate rejected — see EXPLORATION.md §Candidate Bugs)
+
+FILE repos/secbench/CASE-008-dasel/quality/BUGS.md
+# BUGS — dasel v3 security audit (Quality Playbook, Mode A)
+## BUG-001 — Integer division by zero panics (host process crash)
+## BUG-002 — Integer modulo by zero panics (host process crash)
+## BUG-003 — Lexer string-escape at EOF: index out of range panic
+## BUG-004 — Lexer unterminated regex literal: infinite loop (hang DoS)
+## BUG-005 — XML reader: unbounded nesting → stack overflow within the 10 MB size cap
+## BUG-006 — Selector parser/array: unbounded recursion → stack overflow
+## BUG-007 — `dasel` data-format executes its input as code → arbitrary file read & selector execution
+## BUG-008 — `readFile` built-in: arbitrary filesystem read, default-on, no gating
+## BUG-009 — No `recover()` boundary: every input-triggered panic crashes the host
+## Summary
+| BUG-001 | Integer divide-by-zero panic | DoS / panic-safety | HIGH | confirmed |
+| BUG-002 | Integer modulo-by-zero panic | DoS / panic-safety | HIGH | confirmed |
+| BUG-003 | Lexer string-escape-at-EOF index panic | Input validation / DoS | HIGH | confirmed |
+| BUG-004 | Unterminated regex infinite loop (hang) | Resource exhaustion | MEDIUM | confirmed |
+| BUG-005 | XML unbounded nesting → stack overflow | Resource exhaustion | MEDIUM | confirmed |
+| BUG-006 | Parser/array unbounded recursion → stack overflow | Resource exhaustion | MEDIUM | confirmed |
+| BUG-007 | `dasel`-format data-as-code + arbitrary file read | Injection / file handling | HIGH | confirmed |
+| BUG-008 | `readFile` arbitrary file read, default-on | Path/file handling / access control | HIGH | confirmed |
+| BUG-009 | No `recover()` — panics crash the host | Panic-safety / availability | HIGH | confirmed |
+## Categories with no findings (audited, clean)
+
+FILE repos/secbench/CASE-009-evervault-go/quality/BUGS.md
+# BUGS — evervault-go
+## Summary
+### BUG-001
+### BUG-002
+### BUG-003
+### BUG-004
+### BUG-005
+### BUG-006
+### BUG-007
+## Reviewed and dismissed
+
+FILE repos/secbench/CASE-010-gogs/quality/BUGS.md
+# BUGS.md — Consolidated Security Findings
+## HIGH
+### BUG-001 — API `PutContents` writes files with only Read access [V]
+### BUG-002 — API repo `Delete` deletes personal repos with only Read access [V]
+### BUG-003 — Account state (`ProhibitLogin`/`IsActive`) not enforced on Git-HTTP, Basic, and token paths [A]
+### BUG-004 — Webhook SSRF via redirect-following and DNS-rebinding TOCTOU [V]
+### BUG-005 — Markup sanitizer allows the `data:` URL scheme unrestricted (stored XSS) [V]
+### BUG-006 — LFS upload streamed to disk with no size limit [A]
+### BUG-007 — Repo file upload: `Upload.FileMaxSize` never enforced server-side [A]
+### BUG-008 — Attachment upload: `Attachment.MaxSize` never enforced server-side [A]
+### BUG-009 — Non-constant-time comparison of time-limited activation/reset codes [A]
+## MEDIUM
+### BUG-010 — IDOR: API `EditIssueComment`/`DeleteIssueComment` operate on any comment by global ID [A]
+### BUG-011 — IDOR: web `UpdateCommentContent`/`DeleteComment` — same cross-repo flaw [A]
+### BUG-012 — IDOR: API `GetDeployKey` returns any deploy key by global ID [A]
+### BUG-013 — Non-constant-time secret comparison in build `TriggerTask` [V]
+### BUG-014 — Webhook allowlist is name-based; bypasses IP CIDR checks [V]
+### BUG-015 — Webhook response body read unbounded into memory [V]
+### BUG-016 — Avatar uploads read fully into memory with no size cap [A]
+### BUG-017 — "Remember me" auto-login cookie carries no expiry binding / no revocation [A]
+### BUG-018 — Local authentication user-enumeration / timing oracle [A]
+### BUG-019 — No minimum password length on registration / admin-create [A]
+### BUG-020 — 2FA recovery codes lower-cased (entropy loss) and stored in plaintext [A]
+### BUG-021 — Intermediate-symlink traversal in `UploadRepoFiles` [A]
+## LOW
+### BUG-022 — `http.go` dumb-protocol `file` derivation bug (latent) [V]
+### BUG-023 — Internal task-trigger uses `InsecureSkipVerify` + MD5-of-salt URL secret [V]
+### BUG-024 — 2FA secret at-rest key is MD5 of config SecretKey [A]
+### BUG-025 — TOTP replay prevention depends on possibly-no-op cache [A]
+### BUG-026 — LDAP admin status granted solely from `AdminFilter` search [A]
+### BUG-027 — SMTP/GitHub auth providers honor `SkipVerify` with no gating [A]
+### BUG-028 — Webhook delivery client honors `Webhook.SkipTLSVerify` globally [A]
+## Areas checked and found NOT defective (negative results)
+
+FILE repos/secbench-2/addressable/quality/BUGS.md
+# BUGS.md — Addressable security audit (code-only)
+### BUG-001 (HIGH) — ReDoS: catastrophic backtracking in URI Template → Regexp
+### BUG-002 (HIGH) — Algorithmic-complexity DoS in `URI.normalize_path` (O(n²))
+### BUG-003 (MEDIUM) — Regexp injection / uncaught RegexpError in `URI#tld=`
+### BUG-004 (MEDIUM) — Uncaught Punycode exceptions escape host normalization
+### BUG-005 (LOW) — `IDNA.to_unicode` does not re-verify decoded labels (homograph)
+### BUG-006 (LOW) — Native vs pure IDNA disagree on per-label length handling
+## Cross-cutting notes (reviewed, not filed as defects)
+
+FILE repos/secbench-2/adonisjs-http-server/quality/BUGS.md
+## Summary
+| BUG-001 | HIGH | src/router/matchers.ts:31 | Broken input validation |
+| BUG-002 | MEDIUM | src/exception_handler.ts:283 | Reflected XSS (HTML) |
+| BUG-003 | MEDIUM | src/exception_handler.ts:330-334 | Reflected XSS (HTML) |
+| BUG-004 | MEDIUM | src/response.ts:337 | JS injection sink (JSONP) |
+| BUG-005 | LOW | src/response.ts:899-905 | Verification/behavior divergence |
+| BUG-006 | HIGH | src/request.ts:399 | DoS / unhandled crash |
+| BUG-007 | LOW | src/cookies/parser.ts:107-112 | Resource exhaustion |
+### BUG-001
+### BUG-002
+### BUG-003
+### BUG-004
+### BUG-005
+### BUG-006
+### BUG-007
+## Reviewed and dismissed
+
+FILE repos/secbench-2/compliance-trestle/quality/BUGS.md
+# BUGS.md — compliance-trestle security audit (code-only, Mode A)
+## BUG-001 (HIGH) — SSRF: redirects followed without re-validation (allow_redirects default)
+## BUG-002 (HIGH) — SSRF allowlist bypass: IPv4-mapped IPv6 and 0.0.0.0/8 not in ALWAYS_BLOCKED
+## BUG-003 (HIGH) — Arbitrary local file read via `file://` import (workspace check disabled)
+## BUG-004 (MEDIUM) — Resource exhaustion: unbounded HTTP download into cache
+## BUG-005 (MEDIUM) — DNS-rebinding TOCTOU not actually closed (resolve-then-reresolve)
+## BUG-006 (MEDIUM) — Second-order template injection in Jinja re-render loop
+## BUG-007 (LOW) — Task `output-dir` config value used as filesystem path without containment
+### Categories with no confirmed defect in this pass
+
+FILE repos/secbench-2/ech0/quality/BUGS.md
+# BUGS.md — ech0 Security Audit (code-only)
+### BUG-001: Unsalted MD5 password hashing
+### BUG-002: `math/rand` used for security-sensitive randomness
+### BUG-003: Unauthenticated SSRF via `GET /api/website/title`
+### BUG-004: TLS certificate verification globally disabled for outbound HTTP
+### BUG-005: Webhook delivery SSRF — no destination filtering
+### BUG-006: Migration-import SSRF (`fetchObjectByURL`)
+### BUG-007: JWT verification does not pin the signing algorithm
+### BUG-008: Object-storage path read does not reject `..` traversal
+
+FILE repos/secbench-2/erb/quality/BUGS.md
+# BUGS.md — ERB Security Findings (QPB Mode A, code-only)
+### BUG-001 — Untrusted template input is executed as Ruby (injection / RCE by design)
+### BUG-002 — `new_toplevel` interpolates variable names into an `eval`'d string (code injection)
+### BUG-003 — `result_with_hash` forwards unsanitized caller keys into the eval binding
+### BUG-004 — Template-body magic comment controls eval encoding and frozen-string flag
+### BUG-005 — CLI loads arbitrary libraries (`-r`) and injects locals into the eval binding (`var=value`)
+### BUG-006 — `def_erb_method` reads an unrestricted filename that also becomes the eval source label
+### BUG-007 — `optimized_escape_html` eagerly allocates 6× the input size (memory amplification)
+## Non-findings (checked, no defect)
+
+FILE repos/secbench-2/file-type/quality/BUGS.md
+# BUGS — `file-type` security audit (code-only)
+### BUG-001 — Decompression-limit bypass for known-size inputs (deflate zip-bomb)
+### BUG-002 — Multi-gigabyte allocation sized from an unverified `compressedSize` header on unknown-size streams
+### BUG-003 — Error suppression keyed on a sub-dependency's internal stack-trace text
+## Notes on categories with no findings
+
+FILE repos/secbench-2/flatted/quality/BUGS.md
+# BUGS — flatted security findings
+## BUG-001 (HIGH) — Go `Parse`: out-of-range index panics the process
+## BUG-002 (HIGH) — Go `Parse`: negative index panics the process
+## BUG-003 (HIGH) — Go `Parse`: crafted references cause unbounded recursion → `fatal error: stack overflow`
+## BUG-004 (MEDIUM) — Go `Parse`: `strconv.Atoi` error silently discarded
+## BUG-005 (HIGH) — Python `parse`: out-of-range index raises uncaught `IndexError`
+## BUG-006 (HIGH) — Python `parse`: negative index silently selects the wrong element (data corruption)
+## BUG-007 (MEDIUM) — Python `parse`: non-numeric index raises uncaught `ValueError`
+## BUG-008 (MEDIUM) — Python `parse`: top-level non-array silently mis-parsed
+## BUG-009 (MEDIUM) — JavaScript `parse`: out-of-range / negative / NaN index silently corrupts output
+## BUG-010 (LOW) — JavaScript `parse`: top-level non-array throws raw `TypeError`
+## BUG-011 (MEDIUM) — PHP `parse`: out-of-range / type-juggled index access (by inspection)
+
+FILE repos/secbench-2/flatted/quality_gen2/BUGS.md
+# Flatted — Security Audit (Gen2, Code-Only Mode)
+## Threat model
+## Confirmed findings
+### BUG-001 — Go: out-of-range index in `parse` panics (reachable DoS in shipped CLI) [HIGH]
+### BUG-002 — Go: negative index in `parse` panics [HIGH]
+### BUG-003 — Go: `strconv.Atoi` error discarded → silent self-reference on malformed index [MEDIUM]
+### BUG-004 — JS: out-of-range index silently yields `null` (fail-open, cross-binding divergence) [MEDIUM]
+### BUG-005 — Python: out-of-range / non-numeric / empty index raises uncaught exception (DoS) [HIGH]
+### BUG-006 — Python: negative index string resolves via negative list indexing (silent wrong reference) [MEDIUM]
+### BUG-007 — Python: non-array top-level input is silently iterated (type confusion) [MEDIUM]
+### BUG-008 — Unbounded recursion in parse reconstruction → stack exhaustion DoS (Python confirmed) [MEDIUM]
+### BUG-009 — PHP: out-of-range / shape-confused index dereference returns null silently (fail-open; inspection) [MEDIUM]
+## Notes on what was checked and found NOT vulnerable (fail-closed evidence)
+## Summary
+
+FILE repos/secbench-2/ghost/quality/BUGS.md
+# BUGS.md — Ghost CMS security audit (code-only, Mode A)
+### BUG-001 — SSRF: webhook delivery uses unguarded HTTP client (no private-IP filter)
+### BUG-002 — SSRF: Slack notification POST uses unguarded HTTP client
+### BUG-003 — SSRF: oembed bookmark favicon fetch bypasses the SSRF-guarded client
+### BUG-004 — SSRF: private-IP guard is TOCTOU / DNS-rebinding-bypassable
+### BUG-005 — Filter (NQL) injection via unsanitized comment-reply route id
+### BUG-006 — Path traversal in LocalStorageBase read()/delete() (no path containment)
+### BUG-007 — Non-constant-time HMAC comparison on member access key (`?key=`)
+### BUG-008 — Non-constant-time HMAC comparison on request-integrity token
+## Ruled out (candidates that did NOT survive verification)
+
+FILE repos/secbench-2/jupyter-enterprise-gateway/quality/BUGS.md
+# BUGS.md — Security findings (Jupyter Enterprise Gateway, QPB Mode A code-only audit)
+### BUG-001 (HIGH) — Command injection via client `KERNEL_*` env in distributed SSH launch
+### BUG-002 (HIGH) — `curl` argument injection via client-controlled `KERNEL_CURL_SECURITY_OPT`
+### BUG-003 (HIGH) — Connection info encrypted with AES-ECB (no integrity, leaks structure)
+### BUG-004 (HIGH) — Unauthenticated legacy "version 0" trial-decrypt of attacker-supplied socket payloads
+### BUG-005 (MEDIUM) — Undersized RSA key (1024-bit) for connection-info key exchange
+### BUG-006 (MEDIUM) — Non-constant-time auth-token comparison (timing oracle)
+### BUG-007 (HIGH) — SSH host-key verification disabled on the GSS path (AutoAddPolicy)
+### BUG-008 (HIGH) — Insecure default: kernels bound to `cluster-admin` ClusterRole
+### BUG-009 (MEDIUM) — Client-chosen container image executed (`KERNEL_IMAGE`)
+### BUG-010 (MEDIUM) — Conductor REST commands logged with bearer credentials
+### BUG-011 (MEDIUM) — Session-persistence directory created world-readable (0o755)
+### BUG-012 (MEDIUM) — YARN TLS verification can be coerced off via `EG_YARN_CERT_BUNDLE`
+### BUG-013 (LOW) — Global suppression of urllib3 TLS warnings
+### BUG-014 (MEDIUM) — Unbounded read accumulation on the response socket (memory exhaustion)
+## Summary
+| BUG-001 | HIGH | Command injection | distributed.py:167-177 |
+| BUG-002 | HIGH | Argument injection / TLS downgrade | conductor.py:171,504-507,535-538,611-614 |
+| BUG-003 | HIGH | Crypto (AES-ECB, no integrity) | processproxy.py:335,349 |
+| BUG-004 | HIGH | Unauthenticated network input / forgeable decrypt | processproxy.py:342-375 |
+| BUG-005 | MEDIUM | Crypto (RSA-1024 / PKCS1v1.5) | processproxy.py:162,330 |
+| BUG-006 | MEDIUM | Timing-unsafe token compare | mixins.py:106 |
+| BUG-007 | HIGH | SSH host-key MITM (AutoAddPolicy) | processproxy.py:689 |
+| BUG-008 | HIGH | Insecure default cluster-admin | k8s.py:29,393 |
+| BUG-009 | MEDIUM | Client-chosen container image | container.py:58,71 |
+| BUG-010 | MEDIUM | Credential logging | conductor.py:519,548,624,636 |
+| BUG-011 | MEDIUM | World-readable session dir | kernelsessionmanager.py:395 |
+| BUG-012 | MEDIUM | YARN TLS coercible off | yarn.py:38,121 |
+| BUG-013 | LOW | urllib3 warnings suppressed | k8s.py:20, container.py:19 |
+| BUG-014 | MEDIUM | Unbounded socket read | processproxy.py:278-288 |
+
+FILE repos/secbench-2/jupyter-enterprise-gateway/quality_gen2/BUGS.md
+# Security Findings — Jupyter Enterprise Gateway (gen2, code-only, Mode A)
+## BUG-001 (HIGH) — Unauthenticated signal/kill channel on kernel launcher comm socket bound to 0.0.0.0
+## BUG-002 (HIGH) — Shell command injection via KERNEL_* env values in DistributedProcessProxy remote launch
+## BUG-003 (MEDIUM) — Auth token compared with non-constant-time `!=` (timing oracle)
+## BUG-004 (MEDIUM) — AES-ECB used for kernel connection-info encryption
+## BUG-005 (MEDIUM) — Legacy "version 0" payload path trial-decrypts with kernel_id as AES key
+## BUG-006 (MEDIUM) — TLS hostname-authorization guard fails open / errors on missing cert and narrow exception
+## BUG-007 (MEDIUM) — Jinja template name built from client-controlled KERNEL_CRD_* env (template-path selection)
+## BUG-008 (LOW) — Kernel session files written world-readable; sessions dir 0o755 contains kernel HMAC key
+## BUG-009 (LOW) — Process-proxy class loaded by name via import_item from kernelspec metadata (no allow-list)
+## BUG-010 (LOW) — Dynamically-generated session handlers omit JSONErrorsMixin (inconsistent error handling)
+## Reviewed and dismissed (CLEARING GATE applied; guard holds)
+
+FILE repos/secbench-2/lmdeploy/quality/BUGS.md
+# BUGS — lmdeploy 0.12.2 (security-focused, code-only)
+### BUG-001: Cross-session abort/free via caller-supplied session_id (IDOR / broken access control)
+### BUG-002: SSRF via request-supplied media URL (no host/IP validation)
+### BUG-003: Arbitrary local file read via file:// / raw path in media loader (LFI / path traversal)
+### BUG-004: Privileged admin endpoints unauthenticated by default (auth middleware not installed when api_keys is None)
+### BUG-005: Unauthenticated proxy node registration is an SSRF / traffic-redirect primitive
+### BUG-006: CORS default combines wildcard origin with credentials
+### BUG-007: OpenAI request parameters are unbounded (resource-exhaustion DoS)
+### BUG-008: trust_remote_code=True hardcoded in model/tokenizer loading (implicit RCE trust)
+### BUG-009: Tool-call streaming parser raises ValueError on adversarial model output
+### BUG-010: llama3 tool parser uses find('{') -1 sentinel as a slice index (silent corruption)
+### BUG-011: Default bind 0.0.0.0 + no-auth default yields open admin+inference API
+
+FILE repos/secbench-2/minimatch/quality/BUGS.md
+# BUGS — minimatch security audit (code-only, Mode A)
+| BUG-001 | HIGH | Resource exhaustion (CPU / ReDoS-equiv) | `src/index.ts:960-986` | Globstar `matchOne` recursion backtracks exponentially on `**`-dense patterns vs. non-matching paths. |
+| BUG-002 | HIGH | Resource exhaustion (stack) / input validation | `src/ast.ts:245-369` + `src/assert-valid-pattern.ts:1-12` | Recursive-descent extglob parser has unbounded nesting depth → uncaught `RangeError` (stack overflow) on a sub-64KB pattern. |
+| BUG-003 | MEDIUM | Matching correctness (filter bypass) | `src/brace-expressions.ts:15` | `[[:print:]]` maps to non-negated `\p{C}`; the class matches only NON-printable chars — inverted POSIX semantics. |
+| BUG-004 | MEDIUM | Input validation / config divergence | `src/index.ts:88-90, 311` | Documented `braceExpandMax` default of 100,000 is never applied when the option is unset; cap defers entirely to the dependency. |
+| BUG-005 | LOW | No silent fail-open (defense-in-depth) | `src/index.ts:1194-1201` | `makeRe` swallows `new RegExp` failures into `this.regexp = false`; an uncompilable source silently yields a non-matching matcher with no signal. |
+### BUG-001 — Exponential backtracking in globstar `matchOne` (HIGH)
+### BUG-002 — Unbounded extglob nesting → stack-overflow `RangeError` (HIGH)
+| 15,000 | 45 KB | **RangeError (overflow)** — and 45KB < 64KB limit |
+### BUG-003 — `[[:print:]]` POSIX class inverted (MEDIUM)
+### BUG-004 — Documented `braceExpandMax` default (100,000) never applied (MEDIUM)
+### BUG-005 — `makeRe` swallows compile failure into a silent non-matcher (LOW)
+## Categories explicitly closed (no finding)
+
+FILE repos/secbench-2/nltk/quality/BUGS.md
+# BUGS — NLTK security findings (code-only QPB audit)
+### BUG-001 — Downloaded package bytes are extracted/used before any integrity check
+### BUG-002 — Untrusted XML parsed with stdlib defaults (no XXE / entity-expansion hardening)
+### BUG-003 — MD5 accepted as a download-integrity verifier
+### BUG-004 — Model/chart/grammar pickle loads default to a warning-only unpickler (arbitrary code execution) **[verified]**
+### BUG-005 — `data.load()`/`_open()` will fetch arbitrary URL schemes/hosts (SSRF / file disclosure)
+### BUG-006 — `load(format="json")` bypasses the safe tagged decoder and crashes on multi-key JSON **[verified]**
+### BUG-007 — Tokenizer boundary regexes risk super-linear backtracking on adversarial text
+### Surfaces reviewed and found HARDENED (not bugs) — recorded to prevent re-flagging
+
+FILE repos/secbench-2/node-tar/quality/BUGS.md
+# BUGS — node-tar security audit (code-only, Mode A)
+### BUG-001 — Relaxed symlink-linkpath `..` rule weakens the default-mode no-`..` invariant (HIGH)
+### BUG-002 — `ReadEntry.#slurp` does not drop `linkpath` from a GLOBAL extended header (HIGH)
+### BUG-003 — Early linkpath validation is bypassable by PAX/GNU long-link meta entries (MEDIUM)
+### BUG-004 — File/Directory parent-symlink protection relies solely on mkdir; no explicit ENSURE_NO_SYMLINK for data entries (MEDIUM)
+### BUG-005 — Path reservation (parallel-extract serialization) disabled entirely on Windows (MEDIUM)
+### BUG-006 — Unbounded declared entry body size; only meta entries are size-capped (LOW)
+### BUG-007 — Win32 drive-relative `..` detection regex is narrow (LOW)
+## Notes on what was checked and judged SAFE
+
+FILE repos/secbench-2/olivetin/quality/BUGS.md
+# BUGS.md — OliveTin Security Audit
+### BUG-001: Insecure-by-default authorization — guests can execute any action
+### BUG-002: No CSRF protection on cookie-authenticated action execution (incl. GET)
+### BUG-003: Webhook-supplied argument values bypass shell-safety typechecking
+### BUG-004: `password` (and `checkbox`) argument types skip validation yet are allowed with Shell
+### BUG-005: Path traversal in saved-log filenames via rendered ActionTitle
+### BUG-006: OAuth2 `registeredStates` map accessed without synchronization (data race / panic DoS)
+### BUG-007: OAuth2 state entries never expire / are never cleaned up (unbounded memory + non-expiring session)
+### BUG-008: OAuth2 userinfo HTTP client timeout mis-computed (`min` caps to 3s, 0 ⇒ no timeout)
+### BUG-009: `ValidateArgumentType` RPC performs no authentication or ACL check
+### BUG-010: CORS handler reflects arbitrary `Origin` (latent — currently dead code)
+### BUG-011: Config `include:` directory path taken verbatim (path escape) + YAML deserialization of included/calendar files
+## Non-findings verified during the audit (defensive controls confirmed)
+
+FILE repos/secbench-2/openhands/quality/BUGS.md
+# BUGS.md — Security Findings (Code-Only Audit)
+### BUG-001 — Broken access control: cross-tenant conversation access (no ownership check)
+### BUG-002 — Insecure deserialization of persisted agent state (`pickle.loads`)
+### BUG-003 — Insecure deserialization of conversation metrics (`pickle.loads`)
+### BUG-004 — Path traversal in `LocalFileStore.get_full_path`
+### BUG-005 — Command injection in resolver via untrusted branch/commit/author → `shell=True`
+### BUG-006 — Command injection in runtime sandbox init via config/env interpolation
+### BUG-007 — SSRF + token exfiltration via self-hosted provider `base_domain`
+### BUG-008 — SSRF / API-key leak via LiteLLM-proxy `base_url`
+### BUG-009 — Path traversal & zip-slip in runtime file upload / archive extraction
+### BUG-010 — Dynamic class loading from configuration (`get_impl`/`import_from`)
+### BUG-011 — Missing subprocess timeouts in git helpers (DoS)
+### BUG-012 — Unbounded in-memory binary file reads in action server (DoS)
+## Bug count by severity
+
+FILE repos/secbench-2/openhands/quality_gen2/BUGS.md
+# OpenHands — Gen2 Security Audit (CODE-ONLY, Mode A)
+## SEC-001 (MEDIUM) — IDOR: cross-user feedback write on any conversation
+## SEC-002 (MEDIUM) — SSRF + credential forwarding: user-config base_url → server-side fetch (no private-range guard)
+## SEC-003 (MEDIUM) — Untrusted deserialization: pickle.loads of file-store data (RCE if the store boundary is crossed)
+## SEC-004 (LOW) — Zip-slip in sandbox upload extraction (in-sandbox; defense-in-depth)
+## Reviewed and DISMISSED (REJECTED under challenge gate / CLEARING GATE)
+## Summary
+| SEC-001 | MEDIUM | IDOR / access control | enterprise/server/routes/feedback.py:76-105 | cross-user write |
+| SEC-002 | MEDIUM | SSRF + cred forwarding | utils/llm.py:149; llm/llm.py:457; integrations/*/service/base.py; mcp/client.py | user-config → server infra |
+| SEC-003 | MEDIUM | Untrusted deserialization (pickle) | server/services/conversation_stats.py:85; controller/state/state.py:167,175; enterprise/.../conversation_callback_utils.py:292; enterprise/.../classifier.py:373 | file-store boundary |
+| SEC-004 | LOW | Zip-slip (in-sandbox) | runtime/action_execution_server.py:912-925 | in-sandbox only |
+
+FILE repos/secbench-2/picomatch/quality/BUGS.md
+# BUGS — picomatch security audit (QPB Mode A, code-only)
+| BUG-001 | MEDIUM | Broken access control / input validation | `lib/picomatch.js:160-163` | `matchBase` ignores the `windows`/`options` arg → wrong basename on Windows-separated paths → filter bypass |
+| BUG-002 | LOW | Resource exhaustion (stack) | `lib/utils.js:36-41` | `escapeLast` recurses to a depth proportional to input → stack-overflow DoS (reachable as exported helper) |
+### BUG-001 — `matchBase` drops the `windows`/`options` argument (filter bypass on Windows paths)
+### Mechanism
+### Reproduction (confirmed)
+### Spec basis
+### Suggested fix shape
+### BUG-002 — `utils.escapeLast` unbounded recursion (stack-exhaustion DoS)
+### Mechanism
+### Reproduction (confirmed)
+### Spec basis
+### Suggested fix shape
+## Surfaces probed and found SOUND (no finding recorded)
+
+FILE repos/secbench-2/picomatch/quality_gen2/BUGS.md
+# picomatch — Security Findings (gen2, Mode A, CODE-ONLY)
+## SEC-001 — Polynomial ReDoS: adjacent extglob-star groups emit stacked unbounded quantifiers (HIGH)
+## SEC-002 — `ignore` / deny filter fails OPEN when the ignore glob is malformed (MEDIUM)
+## SEC-003 — No length bound on the match-time *input* string (LOW)
+## Reviewed and CLEARED (constructed payload failed against the guard)
+## Categories with no in-tree dangerous capability
+
+FILE repos/secbench-2/praisonai/quality/BUGS.md
+# Consolidated Bug Report — PraisonAI (security code-only audit)
+### BUG-001: Gateway approval/allow-list endpoints are unauthenticated by default
+### BUG-002: MCP JSON-RPC tool-call path performs no authentication or scope check
+### BUG-003: docs_runner executes code extracted from untrusted docs with full inherited env
+### BUG-004: docs_runner "runnable" gate is a bypassable heuristic, not a security boundary
+### BUG-005: Loading/running any GitHub or local template executes its tools.py (RCE)
+### BUG-006: agents_generator unconditionally exec_module()s tools.py from the run directory
+### BUG-007: Auto-generated Flask API server ships authentication disabled with wildcard CORS
+### BUG-008: Example Flask app runs with debug=True (Werkzeug console RCE)
+### BUG-009: Jobs API allows fully unauthenticated job submission and result access
+### BUG-010: OIDC discovery issuer mismatch only warns; endpoints from a hostile metadata doc are trusted
+### BUG-011: SSRF in OAuth/OIDC discovery and metadata fetches
+### BUG-012: Job webhook_url is an unvalidated server-side request (SSRF)
+### BUG-013: Pairing HMAC verification is self-referential (tautological)
+### BUG-014: Template path components accept `..` → cache/extraction path traversal
+### BUG-015: GitHub template extraction writes remote-controlled filenames without containment
+### BUG-016: Template raw-URL fallback is built from unvalidated path → SSRF/traversal
+### BUG-017: Template source allowlist and checksum verification are disabled by default
+### BUG-018: Auth-token bearer secret accepted via WebSocket URL query parameter
+### BUG-019: Workflow `run:` step executes via subprocess shell=True (command injection)
+### BUG-020: Workflow `script:` step runs through a bypassable exec() whitelist sandbox
+### BUG-021: API-key scope check fails open when a key has no scopes
+### BUG-022: docs_runner timeout does not kill grandchildren and accumulates unbounded output
+### BUG-023: safe_edit workspace confinement is symlink/TOCTOU-bypassable and unenforced at apply time
+### BUG-024: api.py XSS fallback returns markdown HTML unsanitized when nh3 is absent
+## Dismissed candidates (checked, not defects)
+
+FILE repos/secbench-2/react-router/quality/BUGS.md
+# BUGS — react-router security audit (code-only)
+### BUG-001 — Predictable session IDs via `Math.random()` (weak randomness, small keyspace, no collision check)
+### BUG-002 — `escapeHtml` used in an HTML attribute context lacks quote escaping → attribute injection
+### BUG-003 — Path traversal / arbitrary file read in the RSC preview-server middleware
+### BUG-004 — Unhandled `decodeURI` throw on the prerender/SPA dev path (DoS)
+### BUG-005 — Cookie `maxAge` not validated (negative/overflow expiry footgun)
+## Summary
+| BUG-001 | HIGH | Cryptographic / weak randomness | `lib/server-runtime/sessions/memoryStorage.ts:39` |
+| BUG-002 | MEDIUM | Injection / XSS (output encoding) | `lib/rsc/server.ssr.tsx:270,403` |
+| BUG-003 | MEDIUM | Path traversal | `react-router-dev/vite/rsc/plugin.ts:373-384` |
+| BUG-004 | LOW | Input validation / DoS | `lib/server-runtime/server.ts:124` |
+| BUG-005 | LOW | Input validation (bounds) | `lib/server-runtime/cookies.ts:94-96` |
+
+FILE repos/secbench-2/rollup/quality/BUGS.md
+# BUGS — Rollup security audit (code-only)
+### BUG-001: Path traversal — emitted/output file name with embedded `../` escapes `output.dir`
+### BUG-002: Arbitrary code execution — `--plugin` CLI value compiled and executed via `new Function`
+### BUG-003: Shell command injection — watch-hook command passed to `execSync`
+### BUG-004: `sanitizeFileName` does not neutralize path separators or `..` (traversal root cause)
+### BUG-005: Host-path disclosure — uncontained sourcemap `sourceRoot`/`sources` resolution
+### BUG-006: Output filename collision only warns; bundle entry can be silently overwritten
+## Summary
+| BUG-001 | HIGH | Path traversal (arbitrary write) | `src/rollup/rollup.ts:317` |
+| BUG-002 | HIGH | Code execution | `cli/run/commandPlugins.ts:51,58` |
+| BUG-003 | MEDIUM | Shell injection | `cli/run/watchHooks.ts:30` |
+| BUG-004 | MEDIUM | Insufficient sanitization | `src/utils/sanitizeFileName.ts:3` |
+| BUG-005 | LOW | Host-path disclosure | `src/utils/collapseSourcemaps.ts:190-193` |
+| BUG-006 | LOW | File overwrite within bundle | `src/utils/FileEmitter.ts:95-101,513-552` |
+
+FILE repos/secbench-2/sentry/quality/BUGS.md
+# Security Bug Report — Sentry (code-only audit)
+## BUG-001 — Bitbucket Server webhook accepts unauthenticated, unsigned requests (broken authentication)
+## BUG-002 — Non-constant-time comparison of auth token (timing side channel)
+## BUG-003 — Non-constant-time comparison of HMAC signature (timing side channel)
+## BUG-004 — Legacy Slack verification token compared non-constant-time (timing side channel)
+## BUG-005 — Origin-allowlist port parsing splits the wrong variable (input-validation logic error)
+## BUG-006 — Unbounded gzip decompression on chunk upload (decompression bomb / resource exhaustion)
+## BUG-007 — Unbounded zstd decompression of buffered span batches (resource exhaustion)
+## BUG-008 — `eval()` of operator-supplied CLI arguments (code injection)
+## Deserialization observations (defensive / lower confidence)
+## Summary
+| BUG-001 | Broken auth (missing webhook signature) | HIGH | bitbucket_server/webhook.py:151,170 |
+| BUG-002 | Timing leak (auth token) | MEDIUM | flags/providers.py:556 |
+| BUG-003 | Timing leak (HMAC signature) | MEDIUM | flags/providers.py:590 |
+| BUG-004 | Timing leak (Slack legacy token) | LOW-MEDIUM | slack/requests/base.py:224 |
+| BUG-005 | Input validation (origin port parse) | MEDIUM | utils/http.py:92 |
+| BUG-006 | Resource exhaustion (gzip bomb) | MEDIUM-HIGH | api/endpoints/chunk.py:54 |
+| BUG-007 | Resource exhaustion (zstd unbounded) | LOW-MEDIUM | spans/buffer.py:170,455 |
+| BUG-008 | Code injection (eval of CLI args) | LOW | runner/commands/run.py:428 |
+
+FILE repos/secbench-2/spring-framework/quality/BUGS.md
+# BUGS.md — Spring Framework security audit (Quality Playbook, Mode A, code-only)
+## Severity summary
+| HIGH     | 1 |
+| MEDIUM   | 3 |
+| LOW      | 2 |
+## BUG-001 (MEDIUM) — Default-open type allowlist: arbitrary class resolution from an untrusted JMS message property
+## BUG-002 (HIGH) — Unbounded request-body buffering in `FormHttpMessageConverter.read`
+## BUG-003 (MEDIUM) — Unbounded multipart part count by default (`maxParts = -1`)
+## BUG-004 (LOW) — `ConfigurableObjectInputStream` provides no allowlist / `ObjectInputFilter` hook on class resolution
+## BUG-005 (LOW) — `SerializationUtils.deserialize` performs unfiltered Java deserialization
+## BUG-006 (MEDIUM) — Static-resource location containment uses string-prefix comparison without canonical-path resolution (symlink escape)
+## Investigated and rejected (verified NOT defects)
+
+FILE repos/secbench-2/weknora/quality/BUGS.md
+# WeKnora — Security Bug Report (code-only audit)
+| BUG-001 | HIGH | SSRF | internal/handler/initialization.go:1442 |
+| BUG-002 | HIGH | SSRF | internal/handler/initialization.go:1498 |
+| BUG-003 | HIGH | SSRF | internal/handler/initialization.go:1632 |
+| BUG-004 | HIGH | SSRF | internal/mcp/client.go:102,114 |
+| BUG-005 | HIGH | SSRF | internal/agent/tools/web_fetch.go:236,356 |
+| BUG-006 | MEDIUM | SSRF | internal/handler/knowledge.go:216 |
+| BUG-007 | HIGH | Broken access control / IDOR | internal/application/service/knowledgebase.go:445 |
+| BUG-008 | HIGH | Auth / token validation | internal/application/service/user.go:324 |
+| BUG-009 | HIGH | Crypto / secrets | .env.example:74 + internal/application/service/user.go:30 |
+| BUG-010 | HIGH | Crypto / secrets | .env.example:67 + internal/application/service/tenant.go:21 |
+| BUG-011 | MEDIUM | Resource exhaustion (pre-auth) | internal/middleware/logger.go:76 |
+| BUG-012 | MEDIUM | Resource exhaustion | internal/middleware/trace.go:62 |
+| BUG-013 | HIGH | Path/file handling (local file read) | docreader/parser/base_parser.py:768 |
+| BUG-014 | MEDIUM | Input validation (path traversal) | internal/utils/security.go:66 |
+| BUG-015 | MEDIUM | Resource exhaustion (ReDoS) | docreader/parser/markdown_parser.py:55 |
+| BUG-016 | MEDIUM | Resource exhaustion (pixel bomb) | docreader/parser/base_parser.py:757 |
+| BUG-017 | MEDIUM | Resource exhaustion (pagination) | internal/handler/message.go:61 |
+| BUG-018 | MEDIUM | Resource exhaustion (pagination) | internal/handler/knowledge.go:816 |
+| BUG-019 | MEDIUM | Resource exhaustion (outbound) | internal/models/rerank/aliyun_reranker.go:127 |
+| BUG-020 | LOW | Broken access control | internal/application/service/knowledge.go:5217 |
+| BUG-021 | LOW | Misconfiguration (CORS) | internal/router/router.go:58 |
+| BUG-022 | LOW | Header injection / spoofing | internal/handler/knowledge.go:531 |
+### BUG-001 — SSRF via CheckRemoteModel BaseURL (HIGH)
+### BUG-002 — SSRF via TestEmbeddingModel baseUrl (HIGH)
+### BUG-003 — SSRF via rerank model check (HIGH)
+### BUG-004 — SSRF via MCP service SSE/HTTP transport URL (HIGH)
+### BUG-005 — Full-read SSRF via agent web_fetch tool (HIGH)
+### BUG-006 — SSRF via CreateKnowledgeFromURL ingest (MEDIUM)
+### BUG-007 — Cross-tenant knowledge-base clone IDOR (HIGH)
+### BUG-008 — Refresh token accepted as access token (HIGH)
+### BUG-009 — Weak shipped default JWT secret (HIGH)
+### BUG-010 — Hardcoded global tenant API-key AES key (HIGH)
+### BUG-011 — Unauthenticated unbounded request-body read in Logger middleware (MEDIUM)
+### BUG-012 — Unbounded request-body read in Tracing middleware (MEDIUM)
+### BUG-013 — Server-side local file read/exfiltration in docreader image processing (HIGH)
+### BUG-014 — Filename sanitizer permits path traversal (MEDIUM)
+### BUG-015 — Catastrophic-backtracking regex in markdown parser (MEDIUM)
+### BUG-016 — Image pixel/decompression bomb in docreader (MEDIUM)
+### BUG-017 — Uncapped/negative pagination in LoadMessages (MEDIUM)
+### BUG-018 — Uncapped pagination in SearchKnowledge (MEDIUM)
+### BUG-019 — Uncapped outbound reads + missing client timeouts on user-set model endpoints (MEDIUM)
+### BUG-020 — Cross-tenant FAQ knowledge-base resolution (LOW)
+### BUG-021 — CORS allows all origins with credentials (LOW)
+### BUG-022 — Unquoted filename in download Content-Disposition (LOW)
+## Checked and found safe (not findings)
+
+FILE repos/secbench2/sb2-01-mcp-atlassian/quality/BUGS.md
+# BUGS — mcp-atlassian
+| BUG-001 | HIGH | REQ-001 | `utils/urls.py is_atlassian_cloud_url` | code-fix |
+| BUG-002 | HIGH | REQ-002 | `servers/dependencies.py:411-427,658-673` | code-fix |
+| BUG-003 | HIGH | REQ-003 | `utils/decorators.py:34` | code-fix |
+| BUG-004 | HIGH | REQ-004 | `utils/oauth.py:335-349,424` | code-fix |
+| BUG-005 | MEDIUM | REQ-005 | `jira/search.py:88-90` | code-fix |
+| BUG-006 | MEDIUM | REQ-006 | `utils/logging.py get_masked_session_headers` | code-fix |
+| BUG-007 | MEDIUM | REQ-007 | `servers/main.py:538-566` | code-fix |
+### BUG-001 — HIGH (Authentication)
+### BUG-002 — HIGH (Authentication)
+### BUG-003 — HIGH (Read-only mode)
+### BUG-004 — HIGH (Authentication)
+### BUG-005 — MEDIUM (Query scoping)
+### BUG-006 — MEDIUM (Logging safety)
+### BUG-007 — MEDIUM (Authentication)
+
+FILE repos/secbench2/sb2-01-mcp-atlassian/quality.stale-patched-20260621T191306Z/BUGS.md
+# Bug Report — mcp-atlassian (sb2-01)
+| BUG-001 | HIGH | SSRF redirect hook attached on only 2 of 8 fetcher paths | REQ-001 | verified |
+| BUG-002 | HIGH | is_atlassian_cloud_url substring match misclassifies attacker host as Cloud | REQ-002 | verified |
+| BUG-003 | MEDIUM | JQL/CQL identifier quoters pass operator-bearing identifiers unquoted (injection) | REQ-005 | verified |
+| BUG-004 | MEDIUM | OAuth keyring tokens saved qualified, loaded bare → keyring unusable | REQ-003 | verified |
+| BUG-005 | LOW | mask_sensitive reveals exact length of short secrets | REQ-007 | verified |
+### BUG-001: SSRF redirect-validation hook attached on only 2 of 8 fetcher-creation paths
+### BUG-002: is_atlassian_cloud_url substring match misclassifies attacker-named host as Cloud
+### BUG-003: JQL/CQL identifier quoters pass operator/whitespace/parenthesis identifiers unquoted
+### BUG-004: OAuth keyring tokens saved under qualified username are unreadable by load_tokens
+### BUG-005: mask_sensitive reveals exact length of short secrets
+## Triaged but NOT confirmed as bugs (recorded for honesty)
+
+FILE repos/secbench2/sb2-01-mcp-atlassian/quality.stale-patched-20260621T205910Z/BUGS.md
+# BUGS — mcp-atlassian (sb2-01)
+## BUG-001 [HIGH] `is_atlassian_cloud_url` trusts spoofed hosts (substring instead of suffix match)
+## BUG-002 [HIGH] OAuth tokens saved under context-qualified keyring key but loaded under bare key — persistence broken
+## BUG-003 [MEDIUM] OAuth fallback token file written world/group-readable (mode 0644)
+## Dismissed / demoted candidates
+## Regression suite
+
+FILE repos/secbench2/sb2-02-microceph/quality/BUGS.md
+# Bug Report — MicroCeph
+| BUG-001 | HIGH | REQ-001/002 | api/remote.go:47, ceph/configwriter.go:24 | code-fix | confirmed |
+| BUG-002 | HIGH | REQ-003 | ceph/configwriter.go:28-39 | code-fix | confirmed |
+| BUG-003 | MEDIUM | REQ-004 | ceph/configwriter.go:29 | code-fix | confirmed |
+| BUG-004 | MEDIUM | REQ-005 | api/ops_replication.go:110-119 | code-fix | confirmed |
+| BUG-005 | MEDIUM | REQ-006 | api/remote.go:159-169 | code-fix | confirmed |
+| BUG-006 | LOW | REQ-008 | ceph/keyring.go:91 | code-fix | confirmed |
+## BUG-001 (HIGH) — Path traversal: unvalidated remote import name becomes a root-owned file path
+## BUG-002 (HIGH) — Admin keyring written non-atomically (violates AGENTS.md atomic-write contract)
+## BUG-003 (MEDIUM) — WriteConfig permission mode is not enforced on a pre-existing file
+## BUG-004 (MEDIUM) — CephFS replication ignores the URL resource id
+## BUG-005 (MEDIUM) — Empty-key keyring written silently on import name mismatch
+## BUG-006 (LOW) — ParseKeyring prefix-matches "key", can return the wrong field
+
+FILE repos/secbench2/sb2-03-microsoft-apm/quality/BUGS.md
+# Consolidated Bug Report — APM (Agent Package Manager)
+## Summary
+| BUG-001 | MEDIUM | `src/apm_cli/integration/base_integrator.py:139` | code-fix | TDD verified (FAIL→PASS) |
+| BUG-002 | MEDIUM | `src/apm_cli/commands/audit.py:188-225` | code-fix | TDD verified (FAIL→PASS) |
+### BUG-001 — `validate_deploy_path` rejects traversal with a substring `".." in rel_path`
+### BUG-002 — `apm audit --strip` never re-scans; exit code reflects pre-strip findings
+### OBS-001 — Negative git-credential caching (design tension, NOT a confirmed bug)
+## Verified NOT bugs (Phase 1 hypotheses disproven — do not re-chase)
+
+FILE repos/secbench2/sb2-03-microsoft-apm/quality.stale-patched-20260621T191306Z/BUGS.md
+# Consolidated Bug Report — Microsoft APM
+| BUG-001 | High | src/apm_cli/deps/github_downloader.py:294-297 | REQ-001 | confirmed (review) | unguarded `extractall` in single-file zip branch vs guarded sibling at :308 |
+| BUG-002 | High | src/apm_cli/policy/policy_checks.py:53,88 | REQ-002 | confirmed (test) | host-qualified deny `gitlab.com/badorg/**` fails to block `badorg/evil` |
+| BUG-003 | Medium | src/apm_cli/utils/content_hash.py:49-53 | REQ-004 | confirmed (test) | `{ab:"c"}` and `{a:"bc"}` produce identical SHA-256 |
+## BUG-001 — Zip-slip in Artifactory single-file archive extraction (CWE-22)
+## BUG-002 — Host-qualified policy deny/allow patterns silently never match (deny-list bypass)
+## BUG-003 — `compute_package_hash` path/content boundary collision
+
+FILE repos/secbench2/sb2-04-openclaw-pathtrav/quality/BUGS.md
+# BUGS.md — openclaw (sb2-04) path-traversal audit
+## Summary
+| HIGH | 0 |
+| MEDIUM | 0 |
+| LOW | 0 |
+## Method
+## Findings
+### OBS-1 (observation, not a defect) — inconsistent prefix check in Control UI server
+### GAP-1 (coverage gap — unverifiable from code present) — unguarded pass-through of non-read/write/edit coding tools
+## What a planted vulnerability would have looked like (and why none was found)
+
+FILE repos/secbench2/sb2-05-bionemo/quality/BUGS.md
+# Consolidated Bug Report — BioNeMo Framework (code-only run)
+## BUG-001 (HIGH) — DiscreteLinearInferenceSchedule divides by `self.dilation`, not `self.dilation+1`
+## BUG-002 (HIGH) — LogInferenceSchedule has the identical dilation-divisor defect
+## BUG-003 (HIGH) — Context-parallel `max_length` = `max_length * round(max_length/64)`
+## BUG-004 (MEDIUM) — AMPLIFY `_pad_weights` drops source dtype/device
+## BUG-005 (MEDIUM) — THD context-parallel sharding silently drops remainder tokens
+## BUG-006 (LOW) — TokenPackingDataset yields an empty batch for a leading oversized sample
+## BUG-007 (LOW) — SCDL int vs slice access use divergent block-lookup algorithms
+## Severity tally
+
+FILE repos/secbench2/sb2-06-picklescan/quality/BUGS.md
+# Bug Report — picklescan @ 173c8f2
+| BUG-001 | Medium | Substring matching for string-valued block-list entries | REQ-001 | TDD red→green, fix patch |
+| BUG-002 | High | Proto-0/1 pickle in zip member with non-pickle ext never scanned | REQ-002 | TDD red→green, fix patch |
+| BUG-003 | High | Case-sensitive extension filter skips uppercase-ext files | REQ-003 | TDD red→green, fix patch |
+| BUG-004 | Low | Legacy pytorch scan caps at 5 pickle slots | REQ-004 | Exempt: by-design cap, no fixture |
+| BUG-005 | Low-Med | `_http_get` unbounded redirects, no timeout/allow-list | REQ-007 | Exempt: needs network mock |
+| BUG-006 | Medium | Narrow `except` aborts whole archive on one bad member | REQ-006 | Exempt: needs numpy in env |
+### BUG-001: Substring matching for string-valued block-list entries (Medium)
+### BUG-002: Proto-0/1 pickle in a zip member with a non-pickle extension is never scanned (High)
+### BUG-003: Case-sensitive extension filter skips uppercase-extension files (High)
+### BUG-004: Legacy pytorch scan caps at 5 pickle slots (Low) — EXEMPT
+### BUG-005: `_http_get` unbounded redirects, no timeout/allow-list (Low-Med) — EXEMPT
+### BUG-006: A bad zip member aborts scanning of all remaining members (Medium) — EXEMPT
+
+FILE repos/secbench2/sb2-08-hermes-webui/quality/BUGS.md
+# Bug Report — Hermes Web UI (Quality Playbook)
+## Confirmed bugs
+| BUG-001 | LOW | REQ-009 | api/workspace_git.py:531 | `git rev-list` ahead/behind ref `{branch}...{upstream}` is not option-terminated with `--` (argument-injection hardening gap; inconsistent with the module's own `--` convention used everywhere else) | code-fix | RED→GREEN verified |
+### BUG-001 — git rev-list ahead/behind ref not option-terminated with `--`
+## Investigated and NOT confirmed (latent / hardening notes, no demonstrated exploit)
+## Surfaces audited and found sound
+
+FILE repos/secbench2/sb2-09-omni/quality/BUGS.md
+# Bug Report — Sidero Omni
+## Summary
+| BUG-001 | HIGH | REQ-001 | accessvalidator.go:110-117 | TDD verified (FAIL→PASS) |
+| BUG-002 | MEDIUM | REQ-002 | token/storage.go:184-195 | TDD verified (FAIL→PASS) |
+### BUG-001
+### BUG-002
+## Reviewed and dismissed (challenge / triage)
+
+FILE repos/secbench2/sb2-09-omni/quality.stale-patched-20260621T191306Z/BUGS.md
+# BUGS — Sidero Omni (code-only audit)
+### BUG-001 — Workload-proxy access validator does not cap the key role to the user's role
+### Divergence (side-by-side)
+### Why the key role is attacker-influenceable
+### Impact
+### Expected vs actual
+### Reproduction (code-path trace — sufficient per skill confirmation rule)
+### Fix
+
+FILE repos/secbench2/sb2-09-omni/quality.stale-patched-20260621T205910Z/BUGS.md
+# BUGS — Sidero Omni (code-only audit)
+## BUG-001 — Workload-proxy access validator does not cap the key role to the user's role
+### Divergence (side-by-side)
+### Why the key role is attacker-influenceable (BUG-002 / BUG-003 feed this)
+### Impact
+### Reproduction (code-path trace)
+### Fix
+## BUG-002 — `ConfirmPublicKey` does not re-cap the key role at the trust transition
+## BUG-003 — `skip_user_role` proto documentation is self-contradictory
+## Recorded non-findings (investigated, not confirmed)
+
+FILE repos/secbench2/sb2-10-openclaw-toctou/quality/BUGS.md
+# BUGS — OpenClaw `system.run` approval/exec (code-only audit)
+## BUG-001 (HIGH) — TOCTOU: operand re-hashed at revalidation, then spawned by path with no held descriptor
+## BUG-002 (HIGH) — macOS exec-host sink widens the TOCTOU window across a process + async boundary, with an argv-parity gap
+## BUG-003 (MEDIUM) — operand path lacks the mutable-symlink-component guard the cwd path has
+## BUG-004 (MEDIUM) — operand identity is realpath-string + content-hash only, not inode-pinned
+## Summary
+| BUG-001 | HIGH | REQ-003 CoS-B | hash(:517) → spawn-by-path(:617), no held fd |
+| BUG-002 | HIGH | REQ-003 CoS-C, REQ-006 | IPC `await` widens window; argv vs plannedAllowlistArgv parity |
+| BUG-003 | MEDIUM | REQ-005 | operand path missing symlink-component guard cwd has |
+| BUG-004 | MEDIUM | REQ-005 | operand identity = realpath string + hash, not inode-pinned |
+
+FILE repos/secbench2/sb2-15-assertj/quality/BUGS.md
+# Bug Report — assertj-core
+| BUG-001 | REQ-001 | MEDIUM | DoubleComparator.java:29-32 | Comparator contract violation for NaN (breaks sort/TreeSet) | FAIL→PASS |
+| BUG-002 | REQ-002 | MEDIUM | FloatComparator.java:33-36 | Same NaN contract violation in FloatComparator | FAIL→PASS |
+| BUG-003 | REQ-003 | MEDIUM | ComparatorBasedComparisonStrategy.java:113,130 | remove paths NPE on null where contains is null-safe | FAIL→PASS |
+| BUG-004 | REQ-004 | LOW | StandardRepresentation.java:465-467 | Float.NaN renders as "NaNf" (misleading, Float/Double-inconsistent) | FAIL→PASS |
+| BUG-005 | REQ-005 | LOW | Percentage.java:62 | toString narrows large value to int, saturates to 2147483647 | FAIL→PASS |
+| BUG-006 | REQ-006 | LOW | NumberGrouping.java:27 | hex grouping regex class `[0-9\|A-Z]` includes a literal pipe | FAIL→PASS |
+### BUG-001 — DoubleComparator violates the Comparator contract for NaN
+### BUG-002 — FloatComparator: identical NaN contract violation
+### BUG-003 — Comparator-based remove paths NPE on null where contains is null-safe
+### BUG-004 — Float.NaN renders as "NaNf"
+### BUG-005 — Percentage.toString narrows large values to int
+### BUG-006 — Hex grouping regex includes a literal pipe
+- **Spec basis:** no formal spec; code inconsistency (regex intent vs. the hex alphabet). Severity LOW (latent — no current producer emits `|`).
+## Other findings (not promoted to bugs)
+
+FILE repos/secbench2/sb2-15-assertj/quality.stale-patched-20260621T191306Z/BUGS.md
+# BUGS — Consolidated report (AssertJ, code-only run)
+## Context: the historical XXE vulnerability is FIXED at HEAD
+## BUG-001 — XXE control silently degrades when a security feature can't be set [MEDIUM, security]
+## BUG-002 — XML declaration kept/dropped via prefix heuristic, not document content [LOW, correctness]
+## BUG-003 — NBSP handling diverges between the two "whitespace" assertion families [LOW, contract note]
+## Not-bugs verified during the run
+## Summary
+| BUG-001 | MEDIUM | security (silent control degradation) | RED+GREEN | confirmed |
+| BUG-002 | LOW | correctness (false FAIL) | RED | confirmed |
+| BUG-003 | LOW | contract note | inspection | informational |
+
+FILE repos/secbench2/sb2-18-bigbluebutton/quality/BUGS.md
+# Bug Report — BigBlueButton (sb2-18)
+| BUG-001 | HIGH | connhandler.go:157-170 | Auth-failed websocket not aborted (no `return`); counted + serviced | yes | FAIL→PASS |
+| BUG-002 | MEDIUM | GlobalState.go:126-132 | Global connection counter read without its mutex (data race / cap overshoot) | yes | FAIL→PASS |
+| BUG-003 | HIGH | GetChecksumValidator.java:78 | Checksum compared with `equalsIgnoreCase` (timing oracle on the API secret) | yes | FAIL→PASS |
+| BUG-004 | MEDIUM | GetChecksum.java | Checksum param removed by value-substring `.replace` (signed-data desync) | no (deferred) | confirmed open |
+| BUG-005 | MEDIUM | validation.ts:4,10,16 | Moderator gate `== ""` passes an ABSENT (undefined) session var | yes | FAIL→PASS |
+| BUG-006 | MEDIUM | AssignPresenterReqMsgHdlr.scala:37 | Presenter-assign authz keyed on body field, not authenticated sender | yes | FAIL→PASS |
+| BUG-007 | MEDIUM | gql_actions/client.go | Regex mutation parse bleeds/drops argument values | no (deferred) | confirmed open |
+| BUG-008 | LOW | ParamsUtil.java:50 | `getSessionToken` truncates `=`-padded tokens (`split("=")[1]`) | yes | FAIL→PASS |
+| BUG-009 | LOW | CustomSimpleRateLimiter.go:18 | Token channel sizing `requestsPerPeriod-1` panics at 0 / zero-cap at 1 | no (deferred) | confirmed open |
+### BUG-001 (HIGH) — Authentication-failed websocket connection is not aborted
+### BUG-002 (MEDIUM) — Global connection counter read without its mutex
+### BUG-003 (HIGH) — Checksum compared with a non-constant-time `equalsIgnoreCase`
+### BUG-004 (MEDIUM) — Checksum parameter removed by value-substring replace
+### BUG-005 (MEDIUM) — Moderator gate passes when the session variable is absent
+### BUG-006 (MEDIUM) — Presenter assignment authorizes on a body field
+### BUG-007 (MEDIUM) — Regex mutation parsing bleeds/drops argument values
+### BUG-008 (LOW) — `getSessionToken` truncates `=`-padded tokens
+### BUG-009 (LOW) — Rate-limiter token channel sizing unsafe at boundary values
+
+FILE repos/secbench2/sb2-19-affine/quality/BUGS.md
+# BUGS.md — AFFiNE (sb2-19-affine)
+## BUG-001 — `hasSharedWorkspace` omits the member-status filter on the target user, breaking the `user(email)` anti-enumeration contract
+### The defect
+### Why it is exploitable
+### Correct behavior
+### Why existing tests miss it
+### Regression test
+## Summary
+| BUG-001 | models/workspace-user.ts:305-326 | High | Confirmed; regression test + fix patch |
+
+FILE repos/secbench2/sb2-19-affine/quality.incomplete-20260621-111719/BUGS.md
+# BUGS.md — AFFiNE (sb2-19-affine)
+## BUG-001 — `hasSharedWorkspace` omits the member-status filter on the target user, breaking the `user(email)` anti-enumeration contract
+### The defect
+### Why it is exploitable
+### Correct behavior
+### Why existing tests miss it
+### Regression test
+## Summary
+| BUG-001 | models/workspace-user.ts:305-326 | High | Confirmed, regression test written |
+
+FILE repos/secbench2/sb2-21-compliance-trestle/quality/BUGS.md
+# Consolidated Bug Report — compliance-trestle remote fetch/cache
+## BUG-001 — SSRF control bypassed by HTTP redirects (HIGH)
+### Description
+### Trigger / attack surface
+### Evidence (runtime PoC, no network)
+### Fix shape
+### Regression test
+## BUG-002 — LocalFetcher arbitrary-file read guarded only by a deny-list (MEDIUM)
+### Description
+### Evidence (runtime PoC)
+### Fix shape
+### Regression test
+## Summary
+| BUG-001 | HIGH | REQ-001/002/003 | cache.py:335 | test_https_fetch_does_not_follow_redirects_unvalidated |
+| BUG-002 | MEDIUM | REQ-004 | cache.py:221 / security.py:363 | test_local_file_denylist_does_not_protect_arbitrary_secret |
+
+FILE repos/secbench2/sb2-21-compliance-trestle/quality.stale-patched-20260621T191306Z/BUGS.md
+# BUGS.md — compliance-trestle (sb2-21)
+## BUG-001 — `validate_local_file_path` substring blocklist over- and under-matches (medium)
+## BUG-002 — `JinjaCmd.load_LUT` prefix produces a self-referential dict, not a namespace (low)
+## Summary
+| BUG-001 | security.py:455-467 | medium | red+green | BUG-001-fix.patch | functional (xfail-strict, 4 params) |
+| BUG-002 | jinja.py:169-174 | low | red+green | BUG-002-fix.patch | functional (xfail-strict) |
+## Verified-robust (no bug — pinned by passing functional tests)
+
+FILE repos/secbench2/sb2-24-calibre/quality/BUGS.md
+# Bug Report — calibre content server
+### BUG-001 (HIGH) — `/reader-background` calls non-existent `os.path.normapth`
+### BUG-002 (MEDIUM) — `/reader-background` joins a `str` base with a `bytes` filename
+### BUG-003 (LOW) — `/opds/navcatalog` indexes `which[0]` after hex decode without guarding empty/invalid input
+## Not bugs (reviewed, SATISFIED)
+
+FILE repos/secbench2/sb2-27-camaleon/quality/BUGS.md
+# Bug Report — Camaleon CMS
+| BUG-001 | HIGH | media_controller.rb:28 | `download_private_file` missing `authorize!` → any logged-in role downloads private files | REQ-001 | confirmed open |
+| BUG-002 | HIGH | html_helper.rb:143 | `eval` of stored custom-field value → server-side RCE | REQ-003 | confirmed open |
+| BUG-003 | HIGH | comment_helper.rb:29 | Unescaped author name in admin comment render → stored XSS | REQ-004 | confirmed open |
+| BUG-004 | MED | uploader.rb:68 | `get_media_collection` public/private mapping inverted | REQ-002 | confirmed open |
+| BUG-005 | MED | media_controller.rb:23 | `crop` missing authz; overwrites arbitrary user's avatar (IDOR) | REQ-008 | confirmed open |
+| BUG-006 | MED | uploader_helper.rb:10 | Content blocklist typo `onunloadonsubmit` → `onsubmit`/`onunload` not filtered | REQ-007 | confirmed open |
+| BUG-007 | MED | string.rb:99 | `cama_fix_media_key` leaves trailing `..` → AWS path escape | REQ-006 | confirmed open |
+| BUG-008 | MED | captcha_helper.rb | Captcha answers accumulate, never reset on failure → replay | REQ-005 | confirmed open |
+| BUG-009 | LOW | sessions_controller.rb:67 | Blank reset token treated as present (truthiness) | REQ-009 | confirmed open |
+## BUG-001 (HIGH) — `download_private_file` missing authorization
+## BUG-002 (HIGH) — `eval` of stored custom-field value (RCE)
+## BUG-003 (HIGH) — Stored XSS via unescaped comment author
+## BUG-004 (MEDIUM) — Inverted public/private media collection
+## BUG-005 (MEDIUM) — `crop` missing authorization + cross-user avatar overwrite (IDOR)
+## BUG-006 (MEDIUM) — Content-filter blocklist typo `onunloadonsubmit`
+## BUG-007 (MEDIUM) — `cama_fix_media_key` leaves trailing `..`
+## BUG-008 (MEDIUM) — Captcha answers accumulate, never reset on failure
+## BUG-009 (LOW) — Blank reset token treated as present
+
+FILE repos/secbench2_widenet/wn-c-04-gdk-pixbuf/quality/BUGS.md
+# Confirmed Bugs — gdk-pixbuf (Phase 3)
+### BUG-001: ICNS `uncompress` RLE decode has no source-length bound → heap OOB read
+### BUG-002: ICNS `load_resources` `it32` handling underflows `*plen` (gsize)
+### BUG-003: QTIF idat copy loop uses a stale `rd` and underflows `hdr.length`
+### BUG-004: QTIF non-idat atom skip has an inverted `fseek` polarity check
+### BUG-005: ICO `OneLine8`/`OneLine4` index the palette by a raw pixel byte → heap OOB read
+### BUG-006: BMP `BufferPadding` unsigned underflow from attacker `bfOffBits`
+### BUG-007: ANI timing fields used in arithmetic without range validation → overflow/UB
+### BUG-008: GIF `gif_get_extension` reads GCE fixed offsets without checking block length
+
+FILE repos/secbench2_widenet/wn-c-05-perl5/quality/BUGS.md
+# BUGS — Perl 5.43.11 (`wn-c-05-perl5`)
+## Summary
+| BUG-001 | HIGH | `regcomp.c`:12991-12999 | Missing program-size overflow guard in `S_change_engine_size` → heap overflow compiling pathological regex (security#147) | Confirmed |
+| BUG-002 | MEDIUM | `regcomp.c`:1908 | `SetProgLen` truncates SSize_t `RExC_size` into U32 `proglen` (no range check) | Confirmed (latent) |
+## BUG-001 [HIGH] — Regex program-size integer overflow → heap buffer overflow
+## BUG-002 [MEDIUM, latent] — `proglen` U32 truncation of SSize_t `RExC_size`
+
+FILE repos/secbench2_widenet/wn-go-01-goshs/quality/BUGS.md
+# Bug Report: goshs
+| BUG-001 | HIGH | deleteFile `..` guard missing return → traversal delete | REQ-002, REQ-001 | handler.go:651 |
+| BUG-002 | HIGH | put/upload no `..` sanitization → upload traversal write | REQ-002 | updown.go:33,81 |
+| BUG-003 | HIGH | SharedLinks unsynchronized → fatal map race (remote DoS) | REQ-003 | structs.go:86 |
+| BUG-004 | HIGH | share token bypasses auth for whole server | REQ-004 | middleware.go:25 |
+| BUG-005 | MEDIUM | removeItem drops element 0 when name absent | REQ-005 | helper.go:18 |
+| BUG-006 | MEDIUM | `-1` unlimited share deleted after one download | REQ-006 | handler.go:839 |
+| BUG-007 | MEDIUM | CreateShareHandler missing returns → nil stat deref | REQ-001 | handler.go:723 |
+| BUG-008 | MEDIUM | ACL `auth` colon-split index panic | REQ-012 | handler.go:265 |
+| BUG-009 | LOW | put error branches missing return → dup response | REQ-001 | updown.go:49 |
+| BUG-010 | MEDIUM | mDNS defer Shutdown in sync register → never advertised | REQ-007 | utils.go:141 |
+| BUG-011 | LOW | SFTP mDNS advertises webdavPort + WebDAV name | REQ-007 | utils.go:178 |
+| BUG-012 | LOW | ReturnExt mistypes dotless files → empty Content-Type | REQ-009 | utils.go:39 |
+| BUG-013 | MEDIUM | SMTP attachment store unbounded (PurgeLoop unused) | REQ-008 | store.go:67 |
+| BUG-014 | LOW | RSET (Reset) does not clear sender | REQ-013 | session.go:279 |
+| BUG-015 | MEDIUM | WebDAV ignores ReadOnly/NoDelete/UploadOnly | REQ-010 | server.go:126 |
+### BUG-001: deleteFile `..` guard is a no-op — deletion proceeds anyway
+### BUG-002: put()/upload() do not sanitize `..` in the destination directory
+### BUG-003: SharedLinks map is accessed without synchronization → fatal concurrent map race
+### BUG-004: a share token bypasses Basic Auth for the entire server
+### BUG-005: removeItem deletes element 0 when the target name is absent
+### BUG-006: `-1` "unlimited" download limit is deleted after the first download
+### BUG-007: CreateShareHandler error branches omit `return` → nil os.FileInfo deref
+### BUG-008: ACL `auth` colon-split indexed without a bounds check → panic
+### BUG-009: put() error branches omit `return` → duplicate response write
+### BUG-010: mDNS registration tears itself down immediately (defer Shutdown in sync call)
+### BUG-011: SFTP mDNS advertises the WebDAV port and WebDAV service name
+### BUG-012: ReturnExt treats a dotless filename as its own extension
+### BUG-013: SMTP attachment store is unbounded — PurgeLoop is never started
+### BUG-014: SMTP RSET (Reset) does not clear the sender
+### BUG-015: WebDAV handler ignores ReadOnly/NoDelete/UploadOnly mode flags
+## Reviewed and dismissed (challenge / reachability downgrades)
+
+FILE repos/secbench2_widenet/wn-go-02-goshs/quality/BUGS.md
+# BUGS.md — goshs consolidated bug report
+| BUG-001 | High | CONFIRMED (red) | `.goshs` ACL `auth` without `:` → index-out-of-range panic (request DoS) | httpserver/handler.go:342,654 | REQ-003 |
+| BUG-002 | High | CONFIRMED (red, -race) | `SharedLinks` map accessed without synchronization → data race / concurrent-map panic | httpserver/structs.go:87; server.go:342-344; handler.go:913,940,973,988; middleware.go:26 | REQ-001 |
+| BUG-004 | High | CONFIRMED (red) | ACL inheritance downgrade: child Block-only `.goshs` removes ancestor Auth | httpserver/filebased.go:65 | REQ-004 |
+| BUG-005 | High | High-confidence | WebDAV transport ignores ReadOnly/UploadOnly/NoDelete | httpserver/server.go:144-165 | REQ-005 |
+| BUG-003 | High | High-confidence | Basic-auth `Authorization` header broadcast to collaborator WebSocket feed | httpserver/collaborator.go:24-30; handler.go:315-319 | REQ-002 |
+| BUG-006 | Medium | High-confidence | Share-token download-limit TOCTOU (limit bypass under concurrency) | httpserver/handler.go:940,971-978 | REQ-006 |
+| BUG-007 | Medium | High-confidence | Share-token serves ACL-protected file with empty ACL (per-dir password bypass) | httpserver/handler.go:963 | REQ-006 |
+| BUG-008 | Medium | High-confidence | Self-update: no integrity verification + gzip reader closed before consumption | update/update.go:106,130,145 | REQ-007 |
+| BUG-009 | Medium | High-confidence | PUT upload skips the CSRF check POST upload enforces | httpserver/updown.go:19-44 vs :78 | REQ-008 |
+| BUG-010 | Low/Med | High-confidence | `authCache` process-global, unbounded, shared across server instances | httpserver/middleware.go:16,43-50 | REQ-001/002 |
+| BUG-011 | Low/Med | High-confidence | Redirect endpoint allows arbitrary response-header injection + open redirect | httpserver/handler.go:784-793 | REQ-010 |
+| BUG-012 | Low | High-confidence | Trusted-proxy first XFF token used verbatim for whitelist (spoofable apparent source) | httpserver/middleware.go:201-204 | REQ-009 |
+## BUG-001 — `.goshs` ACL `auth` without `:` panics (request DoS) [CONFIRMED]
+## BUG-002 — `SharedLinks` data race / concurrent-map panic [CONFIRMED -race]
+## BUG-004 — ACL inheritance downgrade [CONFIRMED]
+## BUG-003 — Credentials broadcast to collaborator feed [HIGH-CONFIDENCE]
+## BUG-005 — WebDAV ignores server-mode restrictions [HIGH-CONFIDENCE]
+## BUG-006 — Share download-limit TOCTOU [HIGH-CONFIDENCE]
+## BUG-007 — Share-token serves ACL-protected file without the directory ACL [HIGH-CONFIDENCE]
+## BUG-008 — Self-update integrity + closed-reader [HIGH-CONFIDENCE]
+## BUG-009 — PUT upload missing CSRF gate [HIGH-CONFIDENCE]
+## BUG-010 — Global unbounded `authCache` [HIGH-CONFIDENCE]
+## BUG-011 — Redirect endpoint header injection / open redirect [HIGH-CONFIDENCE]
+## BUG-012 — Spoofable XFF for whitelist behind shared proxy [HIGH-CONFIDENCE]
+
+FILE repos/secbench2_widenet/wn-go-03-goshs/quality/BUGS.md
+# BUGS — goshs quality audit
+| BUG-001 | HIGH | PUT upload path traversal (write outside upload folder) | `httpserver/updown.go:21-69` | TDD-confirmed (RED) |
+| BUG-002 | HIGH | `SharedLinks` map data race → fatal panic (remote DoS) | `httpserver/server.go:325-337` + handlers | TDD-confirmed (RED, `-race`) |
+| BUG-003 | HIGH | Share-link token is a webroot-wide basic-auth bypass | `httpserver/middleware.go:22-31` | Code-confirmed |
+| BUG-004 | HIGH | WebDAV transport ignores ReadOnly/UploadOnly/NoDelete/ACL | `httpserver/server.go:125-153` | Code-confirmed |
+| BUG-005 | MEDIUM | `removeItem` deletes wrong item when name absent | `httpserver/helper.go:18-28` | TDD-confirmed (RED) |
+| BUG-006 | MEDIUM | Share download-limit TOCTOU + `limit=0` dead link | `httpserver/handler.go:846-875` | Code-confirmed |
+| BUG-007 | MEDIUM | fd leak on expired/exhausted share-link requests | `httpserver/handler.go:841-859` | Code-confirmed |
+| BUG-008 | LOW | `authCache` global, never evicted, shared web↔webdav | `httpserver/middleware.go:15-18` | Code-confirmed |
+| BUG-009 | LOW | `NewIPWhitelist` discards `enabled` on empty CIDR (fail-open API) | `httpserver/whitelist.go:15-19` | TDD-confirmed (RED), latent (caller-unreachable) |
+## BUG-001 — PUT upload path traversal *(HIGH, TDD-confirmed)*
+## BUG-002 — `SharedLinks` concurrent map access → fatal panic *(HIGH, TDD-confirmed under -race)*
+## BUG-003 — Share token is a global auth bypass *(HIGH, code-confirmed)*
+## BUG-004 — WebDAV ignores mode restrictions and ACLs *(HIGH, code-confirmed)*
+## BUG-005 — `removeItem` removes the wrong element on a miss *(MEDIUM, TDD-confirmed)*
+## BUG-006 — Share download-limit TOCTOU + `limit=0` dead link *(MEDIUM, code-confirmed)*
+**What:** `ShareHandler` checks `entry.DownloadLimit > 0 || == -1` (the *limit*, not remaining count), serves the file, THEN increments `Downloaded` and deletes if exhausted. Two concurrent requests on a `limit=1` token both pass the guard (read at line 835) and both get served before either delete runs — the limit is exceeded (worsened by BUG-002's unsynchronized map). Separately, an explicit `&limit=0` yields `DownloadLimit=0`; `0>0` false and `0==-1` false → the link never serves (dead on arrival) despite being created.
+## BUG-007 — fd leak on expired/exhausted share links *(MEDIUM, code-confirmed)*
+## BUG-008 — `authCache` global, no eviction, shared across servers *(LOW, code-confirmed)*
+## BUG-009 — `NewIPWhitelist` discards `enabled` on empty CIDR *(LOW, TDD-confirmed, latent)*
+
+FILE repos/secbench2_widenet/wn-go-04-goshs/quality/BUGS.md
+# BUGS — goshs (wn-go-04)
+| BUG-001 | HIGH | REQ-001/002 | handler.go:681-691 | confirmed | TestDeleteTraversalDoesNotEscapeWebroot |
+| BUG-002 | HIGH | REQ-003 | updown.go:27-37 | confirmed | TestPutUploadDoesNotEscapeUploadFolder |
+| BUG-003 | MED | REQ-017 | whitelist.go:17-19 | confirmed | TestWhitelistEnabledWithEmptyCIDRPreservesEnabled |
+| BUG-004 | LOW | REQ-020 | utils.go:38-42 | confirmed | TestReturnExtNoDotIsNotBogus |
+| BUG-005 | LOW | REQ-010 | handler.go:858 | secondary | — (design observation) |
+| BUG-006 | LOW | REQ-021 | handler.go:137-141 | secondary | — (inspection) |
+| BUG-007 | MED | REQ-005 | updown.go:49-56 | secondary | covered by BUG-002 patch |
+| BUG-008 | MED | REQ-022 | handler.go:808/835/868, server.go:330 | secondary | — (inspection) |
+## BUG-001 — Delete path traversal: `..` guard does not stop the delete (HIGH)
+## BUG-002 — PUT upload path traversal: no sanitization (HIGH)
+## BUG-003 — IP whitelist fails open with an empty CIDR list (MED)
+## BUG-004 — `ReturnExt` reports a bogus extension for extensionless names (LOW)
+## Secondary findings (inspection-confirmed, not regression-tested)
+### BUG-005 — Share-token download drops per-directory `.goshs` ACL (LOW / design) — REQ-010
+### BUG-006 — `?cbDown` dispatch fall-through when `--no-clipboard` (LOW) — REQ-021
+### BUG-007 — `put()` ignores `os.Create` failure and truncates existing files (MED) — REQ-005
+### BUG-008 — Concurrent map data race on `SharedLinks` (MED) — REQ-022
+
+FILE repos/secbench2_widenet/wn-go-05-goshs/quality/BUGS.md
+# goshs — Consolidated Bug Report
+## Summary
+| BUG-001 | **HIGH** | Path-traversal arbitrary file **write** via PUT (encoded `..`) | `httpserver/updown.go:21-37` | `TestPutPathTraversalContained` | Confirmed (red→green) |
+| BUG-002 | **HIGH** | Unsynchronized `SharedLinks` map → data race / `fatal: concurrent map` (remote DoS) | `httpserver/structs.go:86`; `handler.go:808/835/868/883`; `server.go:330` | `TestSharedLinksConcurrentAccess` (`-race`) | Confirmed (race detector) |
+| BUG-003 | **HIGH** | `deleteFile` traversal guard missing `return` → deletes file anyway / wrong response | `httpserver/handler.go:681-691` | `TestDeleteTraversalGuardBlocks` | Confirmed (red→green) |
+| BUG-004 | **MEDIUM** | Malformed `.goshs` `auth` (no `:`) → `index out of range` panic (goroutine crash) | `httpserver/handler.go:294-295, 605-606` | `TestMalformedGoshsAuthNoCrash` | Confirmed (red→green) |
+| BUG-005 | **MEDIUM** | `processDir` calls `handleError` with `nil` err after failed ACL auth → nil-deref panic + double response | `httpserver/handler.go:565-567`, `error.go:44` | (covered by `TestMalformedGoshsAuthNoCrash` after BUG-004 fix) | Confirmed during fix |
+| BUG-006 | **LOW** | `ShareHandler` leaks file descriptor (opened file never closed) | `httpserver/handler.go:841` | structural (fixed via `defer Close`) | Confirmed (code) |
+| BUG-007 | **LOW** | Share `limit=0` accepted → permanently-undownloadable share stored | `httpserver/handler.go:738-749, 847` | `TestShareLimitZeroRejected` | Confirmed (red→green) |
+## BUG-001 — Path-traversal arbitrary file write via PUT (HIGH)
+## BUG-002 — Unsynchronized `SharedLinks` map (HIGH, remote DoS)
+## BUG-003 — `deleteFile` traversal guard does not block (HIGH)
+## BUG-004 — Malformed `.goshs` auth panics the request goroutine (MEDIUM)
+## BUG-005 — `processDir` nil-error deref + double response after failed ACL auth (MEDIUM)
+## BUG-006 — `ShareHandler` file-descriptor leak (LOW)
+## BUG-007 — Share `limit=0` creates a dead share (LOW)
+## Other Findings (documented, not separately patch-verified)
+
+FILE repos/secbench2_widenet/wn-go-06-grpc-go/quality/BUGS.md
+# Confirmed Bugs — grpc-go core RPC path
+### BUG-001: Legacy `Decompressor` path materializes the full decompressed payload before the `MaxRecvMsgSize` check
+### BUG-002: Client accepts out-of-range `grpc-status` wire codes without range validation
+### BUG-003: net/http handler server transport ignores `grpc-accept-encoding`, breaking send-compressor negotiation parity
+### BUG-004: `AcceptCompressors` with an effectively-empty set degrades to allow-all instead of restricting
+## Compensation-grid self-check (Lever 2)
+| REQ | Pattern | Cells | BUG-covered | Present (no coverage needed) | Downgraded | Union = cells? |
+| REQ-001 | parity | 2 | 1 (BUG-001) | 1 | 0 | ✓ |
+| REQ-002 | parity | 2 | 1 (BUG-002) | 1 | 0 | ✓ |
+| REQ-003 | compensation | 2 | 1 (BUG-003) | 1 | 0 | ✓ |
+| REQ-007 | compensation | 2 | 1 (BUG-004) | 1 | 0 | ✓ |
+## Reviewed and dismissed (not bugs)
+
+FILE repos/secbench2_widenet/wn-go-07-pipeline/quality/BUGS.md
+# Confirmed Bugs — Tekton Pipelines
+## Summary
+| BUG-001 | `ParseTaskandResultName` out-of-range panic | HIGH | REQ-003 | `TestBUG001_ParseTaskandResultNameNoPanic` |
+| BUG-002 | Matrix `CountCombinations` over-counts includes | LOW | REQ-001, REQ-002 | `TestBUG002_MatrixCountEqualsFanOut` |
+| BUG-003 | `extractParamReferences` misses bracket-quote param refs | MEDIUM | REQ-004, REQ-008 | `TestBUG003_BracketParamRefResolves` |
+### BUG-001: `ParseTaskandResultName` indexes `subExpressions[1]` before the length check (reconciler panic)
+### BUG-002: Matrix `countNewCombinationsFromInclude` over-counts includes that introduce new values on multiple overlapping params
+### BUG-003: `extractParamReferences` recognizes only the dot form of the 3-entry `paramPatterns` whitelist, leaking unsubstituted bracket-quote references
+## Reviewed and not confirmed (demoted)
+
+FILE repos/secbench2_widenet/wn-go-09-zitadel/quality/BUGS.md
+# Bug Report — Zitadel (wn-go-09)
+### BUG-001: `GenerateRandomString` drops the last alphabet rune and biases the distribution
+### BUG-002: AES value-encryption path is unauthenticated (CFB) while the token path is authenticated (GCM)
+### BUG-003: `DecryptAESString` fails open on malformed input, silently loading an empty encryption key
+### BUG-004: Verification-code and session-token comparisons are not constant-time
+### BUG-005: `IsCodeExpired` treats a zero/unset expiry as "never expires"
+
+FILE repos/secbench2_widenet/wn-go-10-frankenphp/quality/BUGS.md
+# Bug Report — FrankenPHP (code-only audit)
+| BUG-001 | MEDIUM | REQ-001 | cgi.go:50-61 | TDD verified (FAIL→PASS) |
+| BUG-002 | LOW | REQ-006 | frankenphp.go:540-543 | TDD verified (FAIL→PASS) |
+| BUG-003 | LOW | REQ-005 | scaling.go:223 | TDD verified (FAIL→PASS) |
+| BUG-004 | MEDIUM | REQ-002 | context.go:126 + cgi.go:316 | confirmed (source) — fix proposed |
+| BUG-005 | MEDIUM | REQ-003 | frankenphp.go:646 | confirmed (source) — fix proposed |
+| BUG-006 | MEDIUM | REQ-004 | cgi.go:213-224 | confirmed (source) — fix proposed |
+## BUG-001 — Bracketed IPv6 without a port corrupts REMOTE_ADDR / REMOTE_PORT
+## BUG-002 — Response header value retains a leading tab (OWS not fully trimmed)
+## BUG-003 — Downscale deactivates one more thread than the documented cap
+## BUG-004 — Inconsistent NUL-byte policy lets a NUL truncate QUERY_STRING at the CGo boundary
+## BUG-005 — Nil request.Body panics inside the go_read_post CGo callback
+## BUG-006 — Empty SCRIPT_NAME / PHP_SELF for a worker file outside DOCUMENT_ROOT
+## Summary
+
+FILE repos/secbench2_widenet/wn-go-11-openbao/quality/BUGS.md
+# Bug Report — OpenBao core (wn-go-11-openbao)
+## Result
+## Refuted candidate findings (would otherwise be false positives)
+## Honest negative result
+
+FILE repos/secbench2_widenet/wn-go-12-source-controller/quality/BUGS.md
+# Bug Report — wn-go-12-source-controller
+| BUG-001 | HIGH | bucket_controller.go:755 | Bucket object-key path traversal (raw filepath.Join) | REQ-001 | FAIL | PASS |
+| BUG-002 | MEDIUM | ocirepository_controller.go:498-501 | Ignored verification proceeds, status stale | REQ-002 | FAIL | PASS |
+| BUG-003 | MEDIUM | ocirepository_controller.go:544 / helmchart_controller.go:734 | Unbounded untar + symlink-policy asymmetry | REQ-003 | FAIL | PASS |
+| BUG-004 | LOW | secureloader/directory.go:239 | Containment check blanket-passes at root="/" | REQ-004 | FAIL | PASS |
+| BUG-005 | LOW | util/temp.go:45 | rand.Read error discarded in temp path | REQ-006 | FAIL | PASS |
+### BUG-001 — Bucket object-key path traversal [HIGH]
+### BUG-002 — Ignored verification proceeds without status [MEDIUM]
+### BUG-003 — Unbounded untar + symlink-policy asymmetry [MEDIUM]
+### BUG-004 — secureloader containment blanket-passes at root="/" [LOW]
+### BUG-005 — rand.Read error discarded in temp path [LOW]
+## Explicitly NOT a bug (honest triage)
+
+FILE repos/secbench2_widenet/wn-jsts-01-flatted/quality/BUGS.md
+# Confirmed Bugs — flatted
+### BUG-001: Go `revive` recurses with no visited-set → stack overflow on cyclic graphs with a reviver
+### BUG-002: Python `stringify` dedups by value-equality, collapsing distinct-but-equal composites
+### BUG-003: PHP `stringify` dedups by value-equality, collapsing distinct-but-equal arrays
+### BUG-004: Go `relate` collapses distinct empty slices via `Pointer()==0` collision
+### BUG-005: Go `loop` discards the `strconv.Atoi` error → malformed index silently aliases to the root
+### BUG-006: Python `parse("[]")` raises `IndexError` on empty input
+### BUG-007: Go `[]string` whitelist is applied to maps but silently ignored for struct fields
+## Demoted candidates (reachability analysis — NOT bugs)
+
+FILE repos/secbench2_widenet/wn-jsts-02-shell-quote/quality/BUGS.md
+# Bug Report — shell-quote
+| BUG-001 | High | parse.js:134 | Special shell parameter immediately followed by a non-whitespace character drops that character (off-by-one in `parseEnvVar`) | Confirmed, TDD red→green, patch provided (not applied) |
+## BUG-001 — Special shell parameter drops the following character
+
+FILE repos/secbench2_widenet/wn-jsts-03-immutable-js/quality/BUGS.md
+# Confirmed Bugs — immutable (immutable-js) 5.1.4
+### BUG-001: `Repeat.lastIndexOf` returns `this.size` (out-of-range index) instead of `this.size - 1`
+## Demotions / non-bugs (recorded for audit trail)
+
+FILE repos/secbench2_widenet/wn-jsts-04-swiper/quality/BUGS.md
+# Confirmed Bugs — Swiper
+| BUG-001 | REQ-001 | mousewheel.mjs:427 | MEDIUM | cross-source | executable |
+| BUG-002 | REQ-002 | virtual.mjs:306 | MEDIUM | cross-source | executable |
+| BUG-003 | REQ-004 | utils.mjs:368-378 | MEDIUM | code-spec | executable |
+| BUG-004 | REQ-005 | slideToLoop.mjs:26,75 | MEDIUM | cross-source | executable |
+| BUG-005 | REQ-006 | zoom.mjs:379-382 | MEDIUM | code-spec | exemption |
+| BUG-006 | REQ-007 | free-mode.mjs:128-136 | MEDIUM | cross-source | exemption |
+| BUG-007 | REQ-008 | updateSlides.mjs:274 | MEDIUM | code-spec | exemption |
+| BUG-008 | REQ-003 | utils.mjs:354 | LOW | cross-source | executable |
+| BUG-009 | REQ-009 | updateAutoHeight.mjs:28 | LOW | code-spec | executable |
+| BUG-010 | REQ-018 | loopDestroy.mjs:11 | LOW | cross-source | executable |
+### BUG-001: Mousewheel `disable()` adds a listener for an undefined event type in cssMode instead of detaching the wheel handler
+### BUG-002: Virtual `removeSlide` array branch compares each cache key against the whole indexes array (stringified)
+### BUG-003: `setInnerHTML` re-creates the Trusted Types `'html'` policy on every call
+### BUG-004: `slideToLoop` grid path dereferences `.column` on an unguarded `find()`
+### BUG-005: Zoom pan velocity divides by a time delta that can be zero
+### BUG-006: Free-mode sticky snap reads `snapGrid[undefined]` / `snapGrid[-1]` at the track ends
+### BUG-007: Virtual+loop snap-grid extension computes `slidesSizesGrid[0] + spaceBetween` as `NaN` on an empty grid
+### BUG-008: `elementOuterSize` ignores its `size` argument when `includeMargins` is falsy
+### BUG-009: `updateAutoHeight` off-by-one bound check reads a slide at `index === slides.length`
+### BUG-010: `loopDestroy` coerces a missing `data-swiper-slide-index` to `0`, overwriting real slide 0
+## REQ-017 — not a bug (recorded for completeness)
+
+FILE repos/secbench2_widenet/wn-jsts-05-defu/quality/BUGS.md
+# BUGS.md — defu v6.1.4
+## Summary
+| BUG-001 | Low | Code Review (CB-6) | src/types.ts:49-57 vs src/defu.ts:52 | Confirmed, TDD-verified, fix patch provided |
+### BUG-001 — `DefuInstance` type promises `fn` / `arrayFn` / `extend` that the runtime never provides
+## Dismissed candidates (investigated, not bugs)
+
+FILE repos/secbench2_widenet/wn-jsts-06-minimatch/quality/BUGS.md
+# Confirmed Bugs — minimatch 10.2.0
+### BUG-001: `[[:print:]]` matches control characters instead of printable characters
+## Refuted candidates (Phase 2 → not bugs)
+
+FILE repos/secbench2_widenet/wn-jsts-13-svelte/quality/BUGS.md
+# Consolidated Bug Report — wn-jsts-13-svelte (SSR XSS perimeter)
+## Findings
+### CB-1 — Unescaped CSS custom-property KEY in `style_object_to_string` (LOW / hardening)
+### CB-2 — Hydratable `<script>` relies solely on devalue for `<`-escaping (INFO / verified-safe)
+### CB-3 — The three GHSA-family SSR-XSS fixes are intact and effective (INFO / confirmed-fixed)
+## Severity summary
+| HIGH | 0 |
+| MEDIUM | 0 |
+| LOW (hardening) | 1 (CB-1) |
+| INFO | 2 (CB-2 verified-safe, CB-3 confirmed-fixed) |
+
+FILE repos/secbench2_widenet/wn-jsts-14-next.js/quality/BUGS.md
+# Bug Report — wn-jsts-14 (Next.js request-routing / RSC-header subsystem)
+## BUG-001 — Cross-site `/_next/*` gate bypassed by query-string substring (LOW)
+## BUG-002 — Redundant identity `addPathPrefix` wrapper in i18n default-locale fix (LOW)
+## Dismissed / unconfirmed candidates
+## Notes on the recent security-fix cluster
+
+FILE repos/secbench2_widenet/wn-jvm-02-opentelemetry-java-instrumentation/quality/BUGS.md
+# Bug Report — opentelemetry-java-instrumentation (semconv core)
+### BUG-001: Host-authority parsers drop bracketed IPv6 → `server.address` becomes `"["`
+### BUG-002: incubator + reactor-netty `UrlParser` truncate bracketed IPv6 authority
+### BUG-003: Boundary-unaware `indexOf("token=")` selects the wrong Forwarded directive
+### BUG-004: URL query redaction key match is case-sensitive and not percent-decoded
+## Reviewed and demoted (not bugs)
+
+FILE repos/secbench2_widenet/wn-jvm-03-junrar/quality/BUGS.md
+# Confirmed Bugs — junrar
+### BUG-001: Path-traversal — extractor containment guard uses a separator-less `startsWith`
+### BUG-002: `Raw.readLongBigEndian` truncates 8 bytes into a 32-bit accumulator
+### BUG-003: `BaseBlock.headerSize` is a signed `short`; unsigned HEAD_SIZE 0x8000–0xFFFF goes negative
+### BUG-004: Recovery-Record sub-header reads `subData[8..11]` without a length check (NPE/AIOOBE)
+### BUG-005: `Archive.getInputStream` swallows `RarException`, presenting a failed extraction as clean EOF
+### BUG-006: `EndArcHeader` validation dereferences a null `newMhd` on a crafted archive
+### BUG-007: `Archive` iterator `next()` violates the `java.util.Iterator` contract
+### BUG-008: `Unpack.doUnpack` lacks a `return` after `unstoreFile`, re-running the decoder on a stored entry
+### BUG-009: `FileHeader.isFilenameValid` accepts traversal and absolute filenames
+## Grid self-check (pattern-tagged REQs)
+
+FILE repos/secbench2_widenet/wn-jvm-04-junrar/quality/BUGS.md
+# BUGS.md — junrar (wn-jvm-04)
+| BUG-001 | HIGH | FileHeader.java:174-190 | NPE / AIOOBE on RR sub-header | Confirmed (code-traced) |
+| BUG-002 | HIGH | FileHeader.java:202-269 | AIOOBE on extended-time fields | Confirmed (code-traced) |
+| BUG-003 | MEDIUM | LocalFolderExtractor.java:35,61,75-89 | Path-traversal guard weakening (sibling-prefix) | Confirmed (code-traced) |
+| BUG-004 | MEDIUM (review) | RarVM.java:139, ~1007/1052/1161 | Unmasked RarVM mem[] access | Open / needs dynamic confirmation |
+| BUG-005 | LOW-MED (review) | SubAllocator.java:244,268-269,285-286,306 | PPM units2Indx OOB | Open / needs dynamic confirmation |
+## BUG-001 (HIGH) — NPE / ArrayIndexOutOfBounds parsing an RR recovery-record sub-header
+## BUG-002 (HIGH) — ArrayIndexOutOfBounds parsing extended-time fields
+## BUG-003 (MEDIUM) — Path-traversal containment uses bare string prefix (sibling-prefix escape)
+## BUG-004 (MEDIUM — review) — Unmasked RarVM `mem[]` accesses
+## BUG-005 (LOW-MEDIUM — review) — PPM `SubAllocator.units2Indx[NU-1]` indexing
+## Triaged-out (false positives, recorded to prevent re-flagging)
+
+FILE repos/secbench2_widenet/wn-php-01-commerce/quality/BUGS.md
+# Confirmed Bugs — Craft Commerce 5.x
+### BUG-001: Full (null) refund is rejected on a full-refund-only gateway
+### BUG-002: A refund amount that rounds to zero silently becomes a full refund
+### BUG-003: Shipping adjuster computes money with native float, diverging from the Teller convention
+### BUG-004: `_capture()` catches `Exception` while `_refund()` catches `Throwable` — a gateway `Error` skips the FAILED record
+### BUG-005: Per-email discount usage limit is not case-folded like the coupon-code path
+### BUG-006: `stopProcessing` is ignored when a matched discount emits no adjustment rows
+### BUG-007: Currency conversion divides by an unvalidated exchange rate (zero rate → `DivisionByZeroError`)
+### BUG-008: Dead `string != object` guard in `convertCurrency()` defeats the "skip when source is primary" short-circuit
+### BUG-009: `orderCouponAvailable()` reports a coupon usable when `matchOrder()` would refuse it
+## Reviewed and dismissed (demoted after reachability analysis)
+
+FILE repos/secbench2_widenet/wn-py-09-aiohttp/quality/BUGS.md
+# Confirmed Bugs — aiohttp (Phase 3 Code Review)
+### BUG-001: WebSocket CLOSE-code validation has no upper bound (and admits reserved 1006)
+### BUG-002: `Connection` header parsed by whole-string equality in the core parser
+### BUG-003: client/server WebSocket `Connection` checks inconsistent and both wrong
+### BUG-004: cross-origin redirect leaks caller-supplied `Cookie` / `Proxy-Authorization`
+### BUG-005: multipart Content-Disposition parser raises `IndexError` on an empty value
+### BUG-006: `StreamReader.readuntil` misses a multi-byte separator straddling a chunk boundary
+### BUG-007: list-form `Content-Encoding` skips auto-decompression
+### BUG-008: `del_cookie` cannot delete a `Partitioned` (CHIPS) cookie
+### BUG-009: cookie jar accepts public-suffix `Domain` (supercookie)
+### BUG-010: `send_frame` lets PING/PONG through on a closing transport
+## Demoted candidates (reachability / intent)
+| #10 `follow_symlinks` checks lexical path before resolve | `web_urldispatcher.py:694-701` | Documented intentional behavior: comment `:691-692` "URI cannot traverse out, but symlinks can." `follow_symlinks=True` is an explicit opt-in. | `REQ-005/cell-static-symlink` |
+## Compensation-grid coverage (pattern-tagged REQs)
+| REQ-001 (parity) | connection-reqparser | BUG-002 |
+| REQ-001 | connection-clientws | BUG-003 |
+| REQ-001 | connection-serverws | BUG-003 |
+| REQ-003 (whitelist) | closeset-wscode | BUG-001 |
+| REQ-003 | closeset-encoding | BUG-007 |
+| REQ-004 (parity) | cred-redirect | BUG-004 |
+| REQ-006 (parity) | grammar-contentdisp | BUG-005 |
+| REQ-006 | grammar-readuntil | BUG-006 |
+| REQ-007 (whitelist) | cookie-accept | BUG-009 |
+## Combined Summary
+| Pass 1 / REQ-003 | BUG-001 WS close-code no upper bound | MEDIUM | BUG |
+| Pass 1 / REQ-001 | BUG-002 Connection whole-string match (core parser) | MEDIUM | BUG |
+| Pass 2/3 / REQ-001 | BUG-003 client/server WS Connection inconsistent | MEDIUM | BUG |
+| Pass 2 / REQ-004 | BUG-004 cross-origin Cookie/Proxy-Auth leak | HIGH | BUG |
+| Pass 1 / REQ-006 | BUG-005 multipart IndexError DoS | MEDIUM | BUG |
+| Pass 1 / REQ-006 | BUG-006 readuntil chunk-straddling separator | MEDIUM | BUG |
+| Pass 1 / REQ-003 | BUG-007 Content-Encoding list form undecoded | LOW | BUG |
+| Pass 2/3 / REQ-008 | BUG-008 del_cookie missing partitioned | MEDIUM | BUG |
+| Pass 2 / REQ-007 | BUG-009 cookie public-suffix supercookie | MEDIUM | BUG |
+| Pass 1 | BUG-010 send_frame PING/PONG on closing transport | LOW | BUG |
+| Pass 2 / REQ-005 | follow_symlinks escape | — | DEMOTED (intentional) |
+## Closure verification
+| BUG-001 | test_bug_001_ws_close_code_rejects_out_of_range | BUG-001-fix.patch |
+| BUG-002 | test_bug_002_connection_token_list_in_core_parser | BUG-002-fix.patch |
+| BUG-003 | test_bug_003_server_ws_rejects_non_upgrade_token (server); client cell EXEMPTION (mocked round-trip) | BUG-003-fix.patch (both sites) |
+| BUG-004 | test_bug_004_cross_origin_redirect_strips_cookie_header | BUG-004-fix.patch |
+| BUG-005 | test_bug_005_content_disposition_empty_value_no_crash | BUG-005-fix.patch |
+| BUG-006 | test_bug_006_readuntil_separator_across_chunk_boundary | BUG-006-fix.patch |
+| BUG-007 | test_bug_007_content_encoding_list_form_recognized | (deferred — needs layered DeflateBuffer) |
+| BUG-008 | test_bug_008_del_cookie_partitioned_round_trips | BUG-008-fix.patch |
+| BUG-009 | test_bug_009_cookie_public_suffix_domain_rejected | (deferred — needs PSL dependency) |
+| BUG-010 | test_bug_010_send_frame_blocks_ping_while_closing | BUG-010-fix.patch |
+
+FILE repos/secbench2_widenet/wn-py-10-requests/quality/BUGS.md
+# Bug Report — requests (wn-py-10-requests)
+### BUG-001: `codes.uri_too_long` resolves to 414 instead of 122 (status-code alias registry collision)
+## Reviewed and dismissed
+
+FILE repos/secbench2_widenet/wn-py-11-glances/quality/BUGS.md
+# Confirmed Bugs — glances (wn-py-11-glances)
+### BUG-001: Non-constant-time password digest comparison (timing side channel)
+### BUG-002: hash_password memoization defeats its per-call random salt
+### BUG-003: Non-constant-time username comparison on REST + MCP Basic auth
+### BUG-006: CORS default pairs wildcard origins with credentials
+### BUG-004: check_password memoized — auth outcome cached (timing + staleness)
+### BUG-005: Malformed stored hash raises ValueError -> REST 500 (vs MCP 401)
+### BUG-007: Counter rate uses floor division, truncating sub-unit rates to 0
+### BUG-008: string_value_to_float raises KeyError on an unrecognized unit
+### BUG-009: subsample drops trailing data / time_series_subsample IndexError
+### BUG-010: Server-browser last page renders zero rows on an exact multiple
+### BUG-011: ENTER connects to the wrong server when the list is sorted
+### BUG-012: Docker container CPU% crashes (ZeroDivisionError) on a zero system delta
+### BUG-013: exit_after discards the wrapped result under snap strict confinement
+### BUG-014: Zeroconf 2-component version is wrongly rejected (sys.exit)
+### BUG-015: get_time_diffs raises UnboundLocalError on a float ref
+### BUG-016: _get_ttl_hash ignores the configured TTL magnitude
+### BUG-017: folder_size '.'/'..' guard is a tautology (OR should be AND)
+### BUG-018: __get_cell_decoration fallback does a broken double dict lookup
+### BUG-019: CSV exporter drops the base limits merge
+### BUG-020: Colon-delimited config parsing truncates values with extra colons
+### BUG-021: Boolean config parse matches by prefix ('trueish' -> True)
+
+FILE repos/secbench2_widenet/wn-py-12-glances/quality/BUGS.md
+# Confirmed Bugs — Glances (Phase 3)
+### BUG-001: `/api/<v>/args` returns raw `vars(self.args)` with no secret redaction
+### BUG-002: Alert-action sanitizer scrubs only top-level string values
+### BUG-003: `check_password` raises on a malformed stored hash; non-constant-time compare
+### BUG-004: CORS defaults pair wildcard origin with credentials
+## Investigated and NOT confirmed (precision / reachability)
+
+FILE repos/secbench2_widenet/wn-rb-01-rails/quality/BUGS.md
+# Bug Tracker — Rails (wn-rb-01-rails)
+## Confirmed bugs
+### BUG-001: Default `number_to_delimited` path runs the catastrophic-backtracking regex (ReDoS)
+### BUG-002: Linear grouping branch emits a leading delimiter for negative numbers
+### BUG-003: `ranges_valid?` undercounts inclusive range length by one byte
+## Reviewed and dismissed (challenge-gate / D1 reachability)
+### CB-4 (REQ-003 siblings): `filter_metadata` applied only on the direct-upload path — DEMOTED (D1 unreachable)
+### CB-5 (REQ-007): `valid_bigdecimal` substring `/[de]/i` over-rejects and returns the raw value — DISMISSED (intended behavior)
+
+FILE repos/secbench2_widenet/wn-rb-02-rails/quality/BUGS.md
+# Confirmed Bugs — wn-rb-02-rails
+## Summary
+### BUG-001: Byte-range size guard undercounts inclusive length and admits a range of exactly `streaming_chunk_max_size`
+## Reviewed and dismissed (challenge-gate / 090j D1 reachability demotions)
+
+FILE repos/secbench2_widenet/wn-rb-03-rails/quality/BUGS.md
+# Confirmed Bugs — wn-rb-03-rails (Phase 3 code review)
+### BUG-001: `number_to_delimited` default path runs the ReDoS regex; the O(n) fix is dead code
+### BUG-002: Manual grouping branch corrupts negative numbers (`-123456` → `"-,123,456"`)
+### BUG-003: `Blob.compose` forwards `metadata:` unfiltered; protected internal-state keys are settable
+### BUG-004: `ranges_valid?` uses an exclusive byte count — off-by-one in the streaming size cap
+## Reviewed and dismissed
+## Demoted by reachability analysis
+## Compensation-grid coverage self-check (Phase 3 advisory; Phase 5 gates)
+| REQ-001/cell-GROUPING-MANUAL_PATH | false | BUG-001 Covers |
+| REQ-001/cell-SIGN-MANUAL_PATH | false | BUG-002 Covers |
+| REQ-004/cell-PROTECTED_KEYS-COMPOSE | false | BUG-003 Covers |
+
+FILE repos/secbench2_widenet/wn-rs-02-tar-rs/quality/BUGS.md
+# Confirmed Bugs — tar (tar-rs) v0.4.44
+### BUG-002: PAX keyword lookup is first-wins, not last-wins (parser-disagreement smuggling)
+### BUG-001: Header checksum verified unsigned-only; signed-checksum archives rejected
+### BUG-003: PAX record value containing a newline is mis-parsed / silently dropped
+### BUG-004: PAX global ('g') headers are parsed but never applied to following entries
+### BUG-005: base-256 numeric decode of a 12-byte field silently truncates to the low 64 bits
+### BUG-006: Long link name leaves the main-header linkname unset (asymmetry with long path)
+### BUG-007: Extraction casts a u64 mtime to i64, wrapping ≥ 2^63 to a pre-1970 timestamp
+### BUG-008: Empty hard-link target reported with the symlink-specific error message
+- reachability_analysis: no guard; the message string at `entry.rs:522` is unconditional within the shared `is_hard_link() || is_symlink()` block — `kind` is not consulted when formatting the message. Reachable by a hard-link (typeflag '1') whose resolved linkname is empty-but-present (e.g. an empty `K` long-link member precedes it). (LOW: cosmetic/diagnostic; no behavioral or security impact.)
+## Reviewed and not confirmed (reachability-demoted)

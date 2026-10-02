@@ -1,0 +1,374 @@
+From 11f701d28c2bda113aabbd0ee94f333983311123 Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <andrew@stellman.com>
+Date: Fri, 2 Oct 2026 00:28:25 -0400
+Subject: [PATCH 02/12] v1.6.1 [G]: document the fourth gate state, Bug
+ evidence block, OPERATOR_DECISIONS.md and req_hash
+
+---
+ AGENTS.md                                 |  2 +-
+ README.md                                 |  6 +-
+ SKILL.md                                  |  2 +-
+ ai_context/TOOLKIT.md                     |  3 +-
+ references/phase5_reconciliation_guide.md | 32 +++++++++-
+ references/phase6_verify_guide.md         |  9 +--
+ references/run_state_schema.md            |  2 +-
+ references/what_just_happened.md          | 73 ++++++++++++++++++++++-
+ schemas.md                                | 12 +++-
+ 9 files changed, 126 insertions(+), 15 deletions(-)
+
+diff --git a/AGENTS.md b/AGENTS.md
+index 66959a5..bb12991 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -276,7 +276,7 @@ Phase-1-only as a default is the v1.5.3 legacy invocation behavior, restored onl
+ 
+    This install is the one under test. If its Phase 0 won't pass, surface that — do not improvise a cross-repo repair or switch execution to a foreign tree. The 2026-05-24 Ory Keto run3 was contaminated exactly this way: a sandbox-restricted compile-cache write false-failed Phase 0 (closed by 090q Task A in `bin/qpb_validate.py`), Codex scavenged the operator's other QPB checkouts (`qpb-bootstrap-v157`, `httpx-1.5.7`, a full source tree), `--force`-reinstalled from each, and finally drove a Mode-B `run_playbook.py --codex` run from `../qpb-bootstrap-v157/` — abandoning the channel-installed skill entirely. The run then tested neither the channel install nor the v1.5.7 artifact. **A failed Phase 0 is a signal to report, not a license to scavenge.** **Why the validator, not a raw install command:** it deterministically checks the full install closure (47 bundled files + scaffolding + environment) and emits the platform-correct remediation, replacing the diffuse prose install instruction that the 2026-05-17 httpx + install-path runs followed wrong three different ways. **Why the install runs from the clone:** `python3 -m bin.install_skill` resolves `bin/` as a Python package, which only exists in the QPB clone — running from the target fails with `ModuleNotFoundError: No module named 'bin'`; if you cannot `cd` into the clone, use `PYTHONPATH=<qpb-clone> python3 -m bin.install_skill --into <target-repo> --ai-tool <your-tool>`. A clean install puts `SKILL.md` + `bin/` + `references/` + `phase_prompts/` + `agents/` at the canonical install location for your tool (e.g. `.claude/skills/quality-playbook/` for Claude Code, `.github/skills/quality-playbook/` for Copilot).
+ 3. **`cd` into the target and read the INSTALLED `SKILL.md`** (`<target>/<marker>/skills/quality-playbook/SKILL.md`) — that, NOT the QPB source clone's SKILL.md, is the canonical one you execute Phases 1-6 from. The installed tree is where the Phase 2/5/6 validators (`bin/validate_phase_artifacts.py`) and the Phase 6 gate (`quality_gate.py`) live at canonical locations.
+-4. **Execute Phases 1-6 per the installed SKILL.md** (Mode A walkthrough). Phase 6 verification is delegated to a fresh-context auditor sub-agent per the A-13-hybrid exception (see `phase_prompts/phase6.md` + `phase_prompts/phase6_auditor.md`). The gate verdict is **three-state** (v1.5.7 089c F15): `RESULT: GATE PASSED` → emit State B/S; `RESULT: GATE PASSED WITH CLEANUP NEEDED — N audit record-keeping gap(s)` → emit **State CN** (a legitimate, non-blocking outcome — the bug findings stand; only the audit trail has gaps); `RESULT: GATE FAILED — N substantive issue(s) must be fixed` → FAIL. Map the auditor verdict and the State P6 "What just happened" emit per the three-state rule in `phase_prompts/phase6.md` and the State templates in `references/what_just_happened.md`. You may NOT claim PASS or PASS WITH CLEANUP NEEDED when there are any substantive FAILs.
++4. **Execute Phases 1-6 per the installed SKILL.md** (Mode A walkthrough). Phase 6 verification is delegated to a fresh-context auditor sub-agent per the A-13-hybrid exception (see `phase_prompts/phase6.md` + `phase_prompts/phase6_auditor.md`). The gate verdict is **four-state** (v1.5.7 089c F15 three-state + the v1.6.1 decisions state): `RESULT: GATE PASSED` → emit State B/S; `RESULT: GATE PASSED WITH CLEANUP NEEDED — N audit record-keeping gap(s)` → emit **State CN** (a legitimate, non-blocking outcome — the bug findings stand; only the audit trail has gaps); `RESULT: GATE PASSED WITH DECISIONS NEEDED — N requirement decision(s)` → emit **State DN** (non-blocking — the operator decides N requirement wordings from `quality/OPERATOR_DECISIONS.md`); `RESULT: GATE FAILED — N substantive issue(s) must be fixed` → FAIL. Map the auditor verdict and the State P6 "What just happened" emit per the four-state rule in `phase_prompts/phase6.md` and the State templates in `references/what_just_happened.md`. You may NOT claim PASS or PASS WITH CLEANUP NEEDED when there are any substantive FAILs.
+ 
+ **Why this is non-negotiable.** Without the install step the Phase 2/5/6 validators and the Phase 6 gate are not at canonical locations — your run silently bypasses all artifact-contract enforcement (A-14/A-15/A-16). The **2026-05-17 httpx run reproduced exactly this failure mode**: the agent, told only "read SKILL.md and run the playbook", worked from the QPB source clone without installing into the target → validators unreachable → Phase 2 manifests entirely absent (A-19) → the gate would have failed 29 checks but the agent claimed pass. Phase 0 install is what makes the enforcement reachable.
+ 
+diff --git a/README.md b/README.md
+index 1246223..8ff51af 100644
+--- a/README.md
++++ b/README.md
+@@ -205,7 +205,7 @@ The playbook runs in **six phases**, each in its own context window. After each
+ | 3 — Code review | Three-pass review: structural, requirement verification, cross-requirement consistency. Each confirmed bug gets a regression test. |
+ | 4 — Spec audit | Three independent AI models audit the code against requirements (Council of Three). Triage uses verification probes ("is this actually true?") rather than majority vote. |
+ | 5 — Reconciliation | Every bug from code review + spec audit tracked, regression-tested or explicitly exempted. |
+-| 6 — Verify | 45 self-check benchmarks validate generated artifacts. Final gate: GATE PASSED / GATE PASSED WITH CLEANUP NEEDED / GATE FAILED. |
++| 6 — Verify | 45 self-check benchmarks validate generated artifacts. Final gate: GATE PASSED / GATE PASSED WITH CLEANUP NEEDED / GATE PASSED WITH DECISIONS NEEDED / GATE FAILED. |
+ 
+ After the baseline, **iterations** find more bugs: gap → unfiltered → parity → adversarial. Each strategy explores different classes of bug; running all four typically adds 40-60% on top of the baseline. Say *"Run the next iteration using the gap strategy"* to start.
+ 
+@@ -249,7 +249,7 @@ The six phases are summarized in the *[Running the playbook](#running-the-playbo
+ 
+ > *"Read TOOLKIT.md. Walk me through Phase N in detail. What's the input, what's the output, what can go wrong?"*
+ 
+-The final gate produces one of **three verdicts**: `GATE PASSED` (review complete, nothing to do), `GATE PASSED WITH CLEANUP NEEDED` (bug findings are real and stand on their own; only the audit trail is incomplete), or `GATE FAILED` (substantive problem — review didn't complete, specs missing, or verdict was fabricated). The split lets you distinguish *"your code is broken in N ways"* from *"your audit trail is incomplete in N ways"*.
++The final gate produces one of **four verdicts**: `GATE PASSED` (review complete, nothing to do), `GATE PASSED WITH CLEANUP NEEDED` (bug findings are real and stand on their own; only the audit trail is incomplete), `GATE PASSED WITH DECISIONS NEEDED` (no substantive problem; N requirements say more than the passage they quote, no confirmed bug rests on them, and `quality/OPERATOR_DECISIONS.md` lists your options for each), or `GATE FAILED` (substantive problem — review didn't complete, specs missing, or verdict was fabricated). The split lets you distinguish *"your code is broken in N ways"* from *"your audit trail is incomplete in N ways"*. Every verdict starts with a `── Bug evidence ──` block that says how many bugs have red and green test logs, separately from the gate result.
+ 
+ ### Why documentation matters
+ 
+@@ -293,7 +293,7 @@ Most adopter questions are answered by loading `TOOLKIT.md` into your AI tool an
+ 
+ **Understanding the gate verdicts:**
+ 
+-> *"Read TOOLKIT.md. What's the difference between GATE PASSED, GATE PASSED WITH CLEANUP NEEDED, and GATE FAILED?"*
++> *"Read TOOLKIT.md. What's the difference between GATE PASSED, GATE PASSED WITH CLEANUP NEEDED, GATE PASSED WITH DECISIONS NEEDED, and GATE FAILED?"*
+ 
+ If `TOOLKIT.md` doesn't answer your question, file an issue at https://github.com/andrewstellman/quality-playbook/issues.
+ 
+diff --git a/SKILL.md b/SKILL.md
+index e7d794c..c91af1a 100644
+--- a/SKILL.md
++++ b/SKILL.md
+@@ -218,7 +218,7 @@ A successful run produces this canonical set under the target's `quality/` direc
+ | `<repo_dir>/quality.gate-failed-<UTC-ts>/` | Preserved on Phase 2 gate-failure: the failed `quality/` tree is renamed to this sibling directory and a fresh `quality/` is created. The preserved directory carries its own `logs/<run-id>/` subtree with the failure logs. Operators inspect it post-mortem; the next run starts clean. |
+ | `AGENTS.md` (target repo root) | Per-project orientation generated post-Phase-6. Carries a QPB sentinel marker so future runs detect QPB-managed copies. |
+ 
+-The gate verdict in `quality/INDEX.md` (`pass` / `pass-with-cleanup` / `partial` / `fail`) is the operator-facing summary of how the run went. The 089c F15 three-state taxonomy maps the gate's `RESULT:` line to this enum: `RESULT: GATE PASSED` → `pass`; `RESULT: GATE PASSED WITH CLEANUP NEEDED` → `pass-with-cleanup` (review completed, bug findings stand, only audit record-keeping incomplete — non-blocking); `RESULT: GATE FAILED` → `fail` (a substantive issue). `partial` covers aborted / WARN-only runs. If the verdict is anything other than `pass`, surface why before considering the run done; `pass-with-cleanup` is a successful outcome, but the State CN emit (per `references/what_just_happened.md`) walks the adopter through completing the remaining audit records.
++The gate verdict in `quality/INDEX.md` (`pass` / `pass-with-cleanup` / `pass-with-decisions` / `partial` / `fail`) is the operator-facing summary of how the run went. The four-state taxonomy (089c F15 plus the v1.6.1 decisions state) maps the gate's `RESULT:` line to this enum: `RESULT: GATE PASSED` → `pass`; `RESULT: GATE PASSED WITH CLEANUP NEEDED` → `pass-with-cleanup` (review completed, bug findings stand, only audit record-keeping incomplete — non-blocking); `RESULT: GATE PASSED WITH DECISIONS NEEDED` → `pass-with-decisions` (no substantive issue; the operator decides N requirement wordings no confirmed bug rests on, from `quality/OPERATOR_DECISIONS.md` — State DN); `RESULT: GATE FAILED` → `fail` (a substantive issue). `partial` covers aborted / WARN-only runs. If the verdict is anything other than `pass`, surface why before considering the run done; `pass-with-cleanup` is a successful outcome, but the State CN emit (per `references/what_just_happened.md`) walks the adopter through completing the remaining audit records.
+ 
+ `quality/INDEX.md` uses `schema_version: "2.0"` and carries a `target_role_breakdown` field with the per-role counts and percentages computed from `quality/exploration_role_map.json`. Pipelines activate from the role map's per-file role tags (`skill-prose`, `skill-reference`, `skill-tool`, `code`, `test`, `docs`, `config`, `fixture`, `formal-spec`, `playbook-output`) rather than a project-type label — the skill-derivation pipeline runs over files tagged `skill-prose`/`skill-reference`, the code-review pipeline runs over files tagged `code`, the prose-to-code divergence check runs over files tagged `skill-tool`, and when the role map shows zero of a role that pipeline no-ops cleanly. Both pipelines run when both surfaces are present.
+ 
+diff --git a/ai_context/TOOLKIT.md b/ai_context/TOOLKIT.md
+index f98e3e2..fd6fb67 100644
+--- a/ai_context/TOOLKIT.md
++++ b/ai_context/TOOLKIT.md
+@@ -570,9 +570,10 @@ The gate script validates all artifacts mechanically. It is the sole mechanical
+ python3 <resolved_quality_gate_path> .
+ ```
+ 
+-The gate reports one of **three verdicts** (the v1.5.7 F15 three-state taxonomy), not a bare pass/fail:
++The gate reports one of **four verdicts** (the v1.5.7 F15 three-state taxonomy plus the v1.6.1 decisions state), not a bare pass/fail:
+ - **PASSED** — all checks clean; the run is complete and conformant.
+ - **PASSED WITH CLEANUP NEEDED** — the substantive checks passed but a non-blocking hygiene issue remains (e.g. a stray `workspace/` directory left behind); the findings are trustworthy, just tidy up before archiving.
++- **PASSED WITH DECISIONS NEEDED** — no substantive check failed; two or more Council reviewers said N requirements say more than the passage they quote, and no confirmed bug rests on them. Decide each one from `quality/OPERATOR_DECISIONS.md` (narrow, re-cite, keep with a note, or split). Exit code 0.
+ - **FAILED** — a blocking check failed; the artifact set is non-conformant (see causes below).
+ 
+ If it reports FAIL results, the most common causes:
+diff --git a/references/phase5_reconciliation_guide.md b/references/phase5_reconciliation_guide.md
+index c7534e5..77c3616 100644
+--- a/references/phase5_reconciliation_guide.md
++++ b/references/phase5_reconciliation_guide.md
+@@ -4,6 +4,8 @@
+ 
+ ## Phase 5 reconciliation procedure
+ 
++Apply `references/claims_rules.md` before writing operator-facing text.
++
+ **Phase 5 entry gate (mandatory — HARD STOP).** Before proceeding, verify ALL of the following Phase 4 artifacts exist:
+ 
+ 1. `quality/spec_audits/` directory exists and contains at least one `*triage*` file (the triage synthesis)
+@@ -97,7 +99,35 @@ For each missing file, create it now. Do not mark Phase 5 complete with missing
+ 
+ **Sidecar JSON post-write validation (mandatory).** After writing `quality/results/tdd-results.json` and/or `quality/results/integration-results.json`, immediately reopen each file and verify it contains all required keys. For `tdd-results.json`, the required root keys are: `schema_version`, `skill_version`, `date`, `project`, `bugs`, `summary`. Each entry in `bugs` must have: `id`, `requirement`, `red_phase`, `green_phase`, `verdict`, `fix_patch_present`, `writeup_path`. The `summary` object must include `confirmed_open` alongside `verified`, `red_failed`, `green_failed`. For `integration-results.json`, the required root keys are: `schema_version`, `skill_version`, `date`, `project`, `recommendation`, `groups`, `summary`, `uc_coverage`. Both files must have `schema_version: "1.1"`. If any key is missing, add it now — do not leave a non-conformant JSON file on disk. This validation exists because agents frequently emit non-conformant sidecar JSON (invented alternate schemas, legacy shapes, omitted `summary` fields, invalid enum values) — the post-write check is the cheap way to catch and correct before the gate.
+ 
+-**Script-verified closure gate (mandatory, final step before marking Phase 5 complete).** Locate `quality_gate.py` using the same fallback as reference files — walk these ten canonical install layouts in order, taking the first hit: `quality_gate.py`, `.claude/skills/quality-playbook/quality_gate.py`, `.github/skills/quality_gate.py`, `.cursor/skills/quality-playbook/quality_gate.py`, `.continue/skills/quality-playbook/quality_gate.py`, `.github/skills/quality-playbook/quality_gate.py`, `.codex/skills/quality-playbook/quality_gate.py`, `.windsurf/skills/quality-playbook/quality_gate.py`, `.cline/skills/quality-playbook/quality_gate.py`, `.aider/skills/quality-playbook/quality_gate.py`. Run it from the project root directory. This script mechanically validates: file existence, BUGS.md heading format, sidecar JSON required keys AND per-bug field names (`id`, `requirement`, `red_phase`, `green_phase`, `verdict`, `fix_patch_present`, `writeup_path`) AND enum values AND summary consistency, use case identifiers, terminal gate section, mechanical verification receipts, version stamps, writeup completeness, **regression-test patch presence for every confirmed bug**, and **inline fix diffs in every writeup** (every `quality/writeups/BUG-NNN.md` must contain a ` ```diff ` block). If the script reports any FAIL results, fix each failing check before proceeding — the most common FAILs are: (1) missing `quality/patches/BUG-NNN-regression-test.patch` files, (2) non-canonical JSON field names like `bug_id` instead of `id`, (3) missing `confirmed_open` in the TDD summary, (4) writeups without inline fix diffs (section 6 must include a concrete diff, not just "see patch file"). Do not mark Phase 5 complete until `quality_gate.py` exits 0. Append the script's full output to `quality/results/quality-gate.log`.
++**Script-verified closure gate (mandatory, final step before marking Phase 5 complete).** Locate `quality_gate.py` using the same fallback as reference files — walk these ten canonical install layouts in order, taking the first hit: `quality_gate.py`, `.claude/skills/quality-playbook/quality_gate.py`, `.github/skills/quality_gate.py`, `.cursor/skills/quality-playbook/quality_gate.py`, `.continue/skills/quality-playbook/quality_gate.py`, `.github/skills/quality-playbook/quality_gate.py`, `.codex/skills/quality-playbook/quality_gate.py`, `.windsurf/skills/quality-playbook/quality_gate.py`, `.cline/skills/quality-playbook/quality_gate.py`, `.aider/skills/quality-playbook/quality_gate.py`. Run it from the project root directory. This script mechanically validates: file existence, BUGS.md heading format, sidecar JSON required keys AND per-bug field names (`id`, `requirement`, `red_phase`, `green_phase`, `verdict`, `fix_patch_present`, `writeup_path`) AND enum values AND summary consistency, use case identifiers, terminal gate section, mechanical verification receipts, version stamps, writeup completeness, **regression-test patch presence for every confirmed bug**, and **inline fix diffs in every writeup** (every `quality/writeups/BUG-NNN.md` must contain a ` ```diff ` block). If the script reports any FAIL results, fix each failing check before proceeding — the most common FAILs are: (1) missing `quality/patches/BUG-NNN-regression-test.patch` files, (2) non-canonical JSON field names like `bug_id` instead of `id`, (3) missing `confirmed_open` in the TDD summary, (4) writeups without inline fix diffs (section 6 must include a concrete diff, not just "see patch file"). Do not mark Phase 5 complete until `quality_gate.py` exits 0 — or until every FAIL that remains is operator-owned or record-keeping (see "Requirement decisions the operator owns" below); in that case Phase 5 closes and says how many FAILs remain for the operator. Append the script's full output to `quality/results/quality-gate.log`.
++
++**Requirement decisions the operator owns (v1.6.1).** Two kinds of gate FAIL are about how a requirement is written, not about the code:
++
++- **Overreach** — `citation_semantic_check.json: record_id=REQ-NNN: semantic check majority overreaches (...)`: two or more Council reviewers said the requirement says more than the passage it quotes.
++- **Tier mismatch** — `requirements_manifest.json: record_id=REQ-NNN: is tier 3 but carries a citation block` (or `tier=N does not match cited FORMAL_DOC tier`): the requirement quotes a document but its tier says otherwise.
++
++Phase 5 must NOT rewrite these requirements, change their tier, or delete their citations to make the gate pass. Narrowing a requirement can quietly drop the expectation a bug rests on; that call is the operator's. Instead, write `quality/OPERATOR_DECISIONS.md` with one section per REQ in this fixed structure:
++
++```
++## REQ-NNN — <title>
++
++- Kind: overreach (K of 3 reviewers) | tier mismatch (tier T, cites a tier-U document)
++- Requirement text: <title + conditions of satisfaction / description, verbatim from requirements_manifest.json>
++- Cited excerpt: <citation_excerpt, verbatim> (<document>, <section/line>)
++- Reviewer notes:
++  - <reviewer>: <verdict> — <notes, verbatim from citation_semantic_check.json>
++  - ...
++- Bugs that rest on this requirement: BUG-NNN, ... (from bugs_manifest.json req_id) | none
++- Options (ready to apply — the operator picks one):
++  1. Narrow: <replacement conditions text that says only what the excerpt says>
++  2. Re-cite: <a passage (document, section/line, quoted) that covers the rest>, or "no covering passage found"
++  3. Keep with a note: keep the text; record the reviewers' note beside it
++  4. Split: keep the cited part here; move the uncovered conditions into a new tier-3 requirement REQ-<next> with text: <...>
++```
++
++For a tier mismatch, options 1–2 become "set the tier to the cited document's tier (U)" and "remove the citation and keep tier T". Option 4 (split) is applied only by the operator, or by an agent that gives the new REQ explicit `source_type: agent-validation` provenance (never coalesced with operator confirmation); never as a silent default. When a bug rests on the requirement, say in its section which option would change that bug's expected behaviour.
++
++Phase 5 may close with these FAILs open when every remaining FAIL is an overreach, a tier mismatch, or record-keeping. The gate reports `RESULT: GATE PASSED WITH DECISIONS NEEDED` (exit 0) when the overreach REQs have no dependent bug; an overreach on a REQ a bug rests on stays a substantive FAIL, and Phase 5 still closes on it once `OPERATOR_DECISIONS.md` lists it. The gate WARNs when such FAILs exist and `quality/OPERATOR_DECISIONS.md` does not.
+ 
+ **Layer-1 mechanical checks.** Beyond the legacy gate checks above, `quality_gate.py` also enforces a numbered set of structural invariants (#1–#18). A compact map of what each invariant covers:
+ 
+diff --git a/references/phase6_verify_guide.md b/references/phase6_verify_guide.md
+index 4f2be85..8e5b761 100644
+--- a/references/phase6_verify_guide.md
++++ b/references/phase6_verify_guide.md
+@@ -53,7 +53,7 @@ python3 quality_gate.py . > quality/results/quality-gate.log 2>&1  # locate via
+ echo $? >> quality/results/phase6-verification.log
+ ```
+ 
+-Read `quality/results/quality-gate.log`. If it reports any FAIL results, fix each failing check before proceeding. The most common FAILs are: (1) missing `quality/patches/BUG-NNN-regression-test.patch` files, (2) non-canonical JSON field names like `bug_id` instead of `id`, (3) missing `confirmed_open` in the TDD summary, (4) writeups without inline fix diffs, (5) missing TDD red/green log files. Do not proceed until `quality_gate.py` exits 0.
++Read `quality/results/quality-gate.log`. If it reports any FAIL results, fix each failing check before proceeding. The most common FAILs are: (1) missing `quality/patches/BUG-NNN-regression-test.patch` files, (2) non-canonical JSON field names like `bug_id` instead of `id`, (3) missing `confirmed_open` in the TDD summary, (4) writeups without inline fix diffs, (5) missing TDD red/green log files. Do not proceed until `quality_gate.py` exits 0. Exception (v1.6.1): do not rewrite a requirement the Council said overreaches its passage, or change a requirement's tier, to make the gate pass — those are the operator's decisions (`quality/OPERATOR_DECISIONS.md`, written in Phase 5). A gate whose only remaining FAILs are those decisions on requirements no confirmed bug rests on exits 0 with `RESULT: GATE PASSED WITH DECISIONS NEEDED`.
+ 
+ **MANDATORY gate-verdict witness (v1.5.7 A-13).** This is the same contract stated in `phase_prompts/phase6.md` Step 6.2 — keep the two coherent. Your State P6 "What just happened" chat emit MUST quote the gate's final verdict verbatim. The gate prints exactly these two lines (from quality_gate.py):
+ 
+@@ -61,14 +61,15 @@ Read `quality/results/quality-gate.log`. If it reports any FAIL results, fix eac
+ Total: N FAIL, M WARN
+ RESULT: GATE PASSED
+    (or: RESULT: GATE PASSED WITH CLEANUP NEEDED — N audit record-keeping gap(s)
++    or: RESULT: GATE PASSED WITH DECISIONS NEEDED — N requirement decision(s)
+     or: RESULT: GATE FAILED — N substantive issue(s) must be fixed)
+ ```
+ 
+-Both MUST appear verbatim in the emit (use the State B / State S / State CN gate-witness block in `references/what_just_happened.md`). If `quality/results/quality-gate.log` is empty or lacks these two lines, the gate did not run successfully (never invoked, or output not captured) — re-run it before emitting anything.
++Both MUST appear verbatim in the emit (use the State B / State S / State CN / State DN gate-witness block in `references/what_just_happened.md`). If `quality/results/quality-gate.log` is empty or lacks these two lines, the gate did not run successfully (never invoked, or output not captured) — re-run it before emitting anything.
+ 
+-**Three-state verdict — no PASS / PASS WITH CLEANUP NEEDED claim if any substantive FAILs (v1.5.7 089c F15).** The gate distinguishes substantive failure (the work itself wasn't done correctly) from audit record-keeping gaps (the bugs are real and reviewed; the audit trail is incomplete). The end-of-Phase-6 verdict — in PROGRESS.md AND the State P6 chat emit — maps from the quoted `RESULT:` line: `RESULT: GATE PASSED` → PASS; `RESULT: GATE PASSED WITH CLEANUP NEEDED — N audit record-keeping gap(s)` → PASS WITH CLEANUP NEEDED (a legitimate, non-blocking outcome — emit State CN); `RESULT: GATE FAILED — N substantive issue(s) must be fixed` → FAIL (list the substantive FAIL count and failing checks; do NOT report PASS, PASS WITH CLEANUP NEEDED, "complete", or "no remaining work"). Fabricating a PASS / PASS WITH CLEANUP NEEDED claim against a substantively-failing or never-run gate is the credibility defect this witness contract closes — it makes non-compliance detectable by any adopter reading the chat output.
++**Four-state verdict — no PASS / PASS WITH CLEANUP NEEDED claim if any substantive FAILs (v1.6.1; extends the v1.5.7 089c F15 three-state taxonomy).** The gate distinguishes substantive failure (the work itself wasn't done correctly) from audit record-keeping gaps (the bugs are real and reviewed; the audit trail is incomplete) and from requirement decisions (a requirement says more than the passage it quotes and no confirmed bug rests on it). The end-of-Phase-6 verdict — in PROGRESS.md AND the State P6 chat emit — maps from the quoted `RESULT:` line: `RESULT: GATE PASSED` → PASS; `RESULT: GATE PASSED WITH CLEANUP NEEDED — N audit record-keeping gap(s)` → PASS WITH CLEANUP NEEDED (a legitimate, non-blocking outcome — emit State CN); `RESULT: GATE PASSED WITH DECISIONS NEEDED — N requirement decision(s)` → PASS WITH DECISIONS NEEDED (non-blocking — emit State DN); `RESULT: GATE FAILED — N substantive issue(s) must be fixed` → FAIL (list the substantive FAIL count and failing checks; do NOT report PASS, PASS WITH CLEANUP NEEDED, "complete", or "no remaining work"). Fabricating a PASS / PASS WITH CLEANUP NEEDED claim against a substantively-failing or never-run gate is the credibility defect this witness contract closes — it makes non-compliance detectable by any adopter reading the chat output.
+ 
+-**MANDATORY artifact-contract validation (v1.5.7 A-15).** This is the same contract stated in `phase_prompts/phase6.md` — keep the two coherent. After running the gate above and updating `quality/INDEX.md`'s `summary.gate_verdict` with the real verdict (`pass`/`pass-with-cleanup`/`partial`/`fail`, replacing the Phase-5 `"pending"` — the `pass-with-cleanup` value is the v1.5.7 089c three-state cleanup outcome), run `python3 -m bin.validate_phase_artifacts . --phase 6` (resolve `bin/` via the documented install-root fallback; `PYTHONPATH=<install_root>` for an `install_skill.py`-layout adopter) and quote its final `RESULT:` line verbatim in your chat output (it matches `RESULT: VALIDATION PASSED (phase 6)` or `RESULT: VALIDATION FAILED (phase 6 — X FAIL, Y PASS)`). `--phase 6` re-checks `quality/INDEX.md` presence + the required INDEX.md fields (see Phase 5's INDEX.md template) AND requires `summary.gate_verdict` to be one of `pass`/`pass-with-cleanup`/`partial`/`fail` (not still `"pending"`). A non-zero exit means INDEX.md is missing, missing required fields, or still carries `gate_verdict: "pending"`; fix and re-run until exit 0. You MAY NOT report Phase 6 PASS with a failing validator — this per-phase witness is the structural complement to the A-13 gate-verdict witness above.
++**MANDATORY artifact-contract validation (v1.5.7 A-15).** This is the same contract stated in `phase_prompts/phase6.md` — keep the two coherent. After running the gate above and updating `quality/INDEX.md`'s `summary.gate_verdict` with the real verdict (`pass`/`pass-with-cleanup`/`pass-with-decisions`/`partial`/`fail`, replacing the Phase-5 `"pending"` — `pass-with-cleanup` is the v1.5.7 089c cleanup outcome, `pass-with-decisions` the v1.6.1 decisions outcome), run `python3 -m bin.validate_phase_artifacts . --phase 6` (resolve `bin/` via the documented install-root fallback; `PYTHONPATH=<install_root>` for an `install_skill.py`-layout adopter) and quote its final `RESULT:` line verbatim in your chat output (it matches `RESULT: VALIDATION PASSED (phase 6)` or `RESULT: VALIDATION FAILED (phase 6 — X FAIL, Y PASS)`). `--phase 6` re-checks `quality/INDEX.md` presence + the required INDEX.md fields (see Phase 5's INDEX.md template) AND requires `summary.gate_verdict` to be one of `pass`/`pass-with-cleanup`/`pass-with-decisions`/`partial`/`fail` (not still `"pending"`). A non-zero exit means INDEX.md is missing, missing required fields, or still carries `gate_verdict: "pending"`; fix and re-run until exit 0. You MAY NOT report Phase 6 PASS with a failing validator — this per-phase witness is the structural complement to the A-13 gate-verdict witness above.
+ 
+ Append to `quality/results/phase6-verification.log`:
+ ```
+diff --git a/references/run_state_schema.md b/references/run_state_schema.md
+index 0a7503c..3ded3a1 100644
+--- a/references/run_state_schema.md
++++ b/references/run_state_schema.md
+@@ -167,7 +167,7 @@ Marks the end of a phase. Cross-validated against the phase's expected artifacts
+ - Phase 3: `{"bugs_identified": N, "bug_writeups": M}`
+ - Phase 4: `{"req_count": N, "uc_count": M, "passes_complete": K}` (K should be 4)
+ - Phase 5: `{"gate_checks_total": N, "gate_failures": M}`
+-- Phase 6: `{"bugs_md_count": N, "gate_verdict": "pass|pass-with-cleanup|fail|partial"}` (the `pass-with-cleanup` value, v1.5.7 089d F17, corresponds to the gate's `RESULT: GATE PASSED WITH CLEANUP NEEDED` line)
++- Phase 6: `{"bugs_md_count": N, "gate_verdict": "pass|pass-with-cleanup|pass-with-decisions|fail|partial"}` (the `pass-with-cleanup` value, v1.5.7 089d F17, corresponds to the gate's `RESULT: GATE PASSED WITH CLEANUP NEEDED` line; `pass-with-decisions`, v1.6.1, to `RESULT: GATE PASSED WITH DECISIONS NEEDED`)
+ 
+ ### `error`
+ 
+diff --git a/references/what_just_happened.md b/references/what_just_happened.md
+index fbbccf8..9726f4e 100644
+--- a/references/what_just_happened.md
++++ b/references/what_just_happened.md
+@@ -36,6 +36,8 @@ The block is **mandatory at every in-scope boundary**. The agent emits it in cha
+ 
+ Plain-English means: no QPB-internal jargon without a parenthetical gloss. Adopters reading the block for the first time should understand what happened without having to grep the source.
+ 
++Apply `references/claims_rules.md` before writing operator-facing text.
++
+ ## Detection logic — how the agent picks which run state applies
+ 
+ The classifier is mechanical from the artifact tree and the run-state log. Apply rules in order; the first matching rule wins.
+@@ -51,6 +53,7 @@ The classifier is mechanical from the artifact tree and the run-state log. Apply
+ | 5 | `quality/PROGRESS.md` contains at least one `^## Iteration: <strategy> complete$` heading for any of `gap` / `unfiltered` / `parity` / `adversarial`, but not all four | **State I** — One or more iteration strategies complete |
+ | 6 | The run-state log shows `phase_end phase=6` AND `quality/results/quality-gate.log` exists AND `quality/BUGS.md` has zero `^### BUG-` headings AND `quality/results/quality-gate.log` contains the literal WARN string `No ### BUG-NNN headings found in BUGS.md` | **State S** — Phases 1-6 all ran, but Phases 3-5 stubbed (pass-process / fail-recall) |
+ | 7 | The run-state log shows `phase_end phase=6` AND `quality/results/quality-gate.log` contains the literal line `RESULT: GATE PASSED WITH CLEANUP NEEDED` | **State CN** — Phases 1-6 complete; the review ran and the bug findings stand, but the audit trail has record-keeping gaps (089c F15) |
++| 7b | The run-state log shows `phase_end phase=6` AND `quality/results/quality-gate.log` contains a line starting `RESULT: GATE PASSED WITH DECISIONS NEEDED` | **State DN** — Phases 1-6 complete; no substantive FAIL, but N requirements need the operator's decision (v1.6.1) |
+ | 8 | The run-state log shows `phase_end phase=6` AND `quality/BUGS.md` has at least one `^### BUG-` heading | **State B** — Phases 1-6 baseline complete with N confirmed bugs |
+ | 9 | The run-state log shows `phase_end phase=1` AND a `documentation_state state=code_only` event AND no `phase_end phase=2` event yet | **State C** — Phase 1 completed in code-only mode |
+ | 10 | The run-state log shows `phase_end phase=N` (N ∈ {1, 2, 3, 4, 5}) AND no `phase_end phase=N+1` AND no abort terminal | **State P<N>** — Phase N just completed cleanly (use the matching State P1 / P2 / P3 / P4 / P5 template below) |
+@@ -60,6 +63,7 @@ Rules 1, 2, 6, 7, and 9 are the load-bearing branches for adopter UX:
+ - Rule 2 (**State E**) covers agent-emitted unrecoverable errors mid-phase so adopters get a useful chat artifact rather than a silent abort.
+ - Rule 6 (**State S**) is the original Cursor-Auto-mode failure mode this contract was authored to expose. Rule 6 fires BEFORE Rule 8 so a Phase 6 run with zero confirmed bugs is correctly identified as pass-process / fail-recall rather than mis-classified as State B "complete with N=0 bugs."
+ - Rule 7 (**State CN**) is the 089c F15 adopter-UX branch: when the gate returns `RESULT: GATE PASSED WITH CLEANUP NEEDED`, the review completed and the bug findings are real — only the audit-trail paperwork is incomplete. Rule 7 fires BEFORE Rule 8 so a cleanup-needed run is NOT mis-emitted as a plain State B "all clear" (the adopter must see the cleanup distinction, not a flat PASS). It cannot collide with Rule 6 — State S is the zero-bug stub case, whereas a cleanup-needed run has real findings with record-keeping gaps. (The state letter is **CN**, not **C**: **C** is already assigned to the code-only-Phase-1 framing in Rule 9. Instruction 089c suggested "State C"; that label was taken, so this is **State CN** to avoid the collision.)
++- Rule 7b (**State DN**, v1.6.1) is the fourth gate state: `RESULT: GATE PASSED WITH DECISIONS NEEDED — N requirement decision(s)`. Two or more Council reviewers said N requirements say more than the passage they quote, and no confirmed bug rests on them. Only the operator can decide those (narrow, re-cite, keep with a note, or split); Phase 5 lists them in `quality/OPERATOR_DECISIONS.md`. Rule 7b fires BEFORE Rule 8 for the same reason Rule 7 does. If the `RESULT:` line also counts record-keeping gaps, State DN still applies and its block mentions them.
+ - Rule 9 (**State C**) is the code-only-mode-specific framing so adopters who skipped `reference_docs/` get the documented weaker-recall caveat surfaced explicitly. Rule 9 fires only at the Phase 1 boundary; later boundaries in a code-only run use State P<N> (the agent already surfaced the caveat at State C and the run continues with it acknowledged).
+ 
+ ## Decision tree — what the block says when
+@@ -270,6 +274,21 @@ All FAIL findings from the gate were addressed before this phase closed.
+ Continue with Phase 6 (Verify) by saying `keep going` or `run phase 6`.
+ ```
+ 
++**Branch — FAILs only you can decide remain (v1.6.1).** When the gate's
++remaining FAILs are all operator-owned (requirement overreach or tier
++mismatch — see `references/phase5_reconciliation_guide.md`) or
++record-keeping, do NOT write "All FAIL findings from the gate were
++addressed". Replace that sentence with:
++
++```
++N FAILs remain that only you can decide (see quality/OPERATOR_DECISIONS.md).
++Each one is a requirement that says more than the passage it quotes, or
++quotes a document while marked code-derived. The agent did not rewrite
++them; the file gives each one with ready-to-apply options.
++```
++
++N is the count of those FAIL lines in `quality/results/quality-gate.log`.
++
+ ### State C — Phase 1 completed in code-only mode (no `reference_docs/`)
+ 
+ ```
+@@ -411,6 +430,11 @@ The gate flagged K audit record-keeping gap(s). Typical gaps:
+ The review is done; the bug findings stand on their own. These gaps are
+ about the audit trail, not about your code's quality.
+ 
++**Bug evidence (REQUIRED — paste verbatim from quality/results/quality-gate.log):**
++
++    ── Bug evidence ──
++    <every line of that block, unchanged>
++
+ **Gate witness (REQUIRED — do not omit, do not paraphrase):** paste the
+ final two lines of `quality/results/quality-gate.log` verbatim:
+ 
+@@ -436,6 +460,40 @@ will not change — only the record-keeping fills in. Copy-paste this:
+ 
+ **Also run the cross-cutting TDD-execution check (v1.5.7 089p)** — see "Cross-cutting augmentation — TDD execution status" below; append its callout + retry hint to the block above if the gate log carries a TDD-not-executed signal. (A cleanup-needed run can ALSO have an unproven TDD cycle — the two are independent.)
+ 
++### State DN — Phases 1-6 complete, PASSED WITH DECISIONS NEEDED (v1.6.1)
++
++No substantive FAIL remains. N requirements need the operator's decision,
++and no confirmed bug rests on them. Use this state, NOT State B, when
++`quality/results/quality-gate.log` has a line starting `RESULT: GATE
++PASSED WITH DECISIONS NEEDED`. Substitute the real numbers from the gate
++output.
++
++```
++## Quality Playbook Run Complete — PASSED WITH DECISIONS NEEDED
++
++The run passed. N requirements need your decision before you rely on
++their wording; no confirmed bug rests on them.
++
++**Bug evidence (REQUIRED — paste verbatim from quality/results/quality-gate.log):**
++
++    ── Bug evidence ──
++    <every line of that block, unchanged>
++
++**Gate witness (REQUIRED — do not omit, do not paraphrase):**
++
++    Total: N DECISION, M WARN
++       (or, with record-keeping gaps: Total: N DECISION, K CLEANUP, M WARN)
++    RESULT: GATE PASSED WITH DECISIONS NEEDED — N requirement decision(s)
++       (or: ... — N requirement decision(s), K audit record-keeping gap(s))
++
++### What to do next
++
++Open quality/OPERATOR_DECISIONS.md. For each requirement it lists the
++quoted passage, each reviewer's note, and the options (narrow, re-cite,
++keep with a note, split). Pick one per requirement; the agent applies
++only what you choose.
++```
++
+ ### State B — Phases 1-6 baseline complete with N confirmed bugs
+ 
+ Substitute the actual bug count `N` from `quality/BUGS.md` (count `^### BUG-` headings).
+@@ -446,15 +504,26 @@ Substitute the actual bug count `N` from `quality/BUGS.md` (count `^### BUG-` he
+ Full baseline run complete. Found N confirmed bugs (writeups in `quality/writeups/`,
+ patches in `quality/patches/`, TDD verification in `quality/results/`).
+ 
++**Bug evidence (REQUIRED on every outcome, including a failed gate —
++paste verbatim):** copy the `── Bug evidence ──` block from
++`quality/results/quality-gate.log` (it starts directly under the
++`[PASS]` / `[WARN]` / `[FAIL]` lead line that follows `--- Operator
++Verdict ---`, and ends at the next blank line):
++
++    ── Bug evidence ──
++    <every line of that block, unchanged>
++
+ **Gate witness (REQUIRED — do not omit, do not paraphrase):** paste the
+ final two lines of `quality/results/quality-gate.log` verbatim:
+ 
+     Total: N FAIL, M WARN
+     RESULT: GATE PASSED
+        (or: RESULT: GATE PASSED WITH CLEANUP NEEDED — N audit record-keeping gap(s)
++        or: RESULT: GATE PASSED WITH DECISIONS NEEDED — N requirement decision(s)
+         or: RESULT: GATE FAILED — N substantive issue(s) must be fixed)
+ 
+-Read the `RESULT:` line and report per the 089c F15 three-state rule:
++Read the `RESULT:` line and report per the four-state rule (v1.6.1;
++extends the 089c F15 three-state rule):
+ 
+ - `RESULT: GATE PASSED` — the review is complete and every audit
+   record is in place. Report a clean run with N confirmed bugs.
+@@ -464,6 +533,8 @@ Read the `RESULT:` line and report per the 089c F15 three-state rule:
+   challenge records, missing cross-site pattern tags) is incomplete.
+   Do NOT report a flat "all clear" — emit **State CN** instead; it
+   walks the adopter through the cleanup.
++- `RESULT: GATE PASSED WITH DECISIONS NEEDED — N requirement
++  decision(s)` — emit **State DN** instead.
+ - `RESULT: GATE FAILED — N substantive issue(s) must be fixed` — the
+   run's verdict is **FAIL** regardless of how many bugs you confirmed.
+   Say so explicitly and list the failing checks. The agent may
+diff --git a/schemas.md b/schemas.md
+index 985a6ab..24fb3e7 100644
+--- a/schemas.md
++++ b/schemas.md
+@@ -962,6 +962,7 @@ instead of `records`:
+ | `reviewer` | string | yes      | Identifier of the council member, e.g. `"claude-opus-4.7"`, `"gpt-5.5"`, `"claude-sonnet-4.6"`. Free-form but stable across entries from the same reviewer. The canonical roster lives at `bin/council_config.DEFAULT_COUNCIL_MEMBERS`. |
+ | `verdict`  | string | yes      | Member of the `verdict` enum (§3.5).                                   |
+ | `notes`    | string | yes      | Reviewer's reasoning for the verdict. May be empty string. Not gate-enforced for content. |
++| `req_hash` | string | no (v1.6.1+; written by `council_semantic_check.write_semantic_check`) | sha256 hex of the reviewed REQ's content at review time, computed by `quality_gate.req_review_hash` (the one definition writer and gate share): the UTF-8 JSON object `{"citation_excerpt", "conditions_of_satisfaction", "title"}` with sorted keys, `separators=(",", ":")`, `ensure_ascii=False`; missing fields serialize as `""`, and a REQ without `conditions_of_satisfaction` uses its `description` in that slot. The gate treats an entry whose `req_hash` differs from the current REQ's hash as **stale** ("review predates a rewrite of REQ-NNN") and does not count it toward the three reviews §9.4 requires. Entries without `req_hash` still count; the gate WARNs once per file. |
+ 
+ ### 9.3 Example
+ 
+@@ -1160,7 +1161,8 @@ Layer 1 (mechanical checks):
+    `functional_section` string.
+ 
+ 9. **No orphan reference docs.** Every file under `reference_docs/cite/` whose
+-   extension is in the supported list MUST appear as a `FORMAL_DOC` record
++   extension is in the supported list (§2: `.txt`, `.md`, `.rst`; the gate
++   accepts all three since v1.6.1) MUST appear as a `FORMAL_DOC` record
+    (ingest ran and was complete). Files with unsupported extensions MUST
+    cause ingest to fail with a clear error, not be silently skipped.
+ 
+@@ -1206,6 +1208,12 @@ Layer 1 (mechanical checks):
+     if any Tier 1/2 REQ has two or more reviews with
+     `verdict == "overreaches"`. Single-member `unclear` or `overreaches`
+     verdicts are surfaced as warnings but do not fail the gate.
++    v1.6.1: a majority-overreach FAIL on a REQ that no confirmed BUG's
++    `req_id` names is an operator decision — the gate reports
++    `RESULT: GATE PASSED WITH DECISIONS NEEDED` (exit 0) when no
++    substantive FAIL remains; on a REQ a confirmed BUG rests on, the FAIL
++    stays substantive and names the BUGs. Reviews whose `req_hash` (§9.2)
++    no longer matches the REQ are stale and do not count.
+ 
+ 18. **Array value uniqueness.** Values within `REQ.use_cases` MUST be
+     unique. Values within `UC.formal_doc_refs` MUST be unique. Duplicate
+@@ -1272,7 +1280,7 @@ every required field below is present and non-empty.
+ | `phases_executed`        | array of object | yes      | One entry per phase run. Each: `{phase_id, model, start, end, exit_status}`.                                                  |
+ | `summary.requirements`   | object          | yes      | Counts by tier — keys `"1"`..`"5"`, integer values.                                                                          |
+ | `summary.bugs`           | object          | yes      | Counts by severity and disposition. Keys include every enum value from §3.2 and §3.3; integer values.                        |
+-| `summary.gate_verdict`   | string          | yes      | One of `"pass"`, `"pass-with-cleanup"`, `"fail"`, `"partial"`. The `"pass-with-cleanup"` value (v1.5.7 089d F17) corresponds to the gate's `RESULT: GATE PASSED WITH CLEANUP NEEDED` line — the review completed and the bug findings stand; only audit record-keeping is incomplete (non-blocking outcome, exit 0). |
++| `summary.gate_verdict`   | string          | yes      | One of `"pass"`, `"pass-with-cleanup"`, `"pass-with-decisions"`, `"fail"`, `"partial"`. The `"pass-with-cleanup"` value (v1.5.7 089d F17) corresponds to the gate's `RESULT: GATE PASSED WITH CLEANUP NEEDED` line — the review completed and the bug findings stand; only audit record-keeping is incomplete (non-blocking outcome, exit 0). The `"pass-with-decisions"` value (v1.6.1) corresponds to `RESULT: GATE PASSED WITH DECISIONS NEEDED` — no substantive FAIL; the only blocking-class FAILs are requirements the Council said overreach their citation and that no confirmed bug rests on (exit 0; see `quality/OPERATOR_DECISIONS.md`). |
+ | `summary.languages_detected` | object \| array | **conditional** (v1.5.10 058) | The testable code languages detected in the target, as `{lang: file_count}` (or a ranked list). **Required only when ≥2 testable languages clear the disclosure threshold** (≥10% of the testable file total AND ≥5 files); omit otherwise. Markdown / shell / non-code content is never listed (non-testable). No `schema_version` bump — additive, conditional. |
+ | `summary.ran_on`         | string          | **conditional** (v1.5.10 058) | The single testable language this run actually targeted (the detected winner, or the `--language` override). Required under the same ≥2-testable-language condition as `languages_detected`. |
+ | `summary.untested_testable_languages` | array of string | **conditional** (v1.5.10 058) | The over-threshold testable languages this run did NOT test (the disclosure list shown to the operator). Required under the same condition; an empty array is not a valid value when the condition fires (there is always at least one untested language when ≥2 clear the threshold and one was tested). |
+-- 
+2.34.1
+

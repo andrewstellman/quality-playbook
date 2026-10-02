@@ -1,0 +1,3 @@
+Test 2 classifications (brief: ../CLASSIFIER-BRIEF-2.md). Files: <repo>-<S1|S2|S3|O1|O2>.md, one `id | level | reason` line per finding.
+
+Note: the sandbox's /tmp/control checkouts were gone when this batch ran (workspace restart). Classifiers that completed read the identical pinned checkouts at QPB/repos/control-2026-09-27/<repo> (same commits, clean trees) and said so. Classifiers that could not reach any checkout and refused, or that guessed from the descriptions alone, were discarded and re-run pointed at that path. aiohttp-S2 and aiohttp-S3 reported reading the cited lines for about half the findings and classifying the rest from the description; kept, flagged here.
