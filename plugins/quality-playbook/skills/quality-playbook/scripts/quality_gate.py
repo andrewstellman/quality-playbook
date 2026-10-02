@@ -1583,12 +1583,13 @@ def _emit_operator_verdict(fail_records, warn_records, zero_bug_repos,
         env_failure=env_failure,
         run_provenance=run_provenance,
         evidence=evidence,
+        fail_repos=fail_repos,
     )
 
     print("───────────────────────────────────────────")
 
 
-def _failure_reason(fail_records, evidence):
+def _failure_reason(fail_records, evidence, fail_repos=None):
     """v1.6.1 [G] (G2): one-clause reason built from the FAIL categories
     that actually fired, e.g. "the bugs are reproduced; what failed is
     the paperwork behind 7 requirements and 1 other check
@@ -1596,13 +1597,31 @@ def _failure_reason(fail_records, evidence):
     unless a bug-evidence category fired (the callers route those
     before reaching this helper)."""
     per_cat = {}
-    for _cat, msg in fail_records:
-        per_cat.setdefault(_classify_fail(msg), []).append(msg)
+    # v1.6.1 [council-2]: in a multi-repo run the same REQ id in two
+    # repos is two requirements, so count (repo, REQ) pairs.
+    multi_repo = (
+        fail_repos is not None
+        and len(fail_repos) == len(fail_records)
+        and len(set(fail_repos)) > 1
+    )
+    req_pairs = []
+    for idx, (_cat, msg) in enumerate(fail_records):
+        category = _classify_fail(msg)
+        per_cat.setdefault(category, []).append(msg)
+        if multi_repo and category in (_FAIL_REQ_OVERREACH,
+                                       _FAIL_REQ_TIER_MISMATCH):
+            for rid in _req_ids_in([msg]):
+                pair = (fail_repos[idx], rid)
+                if pair not in req_pairs:
+                    req_pairs.append(pair)
     parts = []
     req_msgs = (per_cat.get(_FAIL_REQ_OVERREACH, [])
                 + per_cat.get(_FAIL_REQ_TIER_MISMATCH, []))
     if req_msgs:
-        n = len(_req_ids_in(req_msgs)) or len(req_msgs)
+        if multi_repo:
+            n = len(req_pairs) or len(req_msgs)
+        else:
+            n = len(_req_ids_in(req_msgs)) or len(req_msgs)
         parts.append(
             f"the paperwork behind {n} requirement{'s' if n != 1 else ''}"
         )
@@ -1648,7 +1667,7 @@ def _emit_what_happened_what_next(*, fail_records, warn_records,
                                     zero_bug_repos, exit_code,
                                     is_shallow_pass, weak_model,
                                     env_failure, run_provenance,
-                                    evidence=None):
+                                    evidence=None, fail_repos=None):
     """v1.5.7 090y — emit the "What happened" + "What to do next"
     newcomer-oriented sections at the END of the operator verdict
     block.
@@ -1740,7 +1759,8 @@ def _emit_what_happened_what_next(*, fail_records, warn_records,
             )
         else:
             # v1.6.1 [G] (G2): built from the categories that fired.
-            reason = _failure_reason(fail_records, evidence)
+            reason = _failure_reason(fail_records, evidence,
+                                     fail_repos=fail_repos)
         print(f"Result: it did not pass the checkpoint — {reason}.")
     elif is_shallow_pass:
         # ⚠️ shallow — name the why.

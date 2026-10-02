@@ -474,6 +474,10 @@ class Council2GateTests(_GateFixture):
             "confirmed bug has no usable req_id in bugs_manifest.json "
             "(missing, or the record is marked known-issue), so the gate "
             "cannot rule it out; [beta] none.", out)
+        # The "What happened" reason counts repo:REQ pairs too (REQ-003
+        # in alpha and REQ-003 in beta are two requirements).
+        self.assertIn("the paperwork behind 2 requirements", out)
+        self.assertNotIn("the paperwork behind 1 requirement", out)
 
     def test_mixed_decisions_and_cleanup_pass_separates_record_keeping(self):
         """C-r2 nit 2: on a decisions pass with a record-keeping FAIL,
