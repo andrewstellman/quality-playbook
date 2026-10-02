@@ -19,7 +19,8 @@ Exit codes:
   0  the gate's ``RESULT:`` line equals the log's, and its ``Total:``
      line equals the log's once the trailing ``, N WARN`` part is
      removed from both
-  1  they differ (a ``MISMATCH`` line names which), or the gate printed
+  1  they differ (a ``MISMATCH`` line names which), the verdict state
+     differs, the log carries no verdict state, or the gate printed
      no verdict lines
 
 v1.6.1 [council-1]: the WARN count is left out of the comparison
@@ -28,6 +29,14 @@ parent's: the orchestrator writes AGENTS.md after the gate passes, and
 a missing AGENTS.md is one WARN. FAIL / DECISION / CLEANUP counts and
 the RESULT line are still compared exactly. Both full lines are
 printed.
+
+v1.6.1 [council-2]: a WARN can still change the verdict state (the
+"no test functions found" WARN turns a pass "shallow"), so the witness
+also compares the verdict state. Source, in order: the LAST
+``::QPB::`` gate sentinel's ``gate_result`` + ``verdict_state``; for
+a log with no sentinel (pre-1.6.1), the operator lead line
+(``[PASS]/[WARN]/[FAIL] GATE ...``). A log with neither is a MISMATCH:
+its verdict state cannot be witnessed.
   2  ``quality/results/quality-gate.log`` is missing, or the target /
      ``quality_gate.py`` cannot be found
 
@@ -37,6 +46,7 @@ banner via the same 3-step anchored fallback qpb_phase.py uses.
 """
 from __future__ import annotations
 
+import json
 import re
 import subprocess
 import sys
@@ -125,6 +135,65 @@ def verdict_lines(text: str) -> "tuple[Optional[str], Optional[str]]":
     return total, result
 
 
+_SENTINEL_PREFIX = "::QPB::"
+_LEAD_RE = re.compile(r"^\[(?:PASS|WARN|FAIL)\] GATE ")
+
+
+def gate_sentinel_state(text: str) -> "Optional[tuple[str, str]]":
+    """v1.6.1 [council-2]: ``(gate_result, verdict_state)`` from the
+    LAST ``::QPB::`` line whose payload has ``kind == "gate"``, or
+    None when there is no such line (pre-1.6.1 log, or a hand-written
+    one). Unparseable sentinel lines are skipped."""
+    found = None
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line.startswith(_SENTINEL_PREFIX):
+            continue
+        try:
+            payload = json.loads(line[len(_SENTINEL_PREFIX):].strip())
+        except ValueError:
+            continue
+        if isinstance(payload, dict) and payload.get("kind") == "gate":
+            found = (str(payload.get("gate_result")),
+                     str(payload.get("verdict_state")))
+    return found
+
+
+def lead_line(text: str) -> Optional[str]:
+    """v1.6.1 [council-2]: the LAST operator lead line
+    (``[PASS] GATE ...`` / ``[WARN] GATE ...`` / ``[FAIL] GATE ...``),
+    stripped, or None."""
+    found = None
+    for raw in text.splitlines():
+        line = raw.strip()
+        if _LEAD_RE.match(line):
+            found = line
+    return found
+
+
+def compare_verdict_state(gate_text: str, log_text: str) -> Optional[str]:
+    """v1.6.1 [council-2]: None when the log's verdict state equals the
+    gate's, else a one-line reason. Uses the sentinel when the log has
+    one, else the lead line; a log with neither cannot be witnessed."""
+    log_state = gate_sentinel_state(log_text)
+    if log_state is not None:
+        gate_state = gate_sentinel_state(gate_text)
+        if gate_state != log_state:
+            return (f"verdict state differs (::QPB:: gate_result/"
+                    f"verdict_state: gate {gate_state}, log {log_state})")
+        return None
+    log_lead = lead_line(log_text)
+    if log_lead is not None:
+        gate_lead = lead_line(gate_text)
+        if gate_lead != log_lead:
+            return (f"verdict state differs (lead line: gate "
+                    f"{gate_lead!r}, log {log_lead!r})")
+        return None
+    return ("quality-gate.log has no ::QPB:: gate sentinel and no "
+            "[PASS]/[WARN]/[FAIL] GATE lead line, so its verdict state "
+            "cannot be witnessed")
+
+
 _WARN_TAIL_RE = re.compile(r",\s*\d+\s+WARN\s*$")
 
 
@@ -176,9 +245,10 @@ def main(argv: "list[str] | None" = None) -> int:
               file=sys.stderr)
         return 2
 
-    gate_total, gate_result = verdict_lines(run_gate(gate, target))
-    log_total, log_result = verdict_lines(
-        log_path.read_text(encoding="utf-8", errors="replace"))
+    gate_text = run_gate(gate, target)
+    log_text = log_path.read_text(encoding="utf-8", errors="replace")
+    gate_total, gate_result = verdict_lines(gate_text)
+    log_total, log_result = verdict_lines(log_text)
 
     print(f"Gate run by parent ({gate}):")
     print(f"  {gate_total or '<no Total: line>'}")
@@ -200,12 +270,19 @@ def main(argv: "list[str] | None" = None) -> int:
         print(f"MISMATCH: {' and '.join(diffs)} line(s) differ between "
               "the gate and quality-gate.log; stop and report.")
         return 1
+    # v1.6.1 [council-2]: the verdict state (solid / shallow /
+    # decisions / failed) can hinge on a WARN, so compare it too.
+    state_diff = compare_verdict_state(gate_text, log_text)
+    if state_diff is not None:
+        print(f"MISMATCH: {state_diff}; stop and report.")
+        return 1
     if gate_total != log_total:
-        print("MATCH: the log's RESULT: line and its Total: counts other "
-              "than WARN equal the gate's (the WARN count differs; WARNs "
-              "do not change the verdict).")
+        print("MATCH: the WARN count differs, but the RESULT: line, the "
+              "FAIL / DECISION / CLEANUP counts and the verdict state "
+              "equal the gate's.")
         return 0
-    print("MATCH: the log's Total: and RESULT: lines equal the gate's.")
+    print("MATCH: the log's Total: and RESULT: lines and its verdict "
+          "state equal the gate's.")
     return 0
 
 

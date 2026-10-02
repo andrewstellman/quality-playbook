@@ -23,6 +23,17 @@ Mutation-bite evidence (executed during v1.6.1 [S] development):
   M2: in SKILL.md, rename "Parent-witness rule" to "Subagent rule" →
       test_skill_md_mode_a_carries_conditional_rule FAILS. Restored →
       PASS.
+  v1.6.1 [council-2] (each mutation run against this file, then
+  restored):
+  M3: ``if state_diff is not None:`` -> ``if False:`` -> 3 FAIL (shallow
+      probe, sentinel-state, no-verdict-state log).
+  M4: ``if total_without_warn(...) != ...:`` -> ``if False:`` -> 3 FAIL
+      (edited FAIL / DECISION / CLEANUP count).
+  M5: WARN-strip regex widened to also drop ``, N CLEANUP`` -> FAIL
+      test_edited_cleanup_count_is_mismatch; widened to drop
+      ``N DECISION`` -> FAIL test_edited_decision_count_is_mismatch.
+  M6: log sentinel ignored (``log_state = None``) -> FAIL
+      test_fabricated_sentinel_state_is_mismatch.
 """
 
 from __future__ import annotations
@@ -206,6 +217,156 @@ class GateWitnessScriptTests(unittest.TestCase):
         self.assertNotEqual(w.total_without_warn("Total: 1 FAIL, 6 WARN"),
                             w.total_without_warn("Total: 2 FAIL, 6 WARN"))
         self.assertIsNone(w.total_without_warn(None))
+
+    # v1.6.1 [council-2] (Council A-r2 N1, B-r2 should-fix).
+    def _tree_target(self, td: str, tree: dict) -> Path:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        try:
+            from test_quality_gate_gates import write_tree
+        finally:
+            sys.path.pop(0)
+        target = _make_target(Path(td))
+        write_tree(target, tree)
+        return target
+
+    def _write_log(self, target: Path, text: str) -> None:
+        (target / "quality" / "results" / "quality-gate.log").write_text(
+            text, encoding="utf-8")
+
+    @staticmethod
+    def _zero_bug_tree() -> dict:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        try:
+            from test_quality_gate_gates import minimal_zero_bug_tree
+        finally:
+            sys.path.pop(0)
+        return minimal_zero_bug_tree()
+
+    @staticmethod
+    def _decisions_tree() -> dict:
+        """Real gate: Total: 1 DECISION, 1 CLEANUP, N WARN (exit 0). The
+        CLEANUP is the missing run-metadata file (record-keeping)."""
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        try:
+            from test_gate_verdict_honesty_v161 import build_reproduced_tree
+        finally:
+            sys.path.pop(0)
+        tree = build_reproduced_tree({"BUG-001": "REQ-001"}, ["REQ-003"])
+        del tree["quality/results/run-2026-01-01T00-00-00.json"]
+        return tree
+
+    def test_shallow_pass_with_fabricated_solid_log_is_mismatch(self) -> None:
+        """Council A-r2 N1 probe: the real gate passes but the run looks
+        shallow (zero bugs, verdict_state "shallow"); a hand-written log
+        claims a solid pass with 0 WARN. RESULT and the non-WARN Total
+        counts agree, so only the verdict-state comparison catches it."""
+        with tempfile.TemporaryDirectory() as td:
+            target = self._tree_target(td, self._zero_bug_tree())
+            self.assertIn('"verdict_state":"shallow"',
+                          self._real_log(target))
+            self._write_log(target, "[PASS] GATE PASSED\n"
+                            "Total: 0 FAIL, 0 WARN\n"
+                            "RESULT: GATE PASSED\nexit=0\n")
+            r = _run_witness(target)
+            self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+            self.assertIn("MISMATCH: verdict state differs (lead line",
+                          r.stdout)
+
+    def test_fabricated_sentinel_state_is_mismatch(self) -> None:
+        """A log that carries a ::QPB:: gate sentinel is judged on the
+        sentinel's verdict_state (here "solid" vs the gate's "shallow")."""
+        with tempfile.TemporaryDirectory() as td:
+            target = self._tree_target(td, self._zero_bug_tree())
+            real = self._real_log(target)
+            self._write_log(target, real.replace(
+                '"verdict_state":"shallow"', '"verdict_state":"solid"'))
+            r = _run_witness(target)
+            self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+            self.assertIn("MISMATCH: verdict state differs (::QPB:: "
+                          "gate_result/verdict_state", r.stdout)
+
+    def test_shallow_agents_md_written_later_is_match(self) -> None:
+        """AGENTS.md written after the log changes the WARN count only;
+        the verdict state stays "shallow" -> MATCH, and the MATCH line
+        does not claim WARNs never change the verdict."""
+        with tempfile.TemporaryDirectory() as td:
+            tree = self._zero_bug_tree()
+            del tree["AGENTS.md"]
+            target = self._tree_target(td, tree)
+            self._real_log(target)
+            (target / "AGENTS.md").write_text("# Agents\n", encoding="utf-8")
+            r = _run_witness(target)
+            self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+            self.assertIn(
+                "MATCH: the WARN count differs, but the RESULT: line, the "
+                "FAIL / DECISION / CLEANUP counts and the verdict state "
+                "equal the gate's.", r.stdout)
+            self.assertNotIn("do not change the verdict", r.stdout)
+
+    def test_log_without_sentinel_matching_lead_line_is_match(self) -> None:
+        """Pre-1.6.1 log shape (no ::QPB:: line): the lead line is the
+        verdict state, and it matches -> MATCH."""
+        with tempfile.TemporaryDirectory() as td:
+            target = self._tree_target(td, self._zero_bug_tree())
+            real = self._real_log(target)
+            self._write_log(target, "\n".join(
+                ln for ln in real.splitlines()
+                if not ln.startswith("::QPB::")) + "\n")
+            r = _run_witness(target)
+            self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+            self.assertIn("MATCH:", r.stdout)
+            self.assertNotIn("MISMATCH", r.stdout)
+
+    def test_log_without_sentinel_or_lead_line_is_mismatch(self) -> None:
+        """Total: and RESULT: copied verbatim, but no verdict-state line
+        at all -> the log cannot be witnessed."""
+        with tempfile.TemporaryDirectory() as td:
+            target = self._tree_target(td, self._zero_bug_tree())
+            real = self._real_log(target)
+            self._write_log(target, "\n".join(
+                ln for ln in real.splitlines()
+                if not ln.startswith(("::QPB::", "[PASS] GATE",
+                                      "[WARN] GATE", "[FAIL] GATE")))
+                + "\n")
+            r = _run_witness(target)
+            self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+            self.assertIn("MISMATCH: quality-gate.log has no ::QPB:: gate "
+                          "sentinel and no [PASS]/[WARN]/[FAIL] GATE lead "
+                          "line, so its verdict state cannot be witnessed",
+                          r.stdout)
+
+    def _edited_total_is_mismatch(self, tree, old: str, new: str) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            target = (_make_target(Path(td)) if tree is None
+                      else self._tree_target(td, tree))
+            real = self._real_log(target)
+            total = [ln for ln in real.splitlines()
+                     if ln.startswith("Total:")][-1]
+            self.assertIn(old, total)
+            self._write_log(target, real.replace(
+                total, total.replace(old, new, 1)))
+            r = _run_witness(target)
+            self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+            self.assertIn("MISMATCH: Total: line(s) differ", r.stdout)
+
+    def test_edited_fail_count_is_mismatch(self) -> None:
+        """Council B-r2: only the FAIL count is edited (RESULT, lead line
+        and sentinel untouched) -> MISMATCH on Total:."""
+        with tempfile.TemporaryDirectory() as td:
+            target = _make_target(Path(td))
+            real = self._real_log(target)
+        total = [ln for ln in real.splitlines() if ln.startswith("Total:")][-1]
+        n_fail = total.split()[1]
+        self._edited_total_is_mismatch(None, f"Total: {n_fail} FAIL",
+                                       f"Total: {int(n_fail) + 1} FAIL")
+
+    def test_edited_decision_count_is_mismatch(self) -> None:
+        self._edited_total_is_mismatch(self._decisions_tree(),
+                                       "1 DECISION,", "2 DECISION,")
+
+    def test_edited_cleanup_count_is_mismatch(self) -> None:
+        self._edited_total_is_mismatch(self._decisions_tree(),
+                                       "1 CLEANUP,", "0 CLEANUP,")
 
     def test_witness_ships_in_install_bundle(self) -> None:
         from bin.install_skill import _bundle_files
