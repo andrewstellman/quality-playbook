@@ -111,8 +111,10 @@ class InstallClosureNoDriftTests(unittest.TestCase):
         # prompt Feature H now ships). [S+W] +bin/qpb_gate_witness.py (the
         # parent session's gate re-run after a subagent Phase 6) and
         # +references/claims_rules.md (auto-bundled by the references/*.md glob).
+        # v1.6.1 [R]: 72 -> 74. +bin/upstream_scripts.py (writes the
+        # operator-run gh scripts) and +references/upstream_submission.md.
         from bin.qpb_validate import INSTALL_CLOSURE
-        self.assertEqual(len(INSTALL_CLOSURE), 72)
+        self.assertEqual(len(INSTALL_CLOSURE), 74)
         paths = [e["path"] for e in INSTALL_CLOSURE]
         self.assertEqual(len(paths), len(set(paths)),
                          "duplicate path in INSTALL_CLOSURE")

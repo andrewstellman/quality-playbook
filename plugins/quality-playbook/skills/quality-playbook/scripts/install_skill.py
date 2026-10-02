@@ -236,6 +236,8 @@ def _bundle_files_soft(
             "qpb_validate.py",
             # v1.6.1 [S]: parent-session gate witness.
             "qpb_gate_witness.py",
+            # v1.6.1 [R]: upstream submission script generator.
+            "upstream_scripts.py",
         ):
             p = source_root / scripts_dir / _mod
             if p.is_file():
@@ -685,6 +687,14 @@ def _bundle_files(source_root: Path) -> list[tuple[Path, Path]]:
     files.append((
         _require_bundle_file(source_root / scripts_dir / "qpb_gate_witness.py"),
         Path("bin") / "qpb_gate_witness.py",
+    ))
+    # v1.6.1 [R]: ship bin/upstream_scripts.py — Phase 7's "Prepare
+    # upstream submissions" path (references/upstream_submission.md)
+    # calls it to write the operator-run gh scripts. Import closure:
+    # stdlib + _purpose (bundled). Mandatory-bundle pattern.
+    files.append((
+        _require_bundle_file(source_root / scripts_dir / "upstream_scripts.py"),
+        Path("bin") / "upstream_scripts.py",
     ))
     return files
 

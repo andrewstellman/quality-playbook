@@ -1190,6 +1190,7 @@ _FLAT_LAYOUT_BUNDLED_BIN_FILES = frozenset({
     "qpb_validate.py",              # v1.5.7 090k
     "quality_playbook.py",
     "reference_docs_ingest.py",
+    "upstream_scripts.py",          # v1.6.1 [R] upstream submission scripts
     "doc_classification.py",
     "persona_catalog.py",
     "persona_orchestration.py",

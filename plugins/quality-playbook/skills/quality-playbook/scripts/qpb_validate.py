@@ -167,6 +167,7 @@ INSTALL_CLOSURE = [
     {"path": "bin/qpb_phase.py", "kind": "bundled_module", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "bin/qpb_validate.py", "kind": "bundled_module", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "bin/quality_playbook.py", "kind": "bundled_module", "min_version": None, "expected_sha256": None, "source_glob": None},
+    {"path": "bin/upstream_scripts.py", "kind": "bundled_module", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "bin/reference_docs_ingest.py", "kind": "bundled_module", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "bin/doc_classification.py", "kind": "bundled_module", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "bin/persona_catalog.py", "kind": "bundled_module", "min_version": None, "expected_sha256": None, "source_glob": None},
@@ -225,6 +226,8 @@ INSTALL_CLOSURE = [
     {"path": "references/runners_and_models.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "references/schema_mapping.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "references/spec_audit.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},
+    # v1.6.1 [R]: the Phase 7 "Prepare upstream submissions" path.
+    {"path": "references/upstream_submission.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "references/verification.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "references/what_just_happened.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},
 ]

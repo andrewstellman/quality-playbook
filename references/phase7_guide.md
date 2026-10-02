@@ -1,6 +1,6 @@
 # Phase 7: Present, Explore, Improve — detail
 
-*Extracted from SKILL.md in v1.5.10 (instr 052). SKILL.md keeps the `## Phase 7` heading + the canonical-treatment paragraph + a pointer here; this file carries Part 1 (summary table), Part 2 (drill-down), Part 3 (improvement menu), executing each improvement path, and iteration.*
+*Extracted from SKILL.md in v1.5.10 (instr 052). SKILL.md keeps the `## Phase 7` heading + the canonical-treatment paragraph + a pointer here; this file carries Part 1 (summary table), Part 2 (drill-down), Part 3 (improvement menu), executing each improvement path, and iteration. v1.6.1 [R] added path 5, "Prepare upstream submissions".*
 
 ## Part 1: The Summary Table
 
@@ -68,7 +68,7 @@ The user may go through several drill-downs before they're ready to improve anyt
 
 After the user has seen the summary (and optionally drilled into details), present the improvement options:
 
-> "Four ways to make this better:"
+> "Five ways to make this better:"
 >
 > **1. Validate the requirements against your intent** *(still available — the primary offer was at the Phase 2 → Phase 3 boundary; this is your end-of-run reminder)* — Run the requirements validation interview (`references/requirements_interview.md`). I play back what I understood the system to be, then walk the spec top-down — the narrative, then each section and its use cases, then individual requirements only where you want to drill in. At every step you can **confirm** (recorded as durable evidence), **correct** (tell me what it should say), or **add** (name behavior I missed). Corrections land straight in the requirements and re-render, and your confirmations survive future runs. Entry modes: guided (I walk it all), self-guided (you pick where to look), or cross-model (a different model family drives, to counter self-enhancement bias). Good for: catching where the derivation captured the wrong intent — the defects no autonomous pass finds. Note: validating now means Phases 3–6 were already built on the un-corrected requirements, so a correction here may warrant re-running the affected downstream phase; validating at the Phase 2 boundary avoids that.
 >
@@ -84,6 +84,8 @@ After the user has seen the summary (and optionally drilled into details), prese
 >   - Newsgroup posts, forum discussions, or mailing list archives
 >
 >   You can use tools like Claude Cowork, GitHub Copilot, or OpenClaw to connect to these sources and gather them into a folder, then point me at the folder. Good for: grounding scenarios and requirements in real project history instead of inference.
+>
+> **5. Prepare upstream submissions** *(when the confirmed bugs are in a project you don't own)* — I check the project's contribution policy first, shortlist 3–4 bugs for you to pick, confirm each with a fresh confirmer, fix it in a fresh clone with red/green/revert evidence, and run a 15-member review panel (2 executors + 13 reviewers). Then I prepare one bug at a time: a `REVIEW.md` for you to read, and a `submit.sh` you run yourself, which opens a draft PR. I never submit, mark ready, or comment upstream. Protocol: `references/upstream_submission.md`.
 >
 > "You can do any combination of these, in any order. Which would you like to start with?"
 
@@ -111,6 +113,8 @@ After the user answers, revise the generated files and re-run tests.
 4. Revise QUALITY.md scenarios with real incident details. Update integration test thresholds with real-world values. Re-run tests after revisions.
 
 If the user already provided chat history in Step 0, you've already mined it — but they may want to point you to specific conversations, connect additional sources, or ask you to dig deeper into a particular topic.
+
+**Path 5: Prepare upstream submissions.** Only when the operator picks it; never start it automatically. Follow `references/upstream_submission.md` step by step: (1) contribution-policy check → `quality/upstream/POLICY.md`, and stop if the project bans AI contributions or closes outside reports; (2) shortlist 3–4 bugs and **stop for the operator's pick**; (3) one fresh confirmer per picked bug; (4) one fixer per confirmed bug; (5) the review panel, spawned by you (subagents cannot nest), then the verdict matrix and any focused re-review; (6) one bug at a time: `quality/upstream/<slug>/REVIEW.md`, the same explanation in chat, scripts from `bin/upstream_scripts.py`, then **stop**; (7) after the operator submits and pastes the output, verify on the forge and fill in the Submission record and `STATUS.md`. The guardrails at the top of that file are binding: the skill never submits, marks ready, comments, or merges, and never runs `submit.sh` unless the operator explicitly asks.
 
 ## Iteration
 

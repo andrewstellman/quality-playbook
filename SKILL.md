@@ -624,6 +624,8 @@ After generating and verifying, present the results clearly and give the user co
 
 See `references/phase7_guide.md` for the full Phase 7 detail (Part 1 the summary table, Part 2 drill-down on demand, Part 3 the improvement menu, executing each improvement path, and iteration).
 
+**Prepare upstream submissions** is menu path 5, operator-invoked only: policy check, shortlist (stop for the operator's pick), confirm, fix, review panel, then one bug at a time with a `REVIEW.md` and an operator-run `submit.sh`. The skill never submits, marks ready, or comments upstream. See `references/upstream_submission.md`.
+
 ---
 
 ## Fixture Strategy
@@ -684,7 +686,7 @@ BUGS.md — an interpretive layer over them.>
 
 This block is **mandatory at every phase boundary**. The reason it exists: without it, adopters who hit failure modes like pass-process / fail-recall (where Phases 1-2 produce real artifacts but Phases 3-5 stub out and the gate passes with zero confirmed bugs) cannot see what went wrong without QPB-power-user knowledge of the gate verdicts. Surfacing the interpretive layer as plain English in chat scrollback fixes that.
 
-**Single source of truth:** the decision tree mapping run state → block content is in `references/what_just_happened.md`. Consult it before emitting — it covers thirteen run states (Phases 1-5 just-completed / code-only mode / Phase 2 abort + D1 preservation / agent-emitted unrecoverable error / pass-process-fail-recall / full baseline / one iteration done / all four iterations done / recheck done) with template prose for each, plus the mechanical 9-rule classifier for picking which state applies. Do NOT inline the decision tree here or in phase prompts — single-sourced in the reference file.
+**Single source of truth:** the decision tree mapping run state → block content is in `references/what_just_happened.md`. Consult it before emitting — it holds one template per run state and the mechanical classifier for picking which state applies. Do NOT inline the decision tree here or in phase prompts — single-sourced in the reference file.
 
 **Plain-English contract.** No QPB-internal jargon without a parenthetical gloss. The first sentence of "What just happened" should make sense to an adopter reading their first run; the "What to do next" sentence must contain a concrete next prompt or shell command. See the DO NOT section of `references/what_just_happened.md` for full enforcement rules.
 
@@ -705,6 +707,7 @@ Read these as you work through each phase:
 | `references/review_protocols.md` | Files 3–4 (code review, integration) | Templates for both protocols, patch validation, skip guards |
 | `references/spec_audit.md` | File 5 (Council of Three) | Full audit protocol, triage process, fix execution |
 | `references/iteration.md` | Iterations (after Phase 6) | Four iteration strategies: gap, unfiltered, parity, adversarial |
-| `references/verification.md` | Phase 6 (verify) | Complete self-check checklist (45 benchmarks) including structured output, patch gate, skip guard validation, pre-flight discovery, version stamps, bug writeups, enumeration completeness, triage executable evidence, code-extracted enumeration lists, mechanical verification artifacts, source-inspection test execution, contradiction gate, seed check execution, convergence tracking, sidecar JSON schema validation, script-verified closure gate, canonical use case identifiers, and writeup inline fix diffs |
+| `references/verification.md` | Phase 6 (verify) | Complete self-check checklist (45 benchmarks; the file lists them) |
+| `references/upstream_submission.md` | Phase 7 path 5, when the operator asks | Policy check, shortlist, confirmer/fixer briefs, review panel, REVIEW.md template, `bin/upstream_scripts.py` |
 | `references/claims_rules.md` | Before writing BUGS.md, writeups, or any operator-facing claim | Claim rules R1–R3, R6–R8, flag words, pre-output checklist |
-| `references/what_just_happened.md` | Every phase boundary (1-6) + end-of-run + iterations + recheck | Mandatory `## What just happened` + `### What to do next` block contract; 9-rule run-state classifier; decision tree of thirteen templates (P1 / P2 / P3 / P4 / P5 / C / G / E / S / B / I / F / R) covering Mode A multi-pass, code-only mode, Phase 2 abort + D1 preservation, agent-emitted unrecoverable error, pass-process / fail-recall, full baseline, iteration done, all four iterations done, recheck done |
+| `references/what_just_happened.md` | Every phase boundary (1-6) + end-of-run + iterations + recheck | Mandatory `## What just happened` + `### What to do next` block contract; run-state classifier; one template per run state |
