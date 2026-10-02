@@ -479,6 +479,24 @@ class Council2GateTests(_GateFixture):
         self.assertIn("the paperwork behind 2 requirements", out)
         self.assertNotIn("the paperwork behind 1 requirement", out)
 
+    def test_multi_repo_tier_mismatch_counts_repo_req_pairs(self):
+        """C-r3 nit 2: the tier-mismatch narration counts repo:REQ pairs
+        in a multi-repo run, as the 'What happened' reason does."""
+        msgs = [
+            "requirements_manifest.json: record_id=REQ-003: is tier 3 but "
+            "carries a citation block (citations are for Tier 1/2 only)",
+            "requirements_manifest.json: record_id=REQ-003: is tier 3 but "
+            "carries a citation block (citations are for Tier 1/2 only)",
+        ]
+        text = quality_gate._narrate_fail_category(
+            quality_gate._FAIL_REQ_TIER_MISMATCH, msgs,
+            {"on_flagged": [], "unlinked": []}, repos=["alpha", "beta"])
+        self.assertIn("2 requirement(s) quote a document", text)
+        single = quality_gate._narrate_fail_category(
+            quality_gate._FAIL_REQ_TIER_MISMATCH, msgs[:1],
+            {"on_flagged": [], "unlinked": []})
+        self.assertIn("1 requirement(s) quote a document", single)
+
     def test_mixed_decisions_and_cleanup_pass_separates_record_keeping(self):
         """C-r2 nit 2: on a decisions pass with a record-keeping FAIL,
         the record-keeping FAIL is under its own heading (not under

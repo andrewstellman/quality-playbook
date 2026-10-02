@@ -16,12 +16,14 @@ Usage:
   qpb_gate_witness <target-repo>
 
 Exit codes:
-  0  the gate's ``RESULT:`` line equals the log's, and its ``Total:``
-     line equals the log's once the trailing ``, N WARN`` part is
-     removed from both
+  0  the gate's ``RESULT:`` line equals the log's, its ``Total:`` line
+     equals the log's once the trailing ``, N WARN`` part is removed
+     from both, and the verdict state matches
   1  they differ (a ``MISMATCH`` line names which), the verdict state
      differs, the log carries no verdict state, or the gate printed
      no verdict lines
+  2  ``quality/results/quality-gate.log`` is missing, or the target /
+     ``quality_gate.py`` cannot be found
 
 v1.6.1 [council-1]: the WARN count is left out of the comparison
 because it can change between the subagent's gate run and the
@@ -32,13 +34,12 @@ printed.
 
 v1.6.1 [council-2]: a WARN can still change the verdict state (the
 "no test functions found" WARN turns a pass "shallow"), so the witness
-also compares the verdict state. Source, in order: the LAST
-``::QPB::`` gate sentinel's ``gate_result`` + ``verdict_state``; for
-a log with no sentinel (pre-1.6.1), the operator lead line
-(``[PASS]/[WARN]/[FAIL] GATE ...``). A log with neither is a MISMATCH:
-its verdict state cannot be witnessed.
-  2  ``quality/results/quality-gate.log`` is missing, or the target /
-     ``quality_gate.py`` cannot be found
+also compares the verdict state: the LAST ``::QPB::`` gate sentinel's
+``gate_result`` + ``verdict_state``, and the operator lead line
+(``[PASS]/[WARN]/[FAIL] GATE ...``). v1.6.1 [council-3]: when the log
+has both, both are compared; a log with only the lead line (written
+before v1.5.7, or by hand) is compared on the lead line; a log with
+neither is a MISMATCH because its verdict state cannot be witnessed.
 
 The script never writes to the target: it reads the log and leaves it
 as the subagent wrote it. Stdlib only, plus the bundled ``_purpose``
@@ -142,8 +143,8 @@ _LEAD_RE = re.compile(r"^\[(?:PASS|WARN|FAIL)\] GATE ")
 def gate_sentinel_state(text: str) -> "Optional[tuple[str, str]]":
     """v1.6.1 [council-2]: ``(gate_result, verdict_state)`` from the
     LAST ``::QPB::`` line whose payload has ``kind == "gate"``, or
-    None when there is no such line (pre-1.6.1 log, or a hand-written
-    one). Unparseable sentinel lines are skipped."""
+    None when there is no such line (a log written before v1.5.7, or by
+    hand). Unparseable sentinel lines are skipped."""
     found = None
     for raw in text.splitlines():
         line = raw.strip()
@@ -176,18 +177,21 @@ def compare_verdict_state(gate_text: str, log_text: str) -> Optional[str]:
     gate's, else a one-line reason. Uses the sentinel when the log has
     one, else the lead line; a log with neither cannot be witnessed."""
     log_state = gate_sentinel_state(log_text)
+    log_lead = lead_line(log_text)
     if log_state is not None:
         gate_state = gate_sentinel_state(gate_text)
         if gate_state != log_state:
             return (f"verdict state differs (::QPB:: gate_result/"
                     f"verdict_state: gate {gate_state}, log {log_state})")
-        return None
-    log_lead = lead_line(log_text)
     if log_lead is not None:
+        # v1.6.1 [council-3] (A-r3 F1 / C-r3 nit 1): compare the lead
+        # line too when the log has one, so a true sentinel cannot
+        # sit beside a false operator-facing line.
         gate_lead = lead_line(gate_text)
         if gate_lead != log_lead:
             return (f"verdict state differs (lead line: gate "
                     f"{gate_lead!r}, log {log_lead!r})")
+    if log_state is not None or log_lead is not None:
         return None
     return ("quality-gate.log has no ::QPB:: gate sentinel and no "
             "[PASS]/[WARN]/[FAIL] GATE lead line, so its verdict state "

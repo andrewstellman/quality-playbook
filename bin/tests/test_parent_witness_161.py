@@ -285,6 +285,23 @@ class GateWitnessScriptTests(unittest.TestCase):
             self.assertIn("MISMATCH: verdict state differs (::QPB:: "
                           "gate_result/verdict_state", r.stdout)
 
+    def test_true_sentinel_with_false_lead_line_is_mismatch(self) -> None:
+        """Council A-r3 F1 / C-r3 nit 1: the real log's sentinel is kept
+        but its operator lead line is edited to claim a solid pass. The
+        lead line is compared too, so this is a MISMATCH."""
+        with tempfile.TemporaryDirectory() as td:
+            target = self._tree_target(td, self._zero_bug_tree())
+            real = self._real_log(target)
+            self.assertIn("[WARN] GATE PASSED -- but this run looks shallow",
+                          real)
+            self._write_log(target, real.replace(
+                "[WARN] GATE PASSED -- but this run looks shallow",
+                "[PASS] GATE PASSED -- this run looks solid"))
+            r = _run_witness(target)
+            self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+            self.assertIn("MISMATCH: verdict state differs (lead line",
+                          r.stdout)
+
     def test_shallow_agents_md_written_later_is_match(self) -> None:
         """AGENTS.md written after the log changes the WARN count only;
         the verdict state stays "shallow" -> MATCH, and the MATCH line

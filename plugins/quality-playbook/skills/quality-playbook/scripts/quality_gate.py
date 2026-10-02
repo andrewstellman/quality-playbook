@@ -1209,6 +1209,20 @@ def _narrate_fail_category(category, msgs, summary, repos=None):
     if category == _FAIL_REQ_TIER_MISMATCH:
         carries = [m for m in msgs if _TIER_CARRIES_CITATION_RE.search(m)]
         differs = [m for m in msgs if m not in carries]
+
+        def _count_reqs(subset):
+            # v1.6.1 [council-3] (C-r3 nit 2): in a multi-repo run count
+            # repo:REQ pairs, as the overreach narration and the
+            # "What happened" reason do.
+            if repos and any(repos):
+                pairs = set()
+                for msg, repo in zip(msgs, repos):
+                    if msg in subset:
+                        for rid in _REQ_ID_IN_MSG_RE.findall(msg):
+                            pairs.add((repo, rid))
+                return len(pairs)
+            return len(_req_ids_in(subset))
+
         parts = []
         if carries:
             tiers = sorted({
@@ -1220,13 +1234,13 @@ def _narrate_fail_category(category, msgs, summary, repos=None):
             else:
                 marked = "tier " + "/".join(str(t) for t in tiers)
             parts.append(
-                f"{len(_req_ids_in(carries))} requirement(s) quote a "
+                f"{_count_reqs(carries)} requirement(s) quote a "
                 f"document but are still marked as {marked}. This usually "
                 f"comes from the expert-review (Feature H) step."
             )
         if differs:
             parts.append(
-                f"{len(_req_ids_in(differs))} requirement(s) carry a tier "
+                f"{_count_reqs(differs)} requirement(s) carry a tier "
                 f"that differs from the tier of the document they cite."
             )
         parts.append(
