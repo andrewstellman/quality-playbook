@@ -2,11 +2,11 @@
 
 **Andrew Stellman · Second paper proposal · 4 October 2026**
 
-**Status:** Updated review draft for convergence with Andrew and Fable on 4 October 2026. The linked abstract and bounded pilot protocol are the current review artifacts; the broader ideas below remain proposals, not finalized experiments or results. Venue remains open.
+**Status:** Abstract and bounded pilot design agreed by Andrew and Fable on 4 October 2026. Execution choices listed in the protocol remain open. The broader ideas below remain proposals, not finalized experiments or results. Venue remains open.
 
 **Current abstract:** [Working abstract](MODEL_COMPARISON_ABSTRACT.md), revised with Andrew on 4 October 2026. It describes the full study without pilot-specific counts and records the possible later addition of Sol and Opus.
 
-**Pilot scope after review:** The [bounded pilot protocol](MODEL_COMPARISON_PILOT_PROTOCOL.md) consolidates the subsequent Andrew, Astra, Opus, and Fable discussion. It proposes two scopes, four configurations, and three repetitions of two isolated tasks. Complete-workflow, crossed-set, and longitudinal comparisons below remain possible later studies, not pilot commitments. The protocol is still a draft with explicit decisions needed before execution.
+**Pilot scope after review:** The [bounded pilot protocol](MODEL_COMPARISON_PILOT_PROTOCOL.md) consolidates the subsequent Andrew, Astra, Opus, and Fable discussion. The agreed design uses two scopes, four configurations, and three repetitions of two isolated tasks. Complete-workflow, crossed-set, and longitudinal comparisons below remain possible later studies, not pilot commitments. Explicit decisions remain to be filled before the execution freeze.
 
 **Independent pilot:** Pilot runs will be reported as feasibility evidence and excluded from the full study's model-comparison tables. The full study can add Sol and Opus and more projects, and will build its own requirement pools for its selected snapshots. Its roster, project count, and repetitions will be decided after the pilot. Reuse of pilot validation or matching work must follow the protocol's provenance and isolation rules; it is not automatic reuse of experimental observations.
 

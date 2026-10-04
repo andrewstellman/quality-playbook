@@ -1,6 +1,6 @@
 # Model comparison pilot protocol
 
-**Review draft updated 4 October 2026. Versioned planning document, not an execution freeze or preregistration. Awaiting convergence with Andrew and Fable before the pilot starts.**
+**Design agreed by Andrew and Fable on 4 October 2026. Versioned planning document, not an execution freeze or preregistration. The listed execution decisions remain to be filled before the pilot starts.**
 
 This is the bounded pilot distilled from Andrew's discussion with Astra, Opus, and Fable. The [paper proposal](MODEL_COMPARISON_PAPER_PROPOSAL.md) retains the broader research ideas; this protocol governs the proposed pilot scope once its open decisions are settled.
 
@@ -90,4 +90,4 @@ The second human reviewer must be identified and available before the first deri
 
 Date and commit the completed protocol before the first derivation run; preserve its commit ID. For an independently timestamped preregistration, deposit that version in a suitable registry or archive before execution. A local commit provides version history but does not eliminate author bias or independently prove timing. Record later amendments and whether outcomes had been inspected. After requirement adjudication, hash and freeze each shared input set before discovery, as specified above.
 
-The next action is to converge on this draft with Andrew and Fable, fill the listed pilot decisions, and freeze the execution version before running it. This draft does not claim that preregistration, blinding, or a reviewer assignment has already happened. Committing this review draft preserves the discussion's current state; it does not start the pilot or resolve its open choices.
+The design has converged. The next action is to fill the listed pilot decisions and freeze the execution version before running it. This document does not claim that preregistration, blinding, or a reviewer assignment has already happened. Committing the agreed design preserves the discussion's current state; it does not start the pilot or resolve its open choices.
