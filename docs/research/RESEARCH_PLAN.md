@@ -2,6 +2,14 @@
 
 Working plan, 27 September 2026. Companion to [the one-page prospectus](PAPER_PROSPECTUS.md).
 
+## Research updates on 4 October 2026
+
+The [evidence tally](tally-2026-10-04/FINDINGS-TALLY.md) assesses 41 local evidence cases and links the existing standard-review comparisons. A separate [second paper proposal on comparing models](MODEL_COMPARISON_PAPER_PROPOSAL.md) documents Andrew's idea of using QPB phase boundaries to compare requirements derivation, defect discovery against fixed requirements, repeated-run behavior, and cost. It includes open design choices and a review brief for Fable; it is not an executed study.
+
+**Claim clarification:** Andrew's first-paper claim concerns particular defects QPB finds that same-model standard review misses, including discoveries enabled by additional information. It is not a claim of general superiority over standard review, which QPB itself includes as a phase. Read the older comparative language below in that narrower scope.
+
+The [current abstract](MODEL_COMPARISON_ABSTRACT.md) describes the intended full study and its practical purpose without pilot-specific counts or an assumed capability ranking. The [model comparison pilot protocol](MODEL_COMPARISON_PILOT_PROTOCOL.md) consolidates the later Opus/Fable review into a bounded draft: 24 requirements-derivation tasks and 24 single-model requirement-verification tasks, with blinded adjudication and separate feasibility and comparison outcomes. The pilot is independent; its runs will not count in the full study's model-comparison tables. A later study can add Sol and Opus and more projects, building its own requirement pools. Scope choices, reviewer assignment, budgets, and statistical decision rules remain open; the next step is convergence with Fable before the pilot starts. The protocol has not been frozen or preregistered.
+
 ## Working arrangement
 
 Andrew selects publication goals, approves substantive study choices, and owns upstream communication. Astra (the planning assistant in Codex) maintains the research plan, evidence ledger, comparison protocol, and manuscript drafts; it checks execution outputs against the protocol. Claude Code can execute bounded inventory, reconstruction, and experiment tasks from written briefs. Each brief should identify inputs, permitted access, outputs, completion criteria, and unresolved questions. Execution agents must not see held-out answers or other arms’ findings.

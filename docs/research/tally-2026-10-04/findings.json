@@ -1,0 +1,854 @@
+{
+  "as_of": "2026-10-04",
+  "scope": "41 evidence/*/STATUS.md records; local historical statuses, no live upstream recheck",
+  "groups": {
+    "active": 20,
+    "conditional": 8,
+    "exclude": 10,
+    "policy-held": 3
+  },
+  "findings": [
+    {
+      "slug": "addressable-route-from-base-query",
+      "project": "addressable",
+      "status": "ready",
+      "title": "addressable: route_from returns \"\" when only the base has a query",
+      "link": "-",
+      "updated": "2026-10-01",
+      "note": "Full panel + focused re-review: all SHIP (colon case and quadratic regex fixed).",
+      "research_group": "active",
+      "assessment": "RFC 3986 resolution plus maintainer issue #126 supplies a concrete round-trip expectation. Strong candidate for tracing issue-derived intent; panel and focused re-review approved.",
+      "sources": [
+        "evidence/addressable-route-from-base-query/STATUS.md",
+        "evidence/addressable-route-from-base-query/PR-DRAFT.md",
+        "evidence/addressable-route-from-base-query/CHANGES-AFTER-PANEL.md"
+      ],
+      "control_hits": null
+    },
+    {
+      "slug": "addressable-template-pct-encoded",
+      "project": "addressable",
+      "status": "decision",
+      "title": "addressable: {+v}/{#v} re-encode existing %XX",
+      "link": "-",
+      "updated": "2026-10-01",
+      "note": "Panel split 6-3 under the side-effect rule (literal %XX changes meaning; %2e%2e filter bypass). Andrew to decide: drop, or file as an issue.",
+      "research_group": "conditional",
+      "assessment": "RFC 6570 grounding, but panel split over behavior changes. Preserve as an adjudication case, not an unqualified positive.",
+      "sources": [
+        "evidence/addressable-template-pct-encoded/STATUS.md",
+        "evidence/addressable-template-pct-encoded/PR-DRAFT.md",
+        "evidence/addressable-template-pct-encoded/CHANGES-AFTER-PANEL.md"
+      ],
+      "control_hits": null
+    },
+    {
+      "slug": "adonis-cookie-maxage-zero",
+      "project": "adonis",
+      "status": "open",
+      "title": "adonisjs/http-server: cookie maxAge 0 drops Max-Age",
+      "link": "https://github.com/adonisjs/http-server/pull/145",
+      "updated": "2026-10-01",
+      "note": "Ready for review.",
+      "research_group": "active",
+      "assessment": "Zero is accepted by the API but a truthiness check drops Max-Age. Existing serializer/clearCookie behavior supports expected output.",
+      "sources": [
+        "evidence/adonis-cookie-maxage-zero/STATUS.md",
+        "evidence/adonis-cookie-maxage-zero/CONFIRMATION.md",
+        "evidence/adonis-cookie-maxage-zero/PR-DRAFT.md"
+      ],
+      "control_hits": null
+    },
+    {
+      "slug": "adonis-lookup-route-error",
+      "project": "adonis",
+      "status": "needs-work",
+      "title": "adonisjs/http-server: findOrFail throws a plain Error instead of E_CANNOT_LOOKUP_ROUTE",
+      "link": "-",
+      "updated": "2026-10-01",
+      "note": "Panel: file as an issue first; the fix misses urlBuilder.urlFor.",
+      "research_group": "conditional",
+      "assessment": "Documented E_CANNOT_LOOKUP_ROUTE and issue history support the mismatch; proposed fix misses urlBuilder.urlFor.",
+      "sources": [
+        "evidence/adonis-lookup-route-error/STATUS.md",
+        "evidence/adonis-lookup-route-error/CONFIRMATION.md",
+        "evidence/adonis-lookup-route-error/PR-DRAFT.md"
+      ],
+      "control_hits": null
+    },
+    {
+      "slug": "adonis-redirect-qs-separator",
+      "project": "adonis",
+      "status": "needs-work",
+      "title": "adonisjs/http-server: withQs on a URL that already has a query adds a second ?",
+      "link": "-",
+      "updated": "2026-10-01",
+      "note": "Panel: forwarded params can now duplicate a hard-coded key; needs a code revision and re-review.",
+      "research_group": "conditional",
+      "assessment": "Existing-query redirect gets a second question mark; proposed merge can duplicate hard-coded keys. Revise and re-review.",
+      "sources": [
+        "evidence/adonis-redirect-qs-separator/STATUS.md",
+        "evidence/adonis-redirect-qs-separator/CONFIRMATION.md",
+        "evidence/adonis-redirect-qs-separator/PR-DRAFT.md"
+      ],
+      "control_hits": null
+    },
+    {
+      "slug": "adonis-reset-content-body",
+      "project": "adonis",
+      "status": "needs-work",
+      "title": "adonisjs/http-server: status(205).send(body) sends a body",
+      "link": "-",
+      "updated": "2026-10-01",
+      "note": "Panel: stream()/download() still send a body; scope and text must change.",
+      "research_group": "conditional",
+      "assessment": "HTTP 205 no-content requirement is an explicit standard; fix coverage still omits stream/download.",
+      "sources": [
+        "evidence/adonis-reset-content-body/STATUS.md",
+        "evidence/adonis-reset-content-body/CONFIRMATION.md",
+        "evidence/adonis-reset-content-body/PR-DRAFT.md"
+      ],
+      "control_hits": null
+    },
+    {
+      "slug": "adonis-send-error-object",
+      "project": "adonis",
+      "status": "dropped",
+      "title": "adonisjs/http-server: response.send(new Error()) serializes to {}",
+      "link": "-",
+      "updated": "2026-10-01",
+      "note": "Dropped after the panel (JSONP injection path; behaviour regressions).",
+      "research_group": "exclude",
+      "assessment": "Dropped after panel. Do not use the original claimed behavior and proposed fix as a clean positive.",
+      "sources": [
+        "evidence/adonis-send-error-object/STATUS.md",
+        "evidence/adonis-send-error-object/CONFIRMATION.md",
+        "evidence/adonis-send-error-object/PR-DRAFT.md"
+      ],
+      "control_hits": null
+    },
+    {
+      "slug": "adonis-toroute-qs-mutation",
+      "project": "adonis",
+      "status": "ready",
+      "title": "adonisjs/http-server: toRoute mutates the caller's options",
+      "link": "-",
+      "updated": "2026-10-01",
+      "note": "Panel approved after text fixes.",
+      "research_group": "active",
+      "assessment": "Reusing caller options loses query parameters because toRoute mutates them; panel approved after text fixes.",
+      "sources": [
+        "evidence/adonis-toroute-qs-mutation/STATUS.md",
+        "evidence/adonis-toroute-qs-mutation/CONFIRMATION.md",
+        "evidence/adonis-toroute-qs-mutation/PR-DRAFT.md"
+      ],
+      "control_hits": null
+    },
+    {
+      "slug": "adonis-unknown-content-type",
+      "project": "adonis",
+      "status": "ready",
+      "title": "adonisjs/http-server: type() writes Content-Type: false for unknown types",
+      "link": "-",
+      "updated": "2026-10-01",
+      "note": "Panel approved after text fixes.",
+      "research_group": "active",
+      "assessment": "Unknown MIME type can produce Content-Type: false; media-type syntax and documented header behavior ground the mismatch.",
+      "sources": [
+        "evidence/adonis-unknown-content-type/STATUS.md",
+        "evidence/adonis-unknown-content-type/CONFIRMATION.md",
+        "evidence/adonis-unknown-content-type/PR-DRAFT.md"
+      ],
+      "control_hits": null
+    },
+    {
+      "slug": "adonis-uuid-matcher",
+      "project": "adonis",
+      "status": "open",
+      "title": "adonisjs/http-server: uuid matcher accepts non-hex letters",
+      "link": "https://github.com/adonisjs/http-server/pull/144",
+      "updated": "2026-10-01",
+      "note": "Ready for review.",
+      "research_group": "active",
+      "assessment": "Issue #50 / PR #53 provide historical intent; a-z accepts letters outside hexadecimal. Particularly useful issue-history case.",
+      "sources": [
+        "evidence/adonis-uuid-matcher/STATUS.md",
+        "evidence/adonis-uuid-matcher/CONFIRMATION.md",
+        "evidence/adonis-uuid-matcher/PR-DRAFT.md"
+      ],
+      "control_hits": null
+    },
+    {
+      "slug": "aiohttp-readuntil-split-separator",
+      "project": "aiohttp",
+      "status": "open",
+      "title": "aiohttp: readuntil() misses a separator split across chunks",
+      "link": "https://github.com/aio-libs/aiohttp/pull/13870",
+      "updated": "2026-10-01",
+      "note": "Ready for review; codeowners requested.",
+      "research_group": "active",
+      "assessment": "Documented readuntil sequence contract, actual package red/green tests and asyncio parity. Original report explicitly code-only Phase 3; not evidence of external-document causation. STATUS says open; later Oct 3 handoff reports merged, not rechecked here.",
+      "sources": [
+        "evidence/aiohttp-readuntil-split-separator/STATUS.md",
+        "evidence/aiohttp-readuntil-split-separator/README.md",
+        "evidence/aiohttp-readuntil-split-separator/PR-DRAFT.md"
+      ],
+      "control_hits": {
+        "Opus": [
+          4,
+          10
+        ],
+        "Sonnet": [
+          1,
+          10
+        ],
+        "Sol": [
+          0,
+          10
+        ],
+        "Terra": [
+          2,
+          10
+        ]
+      }
+    },
+    {
+      "slug": "assertj-percentage-tostring-overflow",
+      "project": "assertj",
+      "status": "not-filed",
+      "title": "assertj: Percentage.toString() overflows for large whole values",
+      "link": "-",
+      "updated": "2026-10-01",
+      "note": "Not filed: assertj requires human-authored contributions.",
+      "research_group": "policy-held",
+      "assessment": "Large permitted percentage values saturate an int cast in toString; Maven red/green and related suites recorded. Contribution policy prevents filing, not research use.",
+      "sources": [
+        "evidence/assertj-percentage-tostring-overflow/STATUS.md",
+        "evidence/assertj-percentage-tostring-overflow/README.md",
+        "evidence/assertj-percentage-tostring-overflow/PR-DRAFT.md"
+      ],
+      "control_hits": {
+        "Opus": [
+          1,
+          1
+        ],
+        "Sonnet": [
+          0,
+          1
+        ],
+        "Sol": [
+          10,
+          10
+        ],
+        "Terra": [
+          8,
+          10
+        ]
+      }
+    },
+    {
+      "slug": "bionemo-amplify-pad-weights-dtype",
+      "project": "bionemo",
+      "status": "open",
+      "title": "bionemo-recipes AMPLIFY: _pad_weights returns fp32 for bf16 input",
+      "link": "https://github.com/NVIDIA-BioNeMo/bionemo-recipes/pull/1764",
+      "updated": "2026-10-01",
+      "note": "Ready for review; needs an NVIDIA member's /ok to test for CI.",
+      "research_group": "active",
+      "assessment": "CPU PyTorch harness executes copied function; dtype loss reproduced. Sibling implementation supplies intended behavior. Full package/CUDA path was not executed; control reports often find this.",
+      "sources": [
+        "evidence/bionemo-amplify-pad-weights-dtype/STATUS.md",
+        "evidence/bionemo-amplify-pad-weights-dtype/README.md",
+        "evidence/bionemo-amplify-pad-weights-dtype/PR-DRAFT.md"
+      ],
+      "control_hits": {
+        "Opus": [
+          9,
+          10
+        ],
+        "Sonnet": [
+          6,
+          10
+        ],
+        "Sol": [
+          6,
+          10
+        ],
+        "Terra": [
+          9,
+          10
+        ]
+      }
+    },
+    {
+      "slug": "bionemo-thd-cp-divisibility",
+      "project": "bionemo",
+      "status": "open",
+      "title": "bionemo-recipes collator: THD CP split drops remainder tokens",
+      "link": "https://github.com/NVIDIA-BioNeMo/bionemo-recipes/pull/1765",
+      "updated": "2026-10-01",
+      "note": "Ready for review; needs /ok to test.",
+      "research_group": "active",
+      "assessment": "Copied tensor-function harness reproduces dropped remainder tokens with explicit padding override; shipped default padding is safe. Sibling BSHD guard supports expectation. Full distributed execution not performed.",
+      "sources": [
+        "evidence/bionemo-thd-cp-divisibility/STATUS.md",
+        "evidence/bionemo-thd-cp-divisibility/README.md",
+        "evidence/bionemo-thd-cp-divisibility/PR-DRAFT.md"
+      ],
+      "control_hits": {
+        "Opus": [
+          0,
+          10
+        ],
+        "Sonnet": [
+          0,
+          10
+        ],
+        "Sol": [
+          0,
+          10
+        ],
+        "Terra": [
+          2,
+          10
+        ]
+      }
+    },
+    {
+      "slug": "calibre-opds-navcatalog",
+      "project": "calibre",
+      "status": "merged",
+      "title": "calibre content server: 500 instead of 404 for malformed hex ids in OPDS feeds",
+      "link": "https://github.com/kovidgoyal/calibre/pull/3310",
+      "updated": "2026-10-01",
+      "note": "Merged by Kovid Goyal.",
+      "research_group": "active",
+      "assessment": "Malformed hex raises through handler instead of yielding expected client error; sibling handlers support behavior. AST-extracted real handler harness, not end-to-end. Local records confirm merge. Original report says solely in-tree code.",
+      "sources": [
+        "evidence/calibre-opds-navcatalog/STATUS.md",
+        "evidence/calibre-opds-navcatalog/README.md",
+        "evidence/calibre-opds-navcatalog/PR-DRAFT.md"
+      ],
+      "control_hits": {
+        "Opus": [
+          0,
+          10
+        ],
+        "Sonnet": [
+          0,
+          10
+        ],
+        "Sol": [
+          0,
+          10
+        ],
+        "Terra": [
+          0,
+          10
+        ]
+      }
+    },
+    {
+      "slug": "chi-allowcontentencoding-comma",
+      "project": "chi",
+      "status": "duplicate",
+      "title": "chi: AllowContentEncoding rejects \"gzip, deflate\"",
+      "link": "https://github.com/go-chi/chi/issues/959",
+      "updated": "2026-10-01",
+      "note": "Already reported (#959, open PR #1182).",
+      "research_group": "exclude",
+      "assessment": "Already reported upstream (#959 / PR #1182). May illustrate rediscovery, not a newly reported defect.",
+      "sources": [
+        "evidence/chi-allowcontentencoding-comma/STATUS.md",
+        "evidence/chi-allowcontentencoding-comma/README.md"
+      ],
+      "control_hits": null
+    },
+    {
+      "slug": "chi-find-mount-wildcard",
+      "project": "chi",
+      "status": "maintainer-view",
+      "title": "chi: Mux.Find wildcard param after Mount",
+      "link": "-",
+      "updated": "2026-10-01",
+      "note": "Needs a maintainer's view rather than a patch.",
+      "research_group": "exclude",
+      "assessment": "Needs maintainer interpretation of routing behavior; not yet a settled positive.",
+      "sources": [
+        "evidence/chi-find-mount-wildcard/STATUS.md",
+        "evidence/chi-find-mount-wildcard/README.md"
+      ],
+      "control_hits": null
+    },
+    {
+      "slug": "chi-gethead-mount",
+      "project": "chi",
+      "status": "not-filed",
+      "title": "chi: GetHead under a mounted sub-router ignores its HEAD handler",
+      "link": "-",
+      "updated": "2026-10-01",
+      "note": "Not filed: the fix caused a regression in review.",
+      "research_group": "conditional",
+      "assessment": "Original mounted-router behavior reproduced in Go; proposed patch regressed during review. Keep original defect separate from failed fix. All controls missed it, but patch/adjudication work remains.",
+      "sources": [
+        "evidence/chi-gethead-mount/STATUS.md",
+        "evidence/chi-gethead-mount/README.md",
+        "evidence/chi-gethead-mount/PR-DRAFT.md"
+      ],
+      "control_hits": {
+        "Opus": [
+          0,
+          10
+        ],
+        "Sonnet": [
+          0,
+          10
+        ],
+        "Sol": [
+          0,
+          10
+        ],
+        "Terra": [
+          0,
+          10
+        ]
+      }
+    },
+    {
+      "slug": "chi-pathrewrite-pageroute-mount",
+      "project": "chi",
+      "status": "maintainer-view",
+      "title": "chi: PathRewrite/PageRoute under Mount",
+      "link": "-",
+      "updated": "2026-10-01",
+      "note": "Needs a maintainer's view.",
+      "research_group": "exclude",
+      "assessment": "Needs maintainer interpretation before counting as a settled defect.",
+      "sources": [
+        "evidence/chi-pathrewrite-pageroute-mount/STATUS.md",
+        "evidence/chi-pathrewrite-pageroute-mount/README.md"
+      ],
+      "control_hits": null
+    },
+    {
+      "slug": "chi-recoverer-upgrade-token",
+      "project": "chi",
+      "status": "duplicate",
+      "title": "chi: Recoverer exact-matches Connection: Upgrade",
+      "link": "-",
+      "updated": "2026-10-01",
+      "note": "Already covered by open PRs #1077, #1170, #1172.",
+      "research_group": "exclude",
+      "assessment": "Existing upstream PRs cover the issue. Keep out of novel-discovery tally.",
+      "sources": [
+        "evidence/chi-recoverer-upgrade-token/STATUS.md",
+        "evidence/chi-recoverer-upgrade-token/README.md"
+      ],
+      "control_hits": null
+    },
+    {
+      "slug": "chi-registermethod-race",
+      "project": "chi",
+      "status": "maintainer-view",
+      "title": "chi: RegisterMethod race",
+      "link": "-",
+      "updated": "2026-10-01",
+      "note": "Leans working-as-designed.",
+      "research_group": "exclude",
+      "assessment": "Local assessment leans working-as-designed; do not count as confirmed.",
+      "sources": [
+        "evidence/chi-registermethod-race/STATUS.md",
+        "evidence/chi-registermethod-race/README.md"
+      ],
+      "control_hits": null
+    },
+    {
+      "slug": "cobra-complete-after-dashdash",
+      "project": "cobra",
+      "status": "ready",
+      "title": "cobra: completion drops a flag-looking argument after --",
+      "link": "-",
+      "updated": "2026-10-01",
+      "note": "Full panel + focused re-review: all SHIP. Not yet presented under the protocol.",
+      "research_group": "active",
+      "assessment": "Completion callback drops positional arguments after flag parsing stops; completion documentation gives expectation. Go tests/vet and re-review recorded.",
+      "sources": [
+        "evidence/cobra-complete-after-dashdash/STATUS.md",
+        "evidence/cobra-complete-after-dashdash/PR-DRAFT.md",
+        "evidence/cobra-complete-after-dashdash/CHANGES-AFTER-PANEL.md"
+      ],
+      "control_hits": null
+    },
+    {
+      "slug": "cobra-suggest-runes",
+      "project": "cobra",
+      "status": "open",
+      "title": "cobra: suggestion distance counts bytes, not runes",
+      "link": "https://github.com/spf13/cobra/pull/2514",
+      "updated": "2026-10-01",
+      "note": "CLA signed, ready for review. First submission under SUBMISSION-PROTOCOL.md.",
+      "research_group": "active",
+      "assessment": "Suggestion distance counts bytes instead of runes; Unicode behavior and red/green/revert evidence. Filed PR.",
+      "sources": [
+        "evidence/cobra-suggest-runes/STATUS.md",
+        "evidence/cobra-suggest-runes/REVIEW.md",
+        "evidence/cobra-suggest-runes/PR-DRAFT.md",
+        "evidence/cobra-suggest-runes/CHANGES-AFTER-PANEL.md"
+      ],
+      "control_hits": null
+    },
+    {
+      "slug": "express-cookie-subsecond-maxage",
+      "project": "express",
+      "status": "dropped",
+      "title": "express: maxAge under 1 s sends Max-Age=0",
+      "link": "-",
+      "updated": "2026-10-01",
+      "note": "Dropped by Andrew after the panel (below cookie resolution; Max-Age=1 doubles the lifetime).",
+      "research_group": "exclude",
+      "assessment": "Dropped by Andrew: requested precision is below cookie resolution and proposed round-up changes lifetime. Forty misses do not make it a valid positive.",
+      "sources": [
+        "evidence/express-cookie-subsecond-maxage/STATUS.md",
+        "evidence/express-cookie-subsecond-maxage/README.md",
+        "evidence/express-cookie-subsecond-maxage/PR-DRAFT.md"
+      ],
+      "control_hits": {
+        "Opus": [
+          0,
+          10
+        ],
+        "Sonnet": [
+          0,
+          10
+        ],
+        "Sol": [
+          0,
+          10
+        ],
+        "Terra": [
+          0,
+          10
+        ]
+      }
+    },
+    {
+      "slug": "javalin-lowercase-redirect-contextpath",
+      "project": "javalin",
+      "status": "ready",
+      "title": "javalin: lowercase-path redirect drops the context path",
+      "link": "-",
+      "updated": "2026-10-01",
+      "note": "Full panel: SHIP.",
+      "research_group": "active",
+      "assessment": "Redirect loses configured context path; concrete routing behavior, panel approved.",
+      "sources": [
+        "evidence/javalin-lowercase-redirect-contextpath/STATUS.md",
+        "evidence/javalin-lowercase-redirect-contextpath/PR-DRAFT.md"
+      ],
+      "control_hits": null
+    },
+    {
+      "slug": "javalin-precompress-maxsize-zero",
+      "project": "javalin",
+      "status": "dropped",
+      "title": "javalin: precompressMaxSize = 0 disables precompression though docs say all sizes",
+      "link": "-",
+      "updated": "2026-10-01",
+      "note": "Dropped: the fix would cache every file in memory (the #2616 OOM). Docs and code disagree; no submission.",
+      "research_group": "exclude",
+      "assessment": "Documentation/code disagreement is real, but proposed interpretation recreates memory exhaustion. Useful ambiguous-requirement example; exclude positive tally.",
+      "sources": [
+        "evidence/javalin-precompress-maxsize-zero/STATUS.md",
+        "evidence/javalin-precompress-maxsize-zero/PR-DRAFT.md"
+      ],
+      "control_hits": null
+    },
+    {
+      "slug": "nvmet-anagrpid",
+      "project": "Linux",
+      "status": "sent",
+      "title": "nvmet: ANA group ID 128 clamped to 0 by array_index_nospec()",
+      "link": "-",
+      "updated": "2026-10-01",
+      "note": "Sent to linux-nvme 2026-09-10; awaiting review (see README).",
+      "research_group": "active",
+      "assessment": "Boundary ANA group identifier misindexed; kernel/QEMU evidence and submitted patch. No matched standard-review result linked in this tally.",
+      "sources": [
+        "evidence/nvmet-anagrpid/STATUS.md",
+        "evidence/nvmet-anagrpid/README.md"
+      ],
+      "control_hits": null
+    },
+    {
+      "slug": "nvmet-crto",
+      "project": "Linux",
+      "status": "sent",
+      "title": "nvmet: Property Get of CRTO computed from CSTS instead of CAP",
+      "link": "-",
+      "updated": "2026-10-01",
+      "note": "Sent to linux-nvme 2026-09-10; awaiting review (see README). MESSAGE-v3.txt is an unsent revision.",
+      "research_group": "active",
+      "assessment": "CRTO timeout derived from CSTS instead of CAP; protocol-based expectation and kernel/QEMU evidence. User reports maintainer asked for concise explanation; that is not merge acceptance.",
+      "sources": [
+        "evidence/nvmet-crto/STATUS.md",
+        "evidence/nvmet-crto/README.md"
+      ],
+      "control_hits": null
+    },
+    {
+      "slug": "otel-java-forwarded-host-ipv6",
+      "project": "otel",
+      "status": "ready",
+      "title": "otel-java: Forwarded host extractor records \"[2001\" for bracketed IPv6",
+      "link": "-",
+      "updated": "2026-10-01",
+      "note": "Panel approved; needs the Gradle run.",
+      "research_group": "active",
+      "assessment": "RFC host syntax, semantic conventions and related upstream IPv6 fix support expectation. Real Java source compiled/tested with standalone harness; Gradle run outstanding. Original discovery explicitly code-only Phase 3.",
+      "sources": [
+        "evidence/otel-java-forwarded-host-ipv6/STATUS.md",
+        "evidence/otel-java-forwarded-host-ipv6/README.md",
+        "evidence/otel-java-forwarded-host-ipv6/PR-DRAFT.md"
+      ],
+      "control_hits": {
+        "Opus": [
+          1,
+          1
+        ],
+        "Sonnet": [
+          0,
+          1
+        ],
+        "Sol": [
+          10,
+          10
+        ],
+        "Terra": [
+          9,
+          10
+        ]
+      }
+    },
+    {
+      "slug": "otel-java-urlparser-ipv6",
+      "project": "otel",
+      "status": "ready",
+      "title": "otel-java: UrlParser records server.address \"[\" for bracketed IPv6",
+      "link": "-",
+      "updated": "2026-10-01",
+      "note": "Panel approved; needs Andrew's Gradle spotless/check run before submitting.",
+      "research_group": "active",
+      "assessment": "Bracketed IPv6 parsing violates host expectation across two copies. Real Java source red/green with standalone harness; Gradle run outstanding. Original discovery explicitly code-only Phase 3.",
+      "sources": [
+        "evidence/otel-java-urlparser-ipv6/STATUS.md",
+        "evidence/otel-java-urlparser-ipv6/README.md",
+        "evidence/otel-java-urlparser-ipv6/PR-DRAFT.md"
+      ],
+      "control_hits": {
+        "Opus": [
+          1,
+          1
+        ],
+        "Sonnet": [
+          0,
+          1
+        ],
+        "Sol": [
+          10,
+          10
+        ],
+        "Terra": [
+          9,
+          10
+        ]
+      }
+    },
+    {
+      "slug": "pydantic-multipleof-nonfinite",
+      "project": "pydantic",
+      "status": "held",
+      "title": "pydantic: float multiple_of accepts inf/NaN",
+      "link": "-",
+      "updated": "2026-10-01",
+      "note": "Held by Andrew (same policy reason).",
+      "research_group": "policy-held",
+      "assessment": "Nonfinite values accepted by multiple_of; expected behavior grounded in numeric constraint semantics. Held for contribution-policy reasons.",
+      "sources": [
+        "evidence/pydantic-multipleof-nonfinite/STATUS.md",
+        "evidence/pydantic-multipleof-nonfinite/PR-DRAFT.md",
+        "evidence/pydantic-multipleof-nonfinite/CHANGES-AFTER-PANEL.md"
+      ],
+      "control_hits": null
+    },
+    {
+      "slug": "pydantic-typeddict-own-config",
+      "project": "pydantic",
+      "status": "held",
+      "title": "pydantic: a TypedDict's own ser_json_* config is ignored",
+      "link": "-",
+      "updated": "2026-10-01",
+      "note": "Held by Andrew: pydantic's AI policy needs his own understanding statement; rebased, red/green not re-run after rebase.",
+      "research_group": "policy-held",
+      "assessment": "TypedDict serialization ignores its own config; documented config behavior supports claim. Policy hold plus red/green not rerun after rebase.",
+      "sources": [
+        "evidence/pydantic-typeddict-own-config/STATUS.md",
+        "evidence/pydantic-typeddict-own-config/PR-DRAFT.md",
+        "evidence/pydantic-typeddict-own-config/CHANGES-AFTER-PANEL.md"
+      ],
+      "control_hits": null
+    },
+    {
+      "slug": "requests-uri-too-long",
+      "project": "requests",
+      "status": "ruled-out",
+      "title": "requests: codes.uri_too_long",
+      "link": "-",
+      "updated": "2026-10-01",
+      "note": "Ruled out: deliberate since PR #6680; similar report #7611 closed.",
+      "research_group": "exclude",
+      "assessment": "Ruled out as intentional upstream behavior; exclude positive tally.",
+      "sources": [
+        "evidence/requests-uri-too-long/STATUS.md",
+        "evidence/requests-uri-too-long/README.md"
+      ],
+      "control_hits": null
+    },
+    {
+      "slug": "setuptools-manifest-include-globstar",
+      "project": "setuptools",
+      "status": "dropped",
+      "title": "setuptools: MANIFEST.in include ** is not recursive",
+      "link": "-",
+      "updated": "2026-10-01",
+      "note": "Dropped under the side-effect rule: existing include ** lines would pull venv/, node_modules/, hidden dirs into sdists.",
+      "research_group": "exclude",
+      "assessment": "Dropped because making ** recursive changes existing manifests and includes unintended trees. Useful rejection, not a clean positive.",
+      "sources": [
+        "evidence/setuptools-manifest-include-globstar/STATUS.md",
+        "evidence/setuptools-manifest-include-globstar/PR-DRAFT.md",
+        "evidence/setuptools-manifest-include-globstar/CHANGES-AFTER-PANEL.md"
+      ],
+      "control_hits": null
+    },
+    {
+      "slug": "setuptools-missing-dynamic-crash",
+      "project": "setuptools",
+      "status": "ready",
+      "title": "setuptools: readme/requires-python outside dynamic crash instead of warn-and-ignore",
+      "link": "-",
+      "updated": "2026-10-01",
+      "note": "Full panel + focused re-review: all SHIP.",
+      "research_group": "active",
+      "assessment": "PEP 621 plus maintainer comment #4183 establishes warn-and-ignore behavior. Two fields crash instead. Strong issue/spec example; red/green/revert and panel re-review recorded.",
+      "sources": [
+        "evidence/setuptools-missing-dynamic-crash/STATUS.md",
+        "evidence/setuptools-missing-dynamic-crash/PR-DRAFT.md",
+        "evidence/setuptools-missing-dynamic-crash/CHANGES-AFTER-PANEL.md"
+      ],
+      "control_hits": null
+    },
+    {
+      "slug": "virtio-pci-intx",
+      "project": "Linux",
+      "status": "merged",
+      "title": "virtio-pci: vp_interrupt() returns IRQ_NONE for a config-change-only interrupt",
+      "link": "https://git.kernel.org/linus/93fa09455fb1",
+      "updated": "2026-10-01",
+      "note": "Merged as 93fa09455fb1 (7.3-rc3).",
+      "research_group": "active",
+      "assessment": "Config-only interrupt incorrectly returns IRQ_NONE; QEMU/interrupt evidence and local record of upstream merge.",
+      "sources": [
+        "evidence/virtio-pci-intx/STATUS.md",
+        "evidence/virtio-pci-intx/README.md"
+      ],
+      "control_hits": null
+    },
+    {
+      "slug": "zod-catch-shared-reference",
+      "project": "zod",
+      "status": "held",
+      "title": "zod: a constant .catch() value is shared across parses (should be shallow-cloned each time)",
+      "link": "-",
+      "updated": "2026-10-01",
+      "note": "Waiting for the full panel.",
+      "research_group": "conditional",
+      "assessment": "Shared constant catch value versus cloning expectation needs full panel; do not assume analogy with default establishes contract.",
+      "sources": [
+        "evidence/zod-catch-shared-reference/STATUS.md",
+        "evidence/zod-catch-shared-reference/CONFIRMATION.md",
+        "evidence/zod-catch-shared-reference/PR-DRAFT.md"
+      ],
+      "control_hits": null
+    },
+    {
+      "slug": "zod-function-implement-zoderror",
+      "project": "zod",
+      "status": "held",
+      "title": "zod: function().implement() and implementAsync() should throw ZodError",
+      "link": "-",
+      "updated": "2026-10-01",
+      "note": "Waiting for the full panel; the least minimal fix.",
+      "research_group": "conditional",
+      "assessment": "Public ZodError contract versus internal error type; full panel and less-minimal fix still pending.",
+      "sources": [
+        "evidence/zod-function-implement-zoderror/STATUS.md",
+        "evidence/zod-function-implement-zoderror/CONFIRMATION.md",
+        "evidence/zod-function-implement-zoderror/PR-DRAFT.md"
+      ],
+      "control_hits": null
+    },
+    {
+      "slug": "zod-intersection-nan",
+      "project": "zod",
+      "status": "open",
+      "title": "zod: intersection throws when both sides produce NaN",
+      "link": "https://github.com/colinhacks/zod/issues/6639",
+      "updated": "2026-10-01",
+      "note": "Issue with fork compare link (zod limits PRs to collaborators).",
+      "research_group": "active",
+      "assessment": "Two branches yielding NaN fail intersection merge; actual source test/reverification evidence and filed issue.",
+      "sources": [
+        "evidence/zod-intersection-nan/STATUS.md",
+        "evidence/zod-intersection-nan/README.md",
+        "evidence/zod-intersection-nan/CONFIRMATION.md",
+        "evidence/zod-intersection-nan/PR-DRAFT.md"
+      ],
+      "control_hits": null
+    },
+    {
+      "slug": "zod-registry-remove-owner",
+      "project": "zod",
+      "status": "open",
+      "title": "zod: registry.remove() deletes an id that now belongs to another schema",
+      "link": "https://github.com/colinhacks/zod/issues/6640",
+      "updated": "2026-10-01",
+      "note": "Issue with fork compare link.",
+      "research_group": "active",
+      "assessment": "Removing previous owner deletes id now held by another schema. In-tree overwrite behavior and PR #5574 support intent; filed issue.",
+      "sources": [
+        "evidence/zod-registry-remove-owner/STATUS.md",
+        "evidence/zod-registry-remove-owner/README.md",
+        "evidence/zod-registry-remove-owner/CONFIRMATION.md",
+        "evidence/zod-registry-remove-owner/PR-DRAFT.md"
+      ],
+      "control_hits": null
+    },
+    {
+      "slug": "zod-treeify-symbol-keys",
+      "project": "zod",
+      "status": "held",
+      "title": "zod: treeifyError files symbol keys under items",
+      "link": "-",
+      "updated": "2026-10-01",
+      "note": "Waiting for the full panel.",
+      "research_group": "conditional",
+      "assessment": "Symbol key classification into items rather than properties; expected API/type behavior needs full panel.",
+      "sources": [
+        "evidence/zod-treeify-symbol-keys/STATUS.md",
+        "evidence/zod-treeify-symbol-keys/CONFIRMATION.md",
+        "evidence/zod-treeify-symbol-keys/PR-DRAFT.md"
+      ],
+      "control_hits": null
+    }
+  ]
+}

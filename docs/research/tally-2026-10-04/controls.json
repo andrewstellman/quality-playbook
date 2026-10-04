@@ -1,0 +1,2031 @@
+{
+  "as_of": "2026-10-04",
+  "provenance": {
+    "result_directory": "docs/research/control-2026-09-27/results",
+    "context_files": [
+      "docs/research/control-2026-09-27/results/CLAUDE-SCORING.md",
+      "docs/research/control-2026-09-27/SCOPES.md"
+    ],
+    "distinct_result_files": 140,
+    "target_run_cells": 180,
+    "runs_per_model_repo": 10,
+    "scoring_blind": false,
+    "methods": "Manual reading of matching passages and all finding headings; a hit requires the target behavior to be reported as a finding. Mention-only, file-read lists, and a distinct defect in the same function are misses."
+  },
+  "targets": [
+    {
+      "id": "aiohttp_readuntil",
+      "label": "aiohttp readuntil split multi-byte separator",
+      "repo": "aiohttp",
+      "counts": {
+        "sol": {
+          "hit": 0,
+          "miss": 10,
+          "uncertain": 0,
+          "total": 10
+        },
+        "terra": {
+          "hit": 2,
+          "miss": 8,
+          "uncertain": 0,
+          "total": 10
+        }
+      },
+      "runs": [
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 1,
+          "source": "docs/research/control-2026-09-27/results/sol-aiohttp-run01.md",
+          "source_sha256": "f809c0e82b29576b21488b56d9d91c98b49db97067d2cfe5c33fac17c35dc42a",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 2,
+          "source": "docs/research/control-2026-09-27/results/sol-aiohttp-run02.md",
+          "source_sha256": "9e61b14808d6a6d230cf95f869949f6d2bfdcbf9885e4cf26b0d9fa3427174b2",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 3,
+          "source": "docs/research/control-2026-09-27/results/sol-aiohttp-run03.md",
+          "source_sha256": "546702978bcbfffd7f612e3f8c1e368a4142638d21589c9c698b2b0628b6f17a",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 4,
+          "source": "docs/research/control-2026-09-27/results/sol-aiohttp-run04.md",
+          "source_sha256": "2bb6452d54f5acefdbd13a28a5781f7f86a19792ff00a79f563990d6a82ef970",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 5,
+          "source": "docs/research/control-2026-09-27/results/sol-aiohttp-run05.md",
+          "source_sha256": "8b788afa5620f5e435cbfe94e0dc128064df899651d54d9a2b74886ff877473d",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 6,
+          "source": "docs/research/control-2026-09-27/results/sol-aiohttp-run06.md",
+          "source_sha256": "afce4b346a1cb2d88f20383ce910ea8761f6de3fb0f1d41d1960f2cda6e4c9a5",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 7,
+          "source": "docs/research/control-2026-09-27/results/sol-aiohttp-run07.md",
+          "source_sha256": "63428fd35ee35552d14703a5dfe6994bf00ef0bbf493ec47e8c2958d5dc4735d",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 8,
+          "source": "docs/research/control-2026-09-27/results/sol-aiohttp-run08.md",
+          "source_sha256": "5c4b1515bb2f3a8b75eb67ff6b0eaed07504da0c3f0df1fe2c30edb3cd7d849f",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 9,
+          "source": "docs/research/control-2026-09-27/results/sol-aiohttp-run09.md",
+          "source_sha256": "0ca1e1576621fb9c2fdb005421b3b3542006791d30cfe0de03d4a3765d3038a1",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 10,
+          "source": "docs/research/control-2026-09-27/results/sol-aiohttp-run10.md",
+          "source_sha256": "28faf6ed84bfb0bb571583f70903d7e3f77b7d40615bc8246d07ae2ae9486f8b",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 1,
+          "source": "docs/research/control-2026-09-27/results/terra-aiohttp-run01.md",
+          "source_sha256": "c4dab432d8e876f9a1803cad0d7edb34a970396de8f4e50e03197f73b014f140",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 2,
+          "source": "docs/research/control-2026-09-27/results/terra-aiohttp-run02.md",
+          "source_sha256": "7baf2a390dcb9070b36657b0762b48dfd5ccefb9067b725c9d7b413869d4cfed",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 3,
+          "source": "docs/research/control-2026-09-27/results/terra-aiohttp-run03.md",
+          "source_sha256": "d2aabc17ae974c4448245fefab31d601b866fdc955556700356e5577e5666539",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 4,
+          "source": "docs/research/control-2026-09-27/results/terra-aiohttp-run04.md",
+          "source_sha256": "7e6124bb1759b8be21c3456f83b175b7b21e120a48a231fbeb8ec37e992cd29c",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 5,
+          "source": "docs/research/control-2026-09-27/results/terra-aiohttp-run05.md",
+          "source_sha256": "cf97c171d1363501379f83c4584b18fbf9b16896e0d81eb5b2e65e74ba351bf9",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 6,
+          "source": "docs/research/control-2026-09-27/results/terra-aiohttp-run06.md",
+          "source_sha256": "eedb808b79b0bf257951bf1978230062f930cecb70cc5a87f1d09fd41c24bda5",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/terra-aiohttp-run06.md",
+            "line": 13,
+            "excerpt": "### 1. `StreamReader.readuntil()` misses multi-byte separators split across buffered reads"
+          }
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 7,
+          "source": "docs/research/control-2026-09-27/results/terra-aiohttp-run07.md",
+          "source_sha256": "02fe10a2d1afbbfd8f59a39689c0093ecf30e07cc7f98fa86399b1e4d589881b",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 8,
+          "source": "docs/research/control-2026-09-27/results/terra-aiohttp-run08.md",
+          "source_sha256": "b3d5f19f6ba8711a4102d1dbcea3aeaf4cc855d8d0e952db34676a1069cedc74",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/terra-aiohttp-run08.md",
+            "line": 13,
+            "excerpt": "### 1. `StreamReader.readuntil()` misses a multi-byte separator split between buffered reads"
+          }
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 9,
+          "source": "docs/research/control-2026-09-27/results/terra-aiohttp-run09.md",
+          "source_sha256": "c8d3d33beeca53efd5579e9449961f4d11ff3acf002b9232b4055b8c3c007272",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 10,
+          "source": "docs/research/control-2026-09-27/results/terra-aiohttp-run10.md",
+          "source_sha256": "5615fa5481057d49fa23d74f5d95d8c8dfd5b5f58b2d39d781b3af93dcf846b7",
+          "status": "miss"
+        }
+      ]
+    },
+    {
+      "id": "chi_gethead",
+      "label": "chi GetHead under mounted subrouter ignores explicit HEAD",
+      "repo": "chi",
+      "counts": {
+        "sol": {
+          "hit": 0,
+          "miss": 10,
+          "uncertain": 0,
+          "total": 10
+        },
+        "terra": {
+          "hit": 0,
+          "miss": 10,
+          "uncertain": 0,
+          "total": 10
+        }
+      },
+      "runs": [
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 1,
+          "source": "docs/research/control-2026-09-27/results/sol-chi-run01.md",
+          "source_sha256": "f0ff10b5c2bf0abae7b03bb34bd0f2316210dcf77aedd8261b59832461cd2ace",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 2,
+          "source": "docs/research/control-2026-09-27/results/sol-chi-run02.md",
+          "source_sha256": "f59637862832e5efa9140d6933ff3dca46fb3c42bb51d7e9cb4d19f47373053c",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 3,
+          "source": "docs/research/control-2026-09-27/results/sol-chi-run03.md",
+          "source_sha256": "7ebd04189b4d355f9d30295943c0d7adfe98cfb1275c9579d05280f96eca15a7",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 4,
+          "source": "docs/research/control-2026-09-27/results/sol-chi-run04.md",
+          "source_sha256": "c6a16107642914b66a534b7d56467c0edd55c19b7a271292cd85bc78ec07510b",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 5,
+          "source": "docs/research/control-2026-09-27/results/sol-chi-run05.md",
+          "source_sha256": "71510ee823a778ccbb2e2b7027e9ed9e375a71b87179f9dea716eece24bc7786",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 6,
+          "source": "docs/research/control-2026-09-27/results/sol-chi-run06.md",
+          "source_sha256": "bbdbc8dbfd5ebcb17a7b66f2a0c470f06b7739f9b50e2835d18358c0ddbea36c",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 7,
+          "source": "docs/research/control-2026-09-27/results/sol-chi-run07.md",
+          "source_sha256": "c53bc6ef41bea3ee27c58459238e8f89cdf6b1a108555926d891f2026768c020",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 8,
+          "source": "docs/research/control-2026-09-27/results/sol-chi-run08.md",
+          "source_sha256": "8e42e55a0ba3690a79914fcdc1bd0309983bce57652855f643e13b1a314e38f2",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 9,
+          "source": "docs/research/control-2026-09-27/results/sol-chi-run09.md",
+          "source_sha256": "daed0a9325e20d3b2cc9a58f85741e8906bc5d65dd36e3472143b14fafeb4715",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 10,
+          "source": "docs/research/control-2026-09-27/results/sol-chi-run10.md",
+          "source_sha256": "373640329a56860c3301400e6ae3a8f7a54db08485cd7e9d6fcda19c2087f0b9",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 1,
+          "source": "docs/research/control-2026-09-27/results/terra-chi-run01.md",
+          "source_sha256": "f567c08786987f3661f627d125ec4d1a8ecae37704b7be761bed5ccb9262439f",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 2,
+          "source": "docs/research/control-2026-09-27/results/terra-chi-run02.md",
+          "source_sha256": "fd2b7ea74c601f822a8aeb7bd22c30f39d940adec517f080dafd608f384f446f",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 3,
+          "source": "docs/research/control-2026-09-27/results/terra-chi-run03.md",
+          "source_sha256": "af269c1e25e3c3567c70ba6da3d7115f479138cc5149f1a5196bb962ff69e36d",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 4,
+          "source": "docs/research/control-2026-09-27/results/terra-chi-run04.md",
+          "source_sha256": "ee1d6a73849376ef36fbbd377c0e965c20cbc8be78d922471ebce7419f0c5755",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 5,
+          "source": "docs/research/control-2026-09-27/results/terra-chi-run05.md",
+          "source_sha256": "aa3571072ef1cd3961a10cadac7c52b6944938e598b1c207708a54efa85b16d8",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 6,
+          "source": "docs/research/control-2026-09-27/results/terra-chi-run06.md",
+          "source_sha256": "24308987b92285fb7bdc53d3c26e5c7b3a90d198ff745a60e38ab5515bca6cd3",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 7,
+          "source": "docs/research/control-2026-09-27/results/terra-chi-run07.md",
+          "source_sha256": "ed281782fd7407e4e4453b68622a174e7976a8acc955a9ac30d124edae8eb5c8",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 8,
+          "source": "docs/research/control-2026-09-27/results/terra-chi-run08.md",
+          "source_sha256": "5eae28ce6a53bf90ffcfde1d542ea49924eb163722ec11a191c25865e1458563",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 9,
+          "source": "docs/research/control-2026-09-27/results/terra-chi-run09.md",
+          "source_sha256": "6d4eb7d8d992b7feb16aad8da8cf04d7ac5a92d38944f8c09f7f93cfef58a3fd",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 10,
+          "source": "docs/research/control-2026-09-27/results/terra-chi-run10.md",
+          "source_sha256": "23ae792dc58aeee3d8f200f220ab59240c0df211bf4bae801a78736a6920b7ff",
+          "status": "miss"
+        }
+      ]
+    },
+    {
+      "id": "express_maxage",
+      "label": "Express subsecond cookie maxAge",
+      "repo": "express",
+      "counts": {
+        "sol": {
+          "hit": 0,
+          "miss": 10,
+          "uncertain": 0,
+          "total": 10
+        },
+        "terra": {
+          "hit": 0,
+          "miss": 10,
+          "uncertain": 0,
+          "total": 10
+        }
+      },
+      "runs": [
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 1,
+          "source": "docs/research/control-2026-09-27/results/sol-express-run01.md",
+          "source_sha256": "ed7d1676efa3b335d3f53b00de19c9b21da2fece35895b294655773d44ebb1f8",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 2,
+          "source": "docs/research/control-2026-09-27/results/sol-express-run02.md",
+          "source_sha256": "c61559304f169a81f3fa0f459b61cfc928b439006c8bda253e9899df8239a1e6",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 3,
+          "source": "docs/research/control-2026-09-27/results/sol-express-run03.md",
+          "source_sha256": "a26ab0fa62bea68321a8dffc9a7dcfc7df0dba8f8c370a52c4b93493cf638170",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 4,
+          "source": "docs/research/control-2026-09-27/results/sol-express-run04.md",
+          "source_sha256": "e41e5d86de2e3cdf1c99c6307e4c6c0089d6fd6b6f1e69b5e72d56a739ae326f",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 5,
+          "source": "docs/research/control-2026-09-27/results/sol-express-run05.md",
+          "source_sha256": "5c719ed54cdf9ae33b6d1b6721969092701fccb8912c4cbe105ae0e70bff0aa0",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 6,
+          "source": "docs/research/control-2026-09-27/results/sol-express-run06.md",
+          "source_sha256": "9ba0f57975ee3121c47094bbff7dcaea62f3c31deb947d5b6be4b133094b8b9b",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 7,
+          "source": "docs/research/control-2026-09-27/results/sol-express-run07.md",
+          "source_sha256": "2927be84d135797c5de7269fca7558abcf560d6e09561cc2c7b1e0dab3749816",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 8,
+          "source": "docs/research/control-2026-09-27/results/sol-express-run08.md",
+          "source_sha256": "9ef31a3ba8c7add079cde81ceb5f3893b3b463aa6380d44d450ef00f318d589e",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 9,
+          "source": "docs/research/control-2026-09-27/results/sol-express-run09.md",
+          "source_sha256": "7c6881137dbaf86b6a7a6495e6ea4c64cf40e42fd39dbd3c1c22460c8f48d320",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 10,
+          "source": "docs/research/control-2026-09-27/results/sol-express-run10.md",
+          "source_sha256": "1c9a7aedaeb0249f21f5d1891fdec224879238f0cdecd4b2204918685f0dcfc1",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 1,
+          "source": "docs/research/control-2026-09-27/results/terra-express-run01.md",
+          "source_sha256": "afeff9151938f3a265df0bd8570385a33dcf118275c939fe8fdd4f38a1c5b357",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 2,
+          "source": "docs/research/control-2026-09-27/results/terra-express-run02.md",
+          "source_sha256": "cea364b04eb3a52a3e6c4186d648ee4280f2f8ed4ce5e3106161948f9a79718e",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 3,
+          "source": "docs/research/control-2026-09-27/results/terra-express-run03.md",
+          "source_sha256": "9e803a2f96dfcbf2b560649ca58fc17ae374220dbfef31f45302c21d6d58765a",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 4,
+          "source": "docs/research/control-2026-09-27/results/terra-express-run04.md",
+          "source_sha256": "0262bb163e73354dd6c103bae85d0a579e4b7440a822a6f338e1c58f167c1c21",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 5,
+          "source": "docs/research/control-2026-09-27/results/terra-express-run05.md",
+          "source_sha256": "8dc8a5bac788d65b71186e9cf039141669ad07f23bcd7161459ffc93d95af6af",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 6,
+          "source": "docs/research/control-2026-09-27/results/terra-express-run06.md",
+          "source_sha256": "a7315079ca89ce21f477ad511cca760352c0a9245770df98c6485e7dab6f60de",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 7,
+          "source": "docs/research/control-2026-09-27/results/terra-express-run07.md",
+          "source_sha256": "2b62190c23aad7de14967afaa4c25c6da32f597542ddbdfec0dcb356eb783931",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 8,
+          "source": "docs/research/control-2026-09-27/results/terra-express-run08.md",
+          "source_sha256": "7ce14e9575f291bdb5d1284f52dddf5bc4c27042815e15f90f611ec0dbb88ddc",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 9,
+          "source": "docs/research/control-2026-09-27/results/terra-express-run09.md",
+          "source_sha256": "5e71bdb4f1dcc07177cc2e45a041e1c09fd605f13b5fe1c066f333380cf3db07",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 10,
+          "source": "docs/research/control-2026-09-27/results/terra-express-run10.md",
+          "source_sha256": "f2bab07058b759114b6398406b74e5685a1c4c79c93c60be54dda7d5ac87d8ec",
+          "status": "miss"
+        }
+      ]
+    },
+    {
+      "id": "otel_urlparser_ipv6",
+      "label": "OpenTelemetry UrlParser bracketed IPv6",
+      "repo": "otel",
+      "counts": {
+        "sol": {
+          "hit": 10,
+          "miss": 0,
+          "uncertain": 0,
+          "total": 10
+        },
+        "terra": {
+          "hit": 9,
+          "miss": 1,
+          "uncertain": 0,
+          "total": 10
+        }
+      },
+      "runs": [
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 1,
+          "source": "docs/research/control-2026-09-27/results/sol-otel-run01.md",
+          "source_sha256": "526967b4b8d9be8df66a16de18f7beaa16d9086c6d55252756014aa89dea13e6",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/sol-otel-run01.md",
+            "line": 17,
+            "excerpt": "3. **IPv6 URLs are parsed with a one-character host** \u2014 **medium**. `instrumentation-api-incubator/src/main/java/io/opentelemetry/instrumentation/api/incubator/semconv/net/internal/UrlParser.java:105-110` and `instrumentation/reactor/reactor-netty/reactor-netty-1.0/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/reactornetty/v1_0/UrlParser.java:74-86`. Both implementations treat"
+          }
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 2,
+          "source": "docs/research/control-2026-09-27/results/sol-otel-run02.md",
+          "source_sha256": "ce4245a516184bf73aa6b1eec8700b507284617e8bf20a29469b2ed80b2aa20e",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/sol-otel-run02.md",
+            "line": 19,
+            "excerpt": "4. **Medium \u2014 IPv6 URL hosts cannot be parsed by the incubator parser.** `instrumentation-api-incubator/src/main/java/io/opentelemetry/instrumentation/api/incubator/semconv/net/internal/UrlParser.java:105-110` stops the host at the first colon, including colons inside `[2001:db8::1]`. Thus `getHost(\"https://[2001:db8::1]:8443/p\")` returns `\"[2001\"` and `getPort()` returns `null`. `ServicePeerResol"
+          }
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 3,
+          "source": "docs/research/control-2026-09-27/results/sol-otel-run03.md",
+          "source_sha256": "5be96d59a4bb86c88a8f1f545db2b8cc953d9ce2e31be116e6648b202793f66c",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/sol-otel-run03.md",
+            "line": 15,
+            "excerpt": "2. **Medium \u2014 the URL parsers split IPv6 authority at its first colon.** `instrumentation-api-incubator/src/main/java/io/opentelemetry/instrumentation/api/incubator/semconv/net/internal/UrlParser.java:105-110` and `instrumentation/reactor/reactor-netty/reactor-netty-1.0/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/reactornetty/v1_0/UrlParser.java:77-87`. For `https://[::1]:84"
+          }
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 4,
+          "source": "docs/research/control-2026-09-27/results/sol-otel-run04.md",
+          "source_sha256": "2dd5d7522f296f30cf8dcef2b2716fb74ff359ea3f93d94ddcc40ec3b2b95565",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/sol-otel-run04.md",
+            "line": 17,
+            "excerpt": "3. **Medium \u2014 the incubator URL parser misparses bracketed IPv6 hosts.** `instrumentation-api-incubator/src/main/java/io/opentelemetry/instrumentation/api/incubator/semconv/net/internal/UrlParser.java:105\u2013110` treats the first `:` inside `[2001:db8::1]` as the port separator. For `https://[2001:db8::1]:8443/`, `getHost` returns `[2001`, and `getPort` returns null. `ServicePeerResolver.java:90\u2013106`"
+          }
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 5,
+          "source": "docs/research/control-2026-09-27/results/sol-otel-run05.md",
+          "source_sha256": "5b3af66ae8108092d7dd3f0ea17b97200b45793828dfad67e29e7961ee33570d",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/sol-otel-run05.md",
+            "line": 19,
+            "excerpt": "4. **Incubator URL parser misidentifies IPv6 hosts and ports** \u2014 **medium**. `instrumentation-api-incubator/src/main/java/io/opentelemetry/instrumentation/api/incubator/semconv/net/internal/UrlParser.java:105-110`. In a valid URL such as `https://[::1]:8080/path`, the first `:` inside brackets ends the host, so `getHost` returns `[` and `getPort` returns null. `ServicePeerResolver.java:90-105` use"
+          }
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 6,
+          "source": "docs/research/control-2026-09-27/results/sol-otel-run06.md",
+          "source_sha256": "58475e93398b80f1a89c7ce3d072fe64fa8fcedad3877079e3edbce427481a84",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/sol-otel-run06.md",
+            "line": 13,
+            "excerpt": "1. **Medium \u2014 Reactor Netty loses IPv6 server addresses and explicit ports.** `instrumentation/reactor/reactor-netty/reactor-netty-1.0/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/reactornetty/v1_0/UrlParser.java:74-85` treats the first colon in an authority as the port delimiter. For a valid URL such as `http://[::1]:8080/`, `getHost()` returns `[` and `getPort()` returns `n"
+          }
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 7,
+          "source": "docs/research/control-2026-09-27/results/sol-otel-run07.md",
+          "source_sha256": "9f7be6f59bbad402e456c15e8dc0c30ca2029ca0146d751f60d95cbb959be981",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/sol-otel-run07.md",
+            "line": 17,
+            "excerpt": "2. **Medium \u2014 bracketed IPv6 URL hosts are truncated.** `instrumentation-api-incubator/src/main/java/io/opentelemetry/instrumentation/api/incubator/semconv/net/internal/UrlParser.java:109-110` and `instrumentation/reactor/reactor-netty/reactor-netty-1.0/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/reactornetty/v1_0/UrlParser.java:82` treat every colon as the start of a port, "
+          }
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 8,
+          "source": "docs/research/control-2026-09-27/results/sol-otel-run08.md",
+          "source_sha256": "6fe61cba21690ff3320271e084f81a5cbd14053cbbe6d9e24fc50c51b75cfe77",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/sol-otel-run08.md",
+            "line": 15,
+            "excerpt": "1. **Medium \u2014 bracketed IPv6 authority is parsed as a one-character host in the incubator URL parser.** `instrumentation-api-incubator/src/main/java/io/opentelemetry/instrumentation/api/incubator/semconv/net/internal/UrlParser.java:105-110`. For `https://[::1]:8080/api`, `getHostEndIndexExclusive` treats the first colon inside the brackets as the port delimiter, so `getHost` returns `\"[\"` and `get"
+          }
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 9,
+          "source": "docs/research/control-2026-09-27/results/sol-otel-run09.md",
+          "source_sha256": "874fcb23eae7ff1bbb2264762880fbf7ae65cb7180433a3d0068d4eb4f6d6da2",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/sol-otel-run09.md",
+            "line": 17,
+            "excerpt": "3. **Medium \u2014 the incubator URL parser also splits IPv6 hosts at an internal colon.** File: `instrumentation-api-incubator/src/main/java/io/opentelemetry/instrumentation/api/incubator/semconv/net/internal/UrlParser.java:105-110`. For `https://[::1]:8080/path`, `getHost` returns `[` and `getPort` returns null. `ServicePeerResolver.addMapping` uses these methods to index configured peers, so it cann"
+          }
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 10,
+          "source": "docs/research/control-2026-09-27/results/sol-otel-run10.md",
+          "source_sha256": "7d3a87ae3079813c89c49d7825e04a085f286a995ace15c704e86ce66904b729",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/sol-otel-run10.md",
+            "line": 17,
+            "excerpt": "3. **Medium \u2014 Reactor Netty records incorrect server host for IPv6 URLs.** `instrumentation/reactor/reactor-netty/reactor-netty-1.0/javaagent/src/main/java/io/opentelemetry/javaagent/instrumentation/reactornetty/v1_0/UrlParser.java:82`. With `resourceUrl()` equal to `http://[::1]:8080/path`, `getHost` returns `[` and `getPort` attempts to parse `:1]:8080`, returning null; `ReactorNettyHttpClientAt"
+          }
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 1,
+          "source": "docs/research/control-2026-09-27/results/terra-otel-run01.md",
+          "source_sha256": "6557db52234c081e6a836bfc18172237e2ebac81ccda7ffb15bde38dfd54a528",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/terra-otel-run01.md",
+            "line": 29,
+            "excerpt": "### 3. Reactor Netty client URL parser does not parse IPv6 URLs"
+          }
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 2,
+          "source": "docs/research/control-2026-09-27/results/terra-otel-run02.md",
+          "source_sha256": "608a289fbd95f105fc5b2c46e2fdfed3c8c3385c5ec173d68ce5af1f5a9b6a8d",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/terra-otel-run02.md",
+            "line": 15,
+            "excerpt": "### 1. IPv6 authorities are split at their first colon"
+          }
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 3,
+          "source": "docs/research/control-2026-09-27/results/terra-otel-run03.md",
+          "source_sha256": "979f51967b94c71c3b69034b8ebdac167d8d909af2b1506529268be0543bdcc6",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 4,
+          "source": "docs/research/control-2026-09-27/results/terra-otel-run04.md",
+          "source_sha256": "5eb8ea377a770344dd8150c7961e34358242bf382382af2673d0750341e53e59",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/terra-otel-run04.md",
+            "line": 31,
+            "excerpt": "### 3. The generic URL parser cannot parse valid bracketed IPv6 URL authorities"
+          }
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 5,
+          "source": "docs/research/control-2026-09-27/results/terra-otel-run05.md",
+          "source_sha256": "f77a06ed1daaf6f67d65e9b3bcd9ad09994463b7176e38fcd47940f6ad1b459a",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/terra-otel-run05.md",
+            "line": 37,
+            "excerpt": "## 4. URL parsers cannot parse RFC 3986 bracketed IPv6 authorities"
+          }
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 6,
+          "source": "docs/research/control-2026-09-27/results/terra-otel-run06.md",
+          "source_sha256": "aa945d8cb060d11d5ad09c0c2dc78b3d74caa4a3fe260b938f15d7a55f740a02",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/terra-otel-run06.md",
+            "line": 38,
+            "excerpt": "### 2. The URL parsers do not parse bracketed IPv6 authorities"
+          }
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 7,
+          "source": "docs/research/control-2026-09-27/results/terra-otel-run07.md",
+          "source_sha256": "0ea77eee1ab5d54704c42d450f9df93e3c174a37f281eb597431a5e6ac9911dc",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/terra-otel-run07.md",
+            "line": 13,
+            "excerpt": "### 1. Valid IPv6 authorities are parsed as `[` (and lose their port)"
+          }
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 8,
+          "source": "docs/research/control-2026-09-27/results/terra-otel-run08.md",
+          "source_sha256": "c664ba73e3479fce69d43e44ac66cb937dcd1f3a3fbf736cce7c3d9b4c45f23d",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/terra-otel-run08.md",
+            "line": 23,
+            "excerpt": "### 2. The incubator URL parser cannot parse bracketed IPv6 authorities"
+          }
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 9,
+          "source": "docs/research/control-2026-09-27/results/terra-otel-run09.md",
+          "source_sha256": "8df2ce221d1fa7afc211f13afb7cc9498969f7c47ac288baace29e495d8b5287",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/terra-otel-run09.md",
+            "line": 31,
+            "excerpt": "### 3. Both URL parsers split IPv6 literals at their first colon"
+          }
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 10,
+          "source": "docs/research/control-2026-09-27/results/terra-otel-run10.md",
+          "source_sha256": "c4936291e2832f50c6ece131a4aebe1bcd9d6b758dc1b04fc70b8ca5593b5064",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/terra-otel-run10.md",
+            "line": 37,
+            "excerpt": "## 4. Reactor Netty records invalid server attributes for RFC 3986 IPv6 URLs"
+          }
+        }
+      ]
+    },
+    {
+      "id": "otel_forwarded_ipv6",
+      "label": "OpenTelemetry ForwardedHost bracketed IPv6",
+      "repo": "otel",
+      "counts": {
+        "sol": {
+          "hit": 10,
+          "miss": 0,
+          "uncertain": 0,
+          "total": 10
+        },
+        "terra": {
+          "hit": 9,
+          "miss": 1,
+          "uncertain": 0,
+          "total": 10
+        }
+      },
+      "runs": [
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 1,
+          "source": "docs/research/control-2026-09-27/results/sol-otel-run01.md",
+          "source_sha256": "526967b4b8d9be8df66a16de18f7beaa16d9086c6d55252756014aa89dea13e6",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/sol-otel-run01.md",
+            "line": 13,
+            "excerpt": "1. **Forwarded IPv6 hosts are recorded as `[` instead of the address** \u2014 **medium**. `instrumentation-api/src/main/java/io/opentelemetry/instrumentation/api/semconv/http/ForwardedHostAddressAndPortExtractor.java:87-92`. For `Forwarded: host=\"[::1]:8080\"` (also `Host: [::1]:8080` or `:authority: [::1]:8080`), `extractHost` treats the first colon inside the IPv6 literal as the port separator. It set"
+          }
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 2,
+          "source": "docs/research/control-2026-09-27/results/sol-otel-run02.md",
+          "source_sha256": "ce4245a516184bf73aa6b1eec8700b507284617e8bf20a29469b2ed80b2aa20e",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/sol-otel-run02.md",
+            "line": 15,
+            "excerpt": "2. **Medium \u2014 IPv6 authorities are truncated in forwarded server host extraction.** `instrumentation-api/src/main/java/io/opentelemetry/instrumentation/api/semconv/http/ForwardedHostAddressAndPortExtractor.java:87-92` treats the first colon as a port delimiter. For `Host: [2001:db8::1]:8080`, `:authority: [2001:db8::1]:8080`, or `Forwarded: host=\"[2001:db8::1]:8080\"`, it records server address `[`"
+          }
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 3,
+          "source": "docs/research/control-2026-09-27/results/sol-otel-run03.md",
+          "source_sha256": "5be96d59a4bb86c88a8f1f545db2b8cc953d9ce2e31be116e6648b202793f66c",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/sol-otel-run03.md",
+            "line": 13,
+            "excerpt": "1. **Medium \u2014 bracketed IPv6 hosts are parsed as `[` in HTTP server attributes.** `instrumentation-api/src/main/java/io/opentelemetry/instrumentation/api/semconv/http/ForwardedHostAddressAndPortExtractor.java:87-92`. A valid `Host: [::1]:8080`, `:authority: [::1]:8080`, or `Forwarded: host=\"[::1]:8080\"` reaches `extractHost`, whose first-colon search stops *inside* the IPv6 literal. It sets `serve"
+          }
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 4,
+          "source": "docs/research/control-2026-09-27/results/sol-otel-run04.md",
+          "source_sha256": "2dd5d7522f296f30cf8dcef2b2716fb74ff359ea3f93d94ddcc40ec3b2b95565",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/sol-otel-run04.md",
+            "line": 13,
+            "excerpt": "1. **Medium \u2014 IPv6 authority is truncated in server attributes.** `instrumentation-api/src/main/java/io/opentelemetry/instrumentation/api/semconv/http/ForwardedHostAddressAndPortExtractor.java:87\u201392` splits every host at the first colon. For a valid `Host: [2001:db8::1]:8443` (or equivalent `Forwarded`/`:authority`/`X-Forwarded-Host` value), it records `server.address=\"[2001\"` and no `server.port`"
+          }
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 5,
+          "source": "docs/research/control-2026-09-27/results/sol-otel-run05.md",
+          "source_sha256": "5b3af66ae8108092d7dd3f0ea17b97200b45793828dfad67e29e7961ee33570d",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/sol-otel-run05.md",
+            "line": 13,
+            "excerpt": "1. **IPv6 authority is parsed as an empty or truncated host** \u2014 **medium**. `instrumentation-api/src/main/java/io/opentelemetry/instrumentation/api/semconv/http/ForwardedHostAddressAndPortExtractor.java:87-92`. For `Host: [::1]:8080` (and likewise `:authority` or `Forwarded: host=\"[::1]:8080\"`), the first colon is *inside* the bracketed address. `extractHost` nevertheless treats it as the host/por"
+          }
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 6,
+          "source": "docs/research/control-2026-09-27/results/sol-otel-run06.md",
+          "source_sha256": "58475e93398b80f1a89c7ce3d072fe64fa8fcedad3877079e3edbce427481a84",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/sol-otel-run06.md",
+            "line": 17,
+            "excerpt": "3. **Medium \u2014 Forwarded host parsing breaks valid IPv6 authorities.** `instrumentation-api/src/main/java/io/opentelemetry/instrumentation/api/semconv/http/ForwardedHostAddressAndPortExtractor.java:87-93` splits on the first colon, including a colon inside `[::1]`. A `Host`, `:authority`, `X-Forwarded-Host`, or `Forwarded` host value of `[::1]:8080` produces `server.address=\"[\"` and no port. `HttpS"
+          }
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 7,
+          "source": "docs/research/control-2026-09-27/results/sol-otel-run07.md",
+          "source_sha256": "9f7be6f59bbad402e456c15e8dc0c30ca2029ca0146d751f60d95cbb959be981",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/sol-otel-run07.md",
+            "line": 19,
+            "excerpt": "3. **Medium \u2014 HTTP server forwarded-host parsing corrupts IPv6 addresses.** `instrumentation-api/src/main/java/io/opentelemetry/instrumentation/api/semconv/http/ForwardedHostAddressAndPortExtractor.java:87-92` splits at the first colon regardless of brackets. For `Host: [::1]:8080`, `:authority: [::1]:8080`, or `Forwarded: host=\"[::1]:8080\"`, it sets `server.address` to `[` and omits `server.port`"
+          }
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 8,
+          "source": "docs/research/control-2026-09-27/results/sol-otel-run08.md",
+          "source_sha256": "6fe61cba21690ff3320271e084f81a5cbd14053cbbe6d9e24fc50c51b75cfe77",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/sol-otel-run08.md",
+            "line": 19,
+            "excerpt": "3. **Medium \u2014 forwarded IPv6 host values become `[` rather than the server address.** `instrumentation-api/src/main/java/io/opentelemetry/instrumentation/api/semconv/http/ForwardedHostAddressAndPortExtractor.java:87-92`. For `Forwarded: host=\"[::1]:8080\"` (or `X-Forwarded-Host: [::1]:8080`), `extractHost` splits at the first colon in the IPv6 literal, stores `[` as the address, and cannot parse th"
+          }
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 9,
+          "source": "docs/research/control-2026-09-27/results/sol-otel-run09.md",
+          "source_sha256": "874fcb23eae7ff1bbb2264762880fbf7ae65cb7180433a3d0068d4eb4f6d6da2",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/sol-otel-run09.md",
+            "line": 19,
+            "excerpt": "4. **Medium \u2014 forwarded IPv6 host and authority values become `[`.** File: `instrumentation-api/src/main/java/io/opentelemetry/instrumentation/api/semconv/http/ForwardedHostAddressAndPortExtractor.java:87-92`. For `Forwarded: host=\"[::1]:8080\"`, `X-Forwarded-Host: [::1]:8080`, or `:authority: [::1]:8080`, the first colon lies inside the IPv6 address. The code sets `server.address` to `[` and fails"
+          }
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 10,
+          "source": "docs/research/control-2026-09-27/results/sol-otel-run10.md",
+          "source_sha256": "7d3a87ae3079813c89c49d7825e04a085f286a995ace15c704e86ce66904b729",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/sol-otel-run10.md",
+            "line": 15,
+            "excerpt": "2. **Medium \u2014 IPv6 host and port are parsed at the first colon.** `instrumentation-api/src/main/java/io/opentelemetry/instrumentation/api/semconv/http/ForwardedHostAddressAndPortExtractor.java:87`. A valid `Forwarded: host=\"[2001:db8::1]:443\"` (or `Host: [2001:db8::1]:443`) records address `[2001` and no port because the first IPv6 colon is treated as the host/port separator. This extractor suppli"
+          }
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 1,
+          "source": "docs/research/control-2026-09-27/results/terra-otel-run01.md",
+          "source_sha256": "6557db52234c081e6a836bfc18172237e2ebac81ccda7ffb15bde38dfd54a528",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/terra-otel-run01.md",
+            "line": 21,
+            "excerpt": "### 2. Server-address extraction corrupts bracketed IPv6 Host/Forwarded authorities"
+          }
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 2,
+          "source": "docs/research/control-2026-09-27/results/terra-otel-run02.md",
+          "source_sha256": "608a289fbd95f105fc5b2c46e2fdfed3c8c3385c5ec173d68ce5af1f5a9b6a8d",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/terra-otel-run02.md",
+            "line": 33,
+            "excerpt": "### 3. Server host extraction corrupts IPv6 `Host` / `:authority` / `Forwarded host` values"
+          }
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 3,
+          "source": "docs/research/control-2026-09-27/results/terra-otel-run03.md",
+          "source_sha256": "979f51967b94c71c3b69034b8ebdac167d8d909af2b1506529268be0543bdcc6",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/terra-otel-run03.md",
+            "line": 41,
+            "excerpt": "### 2. Server address extraction corrupts IPv6 authorities"
+          }
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 4,
+          "source": "docs/research/control-2026-09-27/results/terra-otel-run04.md",
+          "source_sha256": "5eb8ea377a770344dd8150c7961e34358242bf382382af2673d0750341e53e59",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/terra-otel-run04.md",
+            "line": 15,
+            "excerpt": "### 1. Forwarded server hosts containing IPv6 literals are parsed as a truncated hostname"
+          }
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 5,
+          "source": "docs/research/control-2026-09-27/results/terra-otel-run05.md",
+          "source_sha256": "f77a06ed1daaf6f67d65e9b3bcd9ad09994463b7176e38fcd47940f6ad1b459a",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/terra-otel-run05.md",
+            "line": 29,
+            "excerpt": "## 3. Forwarded/Host authorities containing IPv6 are split at their first colon"
+          }
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 6,
+          "source": "docs/research/control-2026-09-27/results/terra-otel-run06.md",
+          "source_sha256": "aa945d8cb060d11d5ad09c0c2dc78b3d74caa4a3fe260b938f15d7a55f740a02",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/terra-otel-run06.md",
+            "line": 53,
+            "excerpt": "### 3. Forwarded server-address parsing mishandles IPv6 Host, :authority, and Forwarded values"
+          }
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 7,
+          "source": "docs/research/control-2026-09-27/results/terra-otel-run07.md",
+          "source_sha256": "0ea77eee1ab5d54704c42d450f9df93e3c174a37f281eb597431a5e6ac9911dc",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/terra-otel-run07.md",
+            "line": 31,
+            "excerpt": "### 3. Server address extraction cannot parse bracketed IPv6 Host/Forwarded host values"
+          }
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 8,
+          "source": "docs/research/control-2026-09-27/results/terra-otel-run08.md",
+          "source_sha256": "c664ba73e3479fce69d43e44ac66cb937dcd1f3a3fbf736cce7c3d9b4c45f23d",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 9,
+          "source": "docs/research/control-2026-09-27/results/terra-otel-run09.md",
+          "source_sha256": "8df2ce221d1fa7afc211f13afb7cc9498969f7c47ac288baace29e495d8b5287",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/terra-otel-run09.md",
+            "line": 23,
+            "excerpt": "### 2. Forwarded host extraction cannot parse the required bracketed IPv6 form"
+          }
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 10,
+          "source": "docs/research/control-2026-09-27/results/terra-otel-run10.md",
+          "source_sha256": "c4936291e2832f50c6ece131a4aebe1bcd9d6b758dc1b04fc70b8ca5593b5064",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/terra-otel-run10.md",
+            "line": 29,
+            "excerpt": "## 3. IPv6 authorities are parsed as `[` by the forwarded-host fallback"
+          }
+        }
+      ]
+    },
+    {
+      "id": "assertj_percentage",
+      "label": "AssertJ Percentage.toString overflow",
+      "repo": "assertj",
+      "counts": {
+        "sol": {
+          "hit": 10,
+          "miss": 0,
+          "uncertain": 0,
+          "total": 10
+        },
+        "terra": {
+          "hit": 8,
+          "miss": 2,
+          "uncertain": 0,
+          "total": 10
+        }
+      },
+      "runs": [
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 1,
+          "source": "docs/research/control-2026-09-27/results/sol-assertj-run01.md",
+          "source_sha256": "4862b92d8684d5a7c3b96ec0dfbf020823210447dd20caa0ff8d115f105dc679",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/sol-assertj-run01.md",
+            "line": 23,
+            "excerpt": "5. **Low \u2014 Large integer percentages are printed as a different value.** `assertj-core/src/main/java/org/assertj/core/data/Percentage.java:60-66` casts every whole-valued percentage to `int` for `toString`. `withPercentage(2147483648d).toString()` therefore prints `\"2147483647%\"`; any larger finite whole value is also saturated at `Integer.MAX_VALUE`. The class exposes `value` as the percentage va"
+          }
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 2,
+          "source": "docs/research/control-2026-09-27/results/sol-assertj-run02.md",
+          "source_sha256": "7de606c3f43b42828601c84c4b3746ec4169fd0d8de12cb1f794658f47e32672",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/sol-assertj-run02.md",
+            "line": 21,
+            "excerpt": "5. **Low \u2014 large whole percentages render as the wrong number.** `Percentage.java:62` casts any integral `double` to `int`. `Percentage.withPercentage(3000000000.0).toString()` returns `2147483647%`. Since this value is accepted by `withPercentage` and `toString` appears in assertion diagnostics, errors can misstate the requested tolerance. Render the whole-valued `double` without narrowing to `in"
+          }
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 3,
+          "source": "docs/research/control-2026-09-27/results/sol-assertj-run03.md",
+          "source_sha256": "c4456144332e3ab15aa9c0d3030224e1e182ea0188440fcaf1804d6e33e95be6",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/sol-assertj-run03.md",
+            "line": 23,
+            "excerpt": "5. **Low \u2014 Large whole-number percentages render as the wrong number.** `assertj-core/src/main/java/org/assertj/core/data/Percentage.java:62` casts an integral `double` to `int` for display. `withPercentage(3_000_000_000d).toString()` becomes `\"2147483647%\"` because Java saturates the narrowing conversion. This misreports the percentage in assertion messages, conflicting with the method's represen"
+          }
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 4,
+          "source": "docs/research/control-2026-09-27/results/sol-assertj-run04.md",
+          "source_sha256": "67a43adff93158c04d121c6eb6fb66e4b15cf0c1fd66312e001e4258710080f0",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/sol-assertj-run04.md",
+            "line": 24,
+            "excerpt": "5. **Low \u2014 Large whole percentages render as a different value.** `assertj-core/src/main/java/org/assertj/core/data/Percentage.java:62` casts every whole-valued `double` to `int` for `toString()`. `withPercentage(3_000_000_000d).toString()` becomes `\"2147483647%\"`, so assertion diagnostics misstate the supplied percentage. The factory permits every nonnegative finite value (lines 38\u201340). Format wh"
+          }
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 5,
+          "source": "docs/research/control-2026-09-27/results/sol-assertj-run05.md",
+          "source_sha256": "c577ad18d04f2c932dac7428f1b91b8a0bbc0a4ed1960814111359bbdb4a481a",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/sol-assertj-run05.md",
+            "line": 23,
+            "excerpt": "5. **Low \u2014 Large integral percentages print the wrong value.** `assertj-core/src/main/java/org/assertj/core/data/Percentage.java:60-66`. `Percentage.withPercentage(10000000000d).toString()` returns `2147483647%`: `noFractionalPart()` is true, then the `int` cast saturates at `Integer.MAX_VALUE`. The returned string purports to represent the stored percentage value but does not. Format the integral"
+          }
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 6,
+          "source": "docs/research/control-2026-09-27/results/sol-assertj-run06.md",
+          "source_sha256": "878c76d50191f09abd07a8b21987c2363990d7e630e89cacc6ba357a793b39f1",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/sol-assertj-run06.md",
+            "line": 22,
+            "excerpt": "4. **Low \u2014 Rendering a large whole percentage changes its value.** `assertj-core/src/main/java/org/assertj/core/data/Percentage.java:62`. `withPercentage(3000000000d).toString()` renders `2147483647%`: the whole-number branch casts the positive `double` to `int`, saturating at `Integer.MAX_VALUE`. The class represents the supplied percentage value, and the fractional branch renders that value dire"
+          }
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 7,
+          "source": "docs/research/control-2026-09-27/results/sol-assertj-run07.md",
+          "source_sha256": "6663fb1c212740c230e6007cc2d37d4c0aa3f27718b975bb00b5a0f421a45484",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/sol-assertj-run07.md",
+            "line": 21,
+            "excerpt": "5. **Low \u2014 Large whole percentages render as the wrong value.** `assertj-core/src/main/java/org/assertj/core/data/Percentage.java:62` casts every whole `double` percentage to `int` for formatting. `Percentage.withPercentage(2147483648.0).toString()` returns `\"2147483647%\"` because the narrowing cast saturates at `Integer.MAX_VALUE`. The field and factory accept any nonnegative `double`; `toString`"
+          }
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 8,
+          "source": "docs/research/control-2026-09-27/results/sol-assertj-run08.md",
+          "source_sha256": "bc9e3e3d803389332b7e18f05e54238866a01df09140be7303e9d160c1c62606",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/sol-assertj-run08.md",
+            "line": 24,
+            "excerpt": "5. **Low \u2014 Large integral percentages are printed as a different value.** `assertj-core/src/main/java/org/assertj/core/data/Percentage.java:62` casts every percentage without a fractional part to `int`. For example, `withPercentage(3_000_000_000d).toString()` yields `2147483647%` rather than `3000000000%` because the Java narrowing conversion saturates. The `value` field and the factory's document"
+          }
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 9,
+          "source": "docs/research/control-2026-09-27/results/sol-assertj-run09.md",
+          "source_sha256": "1b535094ee43c9cd6679d3f708c04dc3efb524e7e43e84bd1965f600505c907e",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/sol-assertj-run09.md",
+            "line": 19,
+            "excerpt": "4. **Low \u2014 Large whole percentages display a different number** \u2014 `assertj-core/src/main/java/org/assertj/core/data/Percentage.java:62`. `withPercentage(2147483648d).toString()` becomes `2147483647%`: `noFractionalPart()` is true, but casting the double to `int` saturates at `Integer.MAX_VALUE`. This misstates the percentage in diagnostics. Format the whole value without narrowing to `int` (for ex"
+          }
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 10,
+          "source": "docs/research/control-2026-09-27/results/sol-assertj-run10.md",
+          "source_sha256": "3b4bb760c28bdf884b44529f0d41ae3516aff8b0f635e72e409d46df1541cd18",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/sol-assertj-run10.md",
+            "line": 21,
+            "excerpt": "5. **Low \u2014 Large whole percentages stringify as the wrong value.** [`Percentage.java:62`](../../../../repos/control-2026-09-27/assertj/assertj-core/src/main/java/org/assertj/core/data/Percentage.java#L62) casts any whole valued `double` to `int`. `withPercentage(10_000_000_000d).toString()` therefore produces `2147483647%`, although the stored percentage is ten billion. The factory accepts every n"
+          }
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 1,
+          "source": "docs/research/control-2026-09-27/results/terra-assertj-run01.md",
+          "source_sha256": "d739d88e0cd40699c9a3a15727009fd33c5a0728385187f5c3c5f17a49d9f566",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/terra-assertj-run01.md",
+            "line": 31,
+            "excerpt": "### 3. Whole-number percentages above the `int` range are rendered as the wrong value"
+          }
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 2,
+          "source": "docs/research/control-2026-09-27/results/terra-assertj-run02.md",
+          "source_sha256": "5b20ad21e079ca73d79c99540c9a61570e08f0bf17e71bc76688f6fbeda6635e",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/terra-assertj-run02.md",
+            "line": 31,
+            "excerpt": "### 3. Integral percentages above the `int` range are rendered as a different percentage"
+          }
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 3,
+          "source": "docs/research/control-2026-09-27/results/terra-assertj-run03.md",
+          "source_sha256": "7ea2439a5da35b68144d5db3f17a2113d52eeb517c4f66e083e7c55161c30b11",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/terra-assertj-run03.md",
+            "line": 37,
+            "excerpt": "### 4. Large whole-number percentages are rendered as `Integer.MAX_VALUE%`"
+          }
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 4,
+          "source": "docs/research/control-2026-09-27/results/terra-assertj-run04.md",
+          "source_sha256": "4889c208fa6207e57fb7d6dce16cb2d5a2d24d732598784b5d7c2b9f7c51f5f8",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/terra-assertj-run04.md",
+            "line": 32,
+            "excerpt": "### 3. Integer percentage rendering corrupts values above the `int` range"
+          }
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 5,
+          "source": "docs/research/control-2026-09-27/results/terra-assertj-run05.md",
+          "source_sha256": "991c0b94614ce8d8b85ce733a178f09eeb8c2de51fc61069ccee027400ab60a5",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 6,
+          "source": "docs/research/control-2026-09-27/results/terra-assertj-run06.md",
+          "source_sha256": "7f5aad912f1fd40375db3796e5345b536ebef674bd466a714690471070970532",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/terra-assertj-run06.md",
+            "line": 37,
+            "excerpt": "### 4. Large integral percentages are rendered as the wrong value"
+          }
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 7,
+          "source": "docs/research/control-2026-09-27/results/terra-assertj-run07.md",
+          "source_sha256": "f396d4ab5f42159316f67ae3ed287df6ba1c7bbb6114266c51376c409db3ae8c",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/terra-assertj-run07.md",
+            "line": 27,
+            "excerpt": "3. **Low \u2014 whole percentages above `Integer.MAX_VALUE` are rendered as a different percentage**"
+          }
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 8,
+          "source": "docs/research/control-2026-09-27/results/terra-assertj-run08.md",
+          "source_sha256": "ade7f463a786b8e327629212c7d615b3d761f79c6fef454d9151022267c7e628",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/terra-assertj-run08.md",
+            "line": 37,
+            "excerpt": "### 4. Large integral percentages are rendered as `Integer.MAX_VALUE`"
+          }
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 9,
+          "source": "docs/research/control-2026-09-27/results/terra-assertj-run09.md",
+          "source_sha256": "79b711b276226376ed58a7ebbbbd3c4e026d8f08dc74b221047137c9bc44e013",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/terra-assertj-run09.md",
+            "line": 29,
+            "excerpt": "### 3. Large integral percentages are rendered as an unrelated integer"
+          }
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 10,
+          "source": "docs/research/control-2026-09-27/results/terra-assertj-run10.md",
+          "source_sha256": "4be58eeee1f3c183f7e01ad61cb6bbf97f32e3efe3e2b917a78ba2bd087d4139",
+          "status": "miss"
+        }
+      ]
+    },
+    {
+      "id": "calibre_opds",
+      "label": "calibre OPDS navcatalog malformed hex yields 500",
+      "repo": "calibre",
+      "counts": {
+        "sol": {
+          "hit": 0,
+          "miss": 10,
+          "uncertain": 0,
+          "total": 10
+        },
+        "terra": {
+          "hit": 0,
+          "miss": 10,
+          "uncertain": 0,
+          "total": 10
+        }
+      },
+      "runs": [
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 1,
+          "source": "docs/research/control-2026-09-27/results/sol-calibre-run01.md",
+          "source_sha256": "d1b64a51f7a3a5668983bd6b238da66dd88e9678569b1271615775c8fd07c45e",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 2,
+          "source": "docs/research/control-2026-09-27/results/sol-calibre-run02.md",
+          "source_sha256": "04ac16cb11929355ae09b311dedb1e79ec2652ac0fd098292414c4e35970a616",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 3,
+          "source": "docs/research/control-2026-09-27/results/sol-calibre-run03.md",
+          "source_sha256": "391932b40ae0bf1539e73aa25d5b30cf3894672cf6bfda243e6a0b4e7ddfc787",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 4,
+          "source": "docs/research/control-2026-09-27/results/sol-calibre-run04.md",
+          "source_sha256": "6e01c7548c725f58783576359ac769671b41cf6a0bd3dfc0ad97b9cd7eca642c",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 5,
+          "source": "docs/research/control-2026-09-27/results/sol-calibre-run05.md",
+          "source_sha256": "5fc6aa22fbaa5b12a7b1dcf2d4a9f904d5d8cc5c03bc73cdecb28447331d3b52",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 6,
+          "source": "docs/research/control-2026-09-27/results/sol-calibre-run06.md",
+          "source_sha256": "e64f99201dc9014fa4b9bf46bc3e3a393fb073cef86390f0bffde6cbacaffb1e",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 7,
+          "source": "docs/research/control-2026-09-27/results/sol-calibre-run07.md",
+          "source_sha256": "b42b6f473ebdd0c544d732e73fdedb53359e33c940e22549c30a0bbf1eb60514",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 8,
+          "source": "docs/research/control-2026-09-27/results/sol-calibre-run08.md",
+          "source_sha256": "cb8617b76c1480686b79d46cc5a9e0a06297adafa2786e79ea09d59cf193a1b1",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 9,
+          "source": "docs/research/control-2026-09-27/results/sol-calibre-run09.md",
+          "source_sha256": "7ece3eef487092083b79ea6b73efb9f63f515e243866dfada6d7ac795a5cffc7",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 10,
+          "source": "docs/research/control-2026-09-27/results/sol-calibre-run10.md",
+          "source_sha256": "c434585c1c7a867b2910d5513f1c38149157695b489b343b895e0280346fd14e",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 1,
+          "source": "docs/research/control-2026-09-27/results/terra-calibre-run01.md",
+          "source_sha256": "715062f0d16604fab0d6a6baf59698badf9e698da38c4e052c280776cb090f0e",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 2,
+          "source": "docs/research/control-2026-09-27/results/terra-calibre-run02.md",
+          "source_sha256": "f8bed0b5b84f2b17f53cf14f2f7c3f410ba06ce4cda8b7a2d9dabb397d84c519",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 3,
+          "source": "docs/research/control-2026-09-27/results/terra-calibre-run03.md",
+          "source_sha256": "cba53112ac39a3713d2052f9e03caaf30d7298c3484133c90bc016e3768afdff",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 4,
+          "source": "docs/research/control-2026-09-27/results/terra-calibre-run04.md",
+          "source_sha256": "4e5c19b620a2461097a591d2ca0a7cde342cfbb423b7a709e2bcb1b781d15274",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 5,
+          "source": "docs/research/control-2026-09-27/results/terra-calibre-run05.md",
+          "source_sha256": "773a32f75a04c32b63b51e2e880c807d29fbe78bd4fce860ef8738a4e0f8cfcd",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 6,
+          "source": "docs/research/control-2026-09-27/results/terra-calibre-run06.md",
+          "source_sha256": "76ba89338ea2e58a88be0a292833783cc9482daf8c8afb846d10053bfd197cd0",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 7,
+          "source": "docs/research/control-2026-09-27/results/terra-calibre-run07.md",
+          "source_sha256": "b099b871f66f7150a080da8a0c178434819344883e7a96a453039dc3644c0560",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 8,
+          "source": "docs/research/control-2026-09-27/results/terra-calibre-run08.md",
+          "source_sha256": "168698c283446693d9793248cddeb6dabe113dfdb4aeabdbe79b57fcffa50b5f",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 9,
+          "source": "docs/research/control-2026-09-27/results/terra-calibre-run09.md",
+          "source_sha256": "2d73a775d12a370574eaece70fc9238f23add06e0e6921c6b93155fad31e24e6",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 10,
+          "source": "docs/research/control-2026-09-27/results/terra-calibre-run10.md",
+          "source_sha256": "6ab9d9d80434e3c6334caa53717c44430299ea7c253d1022b2d693ce92c7355d",
+          "status": "miss"
+        }
+      ]
+    },
+    {
+      "id": "bionemo_pad_weights",
+      "label": "BioNeMo AMPLIFY _pad_weights dtype/device",
+      "repo": "bionemo",
+      "counts": {
+        "sol": {
+          "hit": 6,
+          "miss": 4,
+          "uncertain": 0,
+          "total": 10
+        },
+        "terra": {
+          "hit": 9,
+          "miss": 1,
+          "uncertain": 0,
+          "total": 10
+        }
+      },
+      "runs": [
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 1,
+          "source": "docs/research/control-2026-09-27/results/sol-bionemo-run01.md",
+          "source_sha256": "84638891e3374d30869201c11a2ec3d88a5c46f3432707cbce739ad9259a446d",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/sol-bionemo-run01.md",
+            "line": 21,
+            "excerpt": "4. **Medium \u2014 AMPLIFY conversion fails for a source model on CUDA.** `models/amplify/src/amplify/state_dict_convert.py:90-91`. `convert_amplify_hf_to_te` accepts an arbitrary Hugging Face module, but `_pad_weights` creates CPU `float32` rows and concatenates them with the source embedding and decoder weights. When the supplied model is on CUDA, `torch.cat` raises a device mismatch instead of conve"
+          }
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 2,
+          "source": "docs/research/control-2026-09-27/results/sol-bionemo-run02.md",
+          "source_sha256": "116e96f4301b3c16d52d3e51ef198a27758fc9dc5ae8a50d44ae7044ee3bd890",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/sol-bionemo-run02.md",
+            "line": 17,
+            "excerpt": "3. **Medium \u2014 AMPLIFY conversion allocates padding rows on CPU even for GPU weights.** `models/amplify/src/amplify/state_dict_convert.py:90`. `_pad_weights` concatenates `source_embed` with `torch.zeros(...)` that has no `device` or `dtype`. Converting a model whose weights are on CUDA fails at `torch.cat` with a device mismatch; non-default dtypes are also changed or rejected. The function's stat"
+          }
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 3,
+          "source": "docs/research/control-2026-09-27/results/sol-bionemo-run03.md",
+          "source_sha256": "c0a93be64e1c7633aebfe1e0f7488faab2e5dfea7ec321a06b89b89833d9dd57",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 4,
+          "source": "docs/research/control-2026-09-27/results/sol-bionemo-run04.md",
+          "source_sha256": "d04ad5ab2c2ab208049c12194654ce9a38684898b36fb962f11e41ca2775a5e9",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/sol-bionemo-run04.md",
+            "line": 17,
+            "excerpt": "3. **Medium \u2014 AMPLIFY conversion fails for non-CPU or non-float32 source weights when vocabulary padding is needed.** `models/amplify/src/amplify/state_dict_convert.py:90` creates `padding_rows` with default CPU/float32 properties, then line 91 concatenates it with `source_embed`. A CUDA source embedding raises a cross-device error; a lower-precision embedding can be promoted or produce an output "
+          }
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 5,
+          "source": "docs/research/control-2026-09-27/results/sol-bionemo-run05.md",
+          "source_sha256": "3c6a06b1c46b2e68ee56cdcca3a39783490ba4cb8f0993de699b514412028e9b",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 6,
+          "source": "docs/research/control-2026-09-27/results/sol-bionemo-run06.md",
+          "source_sha256": "e7c1b7074954d17e0d2d97399307987fb0edab73d6c54f8fde22fbf789343f7c",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/sol-bionemo-run06.md",
+            "line": 15,
+            "excerpt": "3. **Medium \u2014 AMPLIFY conversion creates padding weights on the wrong device and with the wrong dtype** (`models/amplify/src/amplify/state_dict_convert.py:90`). `_pad_weights` creates `padding_rows` with implicit CPU/float32 defaults, then concatenates them with `source_embed`. Converting a GPU checkpoint fails at `torch.cat` with a device mismatch. Converting a CPU half-precision checkpoint promo"
+          }
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 7,
+          "source": "docs/research/control-2026-09-27/results/sol-bionemo-run07.md",
+          "source_sha256": "db46390f0d1c7ed5c67cc61f999bb4fb52135b2831795e2ddb47fade9e92d572",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/sol-bionemo-run07.md",
+            "line": 19,
+            "excerpt": "4. **Low \u2014 AMPLIFY conversion fails for non-CPU or non-float32 source weights.** In `models/amplify/src/amplify/state_dict_convert.py:90-91`, `_pad_weights` creates the extra embedding/decoder rows with default CPU `float32` tensors. A CUDA model fails at `torch.cat` due to mixed devices, and a half/bfloat16 model may have its converted weights promoted to float32, failing the conversion's dtype c"
+          }
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 8,
+          "source": "docs/research/control-2026-09-27/results/sol-bionemo-run08.md",
+          "source_sha256": "c8f1a425126b9d235583de9fccaf72d36d1fbd3c966d7f7a4ed1826070b128f4",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 9,
+          "source": "docs/research/control-2026-09-27/results/sol-bionemo-run09.md",
+          "source_sha256": "325f96a4c86c90b131d7b3c1d46a31d89da71d6e0ae5f01ea93ce45f666fadd7",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/sol-bionemo-run09.md",
+            "line": 19,
+            "excerpt": "3. **Medium \u2014 Conversion of a GPU AMPLIFY model fails when vocabulary padding is needed.** `models/amplify/src/amplify/state_dict_convert.py:90-91` creates padding rows on CPU with the default dtype, then concatenates them with the source embedding or decoder weight. `convert_amplify_hf_to_te` accepts an `nn.Module` without restricting its device (`:37-45`), and a CUDA source weight cannot be conc"
+          }
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 10,
+          "source": "docs/research/control-2026-09-27/results/sol-bionemo-run10.md",
+          "source_sha256": "545d0d55e3002770332b4bc4f0a58879dc6319889053d0494028f0fe2e4116cd",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 1,
+          "source": "docs/research/control-2026-09-27/results/terra-bionemo-run01.md",
+          "source_sha256": "4226ef38193c8b14f959d73c9730c551e0f6d1d8c569d9576fe64a6b959b8339",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 2,
+          "source": "docs/research/control-2026-09-27/results/terra-bionemo-run02.md",
+          "source_sha256": "150fb5b0bea55a25e2f9e7de810fafe740aad63356f53953818f6742e788c61b",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/terra-bionemo-run02.md",
+            "line": 31,
+            "excerpt": "### 3. AMPLIFY conversion fails when the source checkpoint is on CUDA"
+          }
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 3,
+          "source": "docs/research/control-2026-09-27/results/terra-bionemo-run03.md",
+          "source_sha256": "1197cb814319b862f038356be1ae549daa8b714bdec1eedb7a62402631e9f3ed",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/terra-bionemo-run03.md",
+            "line": 33,
+            "excerpt": "### 3. AMPLIFY checkpoint conversion cannot pad non-CPU-float32 weights"
+          }
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 4,
+          "source": "docs/research/control-2026-09-27/results/terra-bionemo-run04.md",
+          "source_sha256": "1a135ee34a66ed5cebe93dfc60014aea133802b0f42e7d13c7d396530d14d781",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/terra-bionemo-run04.md",
+            "line": 29,
+            "excerpt": "### 3. AMPLIFY checkpoint conversion cannot pad a GPU or non-float32 source embedding"
+          }
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 5,
+          "source": "docs/research/control-2026-09-27/results/terra-bionemo-run05.md",
+          "source_sha256": "864b0bbb0c415890ec489090b9f5e21d3737a93e9c38929bbc93e0bfa5ecadff",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/terra-bionemo-run05.md",
+            "line": 13,
+            "excerpt": "### 1. AMPLIFY conversion cannot pad half-precision or CUDA weights"
+          }
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 6,
+          "source": "docs/research/control-2026-09-27/results/terra-bionemo-run06.md",
+          "source_sha256": "fe0548f920811c9c215571ea6292eae88a9e6982c5e6dad2446e2347bc0c6a18",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/terra-bionemo-run06.md",
+            "line": 39,
+            "excerpt": "### 4. AMPLIFY checkpoint conversion creates CPU float32 padding rows regardless of the source checkpoint's device or dtype"
+          }
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 7,
+          "source": "docs/research/control-2026-09-27/results/terra-bionemo-run07.md",
+          "source_sha256": "edecd8b6dbcec454563ff1439866a2b3139cb6a2311895beac0b856c60f27429",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/terra-bionemo-run07.md",
+            "line": 23,
+            "excerpt": "### 2. AMPLIFY embedding and decoder conversion allocates vocabulary padding on the wrong device and in the wrong dtype"
+          }
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 8,
+          "source": "docs/research/control-2026-09-27/results/terra-bionemo-run08.md",
+          "source_sha256": "dc0ee1ea8085ba58c683b1b89c8e2aaad4d14f0e14e7340b6766fbe85f99f967",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/terra-bionemo-run08.md",
+            "line": 23,
+            "excerpt": "### 2. AMPLIFY checkpoint conversion fails for source weights on CUDA"
+          }
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 9,
+          "source": "docs/research/control-2026-09-27/results/terra-bionemo-run09.md",
+          "source_sha256": "b84df2d62863323dc6d6839cd07e1abb4985e0bfc12a108d979adca607f3f263",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/terra-bionemo-run09.md",
+            "line": 76,
+            "excerpt": "### 4. AMPLIFY checkpoint conversion cannot pad a CUDA or non-FP32 source checkpoint"
+          }
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 10,
+          "source": "docs/research/control-2026-09-27/results/terra-bionemo-run10.md",
+          "source_sha256": "655eacb51e5c5d08b69bd570d43ca8bed22b03a1d2a9ae69b399684ba5b50e34",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/terra-bionemo-run10.md",
+            "line": 31,
+            "excerpt": "3. **Low \u2014 AMPLIFY HF-to-TE conversion fails for half/bfloat16 checkpoints or GPU-resident source weights**"
+          }
+        }
+      ]
+    },
+    {
+      "id": "bionemo_thd_remainder",
+      "label": "BioNeMo THD CP remainder tokens",
+      "repo": "bionemo",
+      "counts": {
+        "sol": {
+          "hit": 0,
+          "miss": 10,
+          "uncertain": 0,
+          "total": 10
+        },
+        "terra": {
+          "hit": 2,
+          "miss": 8,
+          "uncertain": 0,
+          "total": 10
+        }
+      },
+      "runs": [
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 1,
+          "source": "docs/research/control-2026-09-27/results/sol-bionemo-run01.md",
+          "source_sha256": "84638891e3374d30869201c11a2ec3d88a5c46f3432707cbce739ad9259a446d",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 2,
+          "source": "docs/research/control-2026-09-27/results/sol-bionemo-run02.md",
+          "source_sha256": "116e96f4301b3c16d52d3e51ef198a27758fc9dc5ae8a50d44ae7044ee3bd890",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 3,
+          "source": "docs/research/control-2026-09-27/results/sol-bionemo-run03.md",
+          "source_sha256": "c0a93be64e1c7633aebfe1e0f7488faab2e5dfea7ec321a06b89b89833d9dd57",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 4,
+          "source": "docs/research/control-2026-09-27/results/sol-bionemo-run04.md",
+          "source_sha256": "d04ad5ab2c2ab208049c12194654ce9a38684898b36fb962f11e41ca2775a5e9",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 5,
+          "source": "docs/research/control-2026-09-27/results/sol-bionemo-run05.md",
+          "source_sha256": "3c6a06b1c46b2e68ee56cdcca3a39783490ba4cb8f0993de699b514412028e9b",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 6,
+          "source": "docs/research/control-2026-09-27/results/sol-bionemo-run06.md",
+          "source_sha256": "e7c1b7074954d17e0d2d97399307987fb0edab73d6c54f8fde22fbf789343f7c",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 7,
+          "source": "docs/research/control-2026-09-27/results/sol-bionemo-run07.md",
+          "source_sha256": "db46390f0d1c7ed5c67cc61f999bb4fb52135b2831795e2ddb47fade9e92d572",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 8,
+          "source": "docs/research/control-2026-09-27/results/sol-bionemo-run08.md",
+          "source_sha256": "c8f1a425126b9d235583de9fccaf72d36d1fbd3c966d7f7a4ed1826070b128f4",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 9,
+          "source": "docs/research/control-2026-09-27/results/sol-bionemo-run09.md",
+          "source_sha256": "325f96a4c86c90b131d7b3c1d46a31d89da71d6e0ae5f01ea93ce45f666fadd7",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-6-sol",
+          "model_code": "sol",
+          "run": 10,
+          "source": "docs/research/control-2026-09-27/results/sol-bionemo-run10.md",
+          "source_sha256": "545d0d55e3002770332b4bc4f0a58879dc6319889053d0494028f0fe2e4116cd",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 1,
+          "source": "docs/research/control-2026-09-27/results/terra-bionemo-run01.md",
+          "source_sha256": "4226ef38193c8b14f959d73c9730c551e0f6d1d8c569d9576fe64a6b959b8339",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 2,
+          "source": "docs/research/control-2026-09-27/results/terra-bionemo-run02.md",
+          "source_sha256": "150fb5b0bea55a25e2f9e7de810fafe740aad63356f53953818f6742e788c61b",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 3,
+          "source": "docs/research/control-2026-09-27/results/terra-bionemo-run03.md",
+          "source_sha256": "1197cb814319b862f038356be1ae549daa8b714bdec1eedb7a62402631e9f3ed",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 4,
+          "source": "docs/research/control-2026-09-27/results/terra-bionemo-run04.md",
+          "source_sha256": "1a135ee34a66ed5cebe93dfc60014aea133802b0f42e7d13c7d396530d14d781",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 5,
+          "source": "docs/research/control-2026-09-27/results/terra-bionemo-run05.md",
+          "source_sha256": "864b0bbb0c415890ec489090b9f5e21d3737a93e9c38929bbc93e0bfa5ecadff",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/terra-bionemo-run05.md",
+            "line": 37,
+            "excerpt": "### 4. THD context-parallel sharding silently discards sequence tails"
+          }
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 6,
+          "source": "docs/research/control-2026-09-27/results/terra-bionemo-run06.md",
+          "source_sha256": "fe0548f920811c9c215571ea6292eae88a9e6982c5e6dad2446e2347bc0c6a18",
+          "status": "hit",
+          "evidence": {
+            "path": "docs/research/control-2026-09-27/results/terra-bionemo-run06.md",
+            "line": 15,
+            "excerpt": "### 1. THD context-parallel sharding silently drops sequence tokens unless every sequence is divisible by `2 * cp_world_size`"
+          }
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 7,
+          "source": "docs/research/control-2026-09-27/results/terra-bionemo-run07.md",
+          "source_sha256": "edecd8b6dbcec454563ff1439866a2b3139cb6a2311895beac0b856c60f27429",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 8,
+          "source": "docs/research/control-2026-09-27/results/terra-bionemo-run08.md",
+          "source_sha256": "dc0ee1ea8085ba58c683b1b89c8e2aaad4d14f0e14e7340b6766fbe85f99f967",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 9,
+          "source": "docs/research/control-2026-09-27/results/terra-bionemo-run09.md",
+          "source_sha256": "b84df2d62863323dc6d6839cd07e1abb4985e0bfc12a108d979adca607f3f263",
+          "status": "miss"
+        },
+        {
+          "model": "gpt-5.6-terra",
+          "model_code": "terra",
+          "run": 10,
+          "source": "docs/research/control-2026-09-27/results/terra-bionemo-run10.md",
+          "source_sha256": "655eacb51e5c5d08b69bd570d43ca8bed22b03a1d2a9ae69b399684ba5b50e34",
+          "status": "miss"
+        }
+      ]
+    }
+  ],
+  "considered_but_not_reported": [
+    {
+      "target": "otel_forwarded_ipv6",
+      "model": "gpt-5.6-terra",
+      "run": 8,
+      "source": "docs/research/control-2026-09-27/results/terra-otel-run08.md",
+      "line": 21,
+      "description": "The comma-list finding suggests that the same parser should recognize bracketed IPv6, but does not report its IPv6 failure as a finding."
+    }
+  ]
+}
