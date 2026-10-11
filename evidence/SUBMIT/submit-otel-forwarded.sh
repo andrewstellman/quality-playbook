@@ -2,6 +2,7 @@
 # Opens a DRAFT pull request for: Handle bracketed IPv6 hosts in ForwardedHostAddressAndPortExtractor
 # Run from anywhere: zsh "/Users/andrewstellman/Documents/QPB/evidence/SUBMIT/submit-otel-forwarded.sh"
 # Stops at the first failure. Never marks the PR ready; that is your call after you read it.
+# SKIP_TESTS=1 skips the local Gradle run (it was run in the cloud sandbox on 2026-10-05; see REVIEW.md).
 set -euo pipefail
 UPSTREAM=open-telemetry/opentelemetry-java-instrumentation
 DEFAULT=main
@@ -38,11 +39,13 @@ echo "== apply the reviewed patch on top of current upstream/$DEFAULT"
 git am "$PATCH" || { echo "git am failed: upstream moved under this patch. Run 'git am --abort' and tell Claude."; exit 1; }
 git log --oneline -1
 
-echo "== Gradle (JDK 25 required)"
-java -version
-./gradlew spotlessApply
-if [[ -n "$(git status --porcelain)" ]]; then echo "spotless reformatted files; folding into the commit"; git add -A; git commit --amend --no-edit; fi
-./gradlew :instrumentation-api:check
+if [[ "${SKIP_TESTS:-0}" != 1 ]]; then
+  echo "== Gradle (JDK 25 required)"
+  java -version
+  ./gradlew :instrumentation-api:spotlessApply
+  if [[ -n "$(git status --porcelain)" ]]; then echo "spotless reformatted files; folding into the commit"; git add -A; git commit --amend --no-edit; fi
+  ./gradlew :instrumentation-api:check
+fi
 echo "== push to fork"
 git push -u origin "$BRANCH"
 

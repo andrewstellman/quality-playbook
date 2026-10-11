@@ -25,7 +25,7 @@ git log --oneline -1
 if [[ "${SKIP_TESTS:-0}" != 1 ]]; then
   echo "== local check"
   VENV="$WORK-venv"; [[ -d "$VENV" ]] || python3 -m venv "$VENV"
-  "$VENV/bin/pip" install -q -e ".[test]"
+  "$VENV/bin/pip" install -q -e ".[test,cover]"
   "$VENV/bin/python" -m pytest -q -p no:cacheprovider setuptools/tests/config/test_apply_pyprojecttoml.py
 fi
 echo "== push to fork"

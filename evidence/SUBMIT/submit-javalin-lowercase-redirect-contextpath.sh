@@ -20,7 +20,7 @@ git fetch upstream "$DEFAULT"
 git switch -q --detach "upstream/$DEFAULT"
 if git show-ref --verify --quiet "refs/heads/$BRANCH"; then echo "branch $BRANCH exists; delete it first: git -C $WORK branch -D $BRANCH"; exit 1; fi
 git switch -c "$BRANCH"
-git am "$PATCH" || { echo "git am failed: upstream moved. Run 'git am --abort' and tell Claude."; exit 1; }
+git am --keep-non-patch "$PATCH" || { echo "git am failed: upstream moved. Run 'git am --abort' and tell Claude."; exit 1; }
 git log --oneline -1
 if [[ "${SKIP_TESTS:-0}" != 1 ]]; then
   echo "== local check"

@@ -1,5 +1,5 @@
 status: open
 title: cobra: suggestion distance counts bytes, not runes
 link: https://github.com/spf13/cobra/pull/2514
-updated: 2026-10-01
-note: CLA signed, ready for review. First submission under SUBMISSION-PROTOCOL.md.
+updated: 2026-10-10
+note: Open, ready for review (gh, 2026-10-10); review required. CLA assistant: all committers signed. No human review yet.
