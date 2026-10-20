@@ -19,7 +19,7 @@ It even catches bugs that a thorough adversarial code-review prompt with Claude 
 - contracts and a coverage matrix
 - the code-review, spec-audit, and TDD verification protocols themselves
 
-*This isn't theoretical. Bugs the Quality Playbook found have been [accepted and merged upstream](#merged-upstream) in Google's gson, the Linux kernel, aiohttp, calibre and cron-parser.*
+*This isn't theoretical. Bugs the Quality Playbook found have been [accepted and merged upstream](#merged-upstream) in Google's gson, the Linux kernel, aiohttp, calibre, cron-parser and tomlkit.*
 
 ## Quick start
 
@@ -305,6 +305,11 @@ Bugs the Quality Playbook found in real projects, fixed and accepted by the main
 
 | Project | The bug | Fix |
 |---|---|---|
+| bradymholt `cRonstrue` | A list with a plain first value and a step printed "At 09:00 AMonly on Friday and , every 2 days of the week" | [#423](https://github.com/bradymholt/cRonstrue/pull/423) |
+| OpenTelemetry Java instrumentation | `UrlParser` recorded `server.address` as "[" for a bracketed IPv6 address | [#20320](https://github.com/open-telemetry/opentelemetry-java-instrumentation/pull/20320) |
+| OpenTelemetry Java instrumentation | The `Forwarded` host extractor recorded "[2001" as the host for a bracketed IPv6 address | [#20393](https://github.com/open-telemetry/opentelemetry-java-instrumentation/pull/20393) |
+| adonisjs `http-server` | The `uuid` route matcher accepted letters that are not hex digits | [#144](https://github.com/adonisjs/http-server/pull/144) |
+| python-poetry `tomlkit` | Arithmetic on a float written with an explicit sign wrote a negative-zero result as `+-0.0`, which tomlkit itself then rejected | [#629](https://github.com/python-poetry/tomlkit/pull/629) |
 | harrisiirak `cron-parser` | String dates in the RFC 850 and asctime HTTP formats threw "unhandled timestamp", although the README lists HTTP dates as supported | [#455](https://github.com/harrisiirak/cron-parser/pull/455) |
 | aio-libs `aiohttp` | `StreamReader.readuntil()` missed a separator of two or more bytes when it was split across chunks, so it returned too much data or kept waiting | [#13870](https://github.com/aio-libs/aiohttp/pull/13870), backported to 3.15 and 3.14 |
 | `calibre` | The content server returned a 500 instead of a 404 for a malformed hex id in an OPDS feed URL | [#3310](https://github.com/kovidgoyal/calibre/pull/3310) |
@@ -314,27 +319,22 @@ Bugs the Quality Playbook found in real projects, fixed and accepted by the main
 
 ## Submitted upstream
 
-Fixes and reports still waiting on the maintainers, checked against the live repositories on 2026-10-11. Newest first. The full record for most of them, including the bugs that were held, dropped or not filed, is in [`evidence/`](evidence/README.md).
+Fixes and reports still waiting on the maintainers. Newest first. On 2026-10-20 each pull request below was checked with git against its repository's default branch, and none had been merged; git does not show whether a pull request was closed without merging. The two zod issues and the two nvmet patches were not checked on that date. The full record for most of them, including the bugs that were held, dropped or not filed, is in [`evidence/`](evidence/README.md).
 
 | Project | The bug | Submitted |
 |---|---|---|
 | wanasit `chrono` | With a reference timezone that differs from the system's, "this month", "last night" and dates without a year used the system timezone's calendar | [#670](https://github.com/wanasit/chrono/pull/670) |
-| bradymholt `cRonstrue` | A list with a plain first value and a step printed "At 09:00 AMonly on Friday and , every 2 days of the week" | [#423](https://github.com/bradymholt/cRonstrue/pull/423) |
 | RubyMoney `money` | Dividing a subclass of `Money` by a plain `Money` returned a `Money` instead of a `Float` | [#1237](https://github.com/RubyMoney/money/pull/1237) |
 | sporkmonger `addressable` | `route_from` returned an empty string when only the base URI had a query | [#623](https://github.com/sporkmonger/addressable/pull/623) |
 | `javalin` | The lowercase-path redirect dropped the context path | [#2660](https://github.com/javalin/javalin/pull/2660) |
 | `marshmallow` | `URL(relative=True)` rejected a relative URL with "://" in its path, query or fragment | [#3067](https://github.com/marshmallow-code/marshmallow/pull/3067) |
-| OpenTelemetry Java instrumentation | The `Forwarded` host extractor recorded "[2001" as the host for a bracketed IPv6 address | [#20393](https://github.com/open-telemetry/opentelemetry-java-instrumentation/pull/20393) |
 | pypa `setuptools` | `readme` or `requires-python` set outside `dynamic` crashed instead of being warned about and ignored | [#5343](https://github.com/pypa/setuptools/pull/5343) |
-| python-poetry `tomlkit` | A negative-zero float result was written with a stray plus sign | [#629](https://github.com/python-poetry/tomlkit/pull/629) |
 | spf13 `cobra` | Command suggestions measured edit distance in bytes, not characters | [#2514](https://github.com/spf13/cobra/pull/2514) |
 | adonisjs `http-server` | A cookie with `maxAge: 0` was sent without `Max-Age` | [#145](https://github.com/adonisjs/http-server/pull/145) |
-| adonisjs `http-server` | The `uuid` route matcher accepted letters that are not hex digits | [#144](https://github.com/adonisjs/http-server/pull/144) |
 | colinhacks `zod` | `registry.remove()` deleted an id that now belonged to another schema | [issue #6640](https://github.com/colinhacks/zod/issues/6640) (zod accepts pull requests only from collaborators) |
 | colinhacks `zod` | An intersection threw when both sides produced `NaN` | [issue #6639](https://github.com/colinhacks/zod/issues/6639) |
 | NVIDIA `bionemo-recipes` | The THD context-parallel split dropped the remainder tokens | [#1765](https://github.com/NVIDIA-BioNeMo/bionemo-recipes/pull/1765) |
 | NVIDIA `bionemo-recipes` | AMPLIFY `_pad_weights` returned fp32 for bf16 input | [#1764](https://github.com/NVIDIA-BioNeMo/bionemo-recipes/pull/1764) |
-| OpenTelemetry Java instrumentation | `UrlParser` recorded `server.address` as "[" for a bracketed IPv6 address | [#20320](https://github.com/open-telemetry/opentelemetry-java-instrumentation/pull/20320) |
 | Linux kernel `nvmet` | ANA group ID 128 was clamped to 0 by `array_index_nospec()` | patch sent to linux-nvme, 2026-09-10 |
 | Linux kernel `nvmet` | The CRTO property was computed from CSTS instead of CAP | patch sent to linux-nvme, 2026-09-10 |
 

@@ -1,5 +1,5 @@
 status: open
 title: setuptools: readme/requires-python outside dynamic crash instead of warn-and-ignore
 link: https://github.com/pypa/setuptools/pull/5343
-updated: 2026-10-10
-note: Open, ready for review (gh, 2026-10-10). Only comment is Mergify's merge-queue box. No human review yet.
+updated: 2026-10-20
+note: Open, ready for review (gh, 2026-10-10). Only comment is Mergify's merge-queue box. No human review yet. Update 2026-10-20: maintainer Anderson Bravalheri (abravalheri) reviewed (10:58 UTC: thanks, suggested a sentinel instead of None in _apply_pyprojecttoml, and fixing _core_metadata instead of popping the attribute) and pushed 2 commits to the PR branch (maintainer edits): d338c7e3 (sentinel _RESET via a new compat/py314.py helper; _RESET_PREVIOUSLY_DEFINED gains readme and requires-python; _core_metadata writes Requires-Python only when the value is truthy) and 221571e0 (mypy pin to 2.4, one type: ignore). Andrew's commit be18f5a6 is unchanged underneath. Checked in the cloud workspace (Python 3.13): setuptools/tests/config and test_core_metadata.py give the same 36 failures on the PR head and on main 301e27a4, all of them tests that download a setup.cfg from GitHub; the 50 tests matching dynamic, readme or requires pass. Open.
