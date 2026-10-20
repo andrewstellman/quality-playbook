@@ -1159,7 +1159,7 @@ def classify_reference_docs(
     schema_version = (
         benchmark_lib.detect_repo_skill_version(target_repo)
         or benchmark_lib.detect_skill_version(target_repo)
-        or "1.6.0"
+        or "1.6.1"
     )
     manifest = doc_classification.classify_documents(
         docs,

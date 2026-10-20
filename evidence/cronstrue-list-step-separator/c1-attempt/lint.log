@@ -1,0 +1,14 @@
+$ ./node_modules/.bin/prettier --check src/expressionDescriptor.ts test/cronstrue.ts
+Checking formatting...
+[warn] test/cronstrue.ts
+[warn] Code style issues found in the above file(s). Forgot to run Prettier?
+exit=1
+--- same command on unmodified base c08a7d6 (separate clone):
+$ ./node_modules/.bin/prettier --check src/expressionDescriptor.ts test/cronstrue.ts
+Checking formatting...
+[warn] test/cronstrue.ts
+[warn] Code style issues found in the above file(s). Forgot to run Prettier?
+exit=1
+--- note: the warning on test/cronstrue.ts is not caused by this change. It is reported on unmodified base too.
+--- Running prettier (no --check) on a copy of each file and diffing against the original gives the same three hunks on both: base lines 817-825 (an alias test), 883 and 887 (two verbose tests); fix lines 831-839, 897 and 901 (the same three, shifted by the 14 added lines). The added tests (lines 759-771, "0 9 * * 5,0-4/2" and "0 9 * * 1-3,*/2") are not among them. Those lines were not reformatted.
+--- src/expressionDescriptor.ts passes on both.

@@ -1,0 +1,35 @@
+== eslint
+== prettier --check
+Checking formatting...
+All matched files use Prettier code style!
+== build + tsd
+== jest --coverage
+--------------------------|---------|----------|---------|---------|-------------------
+File                      | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+--------------------------|---------|----------|---------|---------|-------------------
+All files                 |     100 |      100 |     100 |     100 |                   
+ src                      |     100 |      100 |     100 |     100 |                   
+  CronDate.ts             |     100 |      100 |     100 |     100 |                   
+  CronExpression.ts       |     100 |      100 |     100 |     100 |                   
+  CronExpressionParser.ts |     100 |      100 |     100 |     100 |                   
+  CronFieldCollection.ts  |     100 |      100 |     100 |     100 |                   
+  CronFileParser.ts       |     100 |      100 |     100 |     100 |                   
+ src/fields               |     100 |      100 |     100 |     100 |                   
+  CronDayOfMonth.ts       |     100 |      100 |     100 |     100 |                   
+  CronDayOfWeek.ts        |     100 |      100 |     100 |     100 |                   
+  CronField.ts            |     100 |      100 |     100 |     100 |                   
+  CronHour.ts             |     100 |      100 |     100 |     100 |                   
+  CronMinute.ts           |     100 |      100 |     100 |     100 |                   
+  CronMonth.ts            |     100 |      100 |     100 |     100 |                   
+  CronSecond.ts           |     100 |      100 |     100 |     100 |                   
+  index.ts                |     100 |      100 |     100 |     100 |                   
+ src/utils                |     100 |      100 |     100 |     100 |                   
+  random.ts               |     100 |      100 |     100 |     100 |                   
+--------------------------|---------|----------|---------|---------|-------------------
+
+Test Suites: 7 passed, 7 total
+Tests:       348 passed, 348 total
+Snapshots:   0 total
+Time:        8.399 s
+Ran all test suites.
+full-check exit 0

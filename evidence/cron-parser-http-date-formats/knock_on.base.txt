@@ -1,0 +1,51 @@
+CronDate  tz=UTC               "2021-01-04T11:00:00.000+02:00"          -> 2021-01-04T09:00:00.000Z
+CronDate  tz=Europe/Athens     "2021-01-04T11:00:00.000+02:00"          -> 2021-01-04T09:00:00.000Z
+CronDate  tz=America/New_York  "2021-01-04T11:00:00.000+02:00"          -> 2021-01-04T09:00:00.000Z
+CronDate  tz=UTC               "2021-01-04"                             -> 2021-01-04T00:00:00.000Z
+CronDate  tz=Europe/Athens     "2021-01-04"                             -> 2021-01-03T22:00:00.000Z
+CronDate  tz=America/New_York  "2021-01-04"                             -> 2021-01-04T05:00:00.000Z
+CronDate  tz=UTC               "Mon, 4 Jan 2021 10:00:00 +0100"         -> 2021-01-04T09:00:00.000Z
+CronDate  tz=Europe/Athens     "Mon, 4 Jan 2021 10:00:00 +0100"         -> 2021-01-04T09:00:00.000Z
+CronDate  tz=America/New_York  "Mon, 4 Jan 2021 10:00:00 +0100"         -> 2021-01-04T09:00:00.000Z
+CronDate  tz=UTC               "Mon, 4 Jan 2021 10:00:00"               -> 2021-01-04T10:00:00.000Z
+CronDate  tz=Europe/Athens     "Mon, 4 Jan 2021 10:00:00"               -> 2021-01-04T08:00:00.000Z
+CronDate  tz=America/New_York  "Mon, 4 Jan 2021 10:00:00"               -> 2021-01-04T15:00:00.000Z
+CronDate  tz=UTC               "2021-01-04 10:00:00"                    -> 2021-01-04T10:00:00.000Z
+CronDate  tz=Europe/Athens     "2021-01-04 10:00:00"                    -> 2021-01-04T08:00:00.000Z
+CronDate  tz=America/New_York  "2021-01-04 10:00:00"                    -> 2021-01-04T15:00:00.000Z
+CronDate  tz=UTC               "Sun, 06 Nov 1994 08:49:37 GMT"          -> 1994-11-06T08:49:37.000Z
+CronDate  tz=Europe/Athens     "Sun, 06 Nov 1994 08:49:37 GMT"          -> 1994-11-06T08:49:37.000Z
+CronDate  tz=America/New_York  "Sun, 06 Nov 1994 08:49:37 GMT"          -> 1994-11-06T08:49:37.000Z
+CronDate  tz=UTC               "Sunday, 06-Nov-94 08:49:37 GMT"         -> THROWS CronDate: unhandled timestamp: Sunday, 06-Nov-94 08:49:37 GMT
+CronDate  tz=Europe/Athens     "Sunday, 06-Nov-94 08:49:37 GMT"         -> THROWS CronDate: unhandled timestamp: Sunday, 06-Nov-94 08:49:37 GMT
+CronDate  tz=America/New_York  "Sunday, 06-Nov-94 08:49:37 GMT"         -> THROWS CronDate: unhandled timestamp: Sunday, 06-Nov-94 08:49:37 GMT
+CronDate  tz=UTC               "Sun Nov  6 08:49:37 1994"               -> THROWS CronDate: unhandled timestamp: Sun Nov  6 08:49:37 1994
+CronDate  tz=Europe/Athens     "Sun Nov  6 08:49:37 1994"               -> THROWS CronDate: unhandled timestamp: Sun Nov  6 08:49:37 1994
+CronDate  tz=America/New_York  "Sun Nov  6 08:49:37 1994"               -> THROWS CronDate: unhandled timestamp: Sun Nov  6 08:49:37 1994
+CronDate  tz=UTC               "Sun Nov 06 08:49:37 1994"               -> THROWS CronDate: unhandled timestamp: Sun Nov 06 08:49:37 1994
+CronDate  tz=Europe/Athens     "Sun Nov 06 08:49:37 1994"               -> THROWS CronDate: unhandled timestamp: Sun Nov 06 08:49:37 1994
+CronDate  tz=America/New_York  "Sun Nov 06 08:49:37 1994"               -> THROWS CronDate: unhandled timestamp: Sun Nov 06 08:49:37 1994
+CronDate  tz=UTC               "Monday, 06-Nov-94 08:49:37 GMT"         -> THROWS CronDate: unhandled timestamp: Monday, 06-Nov-94 08:49:37 GMT
+CronDate  tz=Europe/Athens     "Monday, 06-Nov-94 08:49:37 GMT"         -> THROWS CronDate: unhandled timestamp: Monday, 06-Nov-94 08:49:37 GMT
+CronDate  tz=America/New_York  "Monday, 06-Nov-94 08:49:37 GMT"         -> THROWS CronDate: unhandled timestamp: Monday, 06-Nov-94 08:49:37 GMT
+CronDate  tz=UTC               "Sun Nov  6 08:49:37 94"                 -> THROWS CronDate: unhandled timestamp: Sun Nov  6 08:49:37 94
+CronDate  tz=Europe/Athens     "Sun Nov  6 08:49:37 94"                 -> THROWS CronDate: unhandled timestamp: Sun Nov  6 08:49:37 94
+CronDate  tz=America/New_York  "Sun Nov  6 08:49:37 94"                 -> THROWS CronDate: unhandled timestamp: Sun Nov  6 08:49:37 94
+CronDate  tz=UTC               "Sun Nov  6 25:49:37 1994"               -> THROWS CronDate: unhandled timestamp: Sun Nov  6 25:49:37 1994
+CronDate  tz=Europe/Athens     "Sun Nov  6 25:49:37 1994"               -> THROWS CronDate: unhandled timestamp: Sun Nov  6 25:49:37 1994
+CronDate  tz=America/New_York  "Sun Nov  6 25:49:37 1994"               -> THROWS CronDate: unhandled timestamp: Sun Nov  6 25:49:37 1994
+CronDate  tz=UTC               "Sunday, 31-Feb-94 08:49:37 GMT"         -> THROWS CronDate: unhandled timestamp: Sunday, 31-Feb-94 08:49:37 GMT
+CronDate  tz=Europe/Athens     "Sunday, 31-Feb-94 08:49:37 GMT"         -> THROWS CronDate: unhandled timestamp: Sunday, 31-Feb-94 08:49:37 GMT
+CronDate  tz=America/New_York  "Sunday, 31-Feb-94 08:49:37 GMT"         -> THROWS CronDate: unhandled timestamp: Sunday, 31-Feb-94 08:49:37 GMT
+CronDate  tz=UTC               "not a date"                             -> THROWS CronDate: unhandled timestamp: not a date
+CronDate  tz=Europe/Athens     "not a date"                             -> THROWS CronDate: unhandled timestamp: not a date
+CronDate  tz=America/New_York  "not a date"                             -> THROWS CronDate: unhandled timestamp: not a date
+CronDate  tz=UTC               "1994-11-06T08:49:37Z"                   -> 1994-11-06T08:49:37.000Z
+CronDate  tz=Europe/Athens     "1994-11-06T08:49:37Z"                   -> 1994-11-06T08:49:37.000Z
+CronDate  tz=America/New_York  "1994-11-06T08:49:37Z"                   -> 1994-11-06T08:49:37.000Z
+CronDate  tz=undefined         "Sun Nov  6 08:49:37 1994"               -> THROWS CronDate: unhandled timestamp: Sun Nov  6 08:49:37 1994
+parse     currentDate="Sunday, 06-Nov-94 08:49:37 GMT"   tz=Europe/Athens next('0 * * * *') -> THROWS CronDate: unhandled timestamp: Sunday, 06-Nov-94 08:49:37 GMT
+parse     currentDate="Sun Nov  6 08:49:37 1994"         tz=Europe/Athens next('0 * * * *') -> THROWS CronDate: unhandled timestamp: Sun Nov  6 08:49:37 1994
+parse     currentDate="Mon, 4 Jan 2021 10:00:00 +0100"   tz=Europe/Athens next('0 * * * *') -> 2021-01-04T10:00:00.000Z
+parse     currentDate="not a date"                       tz=Europe/Athens next('0 * * * *') -> THROWS CronDate: unhandled timestamp: not a date
+parse     startDate=asctime endDate=RFC850 count -> THROWS CronDate: unhandled timestamp: Sun Nov  6 08:49:37 1994

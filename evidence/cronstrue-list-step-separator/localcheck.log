@@ -1,0 +1,496 @@
+
+added 201 packages, and audited 202 packages in 10s
+
+37 packages are looking for funding
+  run `npm fund` for details
+
+8 vulnerabilities (1 low, 2 moderate, 5 high)
+
+To address all issues, run:
+  npm audit fix
+
+Run `npm audit` for details.
+
+> cronstrue@3.30.0 test
+> npx mocha --reporter spec --require ts-node/register "./test/**/*.ts"
+
+
+
+  CronParser
+    parse
+      ✔ should parse 5 part cron
+      ✔ should parse 6 part cron with year
+      ✔ should error if expression is not a cron schedule
+      ✔ should error if DOW part is not valid
+      ✔ does not allow unexpected characters or statements in any part
+      ✔ should parse cron with multiple spaces between parts
+      ✔ should parse cron with multiple commas
+      ✔ dayOfWeek specified as comma
+      ✔ dayOfWeek dangling comma
+      ✔ should parse cron @ expression
+      ✔ should parse @reboot expression
+
+  Cronstrue
+    every
+      ✔ * * * * * *
+      ✔ * * * * *
+      ✔ 0 * * * * (verbose)
+      ✔ * * * * * (verbose)
+      ✔ */1 * * * *
+      ✔ */5 * * * *
+      ✔ 0 0/1 * * * ?
+      ✔ 0 0 * * * ?
+      ✔ 0 0 0/1 * * ?
+      ✔ * * * 3 *
+      ✔ * * * 3,6 *
+      ✔ * * * * * * 2013
+      ✔ * * * * * 2013
+      ✔ * * * * * 2013,2014
+    interval
+      ✔ */45 * * * * *
+      ✔ */5 * * * *
+      ✔ */10 * * * *
+      ✔ 0 */5 * * * *
+      ✔ 0 9-17 * * *
+      ✔ 0 * ? * 2/1 *
+      ✔ 0 * ? * 1/1
+      ✔ 0 * ? * 2/1
+      ✔ 0 52 13 ? * 3/1
+    ranges
+      ✔ 0 23 ? * MON-FRI
+      ✔ 30 11 * * 1-5
+      ✔ 0-10 11 * * *
+      ✔ 23 12 * Jan-Mar *
+      ✔ 23 12 * JAN-FEB *
+      ✔ 1 1,3-4 * * *
+      ✔ * 0 */4 * * *
+      ✔ */10 0 * * * *
+      ✔ * 0 0 * * *
+      ✔ * 0 * * *
+      ✔ * 0 * * * *
+    at
+      ✔ 30 11 * * *
+      ✔ 31 10 * * *
+      ✔ 29 10 * * *
+      ✔ 30 10 * * *
+      ✔ 31 10 * * *
+      ✔ 29 10 * * *
+      ✔ 30 10 * * *
+      ✔ 30 11 * * *
+      ✔ 30 3 * * *
+      ✔ 30 10 * * *
+      ✔ 31 10 * * *
+      ✔ 29 9 * * *
+      ✔ 30 9 * * *
+      ✔ 0 0 * * *
+      ✔ 10 11 * * *
+      ✔ 30 22 * * *
+      ✔ 5 1 * * 1
+      ✔ 5 23 * * 1
+      ✔ 30 11 * * *
+      ✔ 23 12 * * SUN
+      ✔ 30 02 14 * * *
+      ✔ 0 0 6 1/1 * ?
+      ✔ 0 5 0/1 * * ?
+      ✔ 46 9 * * 1
+      ✔ 46 9 * * 7
+      ✔ 23 12 15 * *
+      ✔ 23 12 * JAN *
+      ✔ 23 12 ? JAN *
+      ✔ 0 7 * * *
+      ✔ 30 14,16 * * *
+      ✔ 30 6,14,16 * * *
+      ✔ 0 * 31 * 1
+      ✔ 0 * 31 * 2
+      ✔ 0 0 0 1,2,3 * WED,FRI
+      ✔ 0 2,16 1,8,15,22 * 1,2
+      ✔ 0 45 12 22,17,6,30,26 * *
+    weekday
+      ✔ * * LW * *
+      ✔ * * WL * *
+      ✔ * * 1W * *
+      ✔ * * 13W * *
+      ✔ * * W1 * *
+      ✔ * * 5W * *
+      ✔ * * W5 * *
+    last
+      ✔ * * * * 4L
+      ✔ */5 * L JAN *
+      ✔ 0 20 15,L * *
+      ✔ 0 20 1-10,20-L * *
+      ✔ 0 15 10 * * L
+      ✔ 0 15 10 L * *
+      ✔ 0 0 0 L-5 * ?
+    dayOfWeekStartIndexZero=false
+      ✔ 23 12 * * 1#2
+      ✔ * * * ? * 2-6/2
+      ✔ * * * ? * 7
+      ✔ * * * ? * 1,2,3,4,5
+      ✔ 0 * ? * 1/1
+      ✔ 0 * ? * 2/1
+    monthStartIndexZero=true
+      ✔ * * * 7 *
+      ✔ 30 * * 6-8 *
+      ✔ 30 * * 1-10/2 *
+      ✔ 30 * * 4,5,6 *
+      ✔ 30 * * */10 *
+      ✔ 30 * * 2/11 *
+      ✔ 30 * * 1/2 *
+      ✔ 30 * * JAN *
+    non-trivial expressions
+      ✔ */5 15 * * MON-FRI
+      ✔ * * * * MON#3
+      ✔ * * * * MON#3,THU#1
+      ✔ 5-10 * * * * *
+      ✔ 5-10 30-35 10-12 * * *
+      ✔ 30 */5 * * * *
+      ✔ 10 0/5 * * * ?
+      ✔ 2-59/3 1,9,22 11-26 1-6 ?
+      ✔ 23 12 * JAN-FEB * 2013-2014
+      ✔ 23 12 * JAN-MAR * 2013-2015
+      ✔ 12-50 0-10 6 * * * 2022
+      ✔ 0 0/30 8-9 5,20 * ?
+      ✔ 23 12 * * SUN#2
+      ✔ 0 25 7-19/8 ? * *
+      ✔ 0 25 7-20/13 ? * *
+      ✔ 0 0 8 1/3 * ? *
+      ✔ 0 0 14 */30 * *
+      ✔ 0 15 10 ? * */3
+      ✔ * * * ? * 1-5/2
+      ✔ 0 5 7 2 1/3 ? *
+      ✔ 0 15 6 1 1 ? 1/2
+      ✔ 2,4-5 1 * * *
+      ✔ 2,26-28 18 * * *
+      ✔ 5/30 * * * * ?
+      ✔ 0 5/30 * * * ?
+      ✔ * * 5/8 * * ?
+      ✔ 0 5 7 2/3 * ? *
+      ✔ 0 5 7 ? 3/2 ? *
+      ✔ 0 5 7 ? * 2/3 *
+      ✔ 0 5 7 ? * ? 2016/4
+      ✔ 0 30 10-13 ? * wed,FRI
+      ✔ 0 00 10 ? * MON-THU,SUN *
+      ✔ 0 0 0 1,2,3 * WED,FRI
+      ✔ 0 2,16 1,8,15,22 * 1,2
+      ✔ 0 */4 * * *
+      ✔ 0 */4,6 * * * 
+      ✔ 5 30 6,14,16 5 * *
+      ✔ 0-20/3 9 * * *
+      ✔ 5-45/10,*/5,9 * * * *
+      ✔ */5 0-4,6-8 * * *
+      ✔ 0 9 * * 0-4/2,5,6
+      ✔ 0 9 * * 5,0-4/2
+      ✔ * 1-2,22-23 * * *
+    @ expressions
+      ✔ @yearly
+      ✔ @annually
+      ✔ @monthly
+      ✔ @weekly
+      ✔ @daily
+      ✔ @midnight
+      ✔ @hourly
+      ✔ @reboot
+      numbering options
+        ✔ @yearly, dayOfWeekStartIndexZero=true, monthStartIndexZero=false
+        ✔ @yearly, dayOfWeekStartIndexZero=true, monthStartIndexZero=true
+        ✔ @yearly, dayOfWeekStartIndexZero=false, monthStartIndexZero=false
+        ✔ @yearly, dayOfWeekStartIndexZero=false, monthStartIndexZero=true
+        ✔ @annually, dayOfWeekStartIndexZero=true, monthStartIndexZero=false
+        ✔ @annually, dayOfWeekStartIndexZero=true, monthStartIndexZero=true
+        ✔ @annually, dayOfWeekStartIndexZero=false, monthStartIndexZero=false
+        ✔ @annually, dayOfWeekStartIndexZero=false, monthStartIndexZero=true
+        ✔ @weekly, dayOfWeekStartIndexZero=true, monthStartIndexZero=false
+        ✔ @weekly, dayOfWeekStartIndexZero=true, monthStartIndexZero=true
+        ✔ @weekly, dayOfWeekStartIndexZero=false, monthStartIndexZero=false
+        ✔ @weekly, dayOfWeekStartIndexZero=false, monthStartIndexZero=true
+    verbose
+      ✔ 30 4 1 * *
+      ✔ 0 13 * * 1
+      ✔ */50 * * * *
+      ✔ */7 * * * *
+      ✔ */59 * * * *
+      ✔ 0 */7 * * *
+      ✔ */50 * * * * *
+      ✔ */15 * * * *
+      ✔ */30 * * * *
+      ✔ 5-30/7 * * * *
+    errors
+      ✔ second out of range
+      ✔ minute out of range
+      ✔ hour out of range
+      ✔ dayOfMonth out of range
+      ✔ month out of range
+      ✔ dayOfWeek out of range
+      ✔ garbage expression
+      ✔ too many parts
+      ✔ empty expression
+      ✔ null expression
+      ✔ undefined expression
+      ✔ 'W' list is invalid
+      ✔ garbage expression with option (throwExceptionOnParseError = false)
+
+  Cronstrue (fr)
+    every
+      ✔ * * * * * *
+      ✔ * * * * *
+      ✔ */1 * * * *
+      ✔ */5 * * * *
+      ✔ 0 0/1 * * * ?
+      ✔ 0 0 * * * ?
+      ✔ 0 0 0/1 * * ?
+    interval
+      ✔ */45 * * * * *
+      ✔ */5 * * * *
+      ✔ */10 * * * *
+      ✔ 0 */5 * * * *
+      ✔ 0 * ? * 2/1 *
+      ✔ 0 * ? * 1/1
+      ✔ 0 * ? * 2/1
+    ranges
+      ✔ 23 12 * Jan-Mar *
+      ✔ 23 12 * JAN-FEB *
+    at
+      ✔ 29 10 * * *
+      ✔ 30 10 * * *
+      ✔ 29 10 * * *
+      ✔ 30 10 * * *
+      ✔ 23 12 * * SUN
+      ✔ 30 02 14 * * *
+      ✔ 0 0 6 1/1 * ?
+      ✔ 0 5 0/1 * * ?
+      ✔ 23 12 * JAN *
+      ✔ 23 12 ? JAN *
+    weekday
+      ✔ * * LW * *
+      ✔ * * WL * *
+      ✔ * * 1W * *
+      ✔ * * W1 * *
+    choice
+      ✔ * * 3,8 * *
+      ✔ * * * * 2,6
+      ✔ * * 3 * 2
+      ✔ * * 3 * 2,6
+      ✔ * * 3,8 * 2
+      ✔ * * 3,8 * 2,6
+      ✔ * * 1,3,5,7,9 * 2,4,6
+      ✔ 0,30,59 0,12,23 1,3,5,7,9 3,6,9,12 2,4,6
+    last
+      ✔ * * * * 4L
+      ✔ 0 15 10 L * *
+    non-trivial expressions
+      ✔ * * * * MON#3
+      ✔ * * 5/8 * * ?
+      ✔ 3/6 * * * *
+      ✔ * 3/6 * * *
+      ✔ * * 3/6 * *
+      ✔ * * * 3/6 *
+      ✔ * * * * 3/6
+
+  i18n
+    de
+      ✔ * * * * *
+      ✔ */5 15 * * MON-FRI
+    es
+      ✔ * * * * *
+      ✔ */5 15 * * MON-FRI
+    fr
+      ✔ * * * * *
+      ✔ */5 15 * * MON-FRI
+    it
+      ✔ * * * * *
+      ✔ */5 15 * * MON-FRI
+    id
+      ✔ * * * * *
+      ✔ */5 15 * * MON-FRI
+    nb
+      ✔ * * * * *
+      ✔ */5 15 * * MON-FRI
+      ✔ 0 5 1/1 * *
+      ✔ 15 11 * 1/1 MON#1
+      ✔ 15 11 * 1/5 MON#1
+      ✔ 0 7 * * MON,TUE,THU,FRI,SUN
+    sv
+      ✔ * * * * *
+      ✔ */5 15 * * MON-FRI
+      ✔ 0 12 * * *
+      ✔ 0 15 10 ? * 6#3
+      ✔ 0 0 15 ? * MON *
+    nl
+      ✔ * * * * *
+      ✔ */5 15 * * MON-FRI
+    pl
+      ✔ * * * * *
+      ✔ */5 15 * * MON-FRI
+    pt_BR
+      ✔ * * * * *
+      ✔ */5 15 * * MON-FRI
+      ✔ */5 15 * * MON-FRI,SUN
+      ✔ 45 10 * * 6#2
+      ✔ 45 10 * * 0#3
+      ✔ 45 10 * * 1#3
+    pt_PT
+      ✔ * * * * *
+      ✔ */5 15 * * MON-FRI
+      ✔ 45 10 * * 6#2
+      ✔ 45 10 * * 0#3
+      ✔ 45 10 * * 1#3
+    ro
+      ✔ * * * * *
+      ✔ */5 15 * * MON-FRI
+      ✔ */30 * * * *
+      ✔ */20 * * * * *
+      ✔ 0 */20 * * *
+      ✔ 0 0 */20 * *
+      ✔ 0 0 L-20 * *
+      ✔ 0 0 0 1 1 ? */100
+      ✔ 0 0 0 1 1 ? */101
+      ✔ 0 9 1W * *
+      ✔ 0 9 15W * *
+    ru
+      ✔ * * * * *
+      ✔ */5 15 * * MON-FRI
+      ✔ * * * * */31
+    tr
+      ✔ * * * * *
+      ✔ */5 15 * * MON-FRI
+      ✔ @reboot
+    uk
+      ✔ * * * * *
+      ✔ */5 15 * * MON-FRI
+    zh_CN
+      ✔ * * * * *
+      ✔ */5 15 * * MON-FRI
+    zh_TW
+      ✔ * * * * *
+      ✔ */5 15 * * MON-FRI
+    he
+      ✔ * * * * *
+      ✔ */5 15 * * MON-FRI
+    da
+      ✔ * * * * *
+      ✔ */5 15 * * MON-FRI
+      ✔ 0 3 * * 4
+      ✔ 0 3 * * 4,5
+    fa
+      ✔ * * * * *
+      ✔ */5 15 * * MON-FRI
+    tg
+      ✔ * * * * *
+      ✔ */5 15 * * MON-FRI
+      ✔ 0 0 L * *
+    sl
+      ✔ * * * * *
+      ✔ */5 15 * * MON-FRI
+      ✔ */5 * L JAN *
+    ca
+      ✔ * * * * *
+      ✔ */5 15 * * MON-FRI
+    ja
+      ✔ 0 0 14 */30 * *
+    ko
+      ✔ * * * * *
+      ✔ */5 15 * * MON-FRI
+      ✔ 0-10 11 * * *
+      ✔ 23 12 15 * *
+      ✔ 0 9 * * 1-5
+      ✔ 0,22,24,26,28 * * * *
+      ✔ 30 6,14 * * *
+      ✔ * * * * MON#3
+      ✔ * * LW * *
+    hu
+      ✔ * * * * *
+      ✔ */5 15 * * MON-FRI
+    af
+      ✔ * * * * *
+      ✔ */5 15 * * MON-FRI
+    th
+      ✔ * * * * *
+      ✔ 0 * * * *
+      ✔ */5 15 * * MON-FRI
+      ✔ 15 14 1 * *
+    ar
+      ✔ * * * * *
+      ✔ */5 15 * * MON-FRI
+    my
+      ✔ * * * * *
+      ✔ 0 * * * *
+      ✔ */5 15 * * MON-FRI
+      ✔ 0 5 1/1 * *
+      ✔ 15 11 * 1/5 MON
+      ✔ 0 7 * * MON,TUE,THU,FRI,SUN
+    bg
+      ✔ * * * * *
+      ✔ 0 * * * *
+      ✔ */5 15 * * MON-FRI
+    be
+      ✔ * * * * *
+      ✔ */5 15 * * MON-FRI
+    hr
+      ✔ * * * * *
+      ✔ 0 * * * *
+      ✔ */5 15 * * MON-FRI
+    sr
+      ✔ * * * * *
+      ✔ 0 * * * *
+      ✔ */5 15 * * MON-FRI
+    az
+      ✔ * * * * *
+      ✔ 0 * * * *
+      ✔ */5 15 * * MON-FRI
+      ✔ 0 0 3 * *
+      ✔ 0 0 9 * *
+      ✔ 23 12 * JAN-MAR *
+    @reboot
+      ✔ en
+      ✔ da
+      ✔ de
+      ✔ es
+      ✔ fr
+      ✔ it
+      ✔ id
+      ✔ ko
+      ✔ nl
+      ✔ nb
+      ✔ nn
+      ✔ sv
+      ✔ pl
+      ✔ pt_BR
+      ✔ pt_PT
+      ✔ ro
+      ✔ ru
+      ✔ tg
+      ✔ tr
+      ✔ uk
+      ✔ zh_CN
+      ✔ zh_TW
+      ✔ ja
+      ✔ he
+      ✔ cs
+      ✔ sk
+      ✔ fi
+      ✔ sl
+      ✔ sw
+      ✔ fa
+      ✔ ca
+      ✔ be
+      ✔ hu
+      ✔ af
+      ✔ th
+      ✔ ar
+      ✔ vi
+      ✔ my
+      ✔ bg
+      ✔ hr
+      ✔ sr
+      ✔ az
+      ✔ is covered by every locale
+
+  StringUtilities
+    format
+      ✔ should format a string with no replacements
+      ✔ should format a string with one replacement
+      ✔ should format a string with multiple replacements
+
+
+  406 passing (164ms)
+

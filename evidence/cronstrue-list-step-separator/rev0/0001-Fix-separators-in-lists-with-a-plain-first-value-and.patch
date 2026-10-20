@@ -1,0 +1,57 @@
+From bf44d63eff5787990e552108e0d57913da1fd07e Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <andrew@stellman.com>
+Date: Wed, 7 Oct 2026 11:02:02 -0400
+Subject: [PATCH] Fix separators in lists with a plain first value and a step
+
+The list 5,0-4/2 printed "AMonly on Friday and , every 2 days of the week".
+The loop removed the leading ", " from the first member, so it ran into the time,
+and a later step member kept its own ", ". Only later members are stripped now.
+---
+ src/expressionDescriptor.ts | 5 ++++-
+ test/cronstrue.ts           | 7 +++++++
+ 2 files changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/expressionDescriptor.ts b/src/expressionDescriptor.ts
+index aa56b4c..78bc7f6 100644
+--- a/src/expressionDescriptor.ts
++++ b/src/expressionDescriptor.ts
+@@ -592,6 +592,9 @@ export class ExpressionDescriptor {
+ 
+           if (isSegmentRangeWithoutIncrement) {
+             currentDescriptionContent = currentDescriptionContent!.replace(", ", "");
++          } else if (i > 0 && currentDescriptionContent!.startsWith(", ")) {
++            // Strip leading comma since we manage separators in this loop
++            currentDescriptionContent = currentDescriptionContent!.substring(2);
+           }
+ 
+           descriptionContent += currentDescriptionContent;
+@@ -607,7 +610,7 @@ export class ExpressionDescriptor {
+             getDescriptionFormat
+           );
+           // Strip leading comma since we manage separators in this loop
+-          if (segmentDescription && segmentDescription.startsWith(", ")) {
++          if (i > 0 && segmentDescription && segmentDescription.startsWith(", ")) {
+             segmentDescription = segmentDescription.substring(2);
+           }
+           descriptionContent += segmentDescription;
+diff --git a/test/cronstrue.ts b/test/cronstrue.ts
+index dd3fa87..7fcc7c6 100644
+--- a/test/cronstrue.ts
++++ b/test/cronstrue.ts
+@@ -757,6 +757,13 @@ describe("Cronstrue", function () {
+       );
+     });
+ 
++    it("0 9 * * 5,0-4/2", function () {
++      assert.equal(
++        cronstrue.toString(this.test?.title as string),
++        "At 09:00 AM, only on Friday and every 2 days of the week, Sunday through Thursday"
++      );
++    });
++
+     it("* 1-2,22-23 * * *", function () {
+       assert.equal(
+         cronstrue.toString(this.test?.title as string),
+-- 
+2.43.0
+

@@ -1,0 +1,17 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+___________________ test_no_extra_plus_sign_on_negative_zero ___________________
+
+    def test_no_extra_plus_sign_on_negative_zero() -> None:
+        doc = parse("a = -1.5")
+        doc["a"] *= 0
+>       assert doc.as_string() == "a = -0.0"
+E       AssertionError: assert 'a = +-0.0' == 'a = -0.0'
+E         - a = -0.0
+E         + a = +-0.0
+E         ?     +
+
+tests/test_items.py:1457: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_items.py::test_no_extra_plus_sign_on_negative_zero - Assert...
+1 failed, 100 deselected in 0.19s

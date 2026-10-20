@@ -1,0 +1,38 @@
+$ git -C /work/batch/runs/cron-parser/scratch/fix-cron-parser-http-date-formats checkout HEAD~1 -- src/CronDate.ts   # source change reverted, tests kept
+$ /work/batch/runs/cron-parser/bin/run-tests /work/batch/runs/cron-parser/scratch/fix-cron-parser-http-date-formats -t HTTP --runTestsByPath /work/batch/runs/cron-parser/scratch/fix-cron-parser-http-date-formats/tests/CronDate.test.ts
+FAIL tests/CronDate.test.ts
+  ● CronDate › parse cron date formats with another timezone › HTTP RFC 850
+
+    CronDate: unhandled timestamp: Sunday, 06-Nov-94 08:49:37 GMT
+
+      56 |     // Check for valid DateTime and throw an error if not valid.
+      57 |     if (!this.#date.isValid) {
+    > 58 |       throw new Error(`CronDate: unhandled timestamp: ${timestamp}`);
+         |             ^
+      59 |     }
+      60 |
+      61 |     // Set the timezone if it is provided and different from the current zone.
+
+      at new CronDate (src/CronDate.ts:58:13)
+      at Object.<anonymous> (tests/CronDate.test.ts:448:17)
+
+  ● CronDate › parse cron date formats with another timezone › HTTP asctime, read as GMT
+
+    CronDate: unhandled timestamp: Sun Nov  6 08:49:37 1994
+
+      56 |     // Check for valid DateTime and throw an error if not valid.
+      57 |     if (!this.#date.isValid) {
+    > 58 |       throw new Error(`CronDate: unhandled timestamp: ${timestamp}`);
+         |             ^
+      59 |     }
+      60 |
+      61 |     // Set the timezone if it is provided and different from the current zone.
+
+      at new CronDate (src/CronDate.ts:58:13)
+      at Object.<anonymous> (tests/CronDate.test.ts:453:17)
+
+Test Suites: 1 failed, 1 total
+Tests:       2 failed, 47 skipped, 49 total
+Snapshots:   0 total
+Time:        0.684 s, estimated 8 s
+Ran all test suites within paths "/work/batch/runs/cron-parser/scratch/fix-cron-parser-http-date-formats/tests/CronDate.test.ts".

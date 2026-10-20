@@ -1,0 +1,57 @@
+From b05050c7c9a72cb85587252f4fa8afe697dc63b5 Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <andrew@stellman.com>
+Date: Fri, 2 Oct 2026 18:24:54 -0400
+Subject: [PATCH] Do not add a plus sign to a negative zero float result
+
+Float._new adds "+" when the source had an explicit sign and the result
+is >= 0. -0.0 >= 0 is True, so "a = +0.0" times -1 was written as
+"a = +-0.0", which tomlkit's own parser rejects. Add the "+" only when
+str(result) does not already start with "-".
+
+Found by Quality Playbook, an AI code-review tool, with Claude; I reviewed the change.
+---
+ tests/test_items.py | 13 +++++++++++++
+ tomlkit/items.py    |  3 ++-
+ 2 files changed, 15 insertions(+), 1 deletion(-)
+
+diff --git a/tests/test_items.py b/tests/test_items.py
+index cf6134a..ce6f726 100644
+--- a/tests/test_items.py
++++ b/tests/test_items.py
+@@ -1451,6 +1451,19 @@ def test_no_extra_minus_sign() -> None:
+     assert doc.as_string() == "a = -1.5"
+ 
+ 
++def test_no_extra_plus_sign_on_negative_zero() -> None:
++    # Negative zero is >= 0, so a signed float used to render as "+-0.0".
++    doc = parse("a = +0.0")
++    doc["a"] *= -1
++    assert doc.as_string() == "a = -0.0"
++    doc["a"] *= -1
++    assert doc.as_string() == "a = +0.0"
++
++    doc = parse("a = +0")
++    doc["a"] /= -1
++    assert doc.as_string() == "a = -0.0"
++
++
+ def test_serialize_table_with_dotted_key() -> None:
+     child = api.table()
+     child.add(api.key(("b", "c")), 1)
+diff --git a/tomlkit/items.py b/tomlkit/items.py
+index 8589df9..db151f7 100644
+--- a/tomlkit/items.py
++++ b/tomlkit/items.py
+@@ -876,7 +876,8 @@ class Float(Item, _CustomFloat):
+     def _new(self, result: float) -> Float:
+         raw = str(result)
+ 
+-        if self._sign and result >= 0:
++        # -0.0 >= 0 is True, but str(-0.0) already carries its sign.
++        if self._sign and result >= 0 and not raw.startswith("-"):
+             raw = f"+{raw}"
+ 
+         return Float(result, self._trivia, raw)
+-- 
+2.43.0
+

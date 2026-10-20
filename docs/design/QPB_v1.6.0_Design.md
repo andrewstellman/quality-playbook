@@ -1,5 +1,7 @@
 # Quality Playbook v1.6.0 — Design Document: The Requirements Release
 
+> **2026-10-20:** Features A and B, OD-5 and the OpenFGA analysis moved again, from `QPB_v1.6.1_Design.md` to `QPB_v1.6.2_Design.md`; references below to the v1.6.1 design for those items now mean the v1.6.2 one.
+
 > **Scope reduced 2026-07-21: this release is Track 1 only (Features C, D, F).** Track 2 — Features A and B, the precision scope — split out to `QPB_v1.6.1_Design.md` (version number provisional; see that file's Decision Record #2). Decision Record #8 below records the split and what it reverses.
 
 *Status: **canonical**, rewritten 2026-07-18; simplicity pass applied 2026-07-19 (Decision Record #4-6). Supersedes the 2026-05-24 "NFR discovery + FP-audit" framing of this file — which is **carried forward in full as Features A and B below**, not discarded — and closes the 2026-06-21 slot re-assessment (see Decision Record). Prior framings preserved in version-control history of this file and summarized in the Historical Appendix.*

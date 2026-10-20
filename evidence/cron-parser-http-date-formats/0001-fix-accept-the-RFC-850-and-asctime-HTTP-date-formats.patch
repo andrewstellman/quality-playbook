@@ -1,0 +1,52 @@
+From 265968ea36ec39e694a3bf976edef1a11a2fb216 Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <andrew@stellman.com>
+Date: Wed, 7 Oct 2026 17:14:59 -0400
+Subject: [PATCH] fix: accept the RFC 850 and asctime HTTP date formats as
+ string dates
+
+README lists HTTP as a supported string format, but CronDate never called
+DateTime.fromHTTP, so "Sunday, 06-Nov-94 08:49:37 GMT" and
+"Sun Nov  6 08:49:37 1994" threw "unhandled timestamp". Try fromHTTP last so
+inputs that parse today are unchanged. fromHTTP reads all HTTP dates as GMT,
+so the asctime form is read as GMT, not in the tz option.
+---
+ src/CronDate.ts        |  1 +
+ tests/CronDate.test.ts | 10 ++++++++++
+ 2 files changed, 11 insertions(+)
+
+diff --git a/src/CronDate.ts b/src/CronDate.ts
+index d5e8cad..6da550b 100644
+--- a/src/CronDate.ts
++++ b/src/CronDate.ts
+@@ -51,6 +51,7 @@ export class CronDate {
+       this.#date.isValid || (this.#date = DateTime.fromRFC2822(timestamp, dateOpts));
+       this.#date.isValid || (this.#date = DateTime.fromSQL(timestamp, dateOpts));
+       this.#date.isValid || (this.#date = DateTime.fromFormat(timestamp, 'EEE, d MMM yyyy HH:mm:ss', dateOpts));
++      this.#date.isValid || (this.#date = DateTime.fromHTTP(timestamp, dateOpts));
+     }
+ 
+     // Check for valid DateTime and throw an error if not valid.
+diff --git a/tests/CronDate.test.ts b/tests/CronDate.test.ts
+index 5627e3c..0572440 100644
+--- a/tests/CronDate.test.ts
++++ b/tests/CronDate.test.ts
+@@ -444,6 +444,16 @@ describe('CronDate', () => {
+       expect(d.toISOString()).toBe('2021-01-04T09:00:00.000Z');
+     });
+ 
++    test('HTTP RFC 850', () => {
++      const d = new CronDate('Sunday, 06-Nov-94 08:49:37 GMT', 'Europe/Athens');
++      expect(d.toISOString()).toBe('1994-11-06T08:49:37.000Z');
++    });
++
++    test('HTTP asctime, read as GMT', () => {
++      const d = new CronDate('Sun Nov  6 08:49:37 1994', 'Europe/Athens');
++      expect(d.toISOString()).toBe('1994-11-06T08:49:37.000Z');
++    });
++
+     test('milliseconds', () => {
+       const date = DateTime.fromISO('2021-01-04T11:00:00.000+02:00').valueOf();
+       const d = new CronDate(date, 'Europe/Athens');
+-- 
+2.43.0
+

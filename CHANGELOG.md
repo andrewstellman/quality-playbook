@@ -5,6 +5,58 @@ All notable changes to the Quality Playbook will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.1] - 2026-10-20
+
+The release built from the open-source bug campaign. Between 1.6.0 and 1.6.1 the playbook was used to find, fix and submit bugs in real open-source projects, and 1.6.1 puts what that campaign needed into the skill: a way to run phases in sub-agents without trusting their reports, the review and submission process itself, rules for the claims QPB writes, and a gate verdict that says plainly what it found. Five features ship under this version: **S** (sub-agents under the parent-witness rule), **R** (preparing upstream submissions), **W** (claims rules), **G** (gate verdict honesty) and **H** (persona fixes). The letters G and H restart here; 1.6.0's Feature G was document classification and its Feature H the persona validation that this release's H fixes. The precision features A and B, planned for this release, moved to 1.6.2 (see "Moved to 1.6.2" below).
+
+### Feature S: sub-agents under the parent-witness rule
+
+- **Phases 1 to 5 may run in per-phase sub-agents** (Mode A, both orchestrator agent files, `references/orchestrator_protocol.md`), on one condition: after every Phase 6 the parent session runs the gate itself.
+- **`bin/qpb_gate_witness.py`** is that check. It re-runs `quality_gate.py` the way adopters do, compares its `RESULT:` line, its `Total:` line (apart from the WARN count) and the verdict state with `quality/results/quality-gate.log`, and exits 1 with a `MISMATCH` line when they differ. The parent pastes its output in its own chat and stops on a mismatch. The rule exists because a delegated run on 2026-05-16 wrote a PASS log against a real gate result of 14 FAILs, and the parent trusted the log.
+- A per-phase sub-agent that reaches Phase 6 returns to the parent, which spawns the fresh-context auditor (sub-agents cannot spawn sub-agents).
+
+### Feature R: preparing upstream submissions (Phase 7, path 5)
+
+- **A new Phase 7 path takes a confirmed bug to a prepared draft pull request, one bug at a time**: contribution-policy check, shortlist, a fresh confirmer per picked bug, a fixer, a blind review panel, then a prepared `REVIEW.md` and PR text, and a record. The process is in the new `references/upstream_submission.md`.
+- **The guardrails are binding.** Five are written into `SKILL.md` itself: the skill never submits, marks a PR ready, comments upstream or merges; one bug at a time, with the project's contribution policy read first; no public PR or issue for a security finding; a disclosure line on every submission; no agent `Signed-off-by` or `Co-Authored-By` trailers. The rest, including the side-effect rule (a correct fix that would hurt existing users is dropped), are in `references/upstream_submission.md`. To fit the five, the `SKILL.md` size ceiling rose from 20,000 to 21,000 BPE tokens.
+- **`upstream_scripts.py` generates `submit.sh`, `dup-search.sh` and `verify.sh`** for each prepared bug, so the operator runs `gh` and other credentialed tools, not the skill.
+
+### Feature W: claims rules for QPB's own output
+
+- **New `references/claims_rules.md`**: every claim QPB writes for a reader (`BUGS.md`, writeups, the "What just happened" block, README and benchmark text, PRs and commit messages) names a measurable anchor, names the thing, describes behaviour rather than a feeling, carries one idea, and promises nothing the material cannot deliver. A specific behavioural claim is run before it is written.
+
+### Feature G (1.6.1): gate verdict honesty
+
+- **A fourth verdict, `PASSED WITH DECISIONS NEEDED`.** When no substantive check fails but two or more Council reviewers say some requirements claim more than the passage they quote, no confirmed bug rests on them, and every confirmed bug names its requirement, the gate reports N decisions instead of a FAIL. The operator decides each one from the new `quality/OPERATOR_DECISIONS.md` (narrow, re-cite, keep with a note, or split).
+- **A bug evidence block** in the gate output (`BUG EVIDENCE: reproduced (N/N)`, `partial`, `not_reproduced` or `none`), so the verdict says how many bugs were actually reproduced.
+- **Plain-English FAIL narration** that names every failing category and the failing lines, including the requirement-overreach and tier-mismatch FAILs, which before 1.6.1 fell to a generic message that named only the first failing file.
+- **Run archives keep the gate state.** `archive_lib` recorded any verdict other than pass, fail or partial as `partial`, so a `pass-with-cleanup` run was archived as partial; it now keeps `pass-with-cleanup` and `pass-with-decisions`.
+- **Stale Council reviews are detected.** Each Council review entry carries a `req_hash` of the requirement it reviewed; an entry whose hash no longer matches the current requirement is flagged instead of being counted.
+- **A missing `AGENTS.md` is a WARN, not a FAIL.** The orchestrator writes `AGENTS.md` after the gate passes, so treating it as a FAIL turned any other Phase 6 failure into two. This resolves the 1.6.0 backlog item on the circular `AGENTS.md` dependency.
+- **`.rst` files are accepted in `reference_docs/cite/`**, matching the ingest.
+
+### Feature H (1.6.1): persona fixes
+
+- Fixes to the agent-persona requirements validation (Feature H of 1.6.0): a `correct` backfills the cited document's tier and replaces every prose field it supplies (the rest are flagged `needs_text_review`); a `confirm` beside a grounded `correct` is recorded as a dissent, not a conflict; `add`s citing the same passage cluster into one.
+- **The persona prompt ships with the skill** as `references/persona_brief.md`.
+- **Requirement renumbering is applied on disk** to `quality/bugs_manifest.json` and `citation_semantic_check.json`, and recorded in `quality/req_id_remap.json`.
+- **The end-of-Phase-2 disclosure names the reviewers that ran** and the limit of the undo on bug records.
+- `reference_docs_ingest` warns about nested files it skips.
+
+### Review
+
+- Three Council rounds on the feature merge fixed the gate verdict and witness logic, the narration wording and the documentation; the changes are pinned by tests, chiefly `bin/tests/test_gate_verdict_honesty_v161.py`, `test_parent_witness_161.py`, `test_persona_fixes_v161.py` and `test_upstream_submission_161.py`.
+
+### Moved to 1.6.2
+
+- **Feature A** (first-class NFR discovery) and **Feature B** (the fresh-context, requirements-grounded false-positive audit), with their acceptance test (the OpenFGA re-run) and the precision Council. Neither was started.
+- The standalone `submit-pr` command (the 1.6.1 plan's R2), which was not built; 1.6.1 ships the in-skill path with generated scripts instead.
+- Three backlog items from the 1.6.0 validation run: the end-of-Phase-2 message must always present the human-interview offer as well as the persona disclosure; a spawned `claude` CLI auditor's output should be observable live; and the model should write the explicit `no in-tree fix` marker the first time instead of a bare `NOT_RUN` the gate rejects.
+
+### Activation
+
+- Skill version bumped `1.6.0` to `1.6.1` in the single canonical source (`SKILL.md` frontmatter), with the tracked build-stamped files (README version line, `package.json`, `pyproject.toml`, `plugin.json`) and the `benchmark_lib` fallback literal.
+
 ## [1.6.0] — 2026-07-26
 
 The Requirements-Review + Grounding release. QPB has always verified that code conforms to the derived requirements; 1.6.0 adds the missing half — making the requirements document itself coherent, letting the operator (or an automatic expert-persona panel) validate that it captures the right intent before the rest of the run builds on it, and grounding it in the gathered documentation the model actually reads and judges. Five features ship under this version: **C** (spec organization & coherence — the mechanical render contract), **D** (the requirements validation interview), **F** (operator-confirmation evidence + its cross-run durability), and — pulled in 2026-07-22 — **G** (dump-and-go documentation read-and-judge classification) and **H** (agent-persona requirements validation).

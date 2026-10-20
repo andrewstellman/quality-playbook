@@ -1,0 +1,60 @@
+From 239e2adb82cdf5138b6bd1e8f178f1aae735cce2 Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <andrew@stellman.com>
+Date: Mon, 19 Oct 2026 22:08:53 +0000
+Subject: [PATCH] =?UTF-8?q?Use=20"m=E1=BB=97i=20%s=20th=C3=A1ng"=20for=20a?=
+ =?UTF-8?q?=20month=20step=20in=20Vietnamese?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The vi month step phrase was ", mỗi ngày %s tháng", which starts with
+the words of commaEveryDay() (", mỗi ngày"). With verbose off,
+transformVerbosity() deletes those words, so `0 9 * */3 *` printed
+"Vào 09:00 3 tháng". Inside a list the phrase now lost only its comma
+and kept "mỗi ngày". Use ", mỗi %s tháng", like the vi phrases for
+days (", mỗi %s ngày") and years (", mỗi %s năm").
+---
+ src/i18n/locales/vi.ts |  2 +-
+ test/i18n.ts           | 13 +++++++++++++
+ 2 files changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/src/i18n/locales/vi.ts b/src/i18n/locales/vi.ts
+index 67dfea6..d1a1719 100644
+--- a/src/i18n/locales/vi.ts
++++ b/src/i18n/locales/vi.ts
+@@ -116,7 +116,7 @@ export class vi implements Locale {
+     return ", và hơn %s";
+   }
+   commaEveryX0Months() {
+-    return ", mỗi ngày %s tháng";
++    return ", mỗi %s tháng";
+   }
+   commaOnlyInX0() {
+     return ", chỉ trong %s";
+diff --git a/test/i18n.ts b/test/i18n.ts
+index 34503f5..98ffdb3 100644
+--- a/test/i18n.ts
++++ b/test/i18n.ts
+@@ -739,6 +739,19 @@ describe("i18n", function () {
+     });
+   });
+ 
++  describe("vi", function () {
++    it("0 9 * */3 *", function () {
++      assert.equal(cronstrue.toString(this.test?.title as string, { locale: "vi" }), "Vào 09:00, mỗi 3 tháng");
++    });
++
++    it("0 9 * 2,3-9/2 *", function () {
++      assert.equal(
++        cronstrue.toString(this.test?.title as string, { locale: "vi" }),
++        "Vào 09:00, chỉ trong Tháng 2 và mỗi 2 tháng, Tháng 3 đến Tháng 9"
++      );
++    });
++  });
++
+ 
+ 
+   describe("@reboot", function () {
+-- 
+2.43.0
+

@@ -1,0 +1,19 @@
+Wed Oct  7 15:33:19 UTC 2026
+base c08a7d6fe361c2882cec9a511c943c46d1250c16 (upstream tip)
+Applying: Fix separators in lists with a plain first value and a step
+commit 9edb7e1ee346ec3dfbb967ef78e8dd681a2411c8
+author Andrew Stellman <andrew@stellman.com>
+subject Fix separators in lists with a plain first value and a step
+trailers: 0
+ src/expressionDescriptor.ts | 5 ++++-
+ test/cronstrue.ts           | 7 +++++++
+ 2 files changed, 11 insertions(+), 1 deletion(-)
+  ........................................................
+  ........................................................
+  ........................................................
+  ........................................................
+  ..............
+
+  406 passing (458ms)
+
+run-tests exit 0

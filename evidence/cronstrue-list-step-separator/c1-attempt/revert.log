@@ -1,0 +1,51 @@
+$ git diff HEAD~1 HEAD -- src > ../fix2-cronstrue-list-step-separator-fixer/source-change.diff && git checkout HEAD~1 -- src/expressionDescriptor.ts
+$ git status --porcelain
+M  src/expressionDescriptor.ts
+$ /work/batch/runs/cronstrue/bin/run-tests /work/batch/runs/cronstrue/scratch/fix-cronstrue-list-step-separator test/cronstrue.ts -g "0 9 \* \* (5,0-4/2|1-3,\*/2)"
+
+
+  !!
+
+  0 passing (62ms)
+  2 failing
+
+  1) Cronstrue
+       non-trivial expressions
+         0 9 * * 5,0-4/2:
+
+      AssertionError: expected 'At 09:00 AMonly on Friday and , every 2 days of the week, Sunday through Thursday' to equal 'At 09:00 AM, only on Friday and every 2 days of the week, Sunday through Thursday'
+      + expected - actual
+
+      -At 09:00 AMonly on Friday and , every 2 days of the week, Sunday through Thursday
+      +At 09:00 AM, only on Friday and every 2 days of the week, Sunday through Thursday
+      
+      at Context.<anonymous> (test/cronstrue.ts:761:14)
+      at processImmediate (node:internal/timers:485:21)
+
+  2) Cronstrue
+       non-trivial expressions
+         0 9 * * 1-3,*/2:
+
+      AssertionError: expected 'At 09:00 AMMonday through Wednesday and , every 2 days of the week' to equal 'At 09:00 AM, Monday through Wednesday and every 2 days of the week'
+      + expected - actual
+
+      -At 09:00 AMMonday through Wednesday and , every 2 days of the week
+      +At 09:00 AM, Monday through Wednesday and every 2 days of the week
+      
+      at Context.<anonymous> (test/cronstrue.ts:768:14)
+      at processImmediate (node:internal/timers:485:21)
+
+
+
+exit=2
+
+$ git checkout HEAD -- src/expressionDescriptor.ts
+$ git status --porcelain
+$ /work/batch/runs/cronstrue/bin/run-tests /work/batch/runs/cronstrue/scratch/fix-cronstrue-list-step-separator test/cronstrue.ts -g "0 9 \* \* (5,0-4/2|1-3,\*/2)"
+
+
+  ..
+
+  2 passing (7ms)
+
+exit=0

@@ -1,0 +1,20 @@
+$ /work/batch/runs/cronstrue/bin/run-tests /work/batch/runs/cronstrue/scratch/fix-cronstrue-list-step-separator test/cronstrue.ts
+
+
+  ........................................................
+  ........................................................
+  ........................................................
+  .................
+
+  185 passing (95ms)
+
+exit=0
+
+$ /work/batch/runs/cronstrue/bin/run-tests /work/batch/runs/cronstrue/scratch/fix-cronstrue-list-step-separator test/cronstrue.ts -g "0 9 \* \* (5,0-4/2|1-3,\*/2)"
+
+
+  ..
+
+  2 passing (43ms)
+
+exit=0

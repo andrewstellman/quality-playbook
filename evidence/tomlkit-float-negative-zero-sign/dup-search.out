@@ -1,0 +1,122 @@
+# dup-search for python-poetry/tomlkit, 2026-10-02T22:19:21Z
+
+## tomlkit-aot-implicit-super-table
+### gh search issues --repo python-poetry/tomlkit: _aot_stack
+
+### gh search prs --repo python-poetry/tomlkit: _aot_stack
+
+### gh search issues --repo python-poetry/tomlkit: implicit super table
+
+### gh search prs --repo python-poetry/tomlkit: implicit super table
+python-poetry/tomlkit	565	open	fix: don't reject an out-of-order super-table extended by a dotted key		2026-07-28T19:05:11Z
+python-poetry/tomlkit	567	open	Render an emptied array of tables as an empty array		2026-09-17T20:07:55Z
+python-poetry/tomlkit	584	closed	Merge an out-of-order fragment that extends an AoT element		2026-08-09T03:41:05Z
+python-poetry/tomlkit	516	merged	reject a table redefined after its parent table header		2026-06-15T07:54:15Z
+
+### gh search issues --repo python-poetry/tomlkit: nested array of tables
+python-poetry/tomlkit	373	closed	Writing nested AOTs produces redundant parent AOT		2024-08-02T22:04:50Z
+python-poetry/tomlkit	283	closed	Bug in dumps? Stringifying subtables and nested arrays of tables, in arrays of tables		2023-04-27T10:44:56Z
+python-poetry/tomlkit	232	closed	Cannot dump nested arrays of tables	bug	2022-09-15T03:18:46Z
+
+### gh search prs --repo python-poetry/tomlkit: nested array of tables
+python-poetry/tomlkit	567	open	Render an emptied array of tables as an empty array		2026-09-17T20:07:55Z
+python-poetry/tomlkit	521	merged	Speed up unwrap() by resolving keys from the key map instead of items()		2026-06-16T01:00:42Z
+python-poetry/tomlkit	517	merged	Don't build a discarded error when an array closes right after a value		2026-06-15T07:58:36Z
+
+### gh search issues --repo python-poetry/tomlkit: array of tables same name
+
+### gh search prs --repo python-poetry/tomlkit: array of tables same name
+
+### gh search issues --repo python-poetry/tomlkit: is_aot_element parser
+
+### gh search prs --repo python-poetry/tomlkit: is_aot_element parser
+
+### gh search issues --repo python-poetry/tomlkit: extra AoT header
+
+### gh search prs --repo python-poetry/tomlkit: extra AoT header
+
+
+## tomlkit-float-negative-zero-sign
+### gh search issues --repo python-poetry/tomlkit: negative zero float
+
+### gh search prs --repo python-poetry/tomlkit: negative zero float
+
+### gh search issues --repo python-poetry/tomlkit: "+-0.0"
+python-poetry/tomlkit	336	open	Emitting underscores in integers		2026-09-24T05:45:31Z
+python-poetry/tomlkit	483	open	Proposal: ~2.5–3× faster parsing, conformance-preserving	perf	2026-06-05T00:32:28Z
+python-poetry/tomlkit	172	open	[self-tests] several failures against toml-test 1.1.0		2026-02-06T05:45:37Z
+python-poetry/tomlkit	619	closed	Date/time types are missing the `fold` argument, breaking compatibility with stdlib		2026-09-30T00:38:55Z
+python-poetry/tomlkit	192	open	0.10.2: sphinx warnings `reference target not found`		2022-04-24T03:47:15Z
+python-poetry/tomlkit	476	closed	0.15.0 serializes invalid TOML when appending to a parsed inline table		2026-05-27T01:24:41Z
+python-poetry/tomlkit	482	closed	[0.15.0] Dumps api breaks order of toml headers		2026-06-12T09:28:31Z
+python-poetry/tomlkit	261	closed	Parser rejects out-of-order array of tables	bug, spec	2026-06-23T07:25:07Z
+python-poetry/tomlkit	523	closed	Out-of-order value-vs-table redefinition parses OK and only raises on access (should reject at parse)		2026-06-23T08:23:14Z
+python-poetry/tomlkit	383	closed	Failed to delete an item of OutOfOrderTableProxy		2025-06-05T02:56:03Z
+python-poetry/tomlkit	410	closed	Incorrect table entry removal		2025-06-05T07:02:41Z
+python-poetry/tomlkit	351	closed	TOMLFile.write does not update the toml file correctly (0.12.5)		2024-05-24T00:46:42Z
+python-poetry/tomlkit	333	closed	Test failures with Python 3.13.0a4: test_dates_behave_like_dates and test_times_behave_like_times		2024-05-13T02:44:29Z
+python-poetry/tomlkit	313	closed	AttributeError: 'Null' object has no attribute '_trivia'. Did you mean: 'trivia'?		2023-09-22T01:04:50Z
+python-poetry/tomlkit	283	closed	Bug in dumps? Stringifying subtables and nested arrays of tables, in arrays of tables		2023-04-27T10:44:56Z
+python-poetry/tomlkit	262	closed	Parser does not ignore the first CR-LF in a multi-line string		2023-04-27T09:38:54Z
+python-poetry/tomlkit	258	closed	Rejects table name consisting of an empty string		2023-01-29T05:01:38Z
+python-poetry/tomlkit	255	closed	Deep update changes layout		2023-02-24T21:35:25Z
+python-poetry/tomlkit	118	closed	0.7.0: pytest warnings		2022-09-28T09:29:47Z
+python-poetry/tomlkit	165	closed	Bug: tomlkit.value("test") returns True		2022-01-31T12:25:17Z
+python-poetry/tomlkit	152	closed	TOML spec v1.0 compliance	spec	2021-12-20T03:27:29Z
+python-poetry/tomlkit	73	closed	Builtin type subclasses don't play nice with parts of the standard library.		2021-12-20T04:29:17Z
+python-poetry/tomlkit	100	closed	datetime fails to parse if space is used instead of T		2021-12-17T07:39:45Z
+python-poetry/tomlkit	138	closed	KeyAlreadyPresent error resulting from table name quotes		2021-12-17T08:02:50Z
+python-poetry/tomlkit	136	closed	Newline in keys should be escaped		2021-12-20T04:09:38Z
+python-poetry/tomlkit	107	closed	Some tables are not necessary when use tomlkit.dumps()		2021-12-20T04:55:09Z
+python-poetry/tomlkit	143	closed	dumps producing invalid output		2021-12-17T07:41:55Z
+python-poetry/tomlkit	33	closed	Parser regression in 0.5.2 in pypy3(6.0.0)		2018-11-19T22:06:21Z
+python-poetry/tomlkit	78	closed	tomlkit 0.5.9 breaking change?		2020-02-28T17:49:40Z
+
+### gh search prs --repo python-poetry/tomlkit: "+-0.0"
+python-poetry/tomlkit	610	open	fix: preserve underscores when creating integers from strings		2026-09-26T01:10:51Z
+python-poetry/tomlkit	625	open	Fix regression parsing out-of-order tables split by another table		2026-10-01T15:59:52Z
+python-poetry/tomlkit	599	open	Fix Array.__delitem__ corrupting rendered output on slice deletion		2026-09-17T20:05:51Z
+python-poetry/tomlkit	594	open	Reject trailing characters in key_value()		2026-09-17T20:08:38Z
+python-poetry/tomlkit	601	open	Render each run of a split array of tables where it was written		2026-09-11T05:14:30Z
+python-poetry/tomlkit	586	merged	Accept uppercase E exponent after a leading-zero mantissa		2026-08-18T08:55:10Z
+python-poetry/tomlkit	592	closed	Fix spurious KeyAlreadyPresent on valid out-of-order child table (#571)		2026-09-29T09:35:15Z
+python-poetry/tomlkit	583	closed	Accept a table extending an out-of-order child of an out-of-order table		2026-08-09T03:41:03Z
+python-poetry/tomlkit	551	merged	fix: preserve leading newline of multiline string built with string()		2026-07-14T07:28:49Z
+python-poetry/tomlkit	481	merged	chore(deps): bump idna from 3.7 to 3.15 in /docs	dependencies, python	2026-06-01T07:15:44Z
+python-poetry/tomlkit	480	merged	chore(deps-dev): bump idna from 3.7 to 3.15	dependencies, python	2026-06-01T07:16:07Z
+python-poetry/tomlkit	475	merged	chore(deps): bump urllib3 from 2.5.0 to 2.7.0 in /docs	dependencies, python	2026-06-01T07:16:15Z
+python-poetry/tomlkit	453	merged	chore(deps-dev): bump setuptools from 70.0.0 to 78.1.1	dependencies, python	2026-01-13T01:10:28Z
+python-poetry/tomlkit	452	merged	chore(deps-dev): bump urllib3 from 2.2.2 to 2.6.3	dependencies, python	2026-01-13T01:04:16Z
+python-poetry/tomlkit	448	closed	chore(deps): bump urllib3 from 2.5.0 to 2.6.3 in /docs	dependencies, python	2026-01-12T06:49:44Z
+python-poetry/tomlkit	446	closed	chore(deps): bump urllib3 from 2.5.0 to 2.6.0 in /docs	dependencies, python	2026-01-08T05:56:49Z
+python-poetry/tomlkit	438	merged	[pre-commit.ci] pre-commit autoupdate		2025-11-03T03:25:22Z
+python-poetry/tomlkit	380	merged	[pre-commit.ci] pre-commit autoupdate		2024-11-12T03:34:50Z
+python-poetry/tomlkit	367	merged	chore(deps-dev): bump setuptools from 68.0.0 to 70.0.0	dependencies	2024-07-19T01:18:56Z
+python-poetry/tomlkit	337	merged	[pre-commit.ci] pre-commit autoupdate		2024-04-30T00:36:04Z
+python-poetry/tomlkit	303	merged	chore(deps-dev): bump certifi from 2022.12.7 to 2023.7.22	dependencies	2023-07-27T01:29:12Z
+python-poetry/tomlkit	177	merged	Allow string type to be controlled from the public API		2022-02-14T01:51:40Z
+python-poetry/tomlkit	88	merged	Test python 3.8		2021-12-17T09:23:45Z
+python-poetry/tomlkit	50	closed	Bugfix/49		2021-12-17T09:25:17Z
+python-poetry/tomlkit	108	closed	Add support for toml files in UTF8 with BOM		2021-12-17T10:15:03Z
+python-poetry/tomlkit	54	closed	do not insert after null in table		2021-12-17T09:34:09Z
+python-poetry/tomlkit	67	closed	Add pop() support to Container		2021-05-20T05:56:49Z
+python-poetry/tomlkit	102	merged	Fix TOML 1.0.0 compliance		2020-07-31T08:02:26Z
+python-poetry/tomlkit	92	merged	Allow heterogeneous arrays		2020-04-12T10:23:15Z
+python-poetry/tomlkit	34	merged	Pick the max when there are many indices for a key.		2018-11-29T03:51:01Z
+
+### gh search issues --repo python-poetry/tomlkit: float sign invalid number
+
+### gh search prs --repo python-poetry/tomlkit: float sign invalid number
+
+### gh search issues --repo python-poetry/tomlkit: extra sign float arithmetic
+
+### gh search prs --repo python-poetry/tomlkit: extra sign float arithmetic
+
+### gh search issues --repo python-poetry/tomlkit: Float _new sign
+
+### gh search prs --repo python-poetry/tomlkit: Float _new sign
+
+### gh search issues --repo python-poetry/tomlkit: signed zero InvalidNumberError
+
+### gh search prs --repo python-poetry/tomlkit: signed zero InvalidNumberError
+

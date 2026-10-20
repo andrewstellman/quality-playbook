@@ -1,0 +1,28 @@
+npm warn EBADENGINE Unsupported engine {
+npm warn EBADENGINE   package: 'lint-staged@17.6.0',
+npm warn EBADENGINE   required: { node: '>=22.22.1' },
+npm warn EBADENGINE   current: { node: 'v22.22.0', npm: '10.9.4' }
+npm warn EBADENGINE }
+npm warn deprecated glob@10.5.0: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+
+added 592 packages, and audited 593 packages in 2m
+
+104 packages are looking for funding
+  run `npm fund` for details
+
+25 vulnerabilities (20 moderate, 5 high)
+
+To address issues that do not require attention, run:
+  npm audit fix
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force
+
+Run `npm audit` for details.
+
+Test Suites: 7 passed, 7 total
+Tests:       348 passed, 348 total
+Snapshots:   0 total
+Time:        6.707 s
+Ran all test suites.
+exit 0

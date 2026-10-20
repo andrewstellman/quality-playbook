@@ -1,5 +1,7 @@
 # Quality Playbook — Version History Highlights
 
+> **This narrative stops at v1.5.7.** Releases 1.5.8, 1.5.10, 1.6.0 and 1.6.1 are recorded in `CHANGELOG.md` and have not been added here yet (noted 2026-10-20).
+>
 > This is the **curated evolution narrative** of the Quality Playbook (v1.3.13 → present) — what changed in each release and *why it mattered*, written for a maintainer trying to understand how the skill got to its current shape.
 >
 > For the **mechanical per-release changelog** (Keep-a-Changelog format, v1.5.0 onward) see `CHANGELOG.md`. For the project's current architecture see `ai_context/DEVELOPMENT_CONTEXT.md`. This file is history; load it when you need to know *why* a feature exists or *when* a behavior changed, not for current-state navigation.

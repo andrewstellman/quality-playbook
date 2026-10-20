@@ -1,0 +1,25 @@
+# Condition shapes for Float._new, each monkeypatched onto the clone at b05050c and run on Python 3.13.15.
+# Column 3 is the 0518af2 condition. "BAD" = tomlkit.parse or tomllib.loads rejects the output.
+$ PYTHONPATH=$PWD /work/t2/venv/bin/python shapes.py
+source     op                   0518af2      A: >=0 and not startswith   B: not startswith    C: copysign > 0
++0.0       -x                   BAD +-0.0    ok  -0.0                    ok  -0.0             ok  -0.0
++5.0       x * -0.0             BAD +-0.0    ok  -0.0                    ok  -0.0             ok  -0.0
++5.0       x / -inf             BAD +-0.0    ok  -0.0                    ok  -0.0             ok  -0.0
+-0.0       x * 1                BAD +-0.0    ok  -0.0                    ok  -0.0             ok  -0.0
+-0.0       +x                   BAD +-0.0    ok  -0.0                    ok  -0.0             ok  -0.0
+-1e-200    x * 1e-200           BAD +-0.0    ok  -0.0                    ok  -0.0             ok  -0.0
++0         x / -1 (Integer)     BAD +-0.0    ok  -0.0                    ok  -0.0             ok  -0.0
+0.0        -x (unsigned)        ok  -0.0     ok  -0.0                    ok  -0.0             ok  -0.0
++0.0       x + 0.0              ok  +0.0     ok  +0.0                    ok  +0.0             ok  +0.0
+-1.5       x * -1               ok  +1.5     ok  +1.5                    ok  +1.5             ok  +1.5
++1.5       x * -1               ok  -1.5     ok  -1.5                    ok  -1.5             ok  -1.5
++1.0       x * nan              ok  nan      ok  nan                     ok  +nan             ok  +nan
++1.0       x * -nan             ok  nan      ok  nan                     ok  +nan             ok  nan
++inf       x - inf              ok  nan      ok  nan                     ok  +nan             ok  nan
+-1.0       x * nan              ok  nan      ok  nan                     ok  +nan             ok  +nan
+1.0        x * nan (unsigned)   ok  nan      ok  nan                     ok  nan              ok  nan
++1.0       x * inf              ok  +inf     ok  +inf                    ok  +inf             ok  +inf
++1.0       x * -inf             ok  -inf     ok  -inf                    ok  -inf             ok  -inf
+-1.0       x * -inf             ok  +inf     ok  +inf                    ok  +inf             ok  +inf
+-inf       x * -1               ok  +inf     ok  +inf                    ok  +inf             ok  +inf
++1e308     x * 10               ok  +inf     ok  +inf                    ok  +inf             ok  +inf

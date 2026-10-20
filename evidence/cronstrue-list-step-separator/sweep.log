@@ -1,0 +1,5 @@
+$ cd sweep-dir (src-old = c08a7d6 src, src-new = fixed src) && ./node_modules/.bin/ts-node diff3.ts
+{ total: 849660, diff: 120364, viol: 0, f012: 0, enNewBad: 0 }
+viol = changed runs outside (field >= day-of-month with a later member that has a step); f012 = changed runs in seconds/minutes/hours; enNewBad = English changed rows whose new text has " , ", ", ," or glued AM/PM
+
+$ ts-node pr-claims.ts   (output saved in sweep/pr-claims.out)

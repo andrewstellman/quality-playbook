@@ -1,0 +1,8 @@
+$ /work/t2/venv/bin/ruff --version
+ruff 0.16.9
+$ /work/t2/venv/bin/ruff check tomlkit/items.py tests/test_items.py
+All checks passed!
+exit code: 0
+$ /work/t2/venv/bin/ruff format --check tomlkit/items.py tests/test_items.py
+2 files already formatted
+exit code: 0

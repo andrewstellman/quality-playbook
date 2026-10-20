@@ -1,0 +1,8 @@
+$ git status --short   # test + fix
+ M tests/test_items.py
+ M tomlkit/items.py
+$ PYTHONPATH=$PWD /work/t2/venv/bin/python -m pytest tests/test_items.py -q -p no:cacheprovider
+........................................................................ [ 71%]
+.............................                                            [100%]
+101 passed in 0.13s
+exit code: 0

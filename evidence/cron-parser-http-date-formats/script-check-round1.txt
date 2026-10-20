@@ -1,0 +1,17 @@
+Sat Oct 10 21:10:57 UTC 2026
+base 5033a312f1fe04665060eacf4378f16c48ca4ea8 (upstream tip)
+Applying: fix: accept the RFC 850 and asctime HTTP date formats as string dates
+commit 3606da181e354cc044ad7ddd4e3f0cd650964648
+author Andrew Stellman <andrew@stellman.com>
+subject fix: accept the RFC 850 and asctime HTTP date formats as string dates
+trailers: 0
+ src/CronDate.ts        |  1 +
+ tests/CronDate.test.ts | 10 ++++++++++
+ 2 files changed, 11 insertions(+)
+
+Test Suites: 7 passed, 7 total
+Tests:       348 passed, 348 total
+Snapshots:   0 total
+Time:        9.452 s, estimated 26 s
+Ran all test suites.
+run-tests exit 0

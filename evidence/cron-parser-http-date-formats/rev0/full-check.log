@@ -1,0 +1,36 @@
+$ /work/batch/runs/cron-parser/bin/full-check /work/batch/runs/cron-parser/scratch/fix-cron-parser-http-date-formats
+== eslint
+== prettier --check
+Checking formatting...
+All matched files use Prettier code style!
+== build + tsd
+== jest --coverage
+--------------------------|---------|----------|---------|---------|-------------------
+File                      | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+--------------------------|---------|----------|---------|---------|-------------------
+All files                 |     100 |      100 |     100 |     100 |                   
+ src                      |     100 |      100 |     100 |     100 |                   
+  CronDate.ts             |     100 |      100 |     100 |     100 |                   
+  CronExpression.ts       |     100 |      100 |     100 |     100 |                   
+  CronExpressionParser.ts |     100 |      100 |     100 |     100 |                   
+  CronFieldCollection.ts  |     100 |      100 |     100 |     100 |                   
+  CronFileParser.ts       |     100 |      100 |     100 |     100 |                   
+ src/fields               |     100 |      100 |     100 |     100 |                   
+  CronDayOfMonth.ts       |     100 |      100 |     100 |     100 |                   
+  CronDayOfWeek.ts        |     100 |      100 |     100 |     100 |                   
+  CronField.ts            |     100 |      100 |     100 |     100 |                   
+  CronHour.ts             |     100 |      100 |     100 |     100 |                   
+  CronMinute.ts           |     100 |      100 |     100 |     100 |                   
+  CronMonth.ts            |     100 |      100 |     100 |     100 |                   
+  CronSecond.ts           |     100 |      100 |     100 |     100 |                   
+  index.ts                |     100 |      100 |     100 |     100 |                   
+ src/utils                |     100 |      100 |     100 |     100 |                   
+  random.ts               |     100 |      100 |     100 |     100 |                   
+--------------------------|---------|----------|---------|---------|-------------------
+
+Test Suites: 7 passed, 7 total
+Tests:       340 passed, 340 total
+Snapshots:   0 total
+Time:        36.768 s
+Ran all test suites.
+full-check exit 0

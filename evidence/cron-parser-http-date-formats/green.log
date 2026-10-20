@@ -1,0 +1,7 @@
+$ /work/batch/runs/cron-parser/bin/run-tests /work/batch/runs/cron-parser/scratch/fix-cron-parser-http-date-formats --runTestsByPath /work/batch/runs/cron-parser/scratch/fix-cron-parser-http-date-formats/tests/CronDate.test.ts
+
+Test Suites: 1 passed, 1 total
+Tests:       49 passed, 49 total
+Snapshots:   0 total
+Time:        0.682 s, estimated 1 s
+Ran all test suites within paths "/work/batch/runs/cron-parser/scratch/fix-cron-parser-http-date-formats/tests/CronDate.test.ts".

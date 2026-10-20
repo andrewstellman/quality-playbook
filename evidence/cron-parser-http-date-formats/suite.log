@@ -1,0 +1,7 @@
+$ /work/batch/runs/cron-parser/bin/run-tests /work/batch/runs/cron-parser/scratch/fix-cron-parser-http-date-formats
+
+Test Suites: 7 passed, 7 total
+Tests:       348 passed, 348 total
+Snapshots:   0 total
+Time:        7.801 s, estimated 27 s
+Ran all test suites.

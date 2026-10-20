@@ -1,5 +1,6 @@
 # Quality Playbook v1.6.0 — Implementation Plan
 
+*2026-10-20: Track 2 (Features A and B, OD-5) moved again, from the v1.6.1 plan to `QPB_v1.6.2_Implementation_Plan.md`; references below to the v1.6.1 documents for those items now mean the v1.6.2 ones.*
 *Companion to: `QPB_v1.6.0_Design.md` (canonical, rewritten 2026-07-18, simplicity pass + pre-handoff decisions 2026-07-19).*
 *Scope reduced **2026-07-21**: Track 1 only; Track 2 split to `QPB_v1.6.1_Implementation_Plan.md`. Status: rewritten **2026-07-19** to match the current design. Supersedes the 2026-05-24 plan (NFR+FP-audit-only scope, old slice order — preserved in git history) and the original lever-pull plan before it.*
 *All open decisions that gate implementation are resolved. OD-5 moved to `QPB_v1.6.1_Design.md` with Track 2 (2026-07-21); OD-8 is resolved and its framing corrected for the split — 090j is now this release's only precision guard.*

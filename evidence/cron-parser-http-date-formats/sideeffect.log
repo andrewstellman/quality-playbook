@@ -1,0 +1,41 @@
+$ cd /work/batch/runs/cron-parser/scratch/fix-cron-parser-http-date-formats && TZ=UTC ./node_modules/.bin/ts-node --project /work/batch/runs/cron-parser/scratch/fix-cron-parser-http-date-formats/tsconfig.json --transpile-only /work/batch/runs/cron-parser/scratch/fix-cron-parser-http-date-formats-fixer/check.ts
+same    tz=undefined "2021-01-04T10:00:00" old=2021-01-04T10:00:00.000Z new=2021-01-04T10:00:00.000Z
+same    tz=undefined "2021-01-04" old=2021-01-04T00:00:00.000Z new=2021-01-04T00:00:00.000Z
+same    tz=undefined "2021-01-04 10:00:00" old=2021-01-04T10:00:00.000Z new=2021-01-04T10:00:00.000Z
+same    tz=undefined "Mon, 4 Jan 2021 10:00:00 +0100" old=2021-01-04T09:00:00.000Z new=2021-01-04T09:00:00.000Z
+same    tz=undefined "Mon, 4 Jan 2021 10:00:00" old=2021-01-04T10:00:00.000Z new=2021-01-04T10:00:00.000Z
+same    tz=undefined "Sun, 06 Nov 1994 08:49:37 GMT" old=1994-11-06T08:49:37.000Z new=1994-11-06T08:49:37.000Z
+CHANGED tz=undefined "Sunday, 06-Nov-94 08:49:37 GMT" old=THROWS new=1994-11-06T08:49:37.000Z
+CHANGED tz=undefined "Sun Nov  6 08:49:37 1994" old=THROWS new=1994-11-06T08:49:37.000Z
+same    tz=undefined "Sun Nov 6 08:49:37 1994" old=THROWS new=THROWS
+same    tz=undefined "2021-01-4 10:00:00" old=THROWS new=THROWS
+same    tz=undefined "garbage" old=THROWS new=THROWS
+same    tz=undefined "10:00:00" old=2026-10-07T10:00:00.000Z new=2026-10-07T10:00:00.000Z
+same    tz=undefined "Mon, 4 Jan 2021" old=THROWS new=THROWS
+same    tz=UTC "2021-01-04T10:00:00" old=2021-01-04T10:00:00.000Z new=2021-01-04T10:00:00.000Z
+same    tz=UTC "2021-01-04" old=2021-01-04T00:00:00.000Z new=2021-01-04T00:00:00.000Z
+same    tz=UTC "2021-01-04 10:00:00" old=2021-01-04T10:00:00.000Z new=2021-01-04T10:00:00.000Z
+same    tz=UTC "Mon, 4 Jan 2021 10:00:00 +0100" old=2021-01-04T09:00:00.000Z new=2021-01-04T09:00:00.000Z
+same    tz=UTC "Mon, 4 Jan 2021 10:00:00" old=2021-01-04T10:00:00.000Z new=2021-01-04T10:00:00.000Z
+same    tz=UTC "Sun, 06 Nov 1994 08:49:37 GMT" old=1994-11-06T08:49:37.000Z new=1994-11-06T08:49:37.000Z
+CHANGED tz=UTC "Sunday, 06-Nov-94 08:49:37 GMT" old=THROWS new=1994-11-06T08:49:37.000Z
+CHANGED tz=UTC "Sun Nov  6 08:49:37 1994" old=THROWS new=1994-11-06T08:49:37.000Z
+same    tz=UTC "Sun Nov 6 08:49:37 1994" old=THROWS new=THROWS
+same    tz=UTC "2021-01-4 10:00:00" old=THROWS new=THROWS
+same    tz=UTC "garbage" old=THROWS new=THROWS
+same    tz=UTC "10:00:00" old=2026-10-07T10:00:00.000Z new=2026-10-07T10:00:00.000Z
+same    tz=UTC "Mon, 4 Jan 2021" old=THROWS new=THROWS
+same    tz=Europe/Athens "2021-01-04T10:00:00" old=2021-01-04T08:00:00.000Z new=2021-01-04T08:00:00.000Z
+same    tz=Europe/Athens "2021-01-04" old=2021-01-03T22:00:00.000Z new=2021-01-03T22:00:00.000Z
+same    tz=Europe/Athens "2021-01-04 10:00:00" old=2021-01-04T08:00:00.000Z new=2021-01-04T08:00:00.000Z
+same    tz=Europe/Athens "Mon, 4 Jan 2021 10:00:00 +0100" old=2021-01-04T09:00:00.000Z new=2021-01-04T09:00:00.000Z
+same    tz=Europe/Athens "Mon, 4 Jan 2021 10:00:00" old=2021-01-04T08:00:00.000Z new=2021-01-04T08:00:00.000Z
+same    tz=Europe/Athens "Sun, 06 Nov 1994 08:49:37 GMT" old=1994-11-06T08:49:37.000Z new=1994-11-06T08:49:37.000Z
+CHANGED tz=Europe/Athens "Sunday, 06-Nov-94 08:49:37 GMT" old=THROWS new=1994-11-06T08:49:37.000Z
+CHANGED tz=Europe/Athens "Sun Nov  6 08:49:37 1994" old=THROWS new=1994-11-06T08:49:37.000Z
+same    tz=Europe/Athens "Sun Nov 6 08:49:37 1994" old=THROWS new=THROWS
+same    tz=Europe/Athens "2021-01-4 10:00:00" old=THROWS new=THROWS
+same    tz=Europe/Athens "garbage" old=THROWS new=THROWS
+same    tz=Europe/Athens "10:00:00" old=2026-10-08T07:00:00.000Z new=2026-10-08T07:00:00.000Z
+same    tz=Europe/Athens "Mon, 4 Jan 2021" old=THROWS new=THROWS
+inputs that parsed before and now differ: 0

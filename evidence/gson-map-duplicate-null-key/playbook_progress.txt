@@ -1,0 +1,53 @@
+=== v1.2.15 Quality Playbook — Gson ===
+Starting at Thu Apr  2 21:02:09 EDT 2026, prompts 1-9
+
+21:02:09 [1/9] Generate quality playbook (Phases 1-3) (model: gpt-5.4)
+21:14:41 [1/9] Completed: Generate quality playbook (Phases 1-3)
+
+21:14:41 [2/9] Run three-pass code review (model: gpt-5.4)
+21:19:27 [2/9] Completed: Run three-pass code review
+
+21:19:27 [3/9] Run functional tests (model: gpt-5.4)
+21:32:07 [3/9] Completed: Run functional tests
+
+21:32:08 [4/9] Run integration tests (model: gpt-5.4)
+21:38:48 [4/9] Completed: Run integration tests
+
+21:38:48 [5/9] Spec audit — Auditor 1 (model: gpt-5.4)
+21:41:50 [5/9] Completed: Spec audit — Auditor 1
+
+21:41:50 [6/9] Spec audit — Auditor 2 (model: gpt-5.4)
+21:45:37 [6/9] Completed: Spec audit — Auditor 2
+
+21:45:37 [7/9] Spec audit — Auditor 3 (model: gpt-5.4)
+=== v1.2.15 Quality Playbook — Gson with docs ===
+Starting at Fri Apr  3 09:16:00 EDT 2026, prompts 1-9
+
+09:16:00 [1/9] Generate quality playbook (Phases 1-3) (model: gpt-5.4)
+09:31:33 [1/9] Completed: Generate quality playbook (Phases 1-3)
+
+09:31:33 [2/9] Run three-pass code review (model: gpt-5.4)
+09:42:49 [2/9] Completed: Run three-pass code review
+
+09:42:49 [3/9] Run functional tests (model: gpt-5.4)
+09:43:57 [3/9] Completed: Run functional tests
+
+09:43:57 [4/9] Run integration tests (model: gpt-5.4)
+09:48:17 [4/9] Completed: Run integration tests
+
+09:48:17 [5/9] Spec audit — Auditor 1 (model: gpt-5.4)
+09:52:48 [5/9] Completed: Spec audit — Auditor 1
+
+09:52:48 [6/9] Spec audit — Auditor 2 (model: gpt-5.4)
+09:57:02 [6/9] Completed: Spec audit — Auditor 2
+
+09:57:02 [7/9] Spec audit — Auditor 3 (model: gpt-5.4)
+10:01:53 [7/9] Completed: Spec audit — Auditor 3
+
+10:01:53 [8/9] Triage and summary (model: gpt-5.4)
+10:03:57 [8/9] Completed: Triage and summary
+
+10:03:57 [9/9] Structural-only control review (model: gpt-5.4)
+10:10:08 [9/9] Completed: Structural-only control review
+
+=== Execution complete at Fri Apr  3 10:10:08 EDT 2026 ===
