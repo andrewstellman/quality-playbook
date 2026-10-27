@@ -205,10 +205,9 @@ Run a complete quality engineering audit on any codebase. Derives behavioral req
 ## Installation
 
 This skill is distributed as a standalone toolkit because the full bundle
-(five support directories: `references/`, `phase_prompts/`, `agents/`,
-`bin/`, `ai_context/` — plus `SKILL.md` and `quality_gate.py`) exceeds
-the typical in-repo skill footprint. The canonical install is one
-command:
+(`SKILL.md` plus six support directories: `references/`, `phase_prompts/`,
+`agents/`, `ai_context/`, `schemas/` and `scripts/`) is larger than a
+typical in-repo skill. The canonical install is one command:
 
 ```bash
 pip install {PACKAGE_NAME}
@@ -224,36 +223,40 @@ quality-playbook install --into /path/to/your/repo --ai-tool <tool>
 
 `<tool>` is one of: `claude`, `cursor`, `copilot`, `continue`, `codex`,
 `windsurf`, `cline`, `aider`. The installer copies the skill files
-(`SKILL.md`, `quality_gate.py`, `references/`, `phase_prompts/`,
-`agents/`, `bin/citation_verifier.py`) into the right place for your
-AI coding agent (Claude Code, Cursor, GitHub Copilot CLI, etc.) —
+(`SKILL.md` and the six support directories, including the gate script
+`scripts/quality_gate.py`) into the right place for your AI coding agent
+(Claude Code, Cursor, GitHub Copilot CLI, and others),
 auto-detecting `.claude/`, `.github/`, `.cursor/`, `.continue/`,
 `.codex/`, `.windsurf/`, `.cline/`, or `.aider/`.
 
 ## What it does
 
-When you (or your AI coding agent) say one of the trigger phrases —
-"quality playbook", "spec audit", "Council of Three", "fitness-to-purpose",
-or "coverage theater" — this skill drives the following workflow:
+When you (or your AI coding agent) say one of the trigger phrases
+("quality playbook", "spec audit", "Council of Three", "fitness-to-purpose"
+or "coverage theater"), this skill drives the following workflow:
 
-1. **Phase 1 (Explore)** — Documentation intake + three-stage codebase
+1. **Phase 1 (Explore)**: Documentation intake + three-stage codebase
    exploration. Writes `quality/EXPLORATION.md`.
-2. **Phase 2 (Generate)** — Produces requirements, constitution,
+2. **Phase 2 (Generate)**: Produces requirements, constitution,
    functional tests, code-review protocol, integration tests, spec-audit
    protocol, TDD protocol.
-3. **Phase 3 (Code Review)** — Three-pass code review against HEAD;
+3. **Phase 3 (Code Review)**: Three-pass code review against HEAD;
    regression tests for every confirmed bug; patches.
-4. **Phase 4 (Spec Audit)** — Three independent AI auditors review the
+4. **Phase 4 (Spec Audit)**: Three independent AI auditors review the
    code against requirements. Council-of-Three triage with verification
    probes. Layer-2 semantic citation check.
-5. **Phase 5 (Reconcile)** — Combined bug report with TDD-verified
+5. **Phase 5 (Reconcile)**: Combined bug report with TDD-verified
    patches.
-6. **Phase 6 (Verify)** — Final ship-readiness verdict + AGENTS.md
-   regeneration.
+6. **Phase 6 (Verify)**: 45 self-check benchmarks and the final gate
+   verdict.
 
-The trigger language is intentional: this is an opt-in heavy workflow
-(it can take 15-90 minutes depending on project size), not a always-on
-hook.
+After Phase 6 the agent presents a summary and a menu of next steps, and
+it can prepare an upstream pull request for one confirmed bug at a time
+(it never submits anything itself).
+
+The trigger language is intentional: this is an opt-in heavy workflow,
+not an always-on hook. A full run on a real project takes hours; one
+measured run, on Javalin (about 13,000 lines), took about 24 hours.
 
 ## License
 
@@ -270,10 +273,13 @@ This skill is maintained at {QPB_REPO_URL}. File issues and PRs there.
 
 def generate_pr_body(version: str, frontmatter: dict) -> str:
     description = frontmatter.get("description", "")
-    return f"""# Add `{SKILL_NAME}` skill
+    return f"""# Update `{SKILL_NAME}` skill to v{version}
 
-This PR adds the **Quality Playbook** skill (v{version}) to the
-`skills/` directory.
+This PR updates the **Quality Playbook** skill from v1.5.6 to v{version}.
+It replaces the bundled v1.5.6 files in `skills/{SKILL_NAME}/` with a
+single `SKILL.md` that installs the current toolkit from pip or npm, so
+the registry no longer carries a copy of the reference files that goes
+stale with each release.
 
 ## What it is
 
@@ -290,12 +296,11 @@ command, which copies the skill files into the adopter's AI-tool
 skills directory (auto-detecting `.claude/`, `.github/`, `.cursor/`,
 `.continue/`, `.codex/`, `.windsurf/`, `.cline/`, `.aider/`).
 
-The skill ships five support directories (`references/`,
-`phase_prompts/`, `agents/`, `bin/`, `ai_context/`) plus `SKILL.md`
-and `quality_gate.py`. The full bundle is ~64 files (132KB SKILL.md
-alone) which exceeds the typical in-repo-skill footprint. So the
-`SKILL.md` in this PR links back to {QPB_REPO_URL} as the canonical
-source instead of inlining the assets.
+The skill ships `SKILL.md` plus six support directories (`references/`,
+`phase_prompts/`, `agents/`, `ai_context/`, `schemas/`, `scripts/`):
+about 76 files, with an 89KB `SKILL.md`. That is larger than a typical
+in-repo skill, so the `SKILL.md` in this PR links back to
+{QPB_REPO_URL} as the canonical source instead of inlining the assets.
 
 ## Verification
 
@@ -315,12 +320,12 @@ and the skill activates.
 - [x] I have read `CONTRIBUTING.md` and followed the submission
       guidelines.
 - [x] This PR targets the `staged` branch (not `main`).
-- [x] Contribution type: **new skill** (adds `skills/{SKILL_NAME}/`).
+- [x] Contribution type: **update to an existing skill** (`skills/{SKILL_NAME}/`).
 - [x] `SKILL.md` frontmatter has `name`, `description`, and `license`.
 - [x] `name` matches the folder name (`{SKILL_NAME}`).
 - [x] `description` is clear and non-empty.
-- [x] `npm start` run locally — `skill:validate` passes and
-      top-level `README.md` regenerated; both staged in this PR.
+- [x] `npm start` run locally: `skill:validate` passes and the
+      top-level `README.md` is regenerated; both are staged in this PR.
 - [x] Canonical repo + license linked.
 
 ## License note for maintainers
@@ -377,9 +382,11 @@ operator-side unless you pass `--submit`.
    git checkout -b add-{SKILL_NAME}-{version} upstream/staged
    ```
 
-3. **Copy the generated skill folder in**:
+3. **Replace the skill folder with the generated one** (this removes the
+   bundled v1.5.6 files, which the trimmed `SKILL.md` replaces):
 
    ```bash
+   git rm -r -q --ignore-unmatch skills/{SKILL_NAME}
    mkdir -p skills/{SKILL_NAME}
    cp <packet>/skills/{SKILL_NAME}/SKILL.md skills/{SKILL_NAME}/SKILL.md
    ```
@@ -405,7 +412,7 @@ operator-side unless you pass `--submit`.
 
    ```bash
    git add skills/{SKILL_NAME}/ README.md
-   git commit -m "Add {SKILL_NAME} skill v{version}"
+   git commit -m "Update {SKILL_NAME} skill to v{version}"
    git push -u origin add-{SKILL_NAME}-{version}
    ```
 
@@ -416,7 +423,7 @@ operator-side unless you pass `--submit`.
    gh pr create \\
      --repo {AWESOME_COPILOT_REPO} \\
      --base staged \\
-     --title "Add {SKILL_NAME} skill v{version}" \\
+     --title "Update {SKILL_NAME} skill to v{version}" \\
      --body-file <packet>/PR_BODY.md
    ```
 
@@ -773,6 +780,13 @@ def step4_copy_skill_md(
     if not src.is_file():
         return False, f"Step 4: packet missing SKILL.md at {src}."
     dst_dir = fork_path / "skills" / SKILL_NAME
+    # Replace the whole folder: the registry still holds the bundled v1.5.6
+    # files, which the trimmed SKILL.md supersedes.
+    if dst_dir.exists():
+        r = _run(["git", "rm", "-r", "-q", "--ignore-unmatch", f"skills/{SKILL_NAME}"], cwd=fork_path)
+        _log_subprocess(log_fh, "git rm old skill folder", r)
+        if dst_dir.exists():
+            shutil.rmtree(dst_dir)
     dst_dir.mkdir(parents=True, exist_ok=True)
     dst = dst_dir / "SKILL.md"
     shutil.copy2(src, dst)
@@ -893,7 +907,7 @@ def step7_open_pr(
     pr_body_path = packet_dir / "PR_BODY.md"
     if not pr_body_path.is_file():
         return False, f"Step 7: PR body missing at {pr_body_path}."
-    title = f"Add {SKILL_NAME} skill v{version}"
+    title = f"Update {SKILL_NAME} skill to v{version}"
     body_lines = pr_body_path.read_text(encoding="utf-8").splitlines()
     preview = "\n".join(body_lines[:20])
     print("\n--- PR preview ---")

@@ -766,12 +766,14 @@ class TrimTemplateContentTests(unittest.TestCase):
         self.assertIn("quality-playbook install", self.pr_body)
         self.assertNotIn("qpb install", self.pr_body)
 
-    def test_pr_body_bundle_count_is_five_not_seven(self) -> None:
+    def test_pr_body_bundle_count_is_six(self) -> None:
         # The actual bundle is 5 directories: references, phase_prompts,
         # agents, bin, ai_context. Pre-207 said "seven support
         # directories" listing 4 dirs + 3 files (miscount +
         # miscategorization).
-        self.assertIn("five support directories", self.pr_body)
+        # v1.6.1: the bundle is SKILL.md plus six directories (references,
+        # phase_prompts, agents, ai_context, schemas, scripts).
+        self.assertIn("six support directories", self.pr_body)
         self.assertNotIn("seven support directories", self.pr_body)
 
     def test_skill_md_installation_prose_lists_actual_bundle_dirs(
@@ -782,19 +784,21 @@ class TrimTemplateContentTests(unittest.TestCase):
         # from PR_BODY which only maintainers read) had the same
         # "seven phase-prompt directories" miscount the PR_BODY fix
         # corrected. Pin BOTH artifacts now.
-        self.assertIn("five support directories", self.skill_md)
+        self.assertIn("six support directories", self.skill_md)
         self.assertNotIn("seven phase-prompt directories", self.skill_md)
         self.assertNotIn("seven support directories", self.skill_md)
 
-    def test_skill_md_workflow_duration_is_canonical_15_90_minutes(
+    def test_skill_md_workflow_duration_matches_measured_run(
         self,
     ) -> None:
         # v1.5.8 207 Panelist C defensive sweep: README line 410 is
         # canonical ("15-90 minutes depending on project size"); pre-207
         # the trim template said "30-90 minutes" which is neither the
         # supervised (15-90) nor the autonomous (60-180) range.
-        self.assertIn("15-90 minutes", self.skill_md)
-        self.assertNotIn("30-90 minutes", self.skill_md)
+        # v1.6.1: the README now gives the measured Javalin run instead
+        # of a minutes range.
+        self.assertIn("about 24 hours", self.skill_md)
+        self.assertNotIn("15-90 minutes", self.skill_md)
 
     def test_skill_md_includes_ai_tool_list(self) -> None:
         # The 8 valid --ai-tool values must be documented near the
