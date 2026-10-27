@@ -1,0 +1,31 @@
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djavax.net.ssl.trustStoreType=JKS -Dhttps.proxyHost=127.0.0.1 -Dhttps.proxyPort=34059 -Dhttp.nonProxyHosts=localhost|127.0.0.1|::1|127.*|0.*|::|169.254.*|api.anthropic.com|api-staging.anthropic.com|api-pr-preview.anthropic.com|mcp-proxy.anthropic.com|mcp-proxy-staging.anthropic.com|registry.npmjs.org|jsr.io|npm.jsr.io|pypi.org|files.pythonhosted.org|index.crates.io|proxy.golang.org|host.docker.internal|10.*|172.16.*|172.17.*|172.18.*|172.19.*|172.20.*|172.21.*|172.22.*|172.23.*|172.24.*|172.25.*|172.26.*|172.27.*|172.28.*|172.29.*|172.30.*|172.31.*|192.168.*|100.64.0.0/10|*.svc.cluster.local|*.svc.cluster.local -Djdk.http.auth.tunneling.disabledSchemes= -Djdk.http.auth.proxying.disabledSchemes= -Dsun.jnu.encoding=UTF-8 -Dfile.encoding=UTF-8
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djavax.net.ssl.trustStoreType=JKS -Dhttps.proxyHost=127.0.0.1 -Dhttps.proxyPort=34059 -Dhttp.nonProxyHosts=localhost|127.0.0.1|::1|127.*|0.*|::|169.254.*|api.anthropic.com|api-staging.anthropic.com|api-pr-preview.anthropic.com|mcp-proxy.anthropic.com|mcp-proxy-staging.anthropic.com|registry.npmjs.org|jsr.io|npm.jsr.io|pypi.org|files.pythonhosted.org|index.crates.io|proxy.golang.org|host.docker.internal|10.*|172.16.*|172.17.*|172.18.*|172.19.*|172.20.*|172.21.*|172.22.*|172.23.*|172.24.*|172.25.*|172.26.*|172.27.*|172.28.*|172.29.*|172.30.*|172.31.*|192.168.*|100.64.0.0/10|*.svc.cluster.local|*.svc.cluster.local -Djdk.http.auth.tunneling.disabledSchemes= -Djdk.http.auth.proxying.disabledSchemes= -Dsun.jnu.encoding=UTF-8 -Dfile.encoding=UTF-8
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/tmp/qpb-knock17166428123171129404, location=EXTERNAL, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/qpb-knock17166428123171129404/'
+[main] INFO io.javalin.Javalin - Starting Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - jetty-12.1.12; built: 2026-08-03T22:37:55.389Z; git: 10dd3948f37767b84cc2c62358364f042e51dbbe; jvm 21.0.12.1+1-1-24.04.4-Ubuntu
+[main] INFO org.eclipse.jetty.session.DefaultSessionIdManager - Session workerName=node0
+[main] INFO org.eclipse.jetty.server.handler.ContextHandler - Started oeje10s.ServletContextHandler@2e3252{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@77cddc0c{STARTED}}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Started oeje10s.ServletContextHandler@2e3252{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@77cddc0c{STARTED}}
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Started oejs.ServerConnector@1b2c9d8b{HTTP/1.1, (http/1.1)}{0.0.0.0:46599}
+[main] INFO org.eclipse.jetty.server.Server - Started oejs.Server@e3ed455{STARTING}[12.1.12,sto=0] @278ms
+[main] INFO io.javalin.Javalin - Javalin started in 534ms \o/
+[main] INFO io.javalin.Javalin - Listening on http://localhost:46599/
+KNOCKON /plain.txt -> 200 content of plain.txt
+KNOCKON /my%20file.txt -> 200 content of my file.txt
+KNOCKON /caf%C3%A9.txt -> 200 content of café.txt
+KNOCKON /a-b_c.d~e.txt -> 200 content of a-b_c.d~e.txt
+KNOCKON /sub/deep.txt -> 200 content of sub/deep.txt
+KNOCKON /sub%2Fdeep.txt -> 404 Endpoint GET /sub%2Fdeep.txt not found
+KNOCKON /%2e%2e/plain.txt -> 400 <html> <head> <meta http-equiv="Content-
+KNOCKON /secret/file.txt -> 401 Unauthorized
+KNOCKON /%73ecret/file.txt -> 404 Endpoint GET /%73ecret/file.txt not foun
+KNOCKON /secret/%66ile.txt -> 401 Unauthorized
+KNOCKON /PLAIN.txt -> 404 Endpoint GET /PLAIN.txt not found
+KNOCKON /missing.txt -> 404 Endpoint GET /missing.txt not found
+KNOCKON /plain%2Etxt -> 404 Endpoint GET /plain%2Etxt not found
+[main] INFO io.javalin.Javalin - Stopping Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - Stopped oejs.Server@e3ed455{STOPPING}[12.1.12,sto=0]
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Stopped oejs.ServerConnector@1b2c9d8b{HTTP/1.1, (http/1.1)}{0.0.0.0:0}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Stopped oeje10s.ServletContextHandler@2e3252{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@77cddc0c{STOPPED}}
+[main] INFO io.javalin.Javalin - Javalin has stopped
+exit 0

@@ -1,0 +1,63 @@
+$ (process TZ=America/New_York) /work/batch/runs/chrono/bin/run-tests /work/batch/runs/chrono/scratch/fix-chrono-ref-timezone-calendar --testPathPattern=test/en/en_relative.test.ts
+FAIL test/en/en_relative.test.ts (5.291 s)
+  ● Test - 'This' and year-less expressions use the calendar of the reference timezone
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 1
+    + Received  + 1
+
+      Array [
+        "this month",
+        2012,
+    -   8,
+    +   7,
+        1,
+      ]
+
+      57 |             expect(result.text).toBe(phrase);
+      58 |             const { start } = result;
+    > 59 |             expect([phrase, start.get("year"), start.get("month"), start.get("day")]).toEqual([phrase, ...expected]);
+         |                                                                                       ^
+      60 |         });
+      61 |     }
+      62 | });
+
+      at test/en/en_relative.test.ts:59:87
+      at Object.<anonymous> (test/en/en_relative.test.ts:55:23)
+
+Test Suites: 1 failed, 1 total
+Tests:       1 failed, 10 passed, 11 total
+Snapshots:   0 total
+Time:        5.558 s
+# excerpts follow for the next four zones: jest output filtered to FAIL/PASS lines, the failing diff rows and the totals
+$ (process TZ=UTC, src/ reverted to HEAD~1, test kept) run-tests <clone> --testPathPattern=test/en/en_relative.test.ts
+FAIL test/en/en_relative.test.ts (7.877 s)
+        "this month",
+    -   8,
+    +   7,
+Tests:       1 failed, 10 passed, 11 total
+$ (process TZ=Asia/Tokyo, src/ reverted to HEAD~1, test kept) run-tests <clone> --testPathPattern=test/en/en_relative.test.ts
+FAIL test/en/en_relative.test.ts
+        "this month",
+    -   8,
+    +   7,
+Tests:       1 failed, 10 passed, 11 total
+$ (process TZ=Pacific/Kiritimati, src/ reverted to HEAD~1, test kept) run-tests <clone> --testPathPattern=test/en/en_relative.test.ts
+FAIL test/en/en_relative.test.ts
+        "this month",
+    -   8,
+    +   7,
+Tests:       1 failed, 10 passed, 11 total
+$ (process TZ=Pacific/Pago_Pago, src/ reverted to HEAD~1, test kept) run-tests <clone> --testPathPattern=test/en/en_relative.test.ts
+FAIL test/en/en_relative.test.ts
+        "this month",
+    -   8,
+    +   7,
+Tests:       1 failed, 10 passed, 11 total
+$ (process TZ=America/New_York, src/ reverted to HEAD~1, test kept) run-tests <clone> --testPathPattern=test/en/en_relative.test.ts
+FAIL test/en/en_relative.test.ts
+        "this month",
+    -   8,
+    +   7,
+Tests:       1 failed, 10 passed, 11 total

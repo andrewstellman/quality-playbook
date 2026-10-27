@@ -1,0 +1,138 @@
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djavax.net.ssl.trustStoreType=JKS -Dhttps.proxyHost=127.0.0.1 -Dhttps.proxyPort=34059 -Dhttp.nonProxyHosts=localhost|127.0.0.1|::1|127.*|0.*|::|169.254.*|api.anthropic.com|api-staging.anthropic.com|api-pr-preview.anthropic.com|mcp-proxy.anthropic.com|mcp-proxy-staging.anthropic.com|registry.npmjs.org|jsr.io|npm.jsr.io|pypi.org|files.pythonhosted.org|index.crates.io|proxy.golang.org|host.docker.internal|10.*|172.16.*|172.17.*|172.18.*|172.19.*|172.20.*|172.21.*|172.22.*|172.23.*|172.24.*|172.25.*|172.26.*|172.27.*|172.28.*|172.29.*|172.30.*|172.31.*|192.168.*|100.64.0.0/10|*.svc.cluster.local|*.svc.cluster.local -Djdk.http.auth.tunneling.disabledSchemes= -Djdk.http.auth.proxying.disabledSchemes=
+[INFO] Scanning for projects...
+[INFO] Inspecting build with total of 1 modules
+[INFO] Installing Central Publishing features
+[INFO] 
+[INFO] -------------------------< io.javalin:javalin >-------------------------
+[INFO] Building Javalin 7.2.4-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- git-commit-id:10.0.0:revision (default) @ javalin ---
+[INFO] 
+[INFO] --- resources:3.5.0:copy-resources (copy-license) @ javalin ---
+[INFO] Copying 1 resource from .. to target/classes/META-INF
+[INFO] 
+[INFO] --- resources:3.5.0:copy-resources (copy-pom-properties) @ javalin ---
+[INFO] Copying 1 resource from .. to target
+[INFO] 
+[INFO] --- jacoco:0.8.15:prepare-agent (default) @ javalin ---
+[INFO] argLine set to -javaagent:/root/.m2/repository/org/jacoco/org.jacoco.agent/0.8.15/org.jacoco.agent-0.8.15-runtime.jar=destfile=/tmp/claude-0/sec/javalin/src/javalin/target/jacoco.exec
+[INFO] 
+[INFO] --- resources:3.5.0:resources (default-resources) @ javalin ---
+[INFO] skip non existing resourceDirectory /tmp/claude-0/sec/javalin/src/javalin/src/main/resources
+[INFO] 
+[INFO] --- kotlin:2.2.20:compile (compile) @ javalin ---
+[WARNING] Source root doesn't exist: /tmp/claude-0/sec/javalin/src/javalin/src/main/kotlin
+[WARNING] Using experimental Kotlin incremental compilation
+[INFO] 
+[INFO] --- compiler:3.15.0:compile (java-compile) @ javalin ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ javalin ---
+[INFO] Copying 42 resources from src/test/resources to target/test-classes
+[INFO] 
+[INFO] --- kotlin:2.2.20:test-compile (test-compile) @ javalin ---
+[WARNING] Using experimental Kotlin incremental compilation
+[INFO] 
+[INFO] --- compiler:3.15.0:testCompile (java-test-compile) @ javalin ---
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 42 source files with javac [debug release 17] to target/test-classes
+[INFO] 
+[INFO] --- surefire:3.5.6:test (default-test) @ javalin ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO] 
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djavax.net.ssl.trustStoreType=JKS -Dhttps.proxyHost=127.0.0.1 -Dhttps.proxyPort=34059 -Dhttp.nonProxyHosts=localhost|127.0.0.1|::1|127.*|0.*|::|169.254.*|api.anthropic.com|api-staging.anthropic.com|api-pr-preview.anthropic.com|mcp-proxy.anthropic.com|mcp-proxy-staging.anthropic.com|registry.npmjs.org|jsr.io|npm.jsr.io|pypi.org|files.pythonhosted.org|index.crates.io|proxy.golang.org|host.docker.internal|10.*|172.16.*|172.17.*|172.18.*|172.19.*|172.20.*|172.21.*|172.22.*|172.23.*|172.24.*|172.25.*|172.26.*|172.27.*|172.28.*|172.29.*|172.30.*|172.31.*|192.168.*|100.64.0.0/10|*.svc.cluster.local|*.svc.cluster.local -Djdk.http.auth.tunneling.disabledSchemes= -Djdk.http.auth.proxying.disabledSchemes=
+[INFO] Running io.javalin.TestSse
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 28, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 6.475 s -- in io.javalin.TestSse
+[INFO] Running io.javalin.TestContextRouteRoles
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.434 s -- in io.javalin.TestContextRouteRoles
+[INFO] Running io.javalin.TestRequest
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 47, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 3.812 s -- in io.javalin.TestRequest
+[INFO] Running io.javalin.staticfiles.TestStaticFiles
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=src/test/external/, location=EXTERNAL, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/src/test/external/'
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/tmp/junit-9767657064886783216, location=EXTERNAL, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/junit-9767657064886783216/'
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+Oct 20, 2026 12:01:32 PM org.junit.jupiter.api.io.TempDirDeletionStrategy$Standard$1 warnAboutLinkWithTargetOutsideTempDir
+WARNING: Deleting symbolic link from location inside of temp dir (/tmp/junit-9767657064886783216/linked_html.html) to location outside of temp dir (/tmp/claude-0/sec/javalin/src/javalin/src/test/external/html.html) but not the target file/directory
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=src/test/external/, location=EXTERNAL, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/src/test/external/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public/immutable, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/immutable/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public/protected, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/protected/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public/subdir, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/subdir/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public/subdir, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/subdir/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/webjars, directory=META-INF/resources/webjars, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=31622400}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: '[jar:file:///root/.m2/repository/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/, jar:file:///root/.m2/repository/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/]'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/assets, directory=/public/assets, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/assets/'
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={javalin=application/x-javalin}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/url-prefix, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/url-prefix, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=31622400}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/subdir, directory=/public/subdir, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/subdir/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/tmp/junit-16024282314645339532, location=EXTERNAL, precompressMaxSize=-1, aliasCheck=io.javalin.staticfiles.TestStaticFiles$$Lambda/0x00007f6aa05bf160@1c12f0f4, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/junit-16024282314645339532/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/url-prefix, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=io.javalin.staticfiles.TestStaticFiles$$Lambda/0x00007f6aa05bf160@1c12f0f4, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+Oct 20, 2026 12:01:34 PM org.junit.jupiter.api.io.TempDirDeletionStrategy$Standard$1 warnAboutLinkWithTargetOutsideTempDir
+WARNING: Deleting symbolic link from location inside of temp dir (/tmp/junit-16024282314645339532/linked_html.html) to location outside of temp dir (/tmp/claude-0/sec/javalin/src/javalin/src/test/external/html.html) but not the target file/directory
+Oct 20, 2026 12:01:34 PM org.junit.jupiter.api.io.TempDirDeletionStrategy$Standard$1 warnAboutLinkWithTargetOutsideTempDir
+WARNING: Deleting symbolic link from location inside of temp dir (/tmp/junit-16024282314645339532/linked_txt.txt) to location outside of temp dir (/tmp/claude-0/sec/javalin/src/javalin/src/test/external/txt.txt) but not the target file/directory
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/url-prefix, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=io.javalin.staticfiles.TestStaticFiles$$Lambda/0x00007f6aa05c5cf8@5c6fae3c, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[INFO] Tests run: 31, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 3.332 s -- in io.javalin.staticfiles.TestStaticFiles
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Running io.javalin.websocket.TestWsUpgrade
+[INFO] Tests run: 10, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.691 s -- in io.javalin.websocket.TestWsUpgrade
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Running io.javalin.TestHttpResponseExceptions
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 18, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.744 s -- in io.javalin.TestHttpResponseExceptions
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] 
+[INFO] Results:
+[INFO] 
+[INFO] Tests run: 140, Failures: 0, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  36.366 s
+[INFO] Finished at: 2026-10-20T12:01:37-04:00
+[INFO] ------------------------------------------------------------------------
+exit 0

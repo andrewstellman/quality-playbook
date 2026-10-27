@@ -1,0 +1,52 @@
+From 150733fbb9910970fd0d75862666cb02e8634190 Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <astellman@stellman-greene.com>
+Date: Thu, 22 Oct 2026 18:23:21 -0400
+Subject: [PATCH] [websocket] Don't create an HTTP session when snapshotting an
+ upgrade request
+
+UpgradeRequestData read sessionAttributeMap() through req().session,
+which creates a session. JavalinJettyServlet builds that snapshot for
+every request carrying a Sec-WebSocket-Version header, including 404s,
+so each such request created a server-side session. The default
+SessionHandler has no inactivity timeout, so those sessions were never
+evicted. An existing session is still snapshotted; otherwise the map is
+empty.
+---
+ .../io/javalin/http/servlet/JavalinWsServletContext.kt    | 3 ++-
+ .../src/test/java/io/javalin/websocket/TestWsUpgrade.kt   | 8 +++++++-
+ 2 files changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/javalin/src/main/java/io/javalin/http/servlet/JavalinWsServletContext.kt b/javalin/src/main/java/io/javalin/http/servlet/JavalinWsServletContext.kt
+index 61d3cc4..1134ea6 100644
+--- a/javalin/src/main/java/io/javalin/http/servlet/JavalinWsServletContext.kt
++++ b/javalin/src/main/java/io/javalin/http/servlet/JavalinWsServletContext.kt
+@@ -35,7 +35,8 @@ data class UpgradeRequestData(val context: JavalinWsServletContext) {
+     val headerMap = context.headerMap()
+     val cookieMap = context.cookieMap()
+     var attributeMap = context.attributeMap().toMutableMap()
+-    val sessionAttributeMap = context.sessionAttributeMap()
++    // don't create a session just to snapshot it: every request with a Sec-WebSocket-Version header passes through here
++    val sessionAttributeMap = if (context.req().getSession(false) != null) context.sessionAttributeMap() else emptyMap()
+ 
+     /** Re-snapshots the attribute map from the request. This must be called after
+      *  wsBeforeUpgrade handlers have run, but before Jetty recycles the request. */
+diff --git a/javalin/src/test/java/io/javalin/websocket/TestWsUpgrade.kt b/javalin/src/test/java/io/javalin/websocket/TestWsUpgrade.kt
+index 5ad234a..c0281f4 100644
+--- a/javalin/src/test/java/io/javalin/websocket/TestWsUpgrade.kt
++++ b/javalin/src/test/java/io/javalin/websocket/TestWsUpgrade.kt
+@@ -123,5 +123,11 @@ class TestWsUpgrade {
+         http.wsUpgradeRequest("/ws/123")
+         assertThat(log).containsExactly("123")
+     }
+-}
+ 
++    @Test
++    fun `upgrade requests don't create http sessions`() = TestUtil.test { app, http ->
++        app.unsafe.routes.ws("/ws") {}
++        assertThat(http.wsUpgradeRequest("/ws").headers.get("Set-Cookie")).isEmpty()
++        assertThat(http.wsUpgradeRequest("/no-such-ws").headers.get("Set-Cookie")).isEmpty()
++    }
++}
+-- 
+2.43.0
+

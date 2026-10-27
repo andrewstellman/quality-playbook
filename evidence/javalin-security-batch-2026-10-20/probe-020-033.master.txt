@@ -1,0 +1,3 @@
+PROBE020 : a\r\n: b\rc\n: d\n: \n
+PROBE033 it's "x" & <b>\n\nk<:\nv'>\n
+PROBE033plain it's "x" & <b>\n\nk<:\nv'>\n

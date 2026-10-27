@@ -1,0 +1,7 @@
+$ (process TZ=America/New_York) /work/batch/runs/chrono/bin/run-tests /work/batch/runs/chrono/scratch/fix-chrono-ref-timezone-calendar --testPathPattern=test/en/en_relative.test.ts
+PASS test/en/en_relative.test.ts
+
+Test Suites: 1 passed, 1 total
+Tests:       11 passed, 11 total
+Snapshots:   0 total
+Time:        3.903 s, estimated 6 s

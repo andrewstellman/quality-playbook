@@ -1,0 +1,56 @@
+From 0421effd84bbf64c352f5961a5356df9968c3afe Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <andrew@stellman.com>
+Date: Tue, 20 Oct 2026 12:27:29 -0400
+Subject: [PATCH] [routing] Apply the GET route's roles to a HEAD request it
+ answers
+
+---
+ .../main/java/io/javalin/http/servlet/DefaultTasks.kt  |  6 ++++--
+ .../src/test/java/io/javalin/TestContextRouteRoles.kt  | 10 ++++++++++
+ 2 files changed, 14 insertions(+), 2 deletions(-)
+
+diff --git a/javalin/src/main/java/io/javalin/http/servlet/DefaultTasks.kt b/javalin/src/main/java/io/javalin/http/servlet/DefaultTasks.kt
+index 2cf1ab7..a3a5361 100644
+--- a/javalin/src/main/java/io/javalin/http/servlet/DefaultTasks.kt
++++ b/javalin/src/main/java/io/javalin/http/servlet/DefaultTasks.kt
+@@ -23,8 +23,10 @@ object DefaultTasks {
+         val httpHandlerOrNull by javalinLazy {
+             ctx.cachedHttpHandler { servlet.router.findFirstHttpHandlerEntry(ctx.method(), requestUri) }
+         }
+-        val isResourceHandler = httpHandlerOrNull == null && (ctx.method() == HEAD || ctx.method() == GET)
+-        val matchedRouteRoles by javalinLazy { httpHandlerOrNull?.endpoint?.metadata(Roles::class.java)?.roles ?: emptySet() }
++        // HEAD is answered from the GET route, so it must be guarded by the GET route's roles
++        val headViaGet by javalinLazy { if (ctx.method() == HEAD && httpHandlerOrNull == null) servlet.router.findFirstHttpHandlerEntry(GET, requestUri) else null }
++        val isResourceHandler = httpHandlerOrNull == null && headViaGet == null && (ctx.method() == HEAD || ctx.method() == GET)
++        val matchedRouteRoles by javalinLazy { (httpHandlerOrNull ?: headViaGet)?.endpoint?.metadata(Roles::class.java)?.roles ?: emptySet() }
+         val resourceRouteRoles by javalinLazy { servlet.cfg.resourceHandler?.resourceRouteRoles(ctx) ?: emptySet() }
+         val willMatch by javalinLazy {
+             ctx.setRouteRoles(if (isResourceHandler) resourceRouteRoles else matchedRouteRoles)
+diff --git a/javalin/src/test/java/io/javalin/TestContextRouteRoles.kt b/javalin/src/test/java/io/javalin/TestContextRouteRoles.kt
+index 25b391a..e154c18 100644
+--- a/javalin/src/test/java/io/javalin/TestContextRouteRoles.kt
++++ b/javalin/src/test/java/io/javalin/TestContextRouteRoles.kt
+@@ -5,8 +5,10 @@ import io.javalin.Role.B
+ import io.javalin.Role.C
+ import io.javalin.Role.D
+ import io.javalin.http.Context
++import io.javalin.http.UnauthorizedResponse
+ import io.javalin.security.RouteRole
+ import io.javalin.testing.TestUtil
++import kong.unirest.HttpMethod
+ import org.assertj.core.api.Assertions.assertThat
+ import org.junit.jupiter.api.Test
+ 
+@@ -53,4 +55,12 @@ class TestContextRouteRoles {
+         http.get("/roles").let { assertThat(it.body).isEqualTo("!!![B, C, D]") }
+     }
+ 
++    @Test
++    fun `HEAD request answered by a GET handler has the GET handler's route roles`() = TestUtil.test { app, http ->
++        app.unsafe.routes.beforeMatched { if (A in it.routeRoles()) throw UnauthorizedResponse() }
++        app.unsafe.routes.get("/admin", { it.result("secret") }, A)
++        assertThat(http.get("/admin").status).isEqualTo(401)
++        assertThat(http.call(HttpMethod.HEAD, "/admin").status).isEqualTo(401)
++    }
++
+ }

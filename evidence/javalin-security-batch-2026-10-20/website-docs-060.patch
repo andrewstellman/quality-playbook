@@ -1,0 +1,26 @@
+From 864a67f6ed5e9129dd94eaea40c41a4798b3c843 Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <astellman@stellman-greene.com>
+Date: Sat, 24 Oct 2026 10:31:01 -0400
+Subject: [PATCH] Note that older versions return the client's upload file name
+ unchanged
+
+---
+ pages/docs/docs.md | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/pages/docs/docs.md b/pages/docs/docs.md
+index acbe958..8cb2493 100644
+--- a/pages/docs/docs.md
++++ b/pages/docs/docs.md
+@@ -1994,6 +1994,8 @@ config.routes.post("/upload") { ctx ->
+ {% endcapture %}
+ {% include macros/docsSnippet.html java=java kotlin=kotlin %}
+ 
++In Javalin 7.2.3 and earlier, `uploadedFile.filename()` returns the file name exactly as the client sent it, which can include directory components such as `../`. Later versions return only the file name.
++
+ The corresponding HTML might look something like this:
+ ```markup
+ <form method="post" action="/upload" enctype="multipart/form-data">
+-- 
+2.43.0
+

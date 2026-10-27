@@ -1,0 +1,103 @@
+From a97b63e88dad2c890f55f447b6a423f99c5707c1 Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <astellman@stellman-greene.com>
+Date: Thu, 22 Oct 2026 18:24:07 -0400
+Subject: [PATCH] [static-files] Match hostedPath as a whole path segment
+
+Both static resource handlers matched hostedPath with a plain string
+prefix, so with hostedPath "/assets" a request for /assetsX/app.js was
+served X/app.js from the assets directory. Those URLs don't match
+path-scoped handlers such as before("/assets/*"). The hosted path now
+has to be the whole path or be followed by a slash.
+---
+ .../staticfiles/JavalinStaticResourceHandler.kt   |  3 +--
+ .../javalin/http/staticfiles/StaticFileConfig.kt  | 15 +++++++++++++++
+ .../java/io/javalin/jetty/JettyResourceHandler.kt |  4 ++--
+ .../io/javalin/staticfiles/TestStaticFiles.kt     | 13 +++++++++++++
+ 4 files changed, 31 insertions(+), 4 deletions(-)
+
+diff --git a/javalin/src/main/java/io/javalin/http/staticfiles/JavalinStaticResourceHandler.kt b/javalin/src/main/java/io/javalin/http/staticfiles/JavalinStaticResourceHandler.kt
+index 8f8bb77..4ad8051 100644
+--- a/javalin/src/main/java/io/javalin/http/staticfiles/JavalinStaticResourceHandler.kt
++++ b/javalin/src/main/java/io/javalin/http/staticfiles/JavalinStaticResourceHandler.kt
+@@ -62,8 +62,7 @@ class JavalinStaticResourceHandler : ResourceHandler {
+         if (isAliasedStaticPath(target)) return null
+         return handlers.asSequence()
+             .filterNot { it.config.skipFileFunction?.invoke(ctx.req()) == true }
+-            .filter { it.config.hostedPath == "/" || target.startsWith(it.config.hostedPath) }
+-            .map { it to if (it.config.hostedPath == "/") target else target.removePrefix(it.config.hostedPath) }
++            .mapNotNull { handler -> resourcePathInHostedPath(target, handler.config.hostedPath)?.let { handler to it } }
+             .find { (handler, resourcePath) -> handler.getResource(resourcePath) != null }
+     }
+ 
+diff --git a/javalin/src/main/java/io/javalin/http/staticfiles/StaticFileConfig.kt b/javalin/src/main/java/io/javalin/http/staticfiles/StaticFileConfig.kt
+index 4e8bf8f..ae3c7c0 100644
+--- a/javalin/src/main/java/io/javalin/http/staticfiles/StaticFileConfig.kt
++++ b/javalin/src/main/java/io/javalin/http/staticfiles/StaticFileConfig.kt
+@@ -105,3 +105,18 @@ internal fun isAliasedStaticPath(target: String): Boolean =
+     target.contains("//") ||
+         target.split('/').any { it == "." || it == ".." } ||
+         ENCODED_UNRESERVED.containsMatchIn(target)
++
++/**
++ * Returns the resource path for [target] if it is inside [hostedPath], or null if it isn't.
++ * The hosted path is matched as a whole path segment, so '/assets' matches '/assets' and '/assets/app.js'
++ * but not '/assetsX/app.js'.
++ */
++internal fun resourcePathInHostedPath(target: String, hostedPath: String): String? {
++    if (hostedPath == "/") return target
++    val prefix = hostedPath.removeSuffix("/")
++    return when {
++        target == prefix -> ""
++        target.startsWith("$prefix/") -> target.removePrefix(prefix)
++        else -> null
++    }
++}
+diff --git a/javalin/src/main/java/io/javalin/jetty/JettyResourceHandler.kt b/javalin/src/main/java/io/javalin/jetty/JettyResourceHandler.kt
+index d352fab..dadbe8a 100644
+--- a/javalin/src/main/java/io/javalin/jetty/JettyResourceHandler.kt
++++ b/javalin/src/main/java/io/javalin/jetty/JettyResourceHandler.kt
+@@ -12,6 +12,7 @@ import io.javalin.http.Header
+ import io.javalin.http.staticfiles.Location
+ import io.javalin.http.staticfiles.StaticFileConfig
+ import io.javalin.http.staticfiles.isAliasedStaticPath
++import io.javalin.http.staticfiles.resourcePathInHostedPath
+ import io.javalin.security.RouteRole
+ import io.javalin.util.JavalinException
+ import io.javalin.util.JavalinLogger
+@@ -65,8 +66,7 @@ class JettyResourceHandler : JavalinResourceHandler {
+         if (isAliasedStaticPath(target)) return null
+         return handlers.asSequence()
+             .filterNot { it.config.skipFileFunction?.invoke(ctx.req()) == true }
+-            .filter { it.config.hostedPath == "/" || target.startsWith(it.config.hostedPath) }
+-            .map { it to if (it.config.hostedPath == "/") target else target.removePrefix(it.config.hostedPath) }
++            .mapNotNull { handler -> resourcePathInHostedPath(target, handler.config.hostedPath)?.let { handler to it } }
+             .find { (handler, resourcePath) -> handler.getResource(resourcePath) != null }
+     }
+ 
+diff --git a/javalin/src/test/java/io/javalin/staticfiles/TestStaticFiles.kt b/javalin/src/test/java/io/javalin/staticfiles/TestStaticFiles.kt
+index f8a8805..52bca01 100644
+--- a/javalin/src/test/java/io/javalin/staticfiles/TestStaticFiles.kt
++++ b/javalin/src/test/java/io/javalin/staticfiles/TestStaticFiles.kt
+@@ -236,6 +236,19 @@ class TestStaticFiles {
+         assertThat(response.body).isEqualTo("<h1>Welcome file</h1>")
+     }
+ 
++    @Test
++    fun `hosted path only matches whole path segments`() = testStaticFiles({ cfg ->
++        cfg.staticFiles.add {
++            it.directory = "/public"
++            it.location = Location.CLASSPATH
++            it.hostedPath = "/url-prefix"
++        }
++    }) { _, http ->
++        assertThat(http.get("/url-prefix/subdir/index.html").httpCode()).isEqualTo(OK)
++        assertThat(http.get("/url-prefixsubdir/index.html").httpCode()).isEqualTo(NOT_FOUND)
++        assertThat(http.get("/url-prefixsubdir").httpCode()).isEqualTo(NOT_FOUND)
++    }
++
+     @Test
+     fun `welcome files have correct content type`() = testStaticFiles({ cfg ->
+         cfg.staticFiles.add("/public", Location.CLASSPATH)
+-- 
+2.43.0
+

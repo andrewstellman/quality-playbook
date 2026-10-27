@@ -1,0 +1,1045 @@
+npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
+npm warn deprecated lodash.get@4.4.2: This package is deprecated. Use the optional chaining (?.) operator instead.
+npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
+npm warn deprecated json2csv@5.0.7: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
+
+added 463 packages, and audited 464 packages in 58s
+
+84 packages are looking for funding
+  run `npm fund` for details
+
+54 vulnerabilities (2 low, 6 moderate, 45 high, 1 critical)
+
+To address issues that do not require attention, run:
+  npm audit fix
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force
+
+Run `npm audit` for details.
+PASS test/en/en_relative.test.ts (5.178 s)
+  ✓ Test - 'This' expressions (199 ms)
+  ✓ Test - 'This' and year-less expressions use the calendar of the reference timezone (8 ms)
+  ✓ Test - End of current month (4 ms)
+  ✓ Test - End of relative period (3 ms)
+  ✓ Test - Past relative expressions (6 ms)
+  ✓ Test - Future relative expressions (7 ms)
+  ✓ Test - Relative date components' certainty (2 ms)
+  ✓ Test - Relative date when the timezone is irrelevant (1 ms)
+  ✓ Test - Relative date when the timezone is relevant but unknown (1 ms)
+  ✓ Test - Relative date when the timezone is relevant and known (2 ms)
+  ✓ Test - Relative date when the timezone is relevant and known (2nd scenario) (2 ms)
+
+PASS test/fr/fr_time_exp.test.ts
+  ✓ Test - Single Expression (23 ms)
+  ✓ Test - Range Expression (4 ms)
+  ✓ Test - Impossible (1 ms)
+  ✓ Test - Date + Time Expression (9 ms)
+  ✓ Test - Timezone extraction (3 ms)
+  ✓ Test - Random date + time expression (6 ms)
+
+PASS test/en/en_weekday.test.ts
+  ✓ Test - Single Expression (6 ms)
+  ✓ Test - Weekday casual `This` guessing (2 ms)
+  ✓ Test - Weekday casual `Last` guessing (1 ms)
+  ✓ Test - Weekday casual `Next` guessing (5 ms)
+  ✓ Test - Casual 'weekend' and 'weekday' (1 ms)
+  ✓ Test - Casual 'weekday' mentioning (1 ms)
+  ✓ Test - Weekday With Casual Time (1 ms)
+  ✓ Test - Weekday Overlap (2 ms)
+  ✓ Test - Weekday range (2 ms)
+  ✓ Test - Weekday 'of next/last/this week' connector (4 ms)
+  ✓ Test - forward dates only option (12 ms)
+
+PASS test/en/en_time_exp.test.ts
+  ✓ Test - Parsing text offset (2 ms)
+  ✓ Test - Time expression (1 ms)
+  ✓ Test - Time expression with clues (1 ms)
+  ✓ Test - Time expression after date (8 ms)
+  ✓ Test - Time expression before date (33 ms)
+  ✓ Test - A bare number followed by a colon should not merge backwards over the date that follows (13 ms)
+  ✓ Test - Time range expression (2 ms)
+  ✓ Test - Time non-range expression (1 ms)
+  ✓ Test - Casual time number expression (2 ms)
+  ✓ Test - Time range's meridiem handling (9 ms)
+  ✓ Test - Time range to the next day (1 ms)
+  ✓ Test - Parsing causal positive cases (1 ms)
+  ✓ Test - Parsing negative cases : [year-like] pattern (1 ms)
+  ✓ Test - Parsing negative cases : 'at [some numbers]'
+  ✓ Test - Parsing negative cases : 'at [some numbers] - [some numbers]' (1 ms)
+  ✓ Test - Parsing negative cases (Strict) (27 ms)
+  ✓ Test - Parsing negative cases : 'at [some numbers] - [some numbers]' (Strict)
+  ✓ Test - Forward time calculation 'forwardDate' flag (2 ms)
+  ✓ Test - Test - Forward time calculation 'forwardDate' flag in different timezones (1 ms)
+
+PASS test/zh/hans/zh_hans_time_exp.test.ts
+  ✓ Test - Single Expression (9 ms)
+  ✓ Test - Range Expression (4 ms)
+  ✓ Test - Date + Time Expression (1 ms)
+  ✓ Test - Time Expression's Meridiem imply (1 ms)
+  ✓ Test - Random date + time expression (10 ms)
+  ✓ Test - YYYY-MM-DD HH:mm:ss format (1 ms)
+  ✓ Test - Range Expression with days (2 ms)
+  ✓ Test - Range Expression with seconds (1 ms)
+  ✓ Test - Range Expression with AM/PM variations (1 ms)
+  ✓ Test - Range Expression with days variations (2 ms)
+  ✓ Test - Range Expression with specific AM/PM variations (3 ms)
+  ✓ Test - Range Expression with short day-time variations (5 ms)
+
+PASS test/en/en_time_units_within.test.ts
+  ✓ Test - The normal within expression (18 ms)
+  ✓ Test - The within expression with multiple time units (2 ms)
+  ✓ Test - The within expression with certain keywords (2 ms)
+  ✓ Test - Single Expression (Implied) (1 ms)
+  ✓ Test - Implied time values (1 ms)
+  ✓ Test - Time units' certainty (4 ms)
+  ✓ Test - Strict mode (1 ms)
+  ✓ Test - Forward date option (1 ms)
+  ✓ Test - Negative cases (1 ms)
+
+PASS test/en/en_timezone_exp.test.ts
+  ✓ Test - Parsing date/time with UTC offset (9 ms)
+  ✓ Test - Parsing date/time with numeric offset (2 ms)
+  ✓ Test - Parsing date/time with GMT offset (2 ms)
+  ✓ Test - Parsing date/time with timezone abbreviation (3 ms)
+  ✓ Test - Parsing date range with timezone abbreviation (1 ms)
+  ✓ Test - Parsing date/time with ambiguous timezone abbreviations (6 ms)
+  ✓ Test - Timezone parsing overrides (1 ms)
+  ✓ Test - Parsing date with timezone abbreviation
+  ✓ Test - Not parsing timezone from relative time (4 ms)
+  ✓ Test - Relative time (Now) is not effected by timezone setting (1 ms)
+  ✓ Test - Relative time (2 hour later) is not effected by timezone setting (1 ms)
+  ✓ Test - Parsing timezone from relative date when valid (1 ms)
+
+PASS test/en/en_month_name_little_endian.test.ts
+  ✓ Test - Single expression (6 ms)
+  ✓ Test - Single expression with separators (2 ms)
+  ✓ Test - Range expression (7 ms)
+  ✓ Test - Combined expression (1 ms)
+  ✓ Test - Ordinal Words (1 ms)
+  ✓ Test - little endian date followed by time (1 ms)
+  ✓ Test - year 90's parsing (1 ms)
+  ✓ Test - Forward Option (2 ms)
+  ✓ Test - Impossible Dates (Strict Mode)
+  ✓ Test - Year 3000+ support (Issue #636) (4 ms)
+
+PASS test/en/en_casual.test.ts
+  ✓ Test - Single Expression (13 ms)
+  ✓ Test - Combined Expression (1 ms)
+  ✓ Test - Casual date range (1 ms)
+  ✓ Test - Casual time implication (2 ms)
+  ✓ Test - Random text (8 ms)
+  ✓ Test - Casual time with timezone (1 ms)
+  ✓ Test - Random negative text (2 ms)
+
+PASS test/nl/nl_casual.test.ts
+  ✓ Test - Single Expression (30 ms)
+  ✓ Test - Combined Expression (1 ms)
+  ✓ Test - Casual combined datetime expressions (8 ms)
+  ✓ Test - Casual date range (2 ms)
+  ✓ Test - Casual time implication (2 ms)
+  ✓ Test - Random text (6 ms)
+  ✓ Test - Random negative text
+
+PASS test/en/en_month.test.ts
+  ✓ Test - Month-Year expression (10 ms)
+  ✓ Test - Month-Year expression after uppercase non-date text (1 ms)
+  ✓ Test - Month-Only expression (2 ms)
+  ✓ Test - Month-Only Range expression (2 ms)
+  ✓ Test - Month with farward date option (1 ms)
+  ✓ Test - Month expression in context (1 ms)
+  ✓ Test - Month slash expression (1 ms)
+  ✓ Test - year 90's parsing (1 ms)
+  ✓ Test - Month should not have timezone
+  ✓ Test - End of named month (4 ms)
+  ✓ Test - Month only in different context (1 ms)
+  ✓ Test - Year Month expression (3 ms)
+
+PASS test/en/en_month_name_middle_endian.test.ts
+  ✓ Test - Single Expression (11 ms)
+  ✓ Test - Single expression with separators (1 ms)
+  ✓ Test - Range expression (11 ms)
+  ✓ Test - Ordinal Words (2 ms)
+  ✓ Test - Forward Option (1 ms)
+  ✓ Test - year 90's parsing (1 ms)
+  ✓ Test - Skip year-like on little-endian configuration (1 ms)
+  ✓ Test - Impossible Dates (Strict Mode) (1 ms)
+
+PASS test/en/en_time_units_ago.test.ts
+  ✓ Test - Single Expression (18 ms)
+  ✓ Test - Single Expression (Casual) (2 ms)
+  ✓ Test - Nested time ago (2 ms)
+  ✓ Test - Before with reference (2 ms)
+  ✓ Test - Strict mode (1 ms)
+  ✓ Test - Forward date (1 ms)
+  ✓ Test - Negative cases
+
+PASS test/en/en_time_units_later.test.ts
+  ✓ Test - Later Expression (5 ms)
+  ✓ Test - From now Expression (12 ms)
+  ✓ Test - The later expression with multiple time units (1 ms)
+  ✓ Test - Strict mode (2 ms)
+  ✓ Test - After with reference (1 ms)
+  ✓ Test - Plus after reference (2 ms)
+  ✓ Test - Negative cases
+
+PASS test/nl/nl_month_name_little_endian.test.ts
+  ✓ Test - Single expression (13 ms)
+  ✓ Test - Range expression (4 ms)
+  ✓ Test - Combined expression (2 ms)
+  ✓ Test - Ordinal Words (1 ms)
+  ✓ Test - little endian date followed by time (2 ms)
+  ✓ Test - year 90's parsing (4 ms)
+  ✓ Test - Forward Option (1 ms)
+
+PASS test/de/de_casual.test.ts
+  ✓ Test - Casual date expression (19 ms)
+  ✓ Test - Casual time expression (2 ms)
+  ✓ Test - Combined Expression (2 ms)
+  ✓ Test - Casual date range (2 ms)
+  ✓ Test - Random text (7 ms)
+  ✓ Test - Random negative text
+  ✓ Test - Casual time keeps its meridiem when merged with an explicit time (1 ms)
+
+PASS test/fr/fr_little_endian.test.ts
+  ✓ Test - Single expression (13 ms)
+  ✓ Test - Range expression (3 ms)
+  ✓ Test - Date/Time combined expression (2 ms)
+  ✓ Test - Accentuated text parsing (4 ms)
+  ✓ Test - Unaccentuated text parsing (1 ms)
+  ✓ Test - Impossible Dates (1 ms)
+  ✓ Test - French Month Abbreviated/Short Names (2 ms)
+
+PASS test/it/it_casual.test.ts
+  ✓ Test - Single Expression (202 ms)
+  ✓ Test - Combined Expression (2 ms)
+  ✓ Test - Casual date range (2 ms)
+  ✓ Test - Casual time implication (1 ms)
+  ✓ Test - Random text (4 ms)
+  ✓ Test - Random negative text
+
+PASS test/en/en_slash.test.ts
+  ✓ Test - Parsing Offset Expression (2 ms)
+  ✓ Test - Single Expression (MM/dd/yyyy) (4 ms)
+  ✓ Test - Single Expression Little-Endian (dd/MM/yyyy) (6 ms)
+  ✓ Test - Single Expression Little-Endian with Month name (2 ms)
+  ✓ Test - Single Expression Shorten (mm/yyyy) (1 ms)
+  ✓ Test - Skip month/year suffix of an invalid date (1 ms)
+  ✓ Test - Preserve complete slash dates and month/year (2 ms)
+  ✓ Test - Single Expression Shorten (dd/mm) (1 ms)
+  ✓ Test - Range Expression (2 ms)
+  ✓ Test - Range Expressions with Time (2 ms)
+  ✓ Test - Splitter variances patterns (2 ms)
+  ✓ Test - Impossible Dates and Unexpected Results (1 ms)
+  ✓ Test - forward dates only option (4 ms)
+  ✓ Test - Slash date with an extra chunk
+
+PASS test/ja/ja_time_exp.test.ts
+  ✓ Test - Single Expression (7 ms)
+  ✓ Test - Range Expression (3 ms)
+  ✓ Test - Date + Time Expression (1 ms)
+  ✓ Test - Time Expression's Meridiem imply (3 ms)
+  ✓ Test - Random date + time expression (2 ms)
+  ✓ Test - Incorrect time expressions (1 ms)
+  ✓ Test - Non time expressions
+
+PASS test/fr/fr_casual.test.ts
+  ✓ Test - Single Expression (12 ms)
+  ✓ Test - Combined Expression (2 ms)
+  ✓ Test - Casual time keeps its meridiem when merged with an explicit time (1 ms)
+
+PASS test/result.test.ts
+  ✓ Test - Create & manipulate parsing components (2 ms)
+  ✓ Test - Creating component from reference date (and duration) (1 ms)
+  ✓ Test - Create & manipulate parsing results (1 ms)
+  ✓ Test - Calendar checking with implied components
+  ✓ Test - Calendar Checking (1 ms)
+  ✓ Test - DST-gap times resolve consistently on hosts that observe the gap
+  ✓ Test - Getting timezone adjust date from references (1 ms)
+  ✓ Test - ParsingComponents.addDurationAsImplied (1 ms)
+  ✓ Test - ParsingComponents.addDurationAsImplied on different timezones
+
+PASS test/it/it_weekday.test.ts
+  ✓ Test - Single Expression (9 ms)
+  ✓ Test - Weekday With Casual Time (2 ms)
+  ✓ Test - Weekday Overlap (1 ms)
+  ✓ Test - forward dates only option (4 ms)
+  ✓ Test - Weekday range expression
+  ✓ Test - Weekday with prefix and suffix (4 ms)
+  ✓ Test - Negative cases
+
+PASS test/system_timezone.test.ts
+  ✓ Test - Using reference with timezone (2 ms)
+  ✓ Test - Using reference with missing/default timezone (1 ms)
+  ✓ Test - Using reference instance with different timezone (1 ms)
+  ✓ Test - Using reference instance with custom timezones (1 ms)
+  ✓ Test - Timezone difference on reference date #2
+  ✓ Test - Timezone difference on written date (1 ms)
+  ✓ Test - Precise [now] mentioned (1 ms)
+  ✓ Test - Precise date/time mentioned (1 ms)
+  ✓ Test - Minimize diff because of local timezone (pre-1900) (2 ms)
+  ✓ Test - Timezone DST transitions (4 ms)
+
+PASS test/zh/hant/zh_hant_casual.test.ts
+  ✓ Test - Single Expression (12 ms)
+  ✓ Test - Combined Expression (2 ms)
+  ✓ Test - Casual date range (5 ms)
+  ✓ Test - Random text (2 ms)
+
+PASS test/nl/nl_relative.test.ts
+  ✓ Test - 'This' expressions (4 ms)
+  ✓ Test - Past relative expressions (6 ms)
+  ✓ Test - Future relative expressions (3 ms)
+  ✓ Test - Relative date components' certainty (2 ms)
+  ✓ Test - Relative date when the timezone is irrelevant (1 ms)
+  ✓ Test - Relative date when the timezone is relevant and known (1 ms)
+
+PASS test/de/de_month_name_little_endian.test.ts
+  ✓ Test - Single expression (9 ms)
+  ✓ Test - Range expression (7 ms)
+  ✓ Test - Combined expression (2 ms)
+  ✓ Test - Impossible Dates (Casual Mode)
+
+PASS test/zh/hans/zh_hans_casual.test.ts
+  ✓ Test - Single Expression (15 ms)
+  ✓ Test - Combined Expression (1 ms)
+  ✓ Test - Casual date range (2 ms)
+  ✓ Test - Random text (2 ms)
+
+PASS test/nl/nl_time_units_later.test.ts
+  ✓ Test - Later Expression (4 ms)
+  ✓ Test - From now Expression (12 ms)
+  ✓ Test - Strict mode (3 ms)
+
+PASS test/nl/nl_time_units_ago.test.ts
+  ✓ Test - Single Expression (12 ms)
+  ✓ Test - Single Expression (Casual) (2 ms)
+  ✓ Test - Nested time ago (1 ms)
+  ✓ Test - Negative cases (1 ms)
+
+PASS test/zh/hant/zh_hant_time_exp.test.ts
+  ✓ Test - Single Expression (3 ms)
+  ✓ Test - Range Expression (3 ms)
+  ✓ Test - Date + Time Expression (1 ms)
+  ✓ Test - Time Expression's Meridiem imply (2 ms)
+  ✓ Test - Cantonese Combined Expressions (1 ms)
+  ✓ Test - Random date + time expression (2 ms)
+
+PASS test/de/de_time_exp.test.ts
+  ✓ Test - Simple Expression (6 ms)
+  ✓ Test - Range Expression (8 ms)
+  ✓ Test - Timezone extraction (2 ms)
+  ✓ Test - Random date + time expression (1 ms)
+
+PASS test/ja/ja_standard.test.ts
+  ✓ Test - Single Expression (9 ms)
+  ✓ Test - Single Expression without year (1 ms)
+  ✓ Test - Range Expression (3 ms)
+
+PASS test/nl/nl_time_units_within.test.ts
+  ✓ Test - The normal within expression (7 ms)
+  ✓ Test - Single Expression (Implied) (1 ms)
+  ✓ Test - Implied time values (5 ms)
+  ✓ Test - Time units' certainty (3 ms)
+
+PASS test/zh/hans/zh_hans_weekday.test.ts
+  ✓ Test - Single Expression (14 ms)
+  ✓ Test - 'this' week (2 ms)
+  ✓ Test - Range with different separators (2 ms)
+  ✓ Test - forward dates only option (2 ms)
+
+PASS test/system.test.ts
+  ✓ Test - Load modules (1 ms)
+  ✓ Test - Basic parse date functions (2 ms)
+  ✓ Test - Add custom parser (1 ms)
+  ✓ Test - Add custom parser example (2 ms)
+  ✓ Test - Add custom refiner example (1 ms)
+  ✓ Test - Add custom parser with tags example (1 ms)
+  ✓ Test - Remove a parser example (1 ms)
+  ✓ Test - Remove a refiner example (1 ms)
+  ✓ Test - Replace a parser example (2 ms)
+  ✓ Test - Compare with native js (4 ms)
+
+PASS test/zh/hans/zh_hans_deadline.test.ts
+  ✓ Test - Single Expression (13 ms)
+  ✓ Test - Untested units (1 ms)
+  ✓ Test - Untested suffix
+  ✓ Test - Deadline expression at the beginning of the text (8 ms)
+
+PASS test/nl/nl_weekday.test.ts
+  ✓ Test - Single Expression (11 ms)
+  ✓ Test - Weekday With Casual Time (1 ms)
+  ✓ Test - Weekday Overlap (2 ms)
+  ✓ Test - forward dates only option (1 ms)
+
+PASS test/es/es_month_name_little_endian.test.ts
+  ✓ Test - Single expression (16 ms)
+  ✓ Test - Range expression (3 ms)
+  ✓ Test - Combined expression (1 ms)
+  ✓ Test - Impossible Dates (Strict Mode)
+
+PASS test/pt/pt_month_name_little_endian.test.ts
+  ✓ Test - Single expression (11 ms)
+  ✓ Test - Range expression (7 ms)
+  ✓ Test - Combined expression
+  ✓ Test - Impossible Dates (Strict Mode) (1 ms)
+
+PASS test/ru/ru_time_units_casual_relative.test.ts
+  ✓ Test - Positive time units (60 ms)
+  ✓ Test - Negative time units (2 ms)
+  ✓ Test - Plus '+' sign (2 ms)
+  ✓ Test - Minus '-' sign (1 ms)
+
+PASS test/ja/ja_weekday.test.ts
+  ✓ Test - Single Expression (2 ms)
+  ✓ Test - Single Expression - weekday with parentheses (2 ms)
+  ✓ Test - forward dates only option (2 ms)
+  ✓ Test - merge date and weekday (3 ms)
+
+PASS test/en/en_time_units_casual_relative.test.ts
+  ✓ Test - Positive time units (5 ms)
+  ✓ Test - Negative time units (2 ms)
+  ✓ Test - Plus '+' sign (2 ms)
+  ✓ Test - Minus '-' sign (2 ms)
+  ✓ Test - Without custom parser without abbreviations
+  ✓ Test - Negative cases
+
+PASS test/nl/nl_slash.test.ts
+  ✓ Test - Parsing Offset Expression (1 ms)
+  ✓ Test - Single Expression (6 ms)
+  ✓ Test - Single Expression Little-Endian (2 ms)
+  ✓ Test - Single Expression Little-Endian with Month name
+  ✓ Test - Range Expression (6 ms)
+  ✓ Test - Splitter variances patterns (1 ms)
+  ✓ Test - Impossible Dates and Unexpected Results (1 ms)
+  ✓ Test - forward dates only option (1 ms)
+
+PASS test/ru/ru_casual.test.ts
+  ✓ Test - Single Expression (20 ms)
+  ✓ Test - Combined Expression (2 ms)
+  ✓ Test - Casual date range (1 ms)
+  ✓ Test - Random negative text
+
+PASS test/nl/nl_month.test.ts
+  ✓ Test - Month-Year expression (10 ms)
+  ✓ Test - Month-Only expression (2 ms)
+  ✓ Test - Month expression in context (2 ms)
+  ✓ Test - Month slash expression (1 ms)
+  ✓ Test - year 90's parsing (1 ms)
+
+PASS test/en/en.test.ts
+  ✓ Test - Date + Time Expression (2 ms)
+  ✓ Test - Time Expression (1 ms)
+  ✓ Test - Quoted Expressions (1 ms)
+  ✓ Test - Strict Mode (1 ms)
+  ✓ Test - Built-in English variants
+  ✓ Test - Random text (4 ms)
+  ✓ Test - Wikipedia Texts (1 ms)
+  ✓ Test - Parse multiple date results (1 ms)
+  ✓ Test - Customize by removing time extraction (1 ms)
+
+PASS test/calculation_duration.test.ts
+  ✓ Test - Adding Duration w/ single timeunit (2 ms)
+  ✓ Test - Adding Duration w/ single timeunit shorten (1 ms)
+  ✓ Test - Adding Duration w/ multiple timeunits
+  ✓ Test - Adding Duration w/ fractions (1 ms)
+  ✓ Test - Adding Duration w/ multiple fractions
+  ✓ Test - Reverse Duration
+
+PASS test/uk/uk_casual.test.ts
+  ✓ Test - Single Expression (149 ms)
+  ✓ Test - Combined Expression (2 ms)
+  ✓ Test - Casual date range (2 ms)
+  ✓ Test - Random negative text (1 ms)
+
+PASS test/zh/hant/zh_hant_weekday.test.ts
+  ✓ Test - Single Expression (15 ms)
+  ✓ Test - 'this' week (1 ms)
+  ✓ Test - forward dates only option (2 ms)
+
+PASS test/it/it_month_name_little_endian.test.ts
+  ✓ Test - Single expression (5 ms)
+  ✓ Test - Range expression (3 ms)
+  ✓ Test - Combined expression (1 ms)
+  ✓ Test - Ordinal Words (1 ms)
+  ✓ Test - Impossible Dates and Unexpected Results
+
+PASS test/zh/hant/zh_hant_deadline.test.ts
+  ✓ Test - Single Expression (8 ms)
+  ✓ Test - Deadline expression at the beginning of the text (1 ms)
+
+PASS test/es/es_casual.test.ts
+  ✓ Test - Single Expression (6 ms)
+  ✓ Test - Combined Expression (1 ms)
+  ✓ Test - Random text (3 ms)
+  ✓ Test - Random negative text
+
+PASS test/pt/pt_casual.test.ts
+  ✓ Test - Single Expression (7 ms)
+  ✓ Test - Combined Expression (1 ms)
+  ✓ Test - Random text (3 ms)
+  ✓ Test - Random negative text
+
+PASS test/pt/pt_time_exp.test.ts
+  ✓ Test - Single Expression (1 ms)
+  ✓ Test - Range Expression (2 ms)
+  ✓ Test - Date + Time Expression (1 ms)
+  ✓ Test - Time Expression's Meridiem imply (1 ms)
+  ✓ Test - Random date + time expression (11 ms)
+
+PASS test/id/id_month_name.test.ts
+  ✓ Test - Day and month name (9 ms)
+  ✓ Test - Day and month name range (2 ms)
+  ✓ Test - Month name and day (2 ms)
+  ✓ Test - Month name and day range (1 ms)
+  ✓ Test - Month name and year (1 ms)
+  ✓ Test - Date with time (1 ms)
+  ✓ Test - Slash format (5 ms)
+  ✓ Test - Negative cases
+  ✓ Test - Month name followed by a time is not taken as a day (1 ms)
+  ✓ Test - Out of range day is not taken as a day
+
+PASS test/es/es_time_exp.test.ts
+  ✓ Test - Single Expression (2 ms)
+  ✓ Test - Range Expression (3 ms)
+  ✓ Test - Date + Time Expression (1 ms)
+  ✓ Test - Time Expression's Meridiem imply (2 ms)
+  ✓ Test - Random date + time expression (8 ms)
+
+PASS test/calculation_weekdays.test.ts
+  ✓ Test - This Weekday Calculation (1 ms)
+  ✓ Test - Last Weekday Calculation (1 ms)
+  ✓ Test - Next Weekday Calculation (1 ms)
+  ✓ Test - Closest Weekday Calculation
+  ✓ Test - Weekdays calculation with timezone (1 ms)
+
+PASS test/ru/ru_month_name_little_endian.test.ts
+  ✓ Test - Single expression (10 ms)
+  ✓ Test - Single expression with separators (2 ms)
+  ✓ Test - Range expression (3 ms)
+  ✓ Test - Combined expression
+  ✓ Test - Ordinal Words (5 ms)
+  ✓ Test - little endian date followed by time (1 ms)
+  ✓ Test - year 90's parsing
+  ✓ Test - Forward Option (4 ms)
+  ✓ Test - Impossible Dates (Strict Mode) (1 ms)
+
+PASS test/zh/hant/zh_hant_date.test.ts
+  ✓ Test - Single Expression (3 ms)
+  ✓ Test - Range Expression (2 ms)
+  ✓ Test - Date expression at the beginning of the text (2 ms)
+
+PASS test/uk/uk_month_name_little_endian.test.ts
+  ✓ Test - Single expression (11 ms)
+  ✓ Test - Single expression with separators (2 ms)
+  ✓ Test - Range expression (3 ms)
+  ✓ Test - Combined expression (1 ms)
+  ✓ Test - Ordinal Words (1 ms)
+  ✓ Test - Ordinal Words
+  ✓ Test - little endian date followed by time (1 ms)
+  ✓ Test - year 90's parsing (1 ms)
+  ✓ Test - Forward Option (4 ms)
+  ✓ Test - Impossible Dates (Strict Mode) (1 ms)
+
+PASS test/zh/hans/zh_hans_date.test.ts
+  ✓ Test - Single Expression (11 ms)
+  ✓ Test - Range Expression (2 ms)
+  ✓ Test - Date expression at the beginning of the text (6 ms)
+
+PASS test/de/de_weekday.test.ts
+  ✓ Test - Simple Weekday Expression (12 ms)
+  ✓ Test - Weekday with forward date option (2 ms)
+  ✓ Test - Weekday Overlap (2 ms)
+
+PASS test/uk/uk_time_units_casual_relative.test.ts
+  ✓ Test - Positive time units (10 ms)
+  ✓ Test - Negative time units (1 ms)
+  ✓ Test - Plus '+' sign (1 ms)
+  ✓ Test - Minus '-' sign (1 ms)
+
+PASS test/sv/sv_time_units_casual_relative.test.ts
+  ✓ Test - Positive time units (7 ms)
+  ✓ Test - Negative time units (2 ms)
+  ✓ Test - Plus '+' sign (1 ms)
+  ✓ Test - Minus '-' sign (1 ms)
+
+PASS test/de/de_year.test.ts
+  ✓ Test - Year numbers with v/nuZ Era label (3 ms)
+  ✓ Test - Year numbers with v/nChr Era label (2 ms)
+  ✓ Test - Year numbers with v/ndgZ Era label (2 ms)
+
+PASS test/it/it_time_exp.test.ts
+  ✓ Test - Single Expression (13 ms)
+  ✓ Test - Range Expression (2 ms)
+  ✓ Test - Date + Time Expression (1 ms)
+  ✓ Test - Time Expression's Meridiem imply (1 ms)
+  ✓ Test - Random date + time expression (1 ms)
+  ✓ Test - Negative cases (1 ms)
+  ✓ Test - Time relative to reference (1 ms)
+
+PASS test/en/en_year.test.ts
+  ✓ Test - Year numbers with BCE/CE Era label (2 ms)
+  ✓ Test - Year numbers with BC/AD Era label (6 ms)
+  ✓ Test - Year numbers with Buddhist Era label (1 ms)
+  ✓ Test - Year number after date/time expression (2 ms)
+  ✓ Test - Year number after date/time range expression (2 ms)
+
+PASS test/de/de_time_units_casual_relative.test.ts
+  ✓ Test - de - relative date (15 ms)
+  ✓ Test - de - false positive prevention for single-letter time units (1 ms)
+
+PASS test/en/en_inter_std.test.ts
+  ✓ Test - Single Expression (10 ms)
+  ✓ Test - Single Expression with local timezeon (2 ms)
+
+PASS test/fr/fr_weekday.test.ts
+  ✓ Test - Single Expression (10 ms)
+  ✓ Test - Weekday Overlap (3 ms)
+
+PASS test/fr/fr_time_units_casual_relative.test.ts
+  ✓ Test - fr - modifier mandatory just after (2 ms)
+  ✓ Test - fr - relative date (15 ms)
+  ✓ Test - fr - false positive prevention for single-letter time units (1 ms)
+
+PASS test/nl/nl_time_units_casual_relative.test.ts
+  ✓ Test - Positive time units (3 ms)
+  ✓ Test - Negative time units (3 ms)
+  ✓ Test - Plus '+' sign (2 ms)
+  ✓ Test - Minus '-' sign (2 ms)
+
+PASS test/fi/fi_time_units_casual_relative.test.ts
+  ✓ Test - Positive time units (8 ms)
+  ✓ Test - Negative time units (3 ms)
+  ✓ Test - Plus '+' sign (2 ms)
+  ✓ Test - Minus '-' sign (1 ms)
+
+PASS test/fr/fr_time_units_within.test.ts
+  ✓ Test - Single Expression (9 ms)
+
+PASS test/uk/uk_relative.test.ts
+  ✓ Test - 'This' expressions (4 ms)
+  ✓ Test - Past relative expressions (3 ms)
+  ✓ Test - Future relative expressions (4 ms)
+
+PASS test/ru/ru_relative.test.ts
+  ✓ Test - 'This' expressions (4 ms)
+  ✓ Test - Past relative expressions (4 ms)
+  ✓ Test - Future relative expressions (3 ms)
+
+PASS test/de/de_time_units_within.test.ts
+  ✓ Test - Single Expression (17 ms)
+
+PASS test/id/id_casual.test.ts
+  ✓ Test - Single expression (4 ms)
+  ✓ Test - Casual time (5 ms)
+  ✓ Test - Combined expression (1 ms)
+  ✓ Test - Negative cases (1 ms)
+
+PASS test/es/es_time_units_within.test.ts
+  ✓ Test - Single Expression (15 ms)
+
+PASS test/ru/ru_time_exp.test.ts
+  ✓ Test - Time expression (2 ms)
+  ✓ Test - Time range expression (1 ms)
+  ✓ Test - Casual time number expression (2 ms)
+  ✓ Test - Time range's meridiem handling (2 ms)
+  ✓ Test - Parsing causal positive cases (2 ms)
+  ✓ Test - Parsing negative cases : [year-like] pattern (1 ms)
+  ✓ Test - Parsing negative cases : 'at [some numbers]' (1 ms)
+  ✓ Test - Parsing negative cases : 'at [some numbers] - [some numbers]' (1 ms)
+  ✓ Test - Parsing negative cases (Strict) (1 ms)
+  ✓ Test - Parsing negative cases : 'at [some numbers] - [some numbers]' (Strict) (2 ms)
+
+PASS test/uk/uk_time_exp.test.ts
+  ✓ Test - Time expression (2 ms)
+  ✓ Test - Time range expression (1 ms)
+  ✓ Test - Casual time number expression (1 ms)
+  ✓ Test - Time range's meridiem handling (2 ms)
+  ✓ Test - Parsing causal positive cases (1 ms)
+  ✓ Test - Parsing negative cases : [year-like] pattern
+  ✓ Test - Parsing negative cases : 'at [some numbers]' (1 ms)
+  ✓ Test - Parsing negative cases : 'at [some numbers] - [some numbers]' (1 ms)
+  ✓ Test - Parsing negative cases (Strict) (1 ms)
+  ✓ Test - Parsing negative cases : 'at [some numbers] - [some numbers]' (Strict) (1 ms)
+
+PASS test/it/it_time_units_later.test.ts
+  ✓ Test - Single Expression (11 ms)
+  ✓ Test - Nested time later (2 ms)
+  ✓ Test - Negative cases
+
+PASS test/fi/fi_casual.test.ts
+  ✓ Test - Single Expression (2 ms)
+  ✓ Test - Combined Expression (3 ms)
+  ✓ Test - Casual time keeps its meridiem when merged with an explicit time (1 ms)
+
+PASS test/zh/hant/zh_hant_ago.test.ts
+  ✓ Test - Traditional Chinese Ago Expression (4 ms)
+  ✓ Test - Ago expression at the beginning of the text (6 ms)
+
+PASS test/zh/hans/zh_hans_ago.test.ts
+  ✓ Test - Simplified Chinese Ago Expression (6 ms)
+  ✓ Test - Ago expression at the beginning of the text (3 ms)
+
+PASS test/ja/ja_casual.test.ts
+  ✓ Test - Single Expression (5 ms)
+
+PASS test/fr/fr_time_units_ago.test.ts
+  ✓ Test - Single Expression (5 ms)
+  ✓ Test - Single Expression (Casual) (7 ms)
+
+PASS test/en/en_year_month_day.test.ts
+  ✓ Test - Single Expression (yyyy/MM/dd) (4 ms)
+  ✓ Test - Single Expression with month name (yyyy/MMM/dd) (2 ms)
+  ✓ Test - Allow swap date/month order in casual mode (2 ms)
+  ✓ Test - Not parse unlikely xxxx-xx-xx pattern
+  ✓ Test - Not parse impossible dates (1 ms)
+
+PASS test/fi/fi_time_units_ago.test.ts
+  ✓ Test - Single Expression (5 ms)
+  ✓ Test - Single Expression (Casual) (2 ms)
+
+PASS test/vi/vi_time_exp.test.ts
+  ✓ Test - X giờ (9 ms)
+  ✓ Test - X giờ Y phút (2 ms)
+  ✓ Test - colon format HH:MM
+  ✓ Test - date + time combined (11 ms)
+  ✓ Test - meridiem: sáng/chiều/tối/đêm (2 ms)
+  ✓ Test - trưa meridiem: X giờ trưa → PM (hour + 12) (2 ms)
+  ✓ Test - 12 giờ sáng = midnight (00:00) (1 ms)
+  ✓ Test - isCertain: hour and meridiem certainty (1 ms)
+
+PASS test/sv/sv_casual.test.ts
+  ✓ Test - Single Expression (2 ms)
+  ✓ Test - Combined Expression (3 ms)
+
+PASS test/it/it_time_units_ago.test.ts
+  ✓ Test - Single Expression (5 ms)
+  ✓ Test - Nested time ago (7 ms)
+  ✓ Test - Negative cases
+
+PASS test/vi/vi_casual.test.ts
+  ✓ Test - hôm nay (today) (1 ms)
+  ✓ Test - hôm qua (yesterday) (2 ms)
+  ✓ Test - ngày mai (tomorrow) (1 ms)
+  ✓ Test - ngày kia (day after tomorrow) (1 ms)
+  ✓ Test - bây giờ / lúc này (now) (1 ms)
+  ✓ Test - hôm kia (day before yesterday, -2) (1 ms)
+  ✓ Test - isCertain: casual date sets day/month/year certain, hour not
+
+PASS test/id/id_time_units.test.ts
+  ✓ Test - Ago format (3 ms)
+  ✓ Test - Later format (2 ms)
+  ✓ Test - Within format (3 ms)
+  ✓ Test - Relative unit (1 ms)
+
+PASS test/nl/nl_time_exp.test.ts
+  ✓ Test - Parsing text offset (2 ms)
+  ✓ Test - Time expression
+  ✓ Test - Time range expression
+  ✓ Test - Casual time number expression (13 ms)
+
+PASS test/fi/fi_weekday.test.ts
+  ✓ Test - Single Expression (10 ms)
+  ✓ Test - Next/Last Week Expression (4 ms)
+  ✓ Test - Weekday variations (2 ms)
+  ✓ Test - Weekday abbreviations (1 ms)
+
+PASS test/id/id_time_exp.test.ts
+  ✓ Test - Time expression (2 ms)
+  ✓ Test - Time expression with day period (2 ms)
+  ✓ Test - Time range (1 ms)
+  ✓ Test - Negative cases (1 ms)
+
+PASS test/vi/vi_standard.test.ts
+  ✓ Test - ngày D tháng M năm YYYY (full with ngày prefix) (2 ms)
+  ✓ Test - D tháng M năm YYYY (no ngày prefix)
+  ✓ Test - Date without year implies closest year
+  ✓ Test - index position is correct (1 ms)
+  ✓ Test - negative: invalid month rejected (1 ms)
+
+PASS test/en/en_merging_relative_dates.test.ts
+  ✓ Test - Single Expression (9 ms)
+  ✓ Test - Weekday does not contradict a relative-offset date (1 ms)
+
+PASS test/en/negative_cases.test.ts
+  ✓ Test - Skip random non-date patterns (4 ms)
+  ✓ Test - URLs % encoded (1 ms)
+  ✓ Test - Skip hyphenated numbers pattern (2 ms)
+  ✓ Test - Skip impossible dates/times (1 ms)
+  ✓ Test - Skip impossible dates/times ranges
+  ✓ Test - Skip version number pattern (1 ms)
+  ✓ Test - Skip incorrect reference (for the year)
+  ✓ Test - Skip incorrect reference (For the year)
+  ✓ Test - Skip incorrect reference (FOR THE YEAR) (1 ms)
+  ✓ Test - Skip incorrect reference (for The Year)
+  ✓ Test - Date with version number pattern (2 ms)
+
+PASS test/fi/fi_time_units_within.test.ts
+  ✓ Test - 'sisällä' (within) expression (3 ms)
+  ✓ Test - 'kuluessa' (within/during) expression (1 ms)
+  ✓ Test - 'päästä' (from now) expression (2 ms)
+
+PASS test/id/id_weekday.test.ts
+  ✓ Test - Single weekday (3 ms)
+  ✓ Test - Weekday with modifier (2 ms)
+  ✓ Test - Weekday with time (1 ms)
+  ✓ Test - 'minggu' as week is not Sunday
+
+PASS test/vi/vi_weekday.test.ts
+  ✓ Test - full weekday names (2 ms)
+  ✓ Test - abbreviations t2-t7 / cn (1 ms)
+  ✓ Test - weekday implies a date (1 ms)
+  ✓ Test - next weekday modifiers (tới/sau) (1 ms)
+  ✓ Test - last weekday modifier (qua)
+  ✓ Test - 'sau khi' conjunction not parsed as weekday modifier (1 ms)
+
+PASS test/uk/uk_month.test.ts
+  ✓ Test - Month-Year expression (8 ms)
+  ✓ Test - Month-Only expression (2 ms)
+  ✓ Test - Month expression in context (1 ms)
+  ✓ Test - year 90's parsing (1 ms)
+
+PASS test/ru/ru_month.test.ts
+  ✓ Test - Month-Year expression (3 ms)
+  ✓ Test - Month-Only expression (2 ms)
+  ✓ Test - Month expression in context (1 ms)
+  ✓ Test - year 90's parsing (1 ms)
+
+PASS test/vi/vi_strict.test.ts
+  ✓ Test - Strict rejects casual date expressions (1 ms)
+  ✓ Test - Strict rejects casual time-of-day expressions
+  ✓ Test - Strict rejects casual relative expressions (1 ms)
+  ✓ Test - Strict rejects weekday-only expressions
+  ✓ Test - Strict accepts standard full dates and times (1 ms)
+  ✓ Test - Strict accepts slash dates (1 ms)
+  ✓ Test - Strict accepts explicit time unit expressions (2 ms)
+
+PASS test/vi/vi_casual_time.test.ts
+  ✓ Test - sáng (morning, AM) (2 ms)
+  ✓ Test - trưa (noon, PM) (1 ms)
+  ✓ Test - chiều (afternoon, PM)
+  ✓ Test - tối (evening, PM) (1 ms)
+  ✓ Test - đêm (late night, PM)
+  ✓ Test - nửa đêm (midnight, AM) (1 ms)
+  ✓ Test - bình minh / sáng sớm (dawn) (5 ms)
+  ✓ Test - time keyword merges with date (1 ms)
+
+PASS test/it/it_month.test.ts
+  ✓ Test - Month Expressions (3 ms)
+  ✓ Test - Month Expressions with Year (2 ms)
+  ✓ Test - Month Forward Dates
+
+PASS test/sv/sv_weekday.test.ts
+  ✓ Test - Single Expression (2 ms)
+  ✓ Test - Next/Last Week Expression (3 ms)
+  ✓ Test - Weekday variations (1 ms)
+
+PASS test/it/it_year_month_day.test.ts
+  ✓ Test - Single expression (5 ms)
+  ✓ Test - Range expression (2 ms)
+  ✓ Test - Impossible dates (1 ms)
+
+PASS test/it/it_slash.test.ts
+  ✓ Test - Single Expression (4 ms)
+  ✓ Test - Range Expression (1 ms)
+  ✓ Test - Negative cases (1 ms)
+
+PASS test/ru/ru_weekday.test.ts
+  ✓ Test - Single Expression (3 ms)
+  ✓ Test - Weekday With Casual Time (1 ms)
+  ✓ Test - Weekday Overlap (1 ms)
+  ✓ Test - forward dates only option (2 ms)
+
+PASS test/uk/uk_weekday.test.ts
+  ✓ Test - Single Expression (3 ms)
+  ✓ Test - Weekday With Casual Time (1 ms)
+  ✓ Test - Weekday Overlap (1 ms)
+  ✓ Test - forward dates only option (2 ms)
+
+PASS test/uk/uk_time_units_ago.test.ts
+  ✓ Test - Single Expression (3 ms)
+  ✓ Test - Nested time ago (2 ms)
+  ✓ Test - Negative cases (1 ms)
+
+PASS test/ru/ru_time_units_ago.test.ts
+  ✓ Test - Single Expression (3 ms)
+  ✓ Test - Nested time ago (3 ms)
+  ✓ Test - Negative cases (1 ms)
+
+PASS test/fi/fi_casual_time.test.ts
+  ✓ Test - Standalone casual time expressions (9 ms)
+  ✓ Test - 'viime yönä' (last night) (1 ms)
+
+PASS test/ja/ja_slash_date_format.test.ts
+  ✓ Test - Single Expression (4 ms)
+  ✓ Test - Range Expression (1 ms)
+
+PASS test/vi/vi_negative_cases.test.ts
+  ✓ Test - invalid day rejected (1 ms)
+  ✓ Test - invalid month rejected
+  ✓ Test - invalid slash date rejected (1 ms)
+  ✓ Test - bare 4-digit number without năm prefix is not a year
+  ✓ Test - phone number not parsed as date
+  ✓ Test - bare numbers not parsed as dates (1 ms)
+  ✓ Test - currency and measurement not parsed as dates
+  ✓ Test - version numbers not parsed as dates (1 ms)
+  ✓ Test - hyphenated number ranges not parsed as dates (4 ms)
+  ✓ Test - URL-encoded strings not parsed as dates
+  ✓ Test - impossible minute rejected
+
+PASS test/vi/vi_date_range.test.ts
+  ✓ Test - từ ngày X đến ngày Y (đến connector) (1 ms)
+  ✓ Test - em dash separator (–)
+  ✓ Test - hyphen separator (-)
+  ✓ Test - tới connector (1 ms)
+  ✓ Test - start is before end (1 ms)
+
+PASS test/vi/vi_time_units_ago.test.ts
+  ✓ Test - N ngày trước (2 ms)
+  ✓ Test - N tuần trước
+  ✓ Test - N tháng trước (5 ms)
+  ✓ Test - N năm trước
+  ✓ Test - qua variant (1 tháng qua) (1 ms)
+  ✓ Test - number-word durations (hai/ba/một) (1 ms)
+
+PASS test/vi/vi_forward_date.test.ts
+  ✓ Test - forwardDate: time-only rolls to next day when ref is past (1 ms)
+  ✓ Test - forwardDate: weekday rolls to next occurrence (1 ms)
+  ✓ Test - forwardDate: slash date without year rolls to next year (1 ms)
+  ✓ Test - forwardDate: same weekday as ref stays on same day
+  ✓ Test - forwardDate: month without year rolls to next year (1 ms)
+
+PASS test/it/it_time_units_within.test.ts
+  ✓ Test - Single Expression (8 ms)
+  ✓ Test - Negative cases (1 ms)
+
+PASS test/it/it_time_units_casual_relative.test.ts
+  ✓ Test - Positive time units (2 ms)
+  ✓ Test - Negative time units (1 ms)
+
+PASS test/it/it_timezone_exp.test.ts
+  ✓ Test - Timezone abbreviation (2 ms)
+  ✓ Test - Timezone offset (6 ms)
+
+PASS test/vi/vi_time_units_casual_relative.test.ts
+  ✓ Test - hôm qua lúc 7 giờ (morning reference = AM context) (1 ms)
+  ✓ Test - ngày mai lúc 15 giờ (1 ms)
+  ✓ Test - hôm nay buổi sáng
+  ✓ Test - bare unit: tháng trước (last month, no number) (1 ms)
+  ✓ Test - bare unit: năm sau (next year, no number)
+  ✓ Test - bare unit: tuần trước (last week, no number) (1 ms)
+  ✓ Test - numbered form still works: 2 tuần trước
+
+PASS test/it/it_relative.test.ts
+  ✓ Test - Relative Expressions (7 ms)
+
+PASS test/fi/fi_month_name_little_endian.test.ts
+  ✓ Test - Single expression (6 ms)
+  ✓ Test - Range expression
+  ✓ Test - Impossible Dates
+
+PASS test/it/it_merging_relative_dates.test.ts
+  ✓ Test - Merging dates with time (2 ms)
+  ✓ Test - A bare number followed by a colon should not merge backwards over the date that follows (2 ms)
+
+PASS test/sv/sv_month_name_little_endian.test.ts
+  ✓ Test - Single expression (2 ms)
+  ✓ Test - Range expression (1 ms)
+  ✓ Test - Impossible Dates
+
+PASS test/fr/fr_slash.test.ts
+  ✓ Test - Single Expression (3 ms)
+  ✓ Test - Single Expression with weekday (7 ms)
+
+PASS test/en/en_performance.test.ts
+  ✓ Test - Benchmarking against whitespace backtracking (1 ms)
+
+PASS test/zh/zh.test.ts
+  ✓ Test - International compatible (2 ms)
+  ✓ Test - Default Zh setting combine both hans/hant (2 ms)
+
+PASS test/vi/vi_time_units_later.test.ts
+  ✓ Test - N ngày sau (2 ms)
+  ✓ Test - N tuần nữa (3 ms)
+  ✓ Test - N tháng tới (1 ms)
+  ✓ Test - N năm sau
+  ✓ Test - number-word durations (ba/hai) (2 ms)
+
+PASS test/vi/vi_year.test.ts
+  ✓ Test - năm YYYY (2 ms)
+  ✓ Test - năm BC (TCN) (1 ms)
+  ✓ Test - 3-digit year
+  ✓ Test - year with month and day
+  ✓ Test - negative: bare 4-digit number not a year
+
+PASS test/it/it_year.test.ts
+  ✓ Test - Year Parsing
+  ✓ Test - Two digit year parsing (3 ms)
+  ✓ Test - Negative year
+
+PASS test/fi/fi_time_exp.test.ts
+  ✓ Test - Time expression (1 ms)
+  ✓ Test - Time range expression
+  ✓ Test - Date and time expression (1 ms)
+
+PASS test/vi/vi_month_year.test.ts
+  ✓ Test - tháng M năm YYYY (6 ms)
+  ✓ Test - tháng M/YYYY (slash separator) (1 ms)
+  ✓ Test - tháng M only (implies current year)
+  ✓ Test - negative: month > 12 rejected (1 ms)
+
+PASS test/it/it_inter_std.test.ts
+  ✓ Test - Single Expression Start with Year (3 ms)
+  ✓ Test - Negative cases
+
+PASS test/it/it_month_name_middle_endian.test.ts
+  ✓ Test - Single expression (3 ms)
+  ✓ Test - Impossible Dates (1 ms)
+
+PASS test/uk/uk_time_units_within.test.ts
+  ✓ Test - The normal within expression (2 ms)
+  ✓ Test - Within expression respects the word boundary
+
+PASS test/it/it.test.ts
+  ✓ Test - Italian Locale Basics (2 ms)
+  ✓ Test - Italian Locale with explicit strictMode (1 ms)
+
+PASS test/vi/vi_slash.test.ts
+  ✓ Test - DD/MM/YYYY (little-endian) (2 ms)
+  ✓ Test - D/M/YYYY (no zero padding) (1 ms)
+  ✓ Test - ISO 2024-03-15 also parses (1 ms)
+
+PASS test/de/de_dash.test.ts
+  ✓ Test - Single date expression with dash notation (6 ms)
+  ✓ Test - Single date expression with dot notation (1 ms)
+
+PASS test/it/it_performance.test.ts
+  ✓ Test - Performance test (7 ms)
+  ✓ Test - Performance on many potential matches (6 ms)
+
+PASS test/pt/pt_slash.test.ts
+  ✓ Test - Single Expression (3 ms)
+
+PASS test/es/es_slash.test.ts
+  ✓ Test - Single Expression (5 ms)
+
+PASS test/it/negative_cases.test.ts
+  ✓ Test - Negative cases - Should not parse (1 ms)
+  ✓ Test - Negative cases - Numbers that look like dates
+
+PASS test/vi/vi_time_units_within.test.ts
+  ✓ Test - trong N ngày (1 ms)
+  ✓ Test - trong N tuần
+  ✓ Test - trong vòng N tháng (1 ms)
+
+PASS test/ru/ru_time_units_within.test.ts
+  ✓ Test - The normal within expression (2 ms)
+
+PASS test/debugging.test.ts
+  ✓ Test - BufferedDebugHandler (2 ms)
+
+Test Suites: 151 passed, 151 total
+Tests:       719 passed, 719 total
+Snapshots:   0 total
+Time:        32.389 s
+exit 0

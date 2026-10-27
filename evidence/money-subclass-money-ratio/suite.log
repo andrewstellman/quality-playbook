@@ -1,0 +1,54 @@
+$ /work/batch/runs/money/bin/run-tests /work/batch/runs/money/scratch/fix-money-subclass-money-ratio
+
+Randomized with seed 51734
+.......................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................
+
+Top 10 slowest examples (0.08181 seconds, 37.1% of total time):
+  Money formatting with currencies with ambiguous signs when disambiguate is true nevers returns an ambiguous format
+    0.02352 seconds ./spec/money/formatting_spec.rb:768
+  Money.with_bank safely handles concurrent usage in different threads
+    0.01171 seconds ./spec/money_spec.rb:352
+  Money.with_rounding_mode safely handles concurrent usage in different threads
+    0.01082 seconds ./spec/money_spec.rb:268
+  Money::Currency.find_by_iso_numeric when after reset! clears the iso_numeric cache
+    0.00906 seconds ./spec/money/currency_spec.rb:129
+  Money::Currency#to_currency doesn't create new symbols indefinitely
+    0.00861 seconds ./spec/money/currency_spec.rb:480
+  Money::FormattingRules does not modify frozen rules in place
+    0.00534 seconds ./spec/money/formatting_rules_spec.rb:4
+  Money::FormattingRules format when there is no locale backend returns the format from the passed rules
+    0.0035 seconds ./spec/money/formatting_rules_spec.rb:39
+  Money formatting with currencies with ambiguous signs :drop_trailing_zeros option (drop_trailing_zeros: true) works as documented
+    0.00342 seconds ./spec/money/formatting_spec.rb:808
+  Money::Currency#initialize is thread safe
+    0.00314 seconds ./spec/money/currency_spec.rb:311
+  Money formatting with custom currencies with 4 decimal places respects custom subunit to unit, decimal and thousands separator
+    0.00268 seconds ./spec/money/formatting_spec.rb:702
+
+Top 10 slowest example groups:
+  Money::FormattingRules
+    0.00179 seconds average (0.01076 seconds / 6 examples) ./spec/money/formatting_rules_spec.rb:3
+  Money::Currency::Loader
+    0.00111 seconds average (0.00223 seconds / 2 examples) ./spec/money/currency/loader_spec.rb:3
+  Money formatting
+    0.00073 seconds average (0.06025 seconds / 82 examples) ./spec/money/formatting_spec.rb:4
+  Money::Currency
+    0.00069 seconds average (0.03779 seconds / 55 examples) ./spec/money/currency_spec.rb:18
+  Money::Bank::SingleCurrency
+    0.00042 seconds average (0.00042 seconds / 1 example) ./spec/money/bank/single_currency_spec.rb:3
+  Money
+    0.00041 seconds average (0.05288 seconds / 128 examples) ./spec/money_spec.rb:5
+  Money::LocaleBackend::Currency
+    0.0004 seconds average (0.00121 seconds / 3 examples) ./spec/money/locale_backend/currency_spec.rb:3
+  Money::RatesStore::Memory
+    0.00029 seconds average (0.002 seconds / 7 examples) ./spec/money/rates_store/memory_spec.rb:3
+  Money::LocaleBackend
+    0.00028 seconds average (0.00055 seconds / 2 examples) ./spec/money/locale_backend_spec.rb:3
+  Money::Arithmetic
+    0.00027 seconds average (0.03189 seconds / 116 examples) ./spec/money/arithmetic_spec.rb:3
+
+Finished in 0.22052 seconds (files took 0.23161 seconds to load)
+503 examples, 0 failures
+
+Randomized with seed 51734
+

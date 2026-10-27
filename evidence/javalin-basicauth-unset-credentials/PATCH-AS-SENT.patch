@@ -1,0 +1,59 @@
+From 8ec6d2033260e2fc1d66825dc8df52ae9ba7b4ab Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <andrew@stellman.com>
+Date: Wed, 21 Oct 2026 14:45:57 -0400
+Subject: [PATCH] [plugins] BasicAuthPlugin: reject every request when no
+ credentials are configured
+
+---
+ .../io/javalin/plugin/bundled/BasicAuthPlugin.kt    |  6 +++++-
+ javalin/src/test/java/io/javalin/TestRequest.kt     | 13 +++++++++++++
+ 2 files changed, 18 insertions(+), 1 deletion(-)
+
+diff --git a/javalin/src/main/java/io/javalin/plugin/bundled/BasicAuthPlugin.kt b/javalin/src/main/java/io/javalin/plugin/bundled/BasicAuthPlugin.kt
+index 24b2840..d364c38 100644
+--- a/javalin/src/main/java/io/javalin/plugin/bundled/BasicAuthPlugin.kt
++++ b/javalin/src/main/java/io/javalin/plugin/bundled/BasicAuthPlugin.kt
+@@ -27,7 +27,11 @@ class BasicAuthPlugin(userConfig: Consumer<Config>) : Plugin<BasicAuthPlugin.Con
+         state.routes.before { ctx ->
+             val matched = runCatching { ctx.basicAuthCredentials() }
+                 .fold(
+-                    onSuccess = { auth -> auth?.username == pluginConfig.username && auth?.password == pluginConfig.password },
++                    onSuccess = { auth ->
++                        // with no configured credentials nothing can match, so fail closed
++                        auth != null && pluginConfig.username != null && pluginConfig.password != null &&
++                            auth.username == pluginConfig.username && auth.password == pluginConfig.password
++                    },
+                     onFailure = { false }
+                 )
+ 
+diff --git a/javalin/src/test/java/io/javalin/TestRequest.kt b/javalin/src/test/java/io/javalin/TestRequest.kt
+index 583919d..6e01add 100644
+--- a/javalin/src/test/java/io/javalin/TestRequest.kt
++++ b/javalin/src/test/java/io/javalin/TestRequest.kt
+@@ -18,6 +18,7 @@ import io.javalin.http.servlet.SESSION_CACHE_KEY_PREFIX
+ import io.javalin.http.staticfiles.Location
+ import io.javalin.plugin.bundled.BasicAuthPlugin
+ import io.javalin.testing.TestUtil
++import io.javalin.testing.httpCode
+ 
+ import kong.unirest.Unirest
+ import okhttp3.OkHttpClient
+@@ -327,6 +328,18 @@ class TestRequest {
+         }
+     }
+ 
++    @Test
++    fun `basic auth filter plugin denies every request when no credentials are configured`() {
++        val basicAuthApp = Javalin.create { cfg ->
++            cfg.registerPlugin(BasicAuthPlugin { })
++            cfg.routes.get("/hellopath") { it.result("Hello") }
++        }
++        TestUtil.test(basicAuthApp) { _, http ->
++            assertThat(http.get("/hellopath").httpCode()).isEqualTo(HttpStatus.UNAUTHORIZED)
++            Unirest.get("${http.origin}/hellopath").basicAuth("", "").asString().let { assertThat(it.httpCode()).isEqualTo(HttpStatus.UNAUTHORIZED) }
++        }
++    }
++
+     @Test
+     fun `servlet-context is not null`() = TestUtil.test { app, http ->
+         app.unsafe.routes.get("/") { it.result(if (it.req().servletContext != null) "not-null" else "null") }

@@ -1,0 +1,144 @@
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djavax.net.ssl.trustStoreType=JKS -Dhttps.proxyHost=127.0.0.1 -Dhttps.proxyPort=34059 -Dhttp.nonProxyHosts=localhost|127.0.0.1|::1|127.*|0.*|::|169.254.*|api.anthropic.com|api-staging.anthropic.com|api-pr-preview.anthropic.com|mcp-proxy.anthropic.com|mcp-proxy-staging.anthropic.com|registry.npmjs.org|jsr.io|npm.jsr.io|pypi.org|files.pythonhosted.org|index.crates.io|proxy.golang.org|host.docker.internal|10.*|172.16.*|172.17.*|172.18.*|172.19.*|172.20.*|172.21.*|172.22.*|172.23.*|172.24.*|172.25.*|172.26.*|172.27.*|172.28.*|172.29.*|172.30.*|172.31.*|192.168.*|100.64.0.0/10|*.svc.cluster.local|*.svc.cluster.local -Djdk.http.auth.tunneling.disabledSchemes= -Djdk.http.auth.proxying.disabledSchemes=
+[INFO] Scanning for projects...
+[INFO] Inspecting build with total of 1 modules
+[INFO] Installing Central Publishing features
+[INFO] 
+[INFO] -------------------------< io.javalin:javalin >-------------------------
+[INFO] Building Javalin 7.2.4-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- git-commit-id:10.0.0:revision (default) @ javalin ---
+[INFO] 
+[INFO] --- resources:3.5.0:copy-resources (copy-license) @ javalin ---
+[INFO] Copying 1 resource from .. to target/classes/META-INF
+[INFO] 
+[INFO] --- resources:3.5.0:copy-resources (copy-pom-properties) @ javalin ---
+[INFO] Copying 1 resource from .. to target
+[INFO] 
+[INFO] --- jacoco:0.8.15:prepare-agent (default) @ javalin ---
+[INFO] argLine set to -javaagent:/root/.m2/repository/org/jacoco/org.jacoco.agent/0.8.15/org.jacoco.agent-0.8.15-runtime.jar=destfile=/tmp/claude-0/sec/javalin/review/probe/javalin/target/jacoco.exec
+[INFO] 
+[INFO] --- resources:3.5.0:resources (default-resources) @ javalin ---
+[INFO] skip non existing resourceDirectory /tmp/claude-0/sec/javalin/review/probe/javalin/src/main/resources
+[INFO] 
+[INFO] --- kotlin:2.2.20:compile (compile) @ javalin ---
+[WARNING] Source root doesn't exist: /tmp/claude-0/sec/javalin/review/probe/javalin/src/main/kotlin
+[WARNING] Using experimental Kotlin incremental compilation
+[INFO] 
+[INFO] --- compiler:3.15.0:compile (java-compile) @ javalin ---
+[INFO] Recompiling the module because of changed source code.
+[INFO] Compiling 14 source files with javac [debug release 17] to target/classes
+[INFO] 
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ javalin ---
+[INFO] Copying 42 resources from src/test/resources to target/test-classes
+[INFO] 
+[INFO] --- kotlin:2.2.20:test-compile (test-compile) @ javalin ---
+[WARNING] Using experimental Kotlin incremental compilation
+[INFO] 
+[INFO] --- compiler:3.15.0:testCompile (java-test-compile) @ javalin ---
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 42 source files with javac [debug release 17] to target/test-classes
+[INFO] 
+[INFO] --- surefire:3.5.6:test (default-test) @ javalin ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO] 
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djavax.net.ssl.trustStoreType=JKS -Dhttps.proxyHost=127.0.0.1 -Dhttps.proxyPort=34059 -Dhttp.nonProxyHosts=localhost|127.0.0.1|::1|127.*|0.*|::|169.254.*|api.anthropic.com|api-staging.anthropic.com|api-pr-preview.anthropic.com|mcp-proxy.anthropic.com|mcp-proxy-staging.anthropic.com|registry.npmjs.org|jsr.io|npm.jsr.io|pypi.org|files.pythonhosted.org|index.crates.io|proxy.golang.org|host.docker.internal|10.*|172.16.*|172.17.*|172.18.*|172.19.*|172.20.*|172.21.*|172.22.*|172.23.*|172.24.*|172.25.*|172.26.*|172.27.*|172.28.*|172.29.*|172.30.*|172.31.*|192.168.*|100.64.0.0/10|*.svc.cluster.local|*.svc.cluster.local -Djdk.http.auth.tunneling.disabledSchemes= -Djdk.http.auth.proxying.disabledSchemes=
+[INFO] Running io.javalin.ReviewProbeTest
+[main] INFO io.javalin.Javalin - Starting Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - jetty-12.1.12; built: 2026-08-03T22:37:55.389Z; git: 10dd3948f37767b84cc2c62358364f042e51dbbe; jvm 21.0.12.1+1-1-24.04.4-Ubuntu
+[main] INFO org.eclipse.jetty.session.DefaultSessionIdManager - Session workerName=node0
+[main] INFO org.eclipse.jetty.server.handler.ContextHandler - Started oeje10s.ServletContextHandler@adafe19{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@7e2bd5e6{STARTED}}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Started oeje10s.ServletContextHandler@adafe19{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@7e2bd5e6{STARTED}}
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Started oejs.ServerConnector@57904f71{HTTP/1.1, (http/1.1)}{0.0.0.0:37953}
+[main] INFO org.eclipse.jetty.server.Server - Started oejs.Server@7893c715{STARTING}[12.1.12,sto=0] @235ms
+[main] INFO io.javalin.Javalin - Javalin started in 1139ms \o/
+[main] INFO io.javalin.Javalin - Listening on http://localhost:37953/
+PROBE037 noauth -> HTTP/1.1 101 Switching Protocols | 
+PROBE037 auth -> HTTP/1.1 101 Switching Protocols | 
+PROBE037 lowercase-scheme -> HTTP/1.1 101 Switching Protocols | 
+PROBE037LOG user wsBeforeUpgrade
+PROBE037LOG connected
+PROBE037LOG user wsBeforeUpgrade
+PROBE037LOG connected
+PROBE037LOG user wsBeforeUpgrade
+PROBE037LOG connected
+[main] INFO io.javalin.Javalin - Stopping Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - Stopped oejs.Server@7893c715{STOPPING}[12.1.12,sto=0]
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Stopped oejs.ServerConnector@57904f71{HTTP/1.1, (http/1.1)}{0.0.0.0:0}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Stopped oeje10s.ServletContextHandler@adafe19{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@7e2bd5e6{STOPPED}}
+[main] INFO io.javalin.Javalin - Javalin has stopped
+[main] INFO io.javalin.Javalin - Starting Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - jetty-12.1.12; built: 2026-08-03T22:37:55.389Z; git: 10dd3948f37767b84cc2c62358364f042e51dbbe; jvm 21.0.12.1+1-1-24.04.4-Ubuntu
+[main] INFO org.eclipse.jetty.session.DefaultSessionIdManager - Session workerName=node0
+[main] INFO org.eclipse.jetty.server.handler.ContextHandler - Started oeje10s.ServletContextHandler@50df37eb{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@4b508371{STARTED}}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Started oeje10s.ServletContextHandler@50df37eb{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@4b508371{STARTED}}
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Started oejs.ServerConnector@3b7d8176{HTTP/1.1, (http/1.1)}{0.0.0.0:39587}
+[main] INFO org.eclipse.jetty.server.Server - Started oejs.Server@41143873{STARTING}[12.1.12,sto=0] @14ms
+[main] INFO io.javalin.Javalin - Javalin started in 17ms \o/
+[main] INFO io.javalin.Javalin - Listening on http://localhost:39587/
+PROBE050 HEAD /p/1 -> HTTP/1.1 200 OK | 
+PROBE050 HEAD /w/x/y -> HTTP/1.1 200 OK | 
+PROBE050 HEAD /both -> HTTP/1.1 204 No Content | 
+PROBE050 HEAD /open -> HTTP/1.1 200 OK | 
+PROBE050 GET /p/1 X-HTTP-Method-Override: HEAD
+-> HTTP/1.1 200 OK | 
+PROBE050 HEAD /nothing -> HTTP/1.1 404 Not Found | 
+PROBE050LOG bm HEAD /p/1 roles=[] ep=* pp={}
+PROBE050LOG bm HEAD /w/x/y roles=[] ep=* pp={}
+PROBE050LOG bm HEAD /both roles=[] ep=* pp={}
+PROBE050LOG bm HEAD /open roles=[] ep=* pp={}
+PROBE050LOG bm HEAD /p/1 roles=[] ep=* pp={}
+[main] INFO io.javalin.Javalin - Stopping Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - Stopped oejs.Server@41143873{STOPPING}[12.1.12,sto=0]
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Stopped oejs.ServerConnector@3b7d8176{HTTP/1.1, (http/1.1)}{0.0.0.0:0}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Stopped oeje10s.ServletContextHandler@50df37eb{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@4b508371{STOPPED}}
+[main] INFO io.javalin.Javalin - Javalin has stopped
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/tmp/probe0554575645543048164603, location=EXTERNAL, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/probe0554575645543048164603/'
+[main] INFO io.javalin.Javalin - Starting Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - jetty-12.1.12; built: 2026-08-03T22:37:55.389Z; git: 10dd3948f37767b84cc2c62358364f042e51dbbe; jvm 21.0.12.1+1-1-24.04.4-Ubuntu
+[main] INFO org.eclipse.jetty.session.DefaultSessionIdManager - Session workerName=node0
+[main] INFO org.eclipse.jetty.server.handler.ContextHandler - Started oeje10s.ServletContextHandler@1282f784{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@41167ded{STARTED}}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Started oeje10s.ServletContextHandler@1282f784{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@41167ded{STARTED}}
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Started oejs.ServerConnector@13e1e816{HTTP/1.1, (http/1.1)}{0.0.0.0:41621}
+[main] INFO org.eclipse.jetty.server.Server - Started oejs.Server@36238b12{STARTING}[12.1.12,sto=0] @8ms
+[main] INFO io.javalin.Javalin - Javalin started in 11ms \o/
+[main] INFO io.javalin.Javalin - Listening on http://localhost:41621/
+PROBE055 /secret/file.txt -> HTTP/1.1 401 Unauthorized | Unauthorized
+PROBE055 /%73ecret/file.txt -> HTTP/1.1 200 OK | content of secret/file.txt
+PROBE055 //secret/file.txt -> HTTP/1.1 200 OK | content of secret/file.txt
+PROBE055 /./secret/file.txt -> HTTP/1.1 404 Not Found | Endpoint GET /./secret/file.txt not found
+PROBE055 /x/../secret/file.txt -> HTTP/1.1 404 Not Found | Endpoint GET /x/../secret/file.txt not found
+PROBE055 /secret;a=b/file.txt -> HTTP/1.1 404 Not Found | Endpoint GET /secret;a=b/file.txt not found
+PROBE055 /secret%2Ffile.txt -> HTTP/1.1 404 Not Found | Endpoint GET /secret%2Ffile.txt not found
+PROBE055 /%2Fsecret/file.txt -> HTTP/1.1 404 Not Found | Endpoint GET /%2Fsecret/file.txt not found
+PROBE055 /secret%5Cfile.txt -> HTTP/1.1 404 Not Found | Endpoint GET /secret%5Cfile.txt not found
+PROBE055 /SECRET/file.txt -> HTTP/1.1 404 Not Found | Endpoint GET /SECRET/file.txt not found
+PROBE055 /a~b.txt -> HTTP/1.1 200 OK | content of a~b.txt
+PROBE055 /a%7Eb.txt -> HTTP/1.1 200 OK | content of a~b.txt
+PROBE055 /a%7eb.txt -> HTTP/1.1 200 OK | content of a~b.txt
+PROBE055 /a+b.txt -> HTTP/1.1 200 OK | content of a+b.txt
+PROBE055 /a%2Bb.txt -> HTTP/1.1 200 OK | content of a+b.txt
+PROBE055 /%41%31.txt -> HTTP/1.1 200 OK | content of A1.txt
+PROBE055 /x/y.txt -> HTTP/1.1 200 OK | content of x/y.txt
+PROBE055 /x%2fy.txt -> HTTP/1.1 404 Not Found | Endpoint GET /x%2fy.txt not found
+[main] INFO io.javalin.Javalin - Stopping Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - Stopped oejs.Server@36238b12{STOPPING}[12.1.12,sto=0]
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Stopped oejs.ServerConnector@13e1e816{HTTP/1.1, (http/1.1)}{0.0.0.0:0}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Stopped oeje10s.ServletContextHandler@1282f784{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@41167ded{STOPPED}}
+[main] INFO io.javalin.Javalin - Javalin has stopped
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 12.68 s -- in io.javalin.ReviewProbeTest
+[INFO] 
+[INFO] Results:
+[INFO] 
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  28.706 s
+[INFO] Finished at: 2026-10-20T12:14:38-04:00
+[INFO] ------------------------------------------------------------------------

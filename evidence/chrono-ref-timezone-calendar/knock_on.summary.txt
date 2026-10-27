@@ -1,0 +1,41 @@
+rows compared: 504
+changed rows per (process TZ, reference):
+  UTC                Date 2012-07-31T22:00Z                              0/14
+  UTC                {instant,tz:540} 2012-07-31T22:00Z                  3/14
+  UTC                {instant,tz:EST} 2012-08-01T03:00Z                  3/14
+  UTC                {instant,tz:JST} 2012-07-31T20:59Z (05:59 JST)      3/14
+  UTC                {instant,tz:JST} 2012-07-31T22:00Z                  3/14
+  UTC                {instant,tz:JST} 2012-07-31T22:00Z (07:00 JST)      3/14
+  UTC                {instant,tz:JST} 2012-08-01T12:00Z (mid-day)        0/14
+  UTC                {instant,tz:JST} 2012-08-04T22:00Z                  2/14
+  UTC                {instant,tz:JST} 2012-12-31T22:00Z                  4/14
+  UTC                {instant,tz:JST} 2021-08-16T20:00Z                  4/14
+  UTC                {instant,tz:null} 2012-07-31T22:00Z                 0/14
+  UTC                {instant} 2012-07-31T22:00Z                         0/14
+  Asia/Tokyo         Date 2012-07-31T22:00Z                              0/14
+  Asia/Tokyo         {instant,tz:540} 2012-07-31T22:00Z                  0/14
+  Asia/Tokyo         {instant,tz:EST} 2012-08-01T03:00Z                  3/14
+  Asia/Tokyo         {instant,tz:JST} 2012-07-31T20:59Z (05:59 JST)      0/14
+  Asia/Tokyo         {instant,tz:JST} 2012-07-31T22:00Z                  0/14
+  Asia/Tokyo         {instant,tz:JST} 2012-07-31T22:00Z (07:00 JST)      0/14
+  Asia/Tokyo         {instant,tz:JST} 2012-08-01T12:00Z (mid-day)        0/14
+  Asia/Tokyo         {instant,tz:JST} 2012-08-04T22:00Z                  0/14
+  Asia/Tokyo         {instant,tz:JST} 2012-12-31T22:00Z                  0/14
+  Asia/Tokyo         {instant,tz:JST} 2021-08-16T20:00Z                  0/14
+  Asia/Tokyo         {instant,tz:null} 2012-07-31T22:00Z                 0/14
+  Asia/Tokyo         {instant} 2012-07-31T22:00Z                         0/14
+  America/New_York   Date 2012-07-31T22:00Z                              0/14
+  America/New_York   {instant,tz:540} 2012-07-31T22:00Z                  3/14
+  America/New_York   {instant,tz:EST} 2012-08-01T03:00Z                  0/14
+  America/New_York   {instant,tz:JST} 2012-07-31T20:59Z (05:59 JST)      3/14
+  America/New_York   {instant,tz:JST} 2012-07-31T22:00Z                  3/14
+  America/New_York   {instant,tz:JST} 2012-07-31T22:00Z (07:00 JST)      3/14
+  America/New_York   {instant,tz:JST} 2012-08-01T12:00Z (mid-day)        0/14
+  America/New_York   {instant,tz:JST} 2012-08-04T22:00Z                  2/14
+  America/New_York   {instant,tz:JST} 2012-12-31T22:00Z                  4/14
+  America/New_York   {instant,tz:JST} 2021-08-16T20:00Z                  4/14
+  America/New_York   {instant,tz:null} 2012-07-31T22:00Z                 0/14
+  America/New_York   {instant} 2012-07-31T22:00Z                         0/14
+
+changed phrases (distinct): ['15 Feb', '2/15', 'Deadline is this month', 'Feb 15', 'last night', 'this month', 'this week', 'this year']
+unchanged phrases in every row: ['Feb 15, 2013', 'February', 'end of this month', 'next month', 'today', 'tomorrow at 5pm']

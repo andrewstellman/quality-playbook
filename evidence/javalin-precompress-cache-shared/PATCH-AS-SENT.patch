@@ -1,0 +1,78 @@
+From 4b279a5c09bf4628be7c146720e0ee623d93d1eb Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <astellman@stellman-greene.com>
+Date: Thu, 22 Oct 2026 18:23:21 -0400
+Subject: [PATCH] [static-files] Key the Jetty precompression cache by file
+
+JettyPrecompressingResourceHandler is shared by every static file config
+and cached bytes under the request path with the handler's hostedPath
+stripped, so /a/index.html and /b/index.html shared one cache entry and
+whichever was requested first was served for both until restart. This
+includes serving a role-protected handler's file at a public handler's
+URL. The cache is now keyed by the resolved resource URI, as the
+Jetty-free handler already keys by directory.
+---
+ .../JettyPrecompressingResourceHandler.kt     |  8 ++++---
+ .../TestStaticFilesPrecompressor.kt           | 21 +++++++++++++++++++
+ 2 files changed, 26 insertions(+), 3 deletions(-)
+
+diff --git a/javalin/src/main/java/io/javalin/jetty/JettyPrecompressingResourceHandler.kt b/javalin/src/main/java/io/javalin/jetty/JettyPrecompressingResourceHandler.kt
+index 6ee66bb..c5f3902 100644
+--- a/javalin/src/main/java/io/javalin/jetty/JettyPrecompressingResourceHandler.kt
++++ b/javalin/src/main/java/io/javalin/jetty/JettyPrecompressingResourceHandler.kt
+@@ -28,7 +28,7 @@ class JettyPrecompressingResourceHandler {
+         val preCompressor = compressionStrategy.findMatchingCompressor(ctx.header(Header.ACCEPT_ENCODING) ?: "")
+             .takeUnless { contentType == null || excludedMimeType(contentType, compressionStrategy) }
+ 
+-        val resultByteArray = getCachedResourceBytes(resource, resourcePath, preCompressor)
++        val resultByteArray = getCachedResourceBytes(resource, preCompressor)
+ 
+         ctx.header(Header.CONTENT_LENGTH, resultByteArray.size.toString())
+         ctx.header(Header.CONTENT_TYPE, contentType ?: "")
+@@ -48,8 +48,10 @@ class JettyPrecompressingResourceHandler {
+         else -> compressionStrategy.excludedMimeTypes.any { excluded -> mimeType.contains(excluded, ignoreCase = true) }
+     }
+ 
+-    private fun getCachedResourceBytes(resource: Resource, target: String, preCompressor: Compressor?): ByteArray {
+-        return compressedFiles.computeIfAbsent(target + (preCompressor?.extension() ?: "")) {
++    // Keyed by the resolved file, not the request path: handlers with different hostedPaths strip their prefix,
++    // so '/a/index.html' and '/b/index.html' both have the resource path '/index.html'.
++    private fun getCachedResourceBytes(resource: Resource, preCompressor: Compressor?): ByteArray {
++        return compressedFiles.computeIfAbsent(resource.uri.toString() + (preCompressor?.extension() ?: "")) {
+             ByteArrayOutputStream().also { output ->
+                 resource.newInputStream().use { input ->
+                     (preCompressor?.compress(output) ?: output).use { input.copyTo(it) }
+diff --git a/javalin/src/test/java/io/javalin/staticfiles/TestStaticFilesPrecompressor.kt b/javalin/src/test/java/io/javalin/staticfiles/TestStaticFilesPrecompressor.kt
+index d01af2a..6aefbe3 100644
+--- a/javalin/src/test/java/io/javalin/staticfiles/TestStaticFilesPrecompressor.kt
++++ b/javalin/src/test/java/io/javalin/staticfiles/TestStaticFilesPrecompressor.kt
+@@ -235,6 +235,27 @@ class TestStaticFilesPrecompressor {
+     }
+ 
+ 
++    @Test
++    fun `precompressed files are cached per file, not per path relative to the hosted path`() = testStaticFiles({ config ->
++        config.staticFiles.add {
++            it.hostedPath = "/a"
++            it.directory = "/public/subdir"
++            it.location = Location.CLASSPATH
++            it.precompressMaxSize = precompressMaxSize
++        }
++        config.staticFiles.add {
++            it.hostedPath = "/b"
++            it.directory = "/public/subpage"
++            it.location = Location.CLASSPATH
++            it.precompressMaxSize = precompressMaxSize
++        }
++    }) { _, http ->
++        val a = http.get("/a/index.html").body
++        val b = http.get("/b/index.html").body
++        assertThat(a).isEqualTo(TestStaticFilesPrecompressor::class.java.getResource("/public/subdir/index.html")!!.readText())
++        assertThat(b).isEqualTo(TestStaticFilesPrecompressor::class.java.getResource("/public/subpage/index.html")!!.readText())
++    }
++
+     private fun Response.contentLength() = this.headers.get(Header.CONTENT_LENGTH)
+     private fun Response.contentEncoding() = this.headers.get(Header.CONTENT_ENCODING)
+ 
+-- 
+2.43.0
+

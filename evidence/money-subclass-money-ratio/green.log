@@ -1,0 +1,211 @@
+$ /work/batch/runs/money/bin/run-tests /work/batch/runs/money/scratch/fix-money-subclass-money-ratio spec/money/arithmetic_spec.rb
+
+Randomized with seed 41480
+
+Money::Arithmetic
+  #/
+    raises ZeroDivisionError when dividing by Money with zero value in same currency
+    divides Money by Money (different currency) and returns Float
+    preserves the class in the result when using a subclass of Money
+    returns a Float when dividing a subclass of Money by a Money
+    divides Money by Integer and returns Money
+    raises ZeroDivisionError when dividing by numeric zero
+    raises ZeroDivisionError when dividing by Money with zero value
+    divides Money by Money (same currency) and returns Float
+    behaves like instance with custom bank
+      returns custom bank from new instance
+    with infinite_precision
+      uses BigDecimal division
+    rounding preference
+      when floor rounding
+        obeys the rounding preference
+      when ceiling rounding
+        obeys the rounding preference
+      when half up rounding
+        obeys the rounding preference
+      when half down rounding
+        obeys the rounding preference
+  #==
+    returns true if both amounts are zero, even if currency differs
+    can be used to compare with an object that inherits from Money
+    allows comparison with zero
+    raises error for non-zero numerics
+    returns true if both the amounts and currencies are equal
+    returns false if used to compare with an object that doesn't inherit from Money
+  #nonzero?
+    has the same return-value semantics as Numeric#nonzero?
+    returns whether the amount is not 0
+  -@
+    preserves the class in the result when using a subclass of Money
+    changes the sign of a number
+    behaves like instance with custom bank
+      returns custom bank from new instance
+  #coerce
+    compares with numeric 0
+    raises TypeError adding by a Money (unless other is a Money)
+    allows subtraction from numeric zero
+    raises errors for all numeric types, not just Integer
+    treats multiplication as commutative
+    allows mathematical operations by coercing arguments
+    raises TypeError dividing by a Money (unless other is a Money)
+    doesn't work with non-numerics
+    raises TypeError subtracting by a Money (unless other is a Money)
+    allows addition from numeric zero
+    allows non-default currency money objects to be summed
+    correctly handles <=>
+  #positive?
+    returns false if the amount is 0
+    returns true if the amount is greater than 0
+    returns false if the amount is negative
+  #*
+    does not multiply Money by Money (different currency)
+    multiplies Money by Integer and returns Money
+    does not multiply Money by an object which is NOT a number
+    does not multiply Money by Money (same currency)
+    preserves the class in the result when using a subclass of Money
+    behaves like instance with custom bank
+      returns custom bank from new instance
+  #+
+    raises TypeError when adding non-zero Numeric
+    preserves the class in the result when using a subclass of Money
+    adds other amount to current amount (same currency)
+    converts other object amount to current currency and adds other amount to current amount (different currency)
+    adds Integer 0 to money and returns the same amount
+    raises TypeError when adding a non-Numeric value
+    behaves like instance with custom bank
+      returns custom bank from new instance
+  #modulo
+    calculates modulo with Money (different currency)
+    calculates modulo with Integer
+    calculates modulo with Money (same currency)
+  #/
+    when conversions disallowed
+      when other is money with different currency
+        raises Money::Bank::DifferentCurrencyError
+        when zero
+          raises Money::Bank::DifferentCurrencyError
+  #negative?
+    returns true if the amount is less than 0
+    returns false if the amount is 0
+    returns false if the amount is greater than 0
+  #eql?
+    returns true if and only if their amount and currency are equal
+    returns false if used to compare with an object that doesn't inherit from Money
+    can be used to compare with an object that inherits from Money
+    with strict_eql_compare set to false
+      returns true when comparing zero
+      warns
+    with strict_eql_compare set to true
+      does not warn
+      does not make an exception for zero
+  #-
+    when conversions disallowed
+      when other is money with different currency
+        raises Money::Bank::DifferentCurrencyError
+        when zero
+          raises Money::Bank::DifferentCurrencyError
+  #<=>
+    returns nil if currency conversion fails, and therefore cannot be compared
+    returns nil when comparing with an object that doesn't inherit from Money
+    compares with zero Money in any currency
+    can be used to compare with an object that inherits from Money
+    compares with numeric 0
+    converts other object amount to current currency, then compares the two object amounts (different currency)
+    compares the two object amounts (same currency)
+    when conversions disallowed
+      when currencies differ
+        when both values are 1_00
+          raises currency error
+        when both values are 0
+          considers them equal
+  #%
+    calculates modulo with Integer
+    calculates modulo with Money (same currency)
+    calculates modulo with Money (different currency)
+  #-
+    subtracts other amount from current amount (same currency)
+    raises TypeError when adding a non-Numeric value
+    converts other object amount to current currency and subtracts other amount from current amount (different currency)
+    raises TypeError when adding non-zero Numeric
+    preserves the class in the result when using a subclass of Money
+    subtract Integer 0 to money and returns the same amount
+    behaves like instance with custom bank
+      returns custom bank from new instance
+  #divmod
+    when conversions disallowed
+      when other is money with different currency
+        raises Money::Bank::DifferentCurrencyError
+        when zero
+          raises Money::Bank::DifferentCurrencyError
+  #zero?
+    returns whether the amount is 0
+  #remainder
+    calculates remainder with Integer
+    behaves like instance with custom bank
+      returns custom bank from new instance
+  #abs
+    returns the absolute value as a new Money object
+    preserves the class in the result when using a subclass of Money
+    behaves like instance with custom bank
+      returns custom bank from new instance
+  #+
+    when conversions disallowed
+      when other is money with different currency
+        raises Money::Bank::DifferentCurrencyError
+        when zero
+          raises Money::Bank::DifferentCurrencyError
+  #remainder
+    when conversions disallowed
+      when other is money with different currency
+        raises Money::Bank::DifferentCurrencyError
+        when zero
+          raises Money::Bank::DifferentCurrencyError
+  #div
+    divides Money by Integer and returns Money
+    divides Money by Money (different currency) and returns Float
+    divides Money by Money (same currency) and returns Float
+    with infinite_precision
+      uses BigDecimal division
+  #divmod
+    calculates division and modulo with Money (same currency)
+    preserves the class in the result when using a subclass of Money by a subclass of Money
+    preserves the class in the result when dividing a subclass of Money by a fixnum
+    raises ZeroDivisionError when dividing by Money with zero value in same currency
+    raises ZeroDivisionError when dividing by Money with zero value
+    calculates division and modulo with Integer
+    calculates division and modulo with Money (different currency)
+    raises ZeroDivisionError when dividing by numeric zero
+    behaves like instance with custom bank
+      returns custom bank from new instance
+    behaves like instance with custom bank
+      returns custom bank from new instance
+    with infinite_precision
+      uses BigDecimal division
+
+Top 10 slowest examples (0.02323 seconds, 44.7% of total time):
+  Money::Arithmetic#/ raises ZeroDivisionError when dividing by Money with zero value in same currency
+    0.00533 seconds ./spec/money/arithmetic_spec.rb:470
+  Money::Arithmetic#/ divides Money by Money (different currency) and returns Float
+    0.00533 seconds ./spec/money/arithmetic_spec.rb:435
+  Money::Arithmetic#divmod calculates division and modulo with Integer
+    0.00491 seconds ./spec/money/arithmetic_spec.rb:543
+  Money::Arithmetic#+ when conversions disallowed when other is money with different currency when zero raises Money::Bank::DifferentCurrencyError
+    0.00198 seconds ./spec/money/arithmetic_spec.rb:889
+  Money::Arithmetic#divmod calculates division and modulo with Money (different currency)
+    0.00127 seconds ./spec/money/arithmetic_spec.rb:567
+  Money::Arithmetic#% calculates modulo with Money (different currency)
+    0.00124 seconds ./spec/money/arithmetic_spec.rb:696
+  Money::Arithmetic#nonzero? returns whether the amount is not 0
+    0.00094 seconds ./spec/money/arithmetic_spec.rb:753
+  Money::Arithmetic#== returns false if used to compare with an object that doesn't inherit from Money
+    0.00085 seconds ./spec/money/arithmetic_spec.rb:34
+  Money::Arithmetic#div divides Money by Money (different currency) and returns Float
+    0.00071 seconds ./spec/money/arithmetic_spec.rb:513
+  Money::Arithmetic#modulo calculates modulo with Money (different currency)
+    0.00068 seconds ./spec/money/arithmetic_spec.rb:656
+
+Finished in 0.05192 seconds (files took 0.15921 seconds to load)
+116 examples, 0 failures
+
+Randomized with seed 41480
+

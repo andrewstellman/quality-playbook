@@ -1,0 +1,1062 @@
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djavax.net.ssl.trustStoreType=JKS -Dhttps.proxyHost=127.0.0.1 -Dhttps.proxyPort=34059 -Dhttp.nonProxyHosts=localhost|127.0.0.1|::1|127.*|0.*|::|169.254.*|api.anthropic.com|api-staging.anthropic.com|api-pr-preview.anthropic.com|mcp-proxy.anthropic.com|mcp-proxy-staging.anthropic.com|registry.npmjs.org|jsr.io|npm.jsr.io|pypi.org|files.pythonhosted.org|index.crates.io|proxy.golang.org|host.docker.internal|10.*|172.16.*|172.17.*|172.18.*|172.19.*|172.20.*|172.21.*|172.22.*|172.23.*|172.24.*|172.25.*|172.26.*|172.27.*|172.28.*|172.29.*|172.30.*|172.31.*|192.168.*|100.64.0.0/10|*.svc.cluster.local|*.svc.cluster.local -Djdk.http.auth.tunneling.disabledSchemes= -Djdk.http.auth.proxying.disabledSchemes=
+[INFO] Scanning for projects...
+[INFO] Inspecting build with total of 1 modules
+[INFO] Installing Central Publishing features
+[INFO] 
+[INFO] -------------------------< io.javalin:javalin >-------------------------
+[INFO] Building Javalin 7.2.4-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- git-commit-id:10.0.0:revision (default) @ javalin ---
+[INFO] 
+[INFO] --- resources:3.5.0:copy-resources (copy-license) @ javalin ---
+[INFO] Copying 1 resource from .. to target/classes/META-INF
+[INFO] 
+[INFO] --- resources:3.5.0:copy-resources (copy-pom-properties) @ javalin ---
+[INFO] Copying 1 resource from .. to target
+[INFO] 
+[INFO] --- jacoco:0.8.15:prepare-agent (default) @ javalin ---
+[INFO] argLine set to -javaagent:/root/.m2/repository/org/jacoco/org.jacoco.agent/0.8.15/org.jacoco.agent-0.8.15-runtime.jar=destfile=/tmp/claude-0/sec/javalin/src/javalin/target/jacoco.exec
+[INFO] 
+[INFO] --- resources:3.5.0:resources (default-resources) @ javalin ---
+[INFO] skip non existing resourceDirectory /tmp/claude-0/sec/javalin/src/javalin/src/main/resources
+[INFO] 
+[INFO] --- kotlin:2.2.20:compile (compile) @ javalin ---
+[WARNING] Source root doesn't exist: /tmp/claude-0/sec/javalin/src/javalin/src/main/kotlin
+[WARNING] Using experimental Kotlin incremental compilation
+[INFO] 
+[INFO] --- compiler:3.15.0:compile (java-compile) @ javalin ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ javalin ---
+[INFO] Copying 42 resources from src/test/resources to target/test-classes
+[INFO] 
+[INFO] --- kotlin:2.2.20:test-compile (test-compile) @ javalin ---
+[WARNING] Using experimental Kotlin incremental compilation
+[INFO] 
+[INFO] --- compiler:3.15.0:testCompile (java-test-compile) @ javalin ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- surefire:3.5.6:test (default-test) @ javalin ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO] 
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djavax.net.ssl.trustStoreType=JKS -Dhttps.proxyHost=127.0.0.1 -Dhttps.proxyPort=34059 -Dhttp.nonProxyHosts=localhost|127.0.0.1|::1|127.*|0.*|::|169.254.*|api.anthropic.com|api-staging.anthropic.com|api-pr-preview.anthropic.com|mcp-proxy.anthropic.com|mcp-proxy-staging.anthropic.com|registry.npmjs.org|jsr.io|npm.jsr.io|pypi.org|files.pythonhosted.org|index.crates.io|proxy.golang.org|host.docker.internal|10.*|172.16.*|172.17.*|172.18.*|172.19.*|172.20.*|172.21.*|172.22.*|172.23.*|172.24.*|172.25.*|172.26.*|172.27.*|172.28.*|172.29.*|172.30.*|172.31.*|192.168.*|100.64.0.0/10|*.svc.cluster.local|*.svc.cluster.local -Djdk.http.auth.tunneling.disabledSchemes= -Djdk.http.auth.proxying.disabledSchemes=
+[INFO] Running io.javalin.TestSse
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] ERROR io.javalin.Javalin - TestUtil#test failed - full log output below:
+[main] INFO io.javalin.Javalin - Starting Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - jetty-12.1.12; built: 2026-08-03T22:37:55.389Z; git: 10dd3948f37767b84cc2c62358364f042e51dbbe; jvm 21.0.12.1+1-1-24.04.4-Ubuntu
+[main] INFO org.eclipse.jetty.session.DefaultSessionIdManager - Session workerName=node0
+[main] INFO org.eclipse.jetty.server.handler.ContextHandler - Started oeje10s.ServletContextHandler@5b31a9e3{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@282240{STARTED}}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Started oeje10s.ServletContextHandler@5b31a9e3{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@282240{STARTED}}
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Started oejs.ServerConnector@3b590f6a{HTTP/1.1, (http/1.1)}{0.0.0.0:39507}
+[main] INFO org.eclipse.jetty.server.Server - Started oejs.Server@1e160a9e{STARTING}[12.1.12,sto=0] @20ms
+[main] INFO io.javalin.Javalin - 
+       __                  ___          _____
+      / /___ __   ______ _/ (_)___     /__  /
+ __  / / __ `/ | / / __ `/ / / __ \      / /
+/ /_/ / /_/ /| |/ / /_/ / / / / / /     / /
+\____/\__,_/ |___/\__,_/_/_/_/ /_/     /_/
+
+       https://javalin.io/documentation
+
+[main] INFO io.javalin.Javalin - Javalin started in 22ms \o/
+[main] INFO io.javalin.Javalin - Listening on http://localhost:39507/
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[ERROR] Tests run: 28, Failures: 0, Errors: 1, Skipped: 0, Time elapsed: 6.494 s <<< FAILURE! -- in io.javalin.TestSse
+[ERROR] io.javalin.TestSse.carriage return in a comment cannot inject a field -- Time elapsed: 0.153 s <<< ERROR!
+java.lang.RuntimeException: 
+java.lang.Exception: Assertion error: 
+Expecting empty but was: ["data: forged"]
+	at io.javalin.testing.TestUtil.testWithResult(TestUtil.java:56)
+	at io.javalin.testing.TestUtil.test(TestUtil.java:33)
+	at io.javalin.testing.TestUtil.test(TestUtil.java:29)
+	at io.javalin.TestSse.carriage return in a comment cannot inject a field(TestSse.kt:305)
+Caused by: java.lang.Exception: Assertion error: 
+Expecting empty but was: ["data: forged"]
+	at io.javalin.testing.TestUtil.runAndCaptureLogs(TestUtil.java:75)
+	at io.javalin.testing.TestUtil.testWithResult(TestUtil.java:41)
+	... 3 more
+
+[INFO] Running io.javalin.TestContextRouteRoles
+[main] ERROR io.javalin.Javalin - TestUtil#test failed - full log output below:
+[main] INFO io.javalin.Javalin - Starting Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - jetty-12.1.12; built: 2026-08-03T22:37:55.389Z; git: 10dd3948f37767b84cc2c62358364f042e51dbbe; jvm 21.0.12.1+1-1-24.04.4-Ubuntu
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO org.eclipse.jetty.session.DefaultSessionIdManager - Session workerName=node0
+[main] INFO org.eclipse.jetty.server.handler.ContextHandler - Started oeje10s.ServletContextHandler@5400db7e{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@a84b6de{STARTED}}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Started oeje10s.ServletContextHandler@5400db7e{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@a84b6de{STARTED}}
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Started oejs.ServerConnector@76eee0b1{HTTP/1.1, (http/1.1)}{0.0.0.0:32989}
+[main] INFO org.eclipse.jetty.server.Server - Started oejs.Server@2119b989{STARTING}[12.1.12,sto=0] @5ms
+[main] INFO io.javalin.Javalin - 
+       __                  ___          _____
+      / /___ __   ______ _/ (_)___     /__  /
+ __  / / __ `/ | / / __ `/ / / __ \      / /
+/ /_/ / /_/ /| |/ / /_/ / / / / / /     / /
+\____/\__,_/ |___/\__,_/_/_/_/ /_/     /_/
+
+       https://javalin.io/documentation
+
+[main] INFO io.javalin.Javalin - Javalin started in 8ms \o/
+[main] INFO io.javalin.Javalin - Listening on http://localhost:32989/
+
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[ERROR] Tests run: 6, Failures: 0, Errors: 1, Skipped: 0, Time elapsed: 0.389 s <<< FAILURE! -- in io.javalin.TestContextRouteRoles
+[ERROR] io.javalin.TestContextRouteRoles.HEAD request answered by a GET handler has the GET handler's route roles -- Time elapsed: 0.033 s <<< ERROR!
+java.lang.RuntimeException: 
+java.lang.Exception: Assertion error: 
+expected: 401
+ but was: 200
+	at io.javalin.testing.TestUtil.testWithResult(TestUtil.java:56)
+	at io.javalin.testing.TestUtil.test(TestUtil.java:33)
+	at io.javalin.testing.TestUtil.test(TestUtil.java:29)
+	at io.javalin.TestContextRouteRoles.HEAD request answered by a GET handler has the GET handler's route roles(TestContextRouteRoles.kt:59)
+Caused by: java.lang.Exception: Assertion error: 
+expected: 401
+ but was: 200
+	at io.javalin.testing.TestUtil.runAndCaptureLogs(TestUtil.java:75)
+	at io.javalin.testing.TestUtil.testWithResult(TestUtil.java:41)
+	... 3 more
+
+[INFO] Running io.javalin.TestRequest
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] ERROR io.javalin.Javalin - TestUtil#test failed - full log output below:
+[main] INFO io.javalin.Javalin - Starting Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - jetty-12.1.12; built: 2026-08-03T22:37:55.389Z; git: 10dd3948f37767b84cc2c62358364f042e51dbbe; jvm 21.0.12.1+1-1-24.04.4-Ubuntu
+[main] INFO org.eclipse.jetty.session.DefaultSessionIdManager - Session workerName=node0
+[main] INFO org.eclipse.jetty.server.handler.ContextHandler - Started oeje10s.ServletContextHandler@7cab8d52{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@141eb85b{STARTED}}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Started oeje10s.ServletContextHandler@7cab8d52{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@141eb85b{STARTED}}
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Started oejs.ServerConnector@7d432bc0{HTTP/1.1, (http/1.1)}{0.0.0.0:34239}
+[main] INFO org.eclipse.jetty.server.Server - Started oejs.Server@6b04689e{STARTING}[12.1.12,sto=0] @7ms
+[main] INFO io.javalin.Javalin - 
+       __                  ___          _____
+      / /___ __   ______ _/ (_)___     /__  /
+ __  / / __ `/ | / / __ `/ / / __ \      / /
+/ /_/ / /_/ /| |/ / /_/ / / / / / /     / /
+\____/\__,_/ |___/\__,_/_/_/_/ /_/     /_/
+
+       https://javalin.io/documentation
+
+[main] INFO io.javalin.Javalin - Javalin started in 10ms \o/
+[main] INFO io.javalin.Javalin - Listening on http://localhost:34239/
+
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] ERROR io.javalin.Javalin - TestUtil#test failed - full log output below:
+[main] INFO io.javalin.Javalin - Starting Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - jetty-12.1.12; built: 2026-08-03T22:37:55.389Z; git: 10dd3948f37767b84cc2c62358364f042e51dbbe; jvm 21.0.12.1+1-1-24.04.4-Ubuntu
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO org.eclipse.jetty.session.DefaultSessionIdManager - Session workerName=node0
+[main] INFO org.eclipse.jetty.server.handler.ContextHandler - Started oeje10s.ServletContextHandler@2cc82c83{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@75a5a912{STARTED}}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Started oeje10s.ServletContextHandler@2cc82c83{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@75a5a912{STARTED}}
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Started oejs.ServerConnector@5f3bc119{HTTP/1.1, (http/1.1)}{0.0.0.0:40791}
+[main] INFO org.eclipse.jetty.server.Server - Started oejs.Server@1b9cfc19{STARTING}[12.1.12,sto=0] @17ms
+[main] INFO io.javalin.Javalin - 
+       __                  ___          _____
+      / /___ __   ______ _/ (_)___     /__  /
+ __  / / __ `/ | / / __ `/ / / __ \      / /
+/ /_/ / /_/ /| |/ / /_/ / / / / / /     / /
+\____/\__,_/ |___/\__,_/_/_/_/ /_/     /_/
+
+       https://javalin.io/documentation
+
+[main] INFO io.javalin.Javalin - Javalin started in 19ms \o/
+[main] INFO io.javalin.Javalin - Listening on http://localhost:40791/
+
+[ERROR] Tests run: 47, Failures: 0, Errors: 2, Skipped: 0, Time elapsed: 4.500 s <<< FAILURE! -- in io.javalin.TestRequest
+[ERROR] io.javalin.TestRequest.basicAuthCredentials accepts the scheme name in any case -- Time elapsed: 0.039 s <<< ERROR!
+java.lang.RuntimeException: 
+java.lang.Exception: Assertion error: 
+expected: "some-username"
+ but was: "null"
+	at io.javalin.testing.TestUtil.testWithResult(TestUtil.java:56)
+	at io.javalin.testing.TestUtil.test(TestUtil.java:33)
+	at io.javalin.testing.TestUtil.test(TestUtil.java:29)
+	at io.javalin.TestRequest.basicAuthCredentials accepts the scheme name in any case(TestRequest.kt:315)
+Caused by: java.lang.Exception: Assertion error: 
+expected: "some-username"
+ but was: "null"
+	at io.javalin.testing.TestUtil.runAndCaptureLogs(TestUtil.java:75)
+	at io.javalin.testing.TestUtil.testWithResult(TestUtil.java:41)
+	... 3 more
+
+[ERROR] io.javalin.TestRequest.basic auth filter plugin denies every request when no credentials are configured -- Time elapsed: 0.043 s <<< ERROR!
+java.lang.RuntimeException: 
+java.lang.Exception: Assertion error: 
+expected: 401 Unauthorized
+ but was: 200 OK
+	at io.javalin.testing.TestUtil.testWithResult(TestUtil.java:56)
+	at io.javalin.testing.TestUtil.test(TestUtil.java:33)
+	at io.javalin.TestRequest.basic auth filter plugin denies every request when no credentials are configured(TestRequest.kt:346)
+Caused by: java.lang.Exception: Assertion error: 
+expected: 401 Unauthorized
+ but was: 200 OK
+	at io.javalin.testing.TestUtil.runAndCaptureLogs(TestUtil.java:75)
+	at io.javalin.testing.TestUtil.testWithResult(TestUtil.java:41)
+	... 2 more
+
+[INFO] Running io.javalin.staticfiles.TestStaticFiles
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=src/test/external/, location=EXTERNAL, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/src/test/external/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/tmp/junit-3213315449916723666, location=EXTERNAL, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/junit-3213315449916723666/'
+Oct 20, 2026 12:00:14 PM org.junit.jupiter.api.io.TempDirDeletionStrategy$Standard$1 warnAboutLinkWithTargetOutsideTempDir
+WARNING: Deleting symbolic link from location inside of temp dir (/tmp/junit-3213315449916723666/linked_html.html) to location outside of temp dir (/tmp/claude-0/sec/javalin/src/javalin/src/test/external/html.html) but not the target file/directory
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=src/test/external/, location=EXTERNAL, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/src/test/external/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public/immutable, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/immutable/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public/protected, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/protected/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public/subdir, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/subdir/'
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public/subdir, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/subdir/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/webjars, directory=META-INF/resources/webjars, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=31622400}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: '[jar:file:///root/.m2/repository/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/, jar:file:///root/.m2/repository/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/]'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/assets, directory=/public/assets, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/assets/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={javalin=application/x-javalin}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/url-prefix, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/url-prefix, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=31622400}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/subdir, directory=/public/subdir, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/subdir/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/tmp/junit-16480352894867706179, location=EXTERNAL, precompressMaxSize=-1, aliasCheck=io.javalin.staticfiles.TestStaticFiles$$Lambda/0x00007fdaa45c6000@4a29520e, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/junit-16480352894867706179/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/url-prefix, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=io.javalin.staticfiles.TestStaticFiles$$Lambda/0x00007fdaa45c6000@4a29520e, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+Oct 20, 2026 12:00:15 PM org.junit.jupiter.api.io.TempDirDeletionStrategy$Standard$1 warnAboutLinkWithTargetOutsideTempDir
+WARNING: Deleting symbolic link from location inside of temp dir (/tmp/junit-16480352894867706179/linked_html.html) to location outside of temp dir (/tmp/claude-0/sec/javalin/src/javalin/src/test/external/html.html) but not the target file/directory
+Oct 20, 2026 12:00:15 PM org.junit.jupiter.api.io.TempDirDeletionStrategy$Standard$1 warnAboutLinkWithTargetOutsideTempDir
+WARNING: Deleting symbolic link from location inside of temp dir (/tmp/junit-16480352894867706179/linked_txt.txt) to location outside of temp dir (/tmp/claude-0/sec/javalin/src/javalin/src/test/external/txt.txt) but not the target file/directory
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/url-prefix, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] ERROR io.javalin.Javalin - TestUtil#test failed - full log output below:
+[main] INFO io.javalin.Javalin - Starting Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - jetty-12.1.12; built: 2026-08-03T22:37:55.389Z; git: 10dd3948f37767b84cc2c62358364f042e51dbbe; jvm 21.0.12.1+1-1-24.04.4-Ubuntu
+[main] INFO org.eclipse.jetty.session.DefaultSessionIdManager - Session workerName=node0
+[main] INFO org.eclipse.jetty.server.handler.ContextHandler - Started oeje10s.ServletContextHandler@38293d23{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@1ee37c7a{STARTED}}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Started oeje10s.ServletContextHandler@38293d23{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@1ee37c7a{STARTED}}
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Started oejs.ServerConnector@7d774c87{HTTP/1.1, (http/1.1)}{0.0.0.0:45861}
+[main] INFO org.eclipse.jetty.server.Server - Started oejs.Server@4973dacf{STARTING}[12.1.12,sto=0] @10ms
+[main] INFO io.javalin.Javalin - 
+       __                  ___          _____
+      / /___ __   ______ _/ (_)___     /__  /
+ __  / / __ `/ | / / __ `/ / / __ \      / /
+/ /_/ / /_/ /| |/ / /_/ / / / / / /     / /
+\____/\__,_/ |___/\__,_/_/_/_/ /_/     /_/
+
+       https://javalin.io/documentation
+
+[main] INFO io.javalin.Javalin - Javalin started in 12ms \o/
+[main] INFO io.javalin.Javalin - Listening on http://localhost:45861/
+
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=io.javalin.staticfiles.TestStaticFiles$$Lambda/0x00007fdaa45c8488@33c5cc0, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[ERROR] Tests run: 31, Failures: 0, Errors: 1, Skipped: 0, Time elapsed: 2.231 s <<< FAILURE! -- in io.javalin.staticfiles.TestStaticFiles
+[ERROR] io.javalin.staticfiles.TestStaticFiles.before-handler cannot be bypassed with a percent-encoded static file path -- Time elapsed: 0.033 s <<< ERROR!
+java.lang.RuntimeException: 
+java.lang.Exception: Assertion error: 
+Expecting actual:
+  "<h1>Secret file</h1>"
+not to contain:
+  "Secret file"
+
+	at io.javalin.testing.TestUtil.testWithResult(TestUtil.java:56)
+	at io.javalin.testing.TestUtil.test(TestUtil.java:33)
+	at io.javalin.staticfiles.StaticFilesTestUtilKt.testStaticFiles(StaticFilesTestUtil.kt:20)
+	at io.javalin.staticfiles.TestStaticFiles.before-handler cannot be bypassed with a percent-encoded static file path(TestStaticFiles.kt:183)
+Caused by: java.lang.Exception: Assertion error: 
+Expecting actual:
+  "<h1>Secret file</h1>"
+not to contain:
+  "Secret file"
+
+	at io.javalin.testing.TestUtil.runAndCaptureLogs(TestUtil.java:75)
+	at io.javalin.testing.TestUtil.testWithResult(TestUtil.java:41)
+	... 3 more
+
+[INFO] Running io.javalin.websocket.TestWsUpgrade
+[main] ERROR io.javalin.Javalin - TestUtil#test failed - full log output below:
+[main] INFO io.javalin.Javalin - Starting Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - jetty-12.1.12; built: 2026-08-03T22:37:55.389Z; git: 10dd3948f37767b84cc2c62358364f042e51dbbe; jvm 21.0.12.1+1-1-24.04.4-Ubuntu
+[main] INFO org.eclipse.jetty.session.DefaultSessionIdManager - Session workerName=node0
+[main] INFO org.eclipse.jetty.server.handler.ContextHandler - Started oeje10s.ServletContextHandler@2b39e77d{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@201c1d99{STARTED}}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Started oeje10s.ServletContextHandler@2b39e77d{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@201c1d99{STARTED}}
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Started oejs.ServerConnector@36afd06f{HTTP/1.1, (http/1.1)}{0.0.0.0:35627}
+[main] INFO org.eclipse.jetty.server.Server - Started oejs.Server@18dda2e1{STARTING}[12.1.12,sto=0] @3ms
+[main] INFO io.javalin.Javalin - 
+       __                  ___          _____
+      / /___ __   ______ _/ (_)___     /__  /
+ __  / / __ `/ | / / __ `/ / / __ \      / /
+/ /_/ / /_/ /| |/ / /_/ / / / / / /     / /
+\____/\__,_/ |___/\__,_/_/_/_/ /_/     /_/
+
+       https://javalin.io/documentation
+
+[main] INFO io.javalin.Javalin - Javalin started in 4ms \o/
+[main] INFO io.javalin.Javalin - Listening on http://localhost:35627/
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+
+[ERROR] Tests run: 10, Failures: 0, Errors: 1, Skipped: 0, Time elapsed: 0.530 s <<< FAILURE! -- in io.javalin.websocket.TestWsUpgrade
+[ERROR] io.javalin.websocket.TestWsUpgrade.basic auth plugin protects websocket upgrades -- Time elapsed: 0.016 s <<< ERROR!
+java.lang.RuntimeException: 
+java.lang.Exception: Assertion error: 
+expected: 401
+ but was: 405
+	at io.javalin.testing.TestUtil.testWithResult(TestUtil.java:56)
+	at io.javalin.testing.TestUtil.test(TestUtil.java:33)
+	at io.javalin.websocket.TestWsUpgrade.basic auth plugin protects websocket upgrades(TestWsUpgrade.kt:59)
+Caused by: java.lang.Exception: Assertion error: 
+expected: 401
+ but was: 405
+	at io.javalin.testing.TestUtil.runAndCaptureLogs(TestUtil.java:75)
+	at io.javalin.testing.TestUtil.testWithResult(TestUtil.java:41)
+	... 2 more
+
+[INFO] Running io.javalin.TestHttpResponseExceptions
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] ERROR io.javalin.Javalin - TestUtil#test failed - full log output below:
+[main] INFO io.javalin.Javalin - Starting Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - jetty-12.1.12; built: 2026-08-03T22:37:55.389Z; git: 10dd3948f37767b84cc2c62358364f042e51dbbe; jvm 21.0.12.1+1-1-24.04.4-Ubuntu
+[main] INFO org.eclipse.jetty.session.DefaultSessionIdManager - Session workerName=node0
+[main] INFO org.eclipse.jetty.server.handler.ContextHandler - Started oeje10s.ServletContextHandler@5e91b051{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@19c145d2{STARTED}}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Started oeje10s.ServletContextHandler@5e91b051{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@19c145d2{STARTED}}
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Started oejs.ServerConnector@77376e83{HTTP/1.1, (http/1.1)}{0.0.0.0:39689}
+[main] INFO org.eclipse.jetty.server.Server - Started oejs.Server@708f4d81{STARTING}[12.1.12,sto=0] @15ms
+[main] INFO io.javalin.Javalin - 
+       __                  ___          _____
+      / /___ __   ______ _/ (_)___     /__  /
+ __  / / __ `/ | / / __ `/ / / __ \      / /
+/ /_/ / /_/ /| |/ / /_/ / / / / / /     / /
+\____/\__,_/ |___/\__,_/_/_/_/ /_/     /_/
+
+       https://javalin.io/documentation
+
+[main] INFO io.javalin.Javalin - Javalin started in 17ms \o/
+[main] INFO io.javalin.Javalin - Listening on http://localhost:39689/
+
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[ERROR] Tests run: 18, Failures: 0, Errors: 1, Skipped: 0, Time elapsed: 0.736 s <<< FAILURE! -- in io.javalin.TestHttpResponseExceptions
+[ERROR] io.javalin.TestHttpResponseExceptions.message is html-escaped when the response is served as html -- Time elapsed: 0.033 s <<< ERROR!
+java.lang.RuntimeException: 
+java.lang.Exception: Assertion error: 
+Expecting actual:
+  "bad name: <script>alert(1)</script>"
+not to contain:
+  "<script>"
+
+	at io.javalin.testing.TestUtil.testWithResult(TestUtil.java:56)
+	at io.javalin.testing.TestUtil.test(TestUtil.java:33)
+	at io.javalin.testing.TestUtil.test(TestUtil.java:29)
+	at io.javalin.TestHttpResponseExceptions.message is html-escaped when the response is served as html(TestHttpResponseExceptions.kt:114)
+Caused by: java.lang.Exception: Assertion error: 
+Expecting actual:
+  "bad name: <script>alert(1)</script>"
+not to contain:
+  "<script>"
+
+	at io.javalin.testing.TestUtil.runAndCaptureLogs(TestUtil.java:75)
+	at io.javalin.testing.TestUtil.testWithResult(TestUtil.java:41)
+	... 3 more
+
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Running io.javalin.TestHttpResponseExceptions
+[main] ERROR io.javalin.Javalin - TestUtil#test failed - full log output below:
+[main] INFO io.javalin.Javalin - Starting Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - jetty-12.1.12; built: 2026-08-03T22:37:55.389Z; git: 10dd3948f37767b84cc2c62358364f042e51dbbe; jvm 21.0.12.1+1-1-24.04.4-Ubuntu
+[main] INFO org.eclipse.jetty.session.DefaultSessionIdManager - Session workerName=node0
+[main] INFO org.eclipse.jetty.server.handler.ContextHandler - Started oeje10s.ServletContextHandler@25000d3d{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@72426ced{STARTED}}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Started oeje10s.ServletContextHandler@25000d3d{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@72426ced{STARTED}}
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Started oejs.ServerConnector@37ddb835{HTTP/1.1, (http/1.1)}{0.0.0.0:45369}
+[main] INFO org.eclipse.jetty.server.Server - Started oejs.Server@42b4cce1{STARTING}[12.1.12,sto=0] @17ms
+[main] INFO io.javalin.Javalin - 
+       __                  ___          _____
+      / /___ __   ______ _/ (_)___     /__  /
+ __  / / __ `/ | / / __ `/ / / __ \      / /
+/ /_/ / /_/ /| |/ / /_/ / / / / / /     / /
+\____/\__,_/ |___/\__,_/_/_/_/ /_/     /_/
+
+       https://javalin.io/documentation
+
+[main] INFO io.javalin.Javalin - Javalin started in 19ms \o/
+[main] INFO io.javalin.Javalin - Listening on http://localhost:45369/
+
+[ERROR] Tests run: 1, Failures: 0, Errors: 1, Skipped: 0, Time elapsed: 0.034 s <<< FAILURE! -- in io.javalin.TestHttpResponseExceptions
+[ERROR] io.javalin.TestHttpResponseExceptions.message is html-escaped when the response is served as html -- Time elapsed: 0.032 s <<< ERROR!
+java.lang.RuntimeException: 
+java.lang.Exception: Assertion error: 
+Expecting actual:
+  "bad name: <script>alert(1)</script>"
+not to contain:
+  "<script>"
+
+	at io.javalin.testing.TestUtil.testWithResult(TestUtil.java:56)
+	at io.javalin.testing.TestUtil.test(TestUtil.java:33)
+	at io.javalin.testing.TestUtil.test(TestUtil.java:29)
+	at io.javalin.TestHttpResponseExceptions.message is html-escaped when the response is served as html(TestHttpResponseExceptions.kt:114)
+Caused by: java.lang.Exception: Assertion error: 
+Expecting actual:
+  "bad name: <script>alert(1)</script>"
+not to contain:
+  "<script>"
+
+	at io.javalin.testing.TestUtil.runAndCaptureLogs(TestUtil.java:75)
+	at io.javalin.testing.TestUtil.testWithResult(TestUtil.java:41)
+	... 3 more
+
+[INFO] Running io.javalin.TestRequest
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] ERROR io.javalin.Javalin - TestUtil#test failed - full log output below:
+[main] INFO io.javalin.Javalin - Starting Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - jetty-12.1.12; built: 2026-08-03T22:37:55.389Z; git: 10dd3948f37767b84cc2c62358364f042e51dbbe; jvm 21.0.12.1+1-1-24.04.4-Ubuntu
+[main] INFO org.eclipse.jetty.session.DefaultSessionIdManager - Session workerName=node0
+[main] INFO org.eclipse.jetty.server.handler.ContextHandler - Started oeje10s.ServletContextHandler@7138e064{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@5fe5f2f0{STARTED}}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Started oeje10s.ServletContextHandler@7138e064{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@5fe5f2f0{STARTED}}
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Started oejs.ServerConnector@3d39975b{HTTP/1.1, (http/1.1)}{0.0.0.0:35831}
+[main] INFO org.eclipse.jetty.server.Server - Started oejs.Server@7d28d525{STARTING}[12.1.12,sto=0] @32ms
+[main] INFO io.javalin.Javalin - 
+       __                  ___          _____
+      / /___ __   ______ _/ (_)___     /__  /
+ __  / / __ `/ | / / __ `/ / / __ \      / /
+/ /_/ / /_/ /| |/ / /_/ / / / / / /     / /
+\____/\__,_/ |___/\__,_/_/_/_/ /_/     /_/
+
+       https://javalin.io/documentation
+
+[main] INFO io.javalin.Javalin - Javalin started in 33ms \o/
+[main] INFO io.javalin.Javalin - Listening on http://localhost:35831/
+
+[main] ERROR io.javalin.Javalin - TestUtil#test failed - full log output below:
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO io.javalin.Javalin - Starting Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - jetty-12.1.12; built: 2026-08-03T22:37:55.389Z; git: 10dd3948f37767b84cc2c62358364f042e51dbbe; jvm 21.0.12.1+1-1-24.04.4-Ubuntu
+[main] INFO org.eclipse.jetty.session.DefaultSessionIdManager - Session workerName=node0
+[main] INFO org.eclipse.jetty.server.handler.ContextHandler - Started oeje10s.ServletContextHandler@12fbc568{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@3dd2a70d{STARTED}}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Started oeje10s.ServletContextHandler@12fbc568{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@3dd2a70d{STARTED}}
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Started oejs.ServerConnector@7ecf001f{HTTP/1.1, (http/1.1)}{0.0.0.0:39529}
+[main] INFO org.eclipse.jetty.server.Server - Started oejs.Server@2620f935{STARTING}[12.1.12,sto=0] @3ms
+[main] INFO io.javalin.Javalin - 
+       __                  ___          _____
+      / /___ __   ______ _/ (_)___     /__  /
+ __  / / __ `/ | / / __ `/ / / __ \      / /
+/ /_/ / /_/ /| |/ / /_/ / / / / / /     / /
+\____/\__,_/ |___/\__,_/_/_/_/ /_/     /_/
+
+       https://javalin.io/documentation
+
+[main] INFO io.javalin.Javalin - Javalin started in 4ms \o/
+[main] INFO io.javalin.Javalin - Listening on http://localhost:39529/
+
+[ERROR] Tests run: 2, Failures: 0, Errors: 2, Skipped: 0, Time elapsed: 0.066 s <<< FAILURE! -- in io.javalin.TestRequest
+[ERROR] io.javalin.TestRequest.basic auth filter plugin denies every request when no credentials are configured -- Time elapsed: 0.048 s <<< ERROR!
+java.lang.RuntimeException: 
+java.lang.Exception: Assertion error: 
+expected: 401 Unauthorized
+ but was: 200 OK
+	at io.javalin.testing.TestUtil.testWithResult(TestUtil.java:56)
+	at io.javalin.testing.TestUtil.test(TestUtil.java:33)
+	at io.javalin.TestRequest.basic auth filter plugin denies every request when no credentials are configured(TestRequest.kt:346)
+Caused by: java.lang.Exception: Assertion error: 
+expected: 401 Unauthorized
+ but was: 200 OK
+	at io.javalin.testing.TestUtil.runAndCaptureLogs(TestUtil.java:75)
+	at io.javalin.testing.TestUtil.testWithResult(TestUtil.java:41)
+	... 2 more
+
+[ERROR] io.javalin.TestRequest.basicAuthCredentials accepts the scheme name in any case -- Time elapsed: 0.012 s <<< ERROR!
+java.lang.RuntimeException: 
+java.lang.Exception: Assertion error: 
+expected: "some-username"
+ but was: "null"
+	at io.javalin.testing.TestUtil.testWithResult(TestUtil.java:56)
+	at io.javalin.testing.TestUtil.test(TestUtil.java:33)
+	at io.javalin.testing.TestUtil.test(TestUtil.java:29)
+	at io.javalin.TestRequest.basicAuthCredentials accepts the scheme name in any case(TestRequest.kt:315)
+Caused by: java.lang.Exception: Assertion error: 
+expected: "some-username"
+ but was: "null"
+	at io.javalin.testing.TestUtil.runAndCaptureLogs(TestUtil.java:75)
+	at io.javalin.testing.TestUtil.testWithResult(TestUtil.java:41)
+	... 3 more
+
+[INFO] Running io.javalin.TestContextRouteRoles
+[main] ERROR io.javalin.Javalin - TestUtil#test failed - full log output below:
+[main] INFO io.javalin.Javalin - Starting Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - jetty-12.1.12; built: 2026-08-03T22:37:55.389Z; git: 10dd3948f37767b84cc2c62358364f042e51dbbe; jvm 21.0.12.1+1-1-24.04.4-Ubuntu
+[main] INFO org.eclipse.jetty.session.DefaultSessionIdManager - Session workerName=node0
+[main] INFO org.eclipse.jetty.server.handler.ContextHandler - Started oeje10s.ServletContextHandler@2291fb1{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@213f2d00{STARTED}}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Started oeje10s.ServletContextHandler@2291fb1{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@213f2d00{STARTED}}
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Started oejs.ServerConnector@2aaf7354{HTTP/1.1, (http/1.1)}{0.0.0.0:38281}
+[main] INFO org.eclipse.jetty.server.Server - Started oejs.Server@1606ecbb{STARTING}[12.1.12,sto=0] @3ms
+[main] INFO io.javalin.Javalin - 
+       __                  ___          _____
+      / /___ __   ______ _/ (_)___     /__  /
+ __  / / __ `/ | / / __ `/ / / __ \      / /
+/ /_/ / /_/ /| |/ / /_/ / / / / / /     / /
+\____/\__,_/ |___/\__,_/_/_/_/ /_/     /_/
+
+       https://javalin.io/documentation
+
+[main] INFO io.javalin.Javalin - Javalin started in 5ms \o/
+[main] INFO io.javalin.Javalin - Listening on http://localhost:38281/
+
+[ERROR] Tests run: 1, Failures: 0, Errors: 1, Skipped: 0, Time elapsed: 0.022 s <<< FAILURE! -- in io.javalin.TestContextRouteRoles
+[ERROR] io.javalin.TestContextRouteRoles.HEAD request answered by a GET handler has the GET handler's route roles -- Time elapsed: 0.021 s <<< ERROR!
+java.lang.RuntimeException: 
+java.lang.Exception: Assertion error: 
+expected: 401
+ but was: 200
+	at io.javalin.testing.TestUtil.testWithResult(TestUtil.java:56)
+	at io.javalin.testing.TestUtil.test(TestUtil.java:33)
+	at io.javalin.testing.TestUtil.test(TestUtil.java:29)
+	at io.javalin.TestContextRouteRoles.HEAD request answered by a GET handler has the GET handler's route roles(TestContextRouteRoles.kt:59)
+Caused by: java.lang.Exception: Assertion error: 
+expected: 401
+ but was: 200
+	at io.javalin.testing.TestUtil.runAndCaptureLogs(TestUtil.java:75)
+	at io.javalin.testing.TestUtil.testWithResult(TestUtil.java:41)
+	... 3 more
+
+[INFO] Running io.javalin.websocket.TestWsUpgrade
+[main] ERROR io.javalin.Javalin - TestUtil#test failed - full log output below:
+[main] INFO io.javalin.Javalin - Starting Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - jetty-12.1.12; built: 2026-08-03T22:37:55.389Z; git: 10dd3948f37767b84cc2c62358364f042e51dbbe; jvm 21.0.12.1+1-1-24.04.4-Ubuntu
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO org.eclipse.jetty.session.DefaultSessionIdManager - Session workerName=node0
+[main] INFO org.eclipse.jetty.server.handler.ContextHandler - Started oeje10s.ServletContextHandler@502a9b30{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@422ab2ff{STARTED}}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Started oeje10s.ServletContextHandler@502a9b30{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@422ab2ff{STARTED}}
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Started oejs.ServerConnector@4494ed08{HTTP/1.1, (http/1.1)}{0.0.0.0:39459}
+[main] INFO org.eclipse.jetty.server.Server - Started oejs.Server@7a2d676e{STARTING}[12.1.12,sto=0] @19ms
+[main] INFO io.javalin.Javalin - 
+       __                  ___          _____
+      / /___ __   ______ _/ (_)___     /__  /
+ __  / / __ `/ | / / __ `/ / / __ \      / /
+/ /_/ / /_/ /| |/ / /_/ / / / / / /     / /
+\____/\__,_/ |___/\__,_/_/_/_/ /_/     /_/
+
+       https://javalin.io/documentation
+
+[main] INFO io.javalin.Javalin - Javalin started in 20ms \o/
+[main] INFO io.javalin.Javalin - Listening on http://localhost:39459/
+
+[ERROR] Tests run: 1, Failures: 0, Errors: 1, Skipped: 0, Time elapsed: 0.042 s <<< FAILURE! -- in io.javalin.websocket.TestWsUpgrade
+[ERROR] io.javalin.websocket.TestWsUpgrade.basic auth plugin protects websocket upgrades -- Time elapsed: 0.040 s <<< ERROR!
+java.lang.RuntimeException: 
+java.lang.Exception: Assertion error: 
+expected: 401
+ but was: 405
+	at io.javalin.testing.TestUtil.testWithResult(TestUtil.java:56)
+	at io.javalin.testing.TestUtil.test(TestUtil.java:33)
+	at io.javalin.websocket.TestWsUpgrade.basic auth plugin protects websocket upgrades(TestWsUpgrade.kt:59)
+Caused by: java.lang.Exception: Assertion error: 
+expected: 401
+ but was: 405
+	at io.javalin.testing.TestUtil.runAndCaptureLogs(TestUtil.java:75)
+	at io.javalin.testing.TestUtil.testWithResult(TestUtil.java:41)
+	... 2 more
+
+[INFO] Running io.javalin.TestSse
+[main] ERROR io.javalin.Javalin - TestUtil#test failed - full log output below:
+[main] INFO io.javalin.Javalin - Starting Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - jetty-12.1.12; built: 2026-08-03T22:37:55.389Z; git: 10dd3948f37767b84cc2c62358364f042e51dbbe; jvm 21.0.12.1+1-1-24.04.4-Ubuntu
+[main] INFO org.eclipse.jetty.session.DefaultSessionIdManager - Session workerName=node0
+[main] INFO org.eclipse.jetty.server.handler.ContextHandler - Started oeje10s.ServletContextHandler@4ee8ea84{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@76e5d5e5{STARTED}}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Started oeje10s.ServletContextHandler@4ee8ea84{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@76e5d5e5{STARTED}}
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Started oejs.ServerConnector@1b0709e7{HTTP/1.1, (http/1.1)}{0.0.0.0:41429}
+[main] INFO org.eclipse.jetty.server.Server - Started oejs.Server@1e368085{STARTING}[12.1.12,sto=0] @12ms
+[main] INFO io.javalin.Javalin - 
+       __                  ___          _____
+      / /___ __   ______ _/ (_)___     /__  /
+ __  / / __ `/ | / / __ `/ / / __ \      / /
+/ /_/ / /_/ /| |/ / /_/ / / / / / /     / /
+\____/\__,_/ |___/\__,_/_/_/_/ /_/     /_/
+
+       https://javalin.io/documentation
+
+[main] INFO io.javalin.Javalin - Javalin started in 14ms \o/
+[main] INFO io.javalin.Javalin - Listening on http://localhost:41429/
+
+[ERROR] Tests run: 1, Failures: 0, Errors: 1, Skipped: 0, Time elapsed: 0.036 s <<< FAILURE! -- in io.javalin.TestSse
+[ERROR] io.javalin.TestSse.carriage return in a comment cannot inject a field -- Time elapsed: 0.032 s <<< ERROR!
+java.lang.RuntimeException: 
+java.lang.Exception: Assertion error: 
+Expecting empty but was: ["data: forged"]
+	at io.javalin.testing.TestUtil.testWithResult(TestUtil.java:56)
+	at io.javalin.testing.TestUtil.test(TestUtil.java:33)
+	at io.javalin.testing.TestUtil.test(TestUtil.java:29)
+	at io.javalin.TestSse.carriage return in a comment cannot inject a field(TestSse.kt:305)
+Caused by: java.lang.Exception: Assertion error: 
+Expecting empty but was: ["data: forged"]
+	at io.javalin.testing.TestUtil.runAndCaptureLogs(TestUtil.java:75)
+	at io.javalin.testing.TestUtil.testWithResult(TestUtil.java:41)
+	... 3 more
+
+[INFO] Running io.javalin.staticfiles.TestStaticFiles
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] ERROR io.javalin.Javalin - TestUtil#test failed - full log output below:
+[main] INFO io.javalin.Javalin - Starting Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - jetty-12.1.12; built: 2026-08-03T22:37:55.389Z; git: 10dd3948f37767b84cc2c62358364f042e51dbbe; jvm 21.0.12.1+1-1-24.04.4-Ubuntu
+[main] INFO org.eclipse.jetty.session.DefaultSessionIdManager - Session workerName=node0
+[main] INFO org.eclipse.jetty.server.handler.ContextHandler - Started oeje10s.ServletContextHandler@7a90796c{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@6c98079{STARTED}}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Started oeje10s.ServletContextHandler@7a90796c{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@6c98079{STARTED}}
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Started oejs.ServerConnector@5135b8a3{HTTP/1.1, (http/1.1)}{0.0.0.0:42419}
+[main] INFO org.eclipse.jetty.server.Server - Started oejs.Server@4ef12d7e{STARTING}[12.1.12,sto=0] @9ms
+[main] INFO io.javalin.Javalin - 
+       __                  ___          _____
+      / /___ __   ______ _/ (_)___     /__  /
+ __  / / __ `/ | / / __ `/ / / __ \      / /
+/ /_/ / /_/ /| |/ / /_/ / / / / / /     / /
+\____/\__,_/ |___/\__,_/_/_/_/ /_/     /_/
+
+       https://javalin.io/documentation
+
+[main] INFO io.javalin.Javalin - Javalin started in 10ms \o/
+[main] INFO io.javalin.Javalin - Listening on http://localhost:42419/
+
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[ERROR] Tests run: 1, Failures: 0, Errors: 1, Skipped: 0, Time elapsed: 0.034 s <<< FAILURE! -- in io.javalin.staticfiles.TestStaticFiles
+[ERROR] io.javalin.staticfiles.TestStaticFiles.before-handler cannot be bypassed with a percent-encoded static file path -- Time elapsed: 0.031 s <<< ERROR!
+java.lang.RuntimeException: 
+java.lang.Exception: Assertion error: 
+Expecting actual:
+  "<h1>Secret file</h1>"
+not to contain:
+  "Secret file"
+
+	at io.javalin.testing.TestUtil.testWithResult(TestUtil.java:56)
+	at io.javalin.testing.TestUtil.test(TestUtil.java:33)
+	at io.javalin.staticfiles.StaticFilesTestUtilKt.testStaticFiles(StaticFilesTestUtil.kt:20)
+	at io.javalin.staticfiles.TestStaticFiles.before-handler cannot be bypassed with a percent-encoded static file path(TestStaticFiles.kt:183)
+Caused by: java.lang.Exception: Assertion error: 
+Expecting actual:
+  "<h1>Secret file</h1>"
+not to contain:
+  "Secret file"
+
+	at io.javalin.testing.TestUtil.runAndCaptureLogs(TestUtil.java:75)
+	at io.javalin.testing.TestUtil.testWithResult(TestUtil.java:41)
+	... 3 more
+
+[INFO] Running io.javalin.TestHttpResponseExceptions
+[main] ERROR io.javalin.Javalin - TestUtil#test failed - full log output below:
+[main] INFO io.javalin.Javalin - Starting Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - jetty-12.1.12; built: 2026-08-03T22:37:55.389Z; git: 10dd3948f37767b84cc2c62358364f042e51dbbe; jvm 21.0.12.1+1-1-24.04.4-Ubuntu
+[main] INFO org.eclipse.jetty.session.DefaultSessionIdManager - Session workerName=node0
+[main] INFO org.eclipse.jetty.server.handler.ContextHandler - Started oeje10s.ServletContextHandler@23317e8a{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@520c235f{STARTED}}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Started oeje10s.ServletContextHandler@23317e8a{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@520c235f{STARTED}}
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Started oejs.ServerConnector@3426d8e2{HTTP/1.1, (http/1.1)}{0.0.0.0:41235}
+[main] INFO org.eclipse.jetty.server.Server - Started oejs.Server@675c1335{STARTING}[12.1.12,sto=0] @12ms
+[main] INFO io.javalin.Javalin - 
+       __                  ___          _____
+      / /___ __   ______ _/ (_)___     /__  /
+ __  / / __ `/ | / / __ `/ / / __ \      / /
+/ /_/ / /_/ /| |/ / /_/ / / / / / /     / /
+\____/\__,_/ |___/\__,_/_/_/_/ /_/     /_/
+
+       https://javalin.io/documentation
+
+[main] INFO io.javalin.Javalin - Javalin started in 13ms \o/
+[main] INFO io.javalin.Javalin - Listening on http://localhost:41235/
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+
+[ERROR] Tests run: 1, Failures: 0, Errors: 1, Skipped: 0, Time elapsed: 0.034 s <<< FAILURE! -- in io.javalin.TestHttpResponseExceptions
+[ERROR] io.javalin.TestHttpResponseExceptions.message is html-escaped when the response is served as html -- Time elapsed: 0.030 s <<< ERROR!
+java.lang.RuntimeException: 
+java.lang.Exception: Assertion error: 
+Expecting actual:
+  "bad name: <script>alert(1)</script>"
+not to contain:
+  "<script>"
+
+	at io.javalin.testing.TestUtil.testWithResult(TestUtil.java:56)
+	at io.javalin.testing.TestUtil.test(TestUtil.java:33)
+	at io.javalin.testing.TestUtil.test(TestUtil.java:29)
+	at io.javalin.TestHttpResponseExceptions.message is html-escaped when the response is served as html(TestHttpResponseExceptions.kt:114)
+Caused by: java.lang.Exception: Assertion error: 
+Expecting actual:
+  "bad name: <script>alert(1)</script>"
+not to contain:
+  "<script>"
+
+	at io.javalin.testing.TestUtil.runAndCaptureLogs(TestUtil.java:75)
+	at io.javalin.testing.TestUtil.testWithResult(TestUtil.java:41)
+	... 3 more
+
+[INFO] Running io.javalin.TestRequest
+[main] ERROR io.javalin.Javalin - TestUtil#test failed - full log output below:
+[main] INFO io.javalin.Javalin - Starting Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - jetty-12.1.12; built: 2026-08-03T22:37:55.389Z; git: 10dd3948f37767b84cc2c62358364f042e51dbbe; jvm 21.0.12.1+1-1-24.04.4-Ubuntu
+[main] INFO org.eclipse.jetty.session.DefaultSessionIdManager - Session workerName=node0
+[main] INFO org.eclipse.jetty.server.handler.ContextHandler - Started oeje10s.ServletContextHandler@519b726a{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@34272839{STARTED}}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Started oeje10s.ServletContextHandler@519b726a{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@34272839{STARTED}}
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Started oejs.ServerConnector@708378cc{HTTP/1.1, (http/1.1)}{0.0.0.0:36231}
+[main] INFO org.eclipse.jetty.server.Server - Started oejs.Server@17eb35fa{STARTING}[12.1.12,sto=0] @13ms
+[main] INFO io.javalin.Javalin - 
+       __                  ___          _____
+      / /___ __   ______ _/ (_)___     /__  /
+ __  / / __ `/ | / / __ `/ / / __ \      / /
+/ /_/ / /_/ /| |/ / /_/ / / / / / /     / /
+\____/\__,_/ |___/\__,_/_/_/_/ /_/     /_/
+
+       https://javalin.io/documentation
+
+[main] INFO io.javalin.Javalin - Javalin started in 16ms \o/
+[main] INFO io.javalin.Javalin - Listening on http://localhost:36231/
+
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] ERROR io.javalin.Javalin - TestUtil#test failed - full log output below:
+[main] INFO io.javalin.Javalin - Starting Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - jetty-12.1.12; built: 2026-08-03T22:37:55.389Z; git: 10dd3948f37767b84cc2c62358364f042e51dbbe; jvm 21.0.12.1+1-1-24.04.4-Ubuntu
+[main] INFO org.eclipse.jetty.session.DefaultSessionIdManager - Session workerName=node0
+[main] INFO org.eclipse.jetty.server.handler.ContextHandler - Started oeje10s.ServletContextHandler@488ae823{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@19b6b7e7{STARTED}}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Started oeje10s.ServletContextHandler@488ae823{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@19b6b7e7{STARTED}}
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Started oejs.ServerConnector@31a5773e{HTTP/1.1, (http/1.1)}{0.0.0.0:41969}
+[main] INFO org.eclipse.jetty.server.Server - Started oejs.Server@2c332922{STARTING}[12.1.12,sto=0] @12ms
+[main] INFO io.javalin.Javalin - 
+       __                  ___          _____
+      / /___ __   ______ _/ (_)___     /__  /
+ __  / / __ `/ | / / __ `/ / / __ \      / /
+/ /_/ / /_/ /| |/ / /_/ / / / / / /     / /
+\____/\__,_/ |___/\__,_/_/_/_/ /_/     /_/
+
+       https://javalin.io/documentation
+
+[main] INFO io.javalin.Javalin - Javalin started in 14ms \o/
+[main] INFO io.javalin.Javalin - Listening on http://localhost:41969/
+
+[ERROR] Tests run: 2, Failures: 0, Errors: 2, Skipped: 0, Time elapsed: 0.068 s <<< FAILURE! -- in io.javalin.TestRequest
+[ERROR] io.javalin.TestRequest.basic auth filter plugin denies every request when no credentials are configured -- Time elapsed: 0.034 s <<< ERROR!
+java.lang.RuntimeException: 
+java.lang.Exception: Assertion error: 
+expected: 401 Unauthorized
+ but was: 200 OK
+	at io.javalin.testing.TestUtil.testWithResult(TestUtil.java:56)
+	at io.javalin.testing.TestUtil.test(TestUtil.java:33)
+	at io.javalin.TestRequest.basic auth filter plugin denies every request when no credentials are configured(TestRequest.kt:346)
+Caused by: java.lang.Exception: Assertion error: 
+expected: 401 Unauthorized
+ but was: 200 OK
+	at io.javalin.testing.TestUtil.runAndCaptureLogs(TestUtil.java:75)
+	at io.javalin.testing.TestUtil.testWithResult(TestUtil.java:41)
+	... 2 more
+
+[ERROR] io.javalin.TestRequest.basicAuthCredentials accepts the scheme name in any case -- Time elapsed: 0.026 s <<< ERROR!
+java.lang.RuntimeException: 
+java.lang.Exception: Assertion error: 
+expected: "some-username"
+ but was: "null"
+	at io.javalin.testing.TestUtil.testWithResult(TestUtil.java:56)
+	at io.javalin.testing.TestUtil.test(TestUtil.java:33)
+	at io.javalin.testing.TestUtil.test(TestUtil.java:29)
+	at io.javalin.TestRequest.basicAuthCredentials accepts the scheme name in any case(TestRequest.kt:315)
+Caused by: java.lang.Exception: Assertion error: 
+expected: "some-username"
+ but was: "null"
+	at io.javalin.testing.TestUtil.runAndCaptureLogs(TestUtil.java:75)
+	at io.javalin.testing.TestUtil.testWithResult(TestUtil.java:41)
+	... 3 more
+
+[INFO] Running io.javalin.TestContextRouteRoles
+[main] ERROR io.javalin.Javalin - TestUtil#test failed - full log output below:
+[main] INFO io.javalin.Javalin - Starting Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - jetty-12.1.12; built: 2026-08-03T22:37:55.389Z; git: 10dd3948f37767b84cc2c62358364f042e51dbbe; jvm 21.0.12.1+1-1-24.04.4-Ubuntu
+[main] INFO org.eclipse.jetty.session.DefaultSessionIdManager - Session workerName=node0
+[main] INFO org.eclipse.jetty.server.handler.ContextHandler - Started oeje10s.ServletContextHandler@7207cb8b{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@27449f65{STARTED}}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Started oeje10s.ServletContextHandler@7207cb8b{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@27449f65{STARTED}}
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Started oejs.ServerConnector@3b4a77be{HTTP/1.1, (http/1.1)}{0.0.0.0:43385}
+[main] INFO org.eclipse.jetty.server.Server - Started oejs.Server@1ff55410{STARTING}[12.1.12,sto=0] @14ms
+[main] INFO io.javalin.Javalin - 
+       __                  ___          _____
+      / /___ __   ______ _/ (_)___     /__  /
+ __  / / __ `/ | / / __ `/ / / __ \      / /
+/ /_/ / /_/ /| |/ / /_/ / / / / / /     / /
+\____/\__,_/ |___/\__,_/_/_/_/ /_/     /_/
+
+       https://javalin.io/documentation
+
+[main] INFO io.javalin.Javalin - Javalin started in 18ms \o/
+[main] INFO io.javalin.Javalin - Listening on http://localhost:43385/
+
+[ERROR] Tests run: 1, Failures: 0, Errors: 1, Skipped: 0, Time elapsed: 0.040 s <<< FAILURE! -- in io.javalin.TestContextRouteRoles
+[ERROR] io.javalin.TestContextRouteRoles.HEAD request answered by a GET handler has the GET handler's route roles -- Time elapsed: 0.037 s <<< ERROR!
+java.lang.RuntimeException: 
+java.lang.Exception: Assertion error: 
+expected: 401
+ but was: 200
+	at io.javalin.testing.TestUtil.testWithResult(TestUtil.java:56)
+	at io.javalin.testing.TestUtil.test(TestUtil.java:33)
+	at io.javalin.testing.TestUtil.test(TestUtil.java:29)
+	at io.javalin.TestContextRouteRoles.HEAD request answered by a GET handler has the GET handler's route roles(TestContextRouteRoles.kt:59)
+Caused by: java.lang.Exception: Assertion error: 
+expected: 401
+ but was: 200
+	at io.javalin.testing.TestUtil.runAndCaptureLogs(TestUtil.java:75)
+	at io.javalin.testing.TestUtil.testWithResult(TestUtil.java:41)
+	... 3 more
+
+[INFO] Running io.javalin.websocket.TestWsUpgrade
+[main] ERROR io.javalin.Javalin - TestUtil#test failed - full log output below:
+[main] INFO io.javalin.Javalin - Starting Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - jetty-12.1.12; built: 2026-08-03T22:37:55.389Z; git: 10dd3948f37767b84cc2c62358364f042e51dbbe; jvm 21.0.12.1+1-1-24.04.4-Ubuntu
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO org.eclipse.jetty.session.DefaultSessionIdManager - Session workerName=node0
+[main] INFO org.eclipse.jetty.server.handler.ContextHandler - Started oeje10s.ServletContextHandler@43e7ca6f{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@2e3fdf30{STARTED}}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Started oeje10s.ServletContextHandler@43e7ca6f{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@2e3fdf30{STARTED}}
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Started oejs.ServerConnector@64934acd{HTTP/1.1, (http/1.1)}{0.0.0.0:39437}
+[main] INFO org.eclipse.jetty.server.Server - Started oejs.Server@480b785a{STARTING}[12.1.12,sto=0] @17ms
+[main] INFO io.javalin.Javalin - 
+       __                  ___          _____
+      / /___ __   ______ _/ (_)___     /__  /
+ __  / / __ `/ | / / __ `/ / / __ \      / /
+/ /_/ / /_/ /| |/ / /_/ / / / / / /     / /
+\____/\__,_/ |___/\__,_/_/_/_/ /_/     /_/
+
+       https://javalin.io/documentation
+
+[main] INFO io.javalin.Javalin - Javalin started in 22ms \o/
+[main] INFO io.javalin.Javalin - Listening on http://localhost:39437/
+
+[ERROR] Tests run: 1, Failures: 0, Errors: 1, Skipped: 0, Time elapsed: 0.050 s <<< FAILURE! -- in io.javalin.websocket.TestWsUpgrade
+[ERROR] io.javalin.websocket.TestWsUpgrade.basic auth plugin protects websocket upgrades -- Time elapsed: 0.045 s <<< ERROR!
+java.lang.RuntimeException: 
+java.lang.Exception: Assertion error: 
+expected: 401
+ but was: 405
+	at io.javalin.testing.TestUtil.testWithResult(TestUtil.java:56)
+	at io.javalin.testing.TestUtil.test(TestUtil.java:33)
+	at io.javalin.websocket.TestWsUpgrade.basic auth plugin protects websocket upgrades(TestWsUpgrade.kt:59)
+Caused by: java.lang.Exception: Assertion error: 
+expected: 401
+ but was: 405
+	at io.javalin.testing.TestUtil.runAndCaptureLogs(TestUtil.java:75)
+	at io.javalin.testing.TestUtil.testWithResult(TestUtil.java:41)
+	... 2 more
+
+[INFO] Running io.javalin.TestSse
+[main] ERROR io.javalin.Javalin - TestUtil#test failed - full log output below:
+[main] INFO io.javalin.Javalin - Starting Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - jetty-12.1.12; built: 2026-08-03T22:37:55.389Z; git: 10dd3948f37767b84cc2c62358364f042e51dbbe; jvm 21.0.12.1+1-1-24.04.4-Ubuntu
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO org.eclipse.jetty.session.DefaultSessionIdManager - Session workerName=node0
+[main] INFO org.eclipse.jetty.server.handler.ContextHandler - Started oeje10s.ServletContextHandler@561e8bab{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@3b8b1ba9{STARTED}}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Started oeje10s.ServletContextHandler@561e8bab{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@3b8b1ba9{STARTED}}
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Started oejs.ServerConnector@76878899{HTTP/1.1, (http/1.1)}{0.0.0.0:34539}
+[main] INFO org.eclipse.jetty.server.Server - Started oejs.Server@e8bd42f{STARTING}[12.1.12,sto=0] @22ms
+[main] INFO io.javalin.Javalin - 
+       __                  ___          _____
+      / /___ __   ______ _/ (_)___     /__  /
+ __  / / __ `/ | / / __ `/ / / __ \      / /
+/ /_/ / /_/ /| |/ / /_/ / / / / / /     / /
+\____/\__,_/ |___/\__,_/_/_/_/ /_/     /_/
+
+       https://javalin.io/documentation
+
+[main] INFO io.javalin.Javalin - Javalin started in 27ms \o/
+[main] INFO io.javalin.Javalin - Listening on http://localhost:34539/
+
+[ERROR] Tests run: 1, Failures: 0, Errors: 1, Skipped: 0, Time elapsed: 0.042 s <<< FAILURE! -- in io.javalin.TestSse
+[ERROR] io.javalin.TestSse.carriage return in a comment cannot inject a field -- Time elapsed: 0.042 s <<< ERROR!
+java.lang.RuntimeException: 
+java.lang.Exception: Assertion error: 
+Expecting empty but was: ["data: forged"]
+	at io.javalin.testing.TestUtil.testWithResult(TestUtil.java:56)
+	at io.javalin.testing.TestUtil.test(TestUtil.java:33)
+	at io.javalin.testing.TestUtil.test(TestUtil.java:29)
+	at io.javalin.TestSse.carriage return in a comment cannot inject a field(TestSse.kt:305)
+Caused by: java.lang.Exception: Assertion error: 
+Expecting empty but was: ["data: forged"]
+	at io.javalin.testing.TestUtil.runAndCaptureLogs(TestUtil.java:75)
+	at io.javalin.testing.TestUtil.testWithResult(TestUtil.java:41)
+	... 3 more
+
+[INFO] Running io.javalin.staticfiles.TestStaticFiles
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] ERROR io.javalin.Javalin - TestUtil#test failed - full log output below:
+[main] INFO io.javalin.Javalin - Starting Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - jetty-12.1.12; built: 2026-08-03T22:37:55.389Z; git: 10dd3948f37767b84cc2c62358364f042e51dbbe; jvm 21.0.12.1+1-1-24.04.4-Ubuntu
+[main] INFO org.eclipse.jetty.session.DefaultSessionIdManager - Session workerName=node0
+[main] INFO org.eclipse.jetty.server.handler.ContextHandler - Started oeje10s.ServletContextHandler@6770a229{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@6b17aa0b{STARTED}}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Started oeje10s.ServletContextHandler@6770a229{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@6b17aa0b{STARTED}}
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Started oejs.ServerConnector@1009a9b4{HTTP/1.1, (http/1.1)}{0.0.0.0:40705}
+[main] INFO org.eclipse.jetty.server.Server - Started oejs.Server@3796ca50{STARTING}[12.1.12,sto=0] @4ms
+[main] INFO io.javalin.Javalin - 
+       __                  ___          _____
+      / /___ __   ______ _/ (_)___     /__  /
+ __  / / __ `/ | / / __ `/ / / __ \      / /
+/ /_/ / /_/ /| |/ / /_/ / / / / / /     / /
+\____/\__,_/ |___/\__,_/_/_/_/ /_/     /_/
+
+       https://javalin.io/documentation
+
+[main] INFO io.javalin.Javalin - Javalin started in 5ms \o/
+[main] INFO io.javalin.Javalin - Listening on http://localhost:40705/
+
+[ERROR] Tests run: 1, Failures: 0, Errors: 1, Skipped: 0, Time elapsed: 0.026 s <<< FAILURE! -- in io.javalin.staticfiles.TestStaticFiles
+[ERROR] io.javalin.staticfiles.TestStaticFiles.before-handler cannot be bypassed with a percent-encoded static file path -- Time elapsed: 0.024 s <<< ERROR!
+java.lang.RuntimeException: 
+java.lang.Exception: Assertion error: 
+Expecting actual:
+  "<h1>Secret file</h1>"
+not to contain:
+  "Secret file"
+
+	at io.javalin.testing.TestUtil.testWithResult(TestUtil.java:56)
+	at io.javalin.testing.TestUtil.test(TestUtil.java:33)
+	at io.javalin.staticfiles.StaticFilesTestUtilKt.testStaticFiles(StaticFilesTestUtil.kt:20)
+	at io.javalin.staticfiles.TestStaticFiles.before-handler cannot be bypassed with a percent-encoded static file path(TestStaticFiles.kt:183)
+Caused by: java.lang.Exception: Assertion error: 
+Expecting actual:
+  "<h1>Secret file</h1>"
+not to contain:
+  "Secret file"
+
+	at io.javalin.testing.TestUtil.runAndCaptureLogs(TestUtil.java:75)
+	at io.javalin.testing.TestUtil.testWithResult(TestUtil.java:41)
+	... 3 more
+
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] 
+[INFO] Results:
+[INFO] 
+[ERROR] Errors: 
+[ERROR] io.javalin.TestContextRouteRoles.HEAD request answered by a GET handler has the GET handler's route roles
+[ERROR]   Run 1: TestContextRouteRoles.HEAD request answered by a GET handler has the GET handler's route roles:59 ? Runtime java.lang.Exception: Assertion error: 
+expected: 401
+ but was: 200
+[ERROR]   Run 2: TestContextRouteRoles.HEAD request answered by a GET handler has the GET handler's route roles:59 ? Runtime java.lang.Exception: Assertion error: 
+expected: 401
+ but was: 200
+[ERROR]   Run 3: TestContextRouteRoles.HEAD request answered by a GET handler has the GET handler's route roles:59 ? Runtime java.lang.Exception: Assertion error: 
+expected: 401
+ but was: 200
+[INFO] 
+[ERROR] io.javalin.TestHttpResponseExceptions.message is html-escaped when the response is served as html
+[ERROR]   Run 1: TestHttpResponseExceptions.message is html-escaped when the response is served as html:114 ? Runtime java.lang.Exception: Assertion error: 
+Expecting actual:
+  "bad name: <script>alert(1)</script>"
+not to contain:
+  "<script>"
+
+[ERROR]   Run 2: TestHttpResponseExceptions.message is html-escaped when the response is served as html:114 ? Runtime java.lang.Exception: Assertion error: 
+Expecting actual:
+  "bad name: <script>alert(1)</script>"
+not to contain:
+  "<script>"
+
+[ERROR]   Run 3: TestHttpResponseExceptions.message is html-escaped when the response is served as html:114 ? Runtime java.lang.Exception: Assertion error: 
+Expecting actual:
+  "bad name: <script>alert(1)</script>"
+not to contain:
+  "<script>"
+
+[INFO] 
+[ERROR] io.javalin.TestRequest.basic auth filter plugin denies every request when no credentials are configured
+[ERROR]   Run 1: TestRequest.basic auth filter plugin denies every request when no credentials are configured:346 ? Runtime java.lang.Exception: Assertion error: 
+expected: 401 Unauthorized
+ but was: 200 OK
+[ERROR]   Run 2: TestRequest.basic auth filter plugin denies every request when no credentials are configured:346 ? Runtime java.lang.Exception: Assertion error: 
+expected: 401 Unauthorized
+ but was: 200 OK
+[ERROR]   Run 3: TestRequest.basic auth filter plugin denies every request when no credentials are configured:346 ? Runtime java.lang.Exception: Assertion error: 
+expected: 401 Unauthorized
+ but was: 200 OK
+[INFO] 
+[ERROR] io.javalin.TestRequest.basicAuthCredentials accepts the scheme name in any case
+[ERROR]   Run 1: TestRequest.basicAuthCredentials accepts the scheme name in any case:315 ? Runtime java.lang.Exception: Assertion error: 
+expected: "some-username"
+ but was: "null"
+[ERROR]   Run 2: TestRequest.basicAuthCredentials accepts the scheme name in any case:315 ? Runtime java.lang.Exception: Assertion error: 
+expected: "some-username"
+ but was: "null"
+[ERROR]   Run 3: TestRequest.basicAuthCredentials accepts the scheme name in any case:315 ? Runtime java.lang.Exception: Assertion error: 
+expected: "some-username"
+ but was: "null"
+[INFO] 
+[ERROR] io.javalin.TestSse.carriage return in a comment cannot inject a field
+[ERROR]   Run 1: TestSse.carriage return in a comment cannot inject a field:305 ? Runtime java.lang.Exception: Assertion error: 
+Expecting empty but was: ["data: forged"]
+[ERROR]   Run 2: TestSse.carriage return in a comment cannot inject a field:305 ? Runtime java.lang.Exception: Assertion error: 
+Expecting empty but was: ["data: forged"]
+[ERROR]   Run 3: TestSse.carriage return in a comment cannot inject a field:305 ? Runtime java.lang.Exception: Assertion error: 
+Expecting empty but was: ["data: forged"]
+[INFO] 
+[ERROR] io.javalin.staticfiles.TestStaticFiles.before-handler cannot be bypassed with a percent-encoded static file path
+[ERROR]   Run 1: TestStaticFiles.before-handler cannot be bypassed with a percent-encoded static file path:183 ? Runtime java.lang.Exception: Assertion error: 
+Expecting actual:
+  "<h1>Secret file</h1>"
+not to contain:
+  "Secret file"
+
+[ERROR]   Run 2: TestStaticFiles.before-handler cannot be bypassed with a percent-encoded static file path:183 ? Runtime java.lang.Exception: Assertion error: 
+Expecting actual:
+  "<h1>Secret file</h1>"
+not to contain:
+  "Secret file"
+
+[ERROR]   Run 3: TestStaticFiles.before-handler cannot be bypassed with a percent-encoded static file path:183 ? Runtime java.lang.Exception: Assertion error: 
+Expecting actual:
+  "<h1>Secret file</h1>"
+not to contain:
+  "Secret file"
+
+[INFO] 
+[ERROR] io.javalin.websocket.TestWsUpgrade.basic auth plugin protects websocket upgrades
+[ERROR]   Run 1: TestWsUpgrade.basic auth plugin protects websocket upgrades:59 ? Runtime java.lang.Exception: Assertion error: 
+expected: 401
+ but was: 405
+[ERROR]   Run 2: TestWsUpgrade.basic auth plugin protects websocket upgrades:59 ? Runtime java.lang.Exception: Assertion error: 
+expected: 401
+ but was: 405
+[ERROR]   Run 3: TestWsUpgrade.basic auth plugin protects websocket upgrades:59 ? Runtime java.lang.Exception: Assertion error: 
+expected: 401
+ but was: 405
+[INFO] 
+[INFO] 
+[ERROR] Tests run: 140, Failures: 0, Errors: 7, Skipped: 0
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  29.408 s
+[INFO] Finished at: 2026-10-20T12:00:18-04:00
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:3.5.6:test (default-test) on project javalin: 
+[ERROR] 
+[ERROR] See /tmp/claude-0/sec/javalin/src/javalin/target/surefire-reports for the individual test results.
+[ERROR] See dump files (if any exist) [date].dump, [date]-jvmRun[N].dump and [date].dumpstream.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException
+exit 1

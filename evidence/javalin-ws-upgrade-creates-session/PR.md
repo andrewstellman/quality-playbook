@@ -1,0 +1,3 @@
+Any request with a `Sec-WebSocket-Version` header, on any path, created an HTTP session when the upgrade request was snapshotted, and the default session handler never expires sessions, so an anonymous client could keep growing the heap (about 700 bytes per request). The snapshot now reads session attributes only if a session already exists. The test in `TestWsUpgrade` checks that an upgrade request gets no session cookie.
+
+Reported to @tipsy by email on 21 Oct. Found with the Quality Playbook, an AI code-review tool I maintain; Claude reproduced it and wrote the fix and test, and I reviewed them.

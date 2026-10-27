@@ -56,6 +56,12 @@ Andrew reads the explanation and the diff. If he's satisfied, he runs the submit
 
 Unchanged from before: confirmation by an independent confirmer, a minimal fix with red/green/revert, and the full review panel plus a re-review of any code revision. Only bugs that pass all of that get presented.
 
+## Exceptions so far
+
+- **The maintainer asks for several at once.** After a private report, the javalin maintainer asked for one PR per issue, and Tidelift asked for public PRs for all five marshmallow bugs. Those went as batches (javalin: seven on 2026-10-21 and four on 2026-10-22; marshmallow: five on 2026-10-21), each still with its own review record. They were opened ready for review, not as drafts, because the maintainer had asked for them.
+- **Security reports go private first.** A bug that may be a vulnerability goes to the project's private channel (GitHub private vulnerability reporting, the address in SECURITY.md, or the maintainer's email when there is neither) before any public PR. Its folder stays out of the public repository until the maintainer publishes the advisory or asks for a public PR.
+- **Linux N-02** went to security@kernel.org as a static-analysis finding without a runtime reproduction. Its folder says why.
+
 ## Reference example
 
 `evidence/cobra-suggest-runes/REVIEW.md` (spf13/cobra#2514) is the first submission made under this protocol.

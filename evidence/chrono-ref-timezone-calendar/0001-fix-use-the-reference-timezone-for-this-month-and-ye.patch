@@ -1,0 +1,137 @@
+From abf421d4da11115ba48bce2278f2c78a9ea712ca Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <andrew@stellman.com>
+Date: Wed, 7 Oct 2026 16:33:12 -0400
+Subject: [PATCH] fix: use the reference timezone for "this month" and
+ year-less dates
+
+With a reference timezone that differs from the process timezone, "this
+week/month/year", "last night" and dates without a year ("Feb 15",
+"15 Feb", "2/15", "February") used the process calendar. "today" and
+"next month" already used the reference timezone's calendar.
+---
+ src/common/parsers/SlashDateFormatParser.ts   |  2 +-
+ src/locales/en/parsers/ENCasualDateParser.ts  |  2 +-
+ .../parsers/ENMonthNameLittleEndianParser.ts  |  2 +-
+ .../parsers/ENMonthNameMiddleEndianParser.ts  |  2 +-
+ src/locales/en/parsers/ENMonthNameParser.ts   |  2 +-
+ .../en/parsers/ENRelativeDateFormatParser.ts  |  2 +-
+ test/en/en_relative.test.ts                   | 25 +++++++++++++++++++
+ 7 files changed, 31 insertions(+), 6 deletions(-)
+
+diff --git a/src/common/parsers/SlashDateFormatParser.ts b/src/common/parsers/SlashDateFormatParser.ts
+index 5ea81a4..7c00396 100644
+--- a/src/common/parsers/SlashDateFormatParser.ts
++++ b/src/common/parsers/SlashDateFormatParser.ts
+@@ -94,7 +94,7 @@ export default class SlashDateFormatParser implements Parser {
+             const year = findMostLikelyADYear(rawYearNumber);
+             result.start.assign("year", year);
+         } else {
+-            const year = findYearClosestToRef(context.refDate, day, month);
++            const year = findYearClosestToRef(context.reference.getDateWithAdjustedTimezone(), day, month);
+             result.start.imply("year", year);
+         }
+ 
+diff --git a/src/locales/en/parsers/ENCasualDateParser.ts b/src/locales/en/parsers/ENCasualDateParser.ts
+index 5b22903..40b28d5 100644
+--- a/src/locales/en/parsers/ENCasualDateParser.ts
++++ b/src/locales/en/parsers/ENCasualDateParser.ts
+@@ -12,7 +12,7 @@ export default class ENCasualDateParser extends AbstractParserWithWordBoundaryCh
+     }
+ 
+     innerExtract(context: ParsingContext, match: RegExpMatchArray): ParsingComponents | ParsingResult {
+-        let targetDate = context.refDate;
++        let targetDate = context.reference.getDateWithAdjustedTimezone();
+         const lowerText = match[0].toLowerCase();
+         let component = context.createParsingComponents();
+ 
+diff --git a/src/locales/en/parsers/ENMonthNameLittleEndianParser.ts b/src/locales/en/parsers/ENMonthNameLittleEndianParser.ts
+index 259d557..6e3963b 100644
+--- a/src/locales/en/parsers/ENMonthNameLittleEndianParser.ts
++++ b/src/locales/en/parsers/ENMonthNameLittleEndianParser.ts
+@@ -53,7 +53,7 @@ export default class ENMonthNameLittleEndianParser extends AbstractParserWithWor
+             const yearNumber = parseYear(match[YEAR_GROUP]);
+             result.start.assign("year", yearNumber);
+         } else {
+-            const year = findYearClosestToRef(context.refDate, day, month);
++            const year = findYearClosestToRef(context.reference.getDateWithAdjustedTimezone(), day, month);
+             result.start.imply("year", year);
+         }
+ 
+diff --git a/src/locales/en/parsers/ENMonthNameMiddleEndianParser.ts b/src/locales/en/parsers/ENMonthNameMiddleEndianParser.ts
+index c0dd966..e8b3bc2 100644
+--- a/src/locales/en/parsers/ENMonthNameMiddleEndianParser.ts
++++ b/src/locales/en/parsers/ENMonthNameMiddleEndianParser.ts
+@@ -75,7 +75,7 @@ export default class ENMonthNameMiddleEndianParser extends AbstractParserWithWor
+             const year = parseYear(match[YEAR_GROUP]);
+             components.assign("year", year);
+         } else {
+-            const year = findYearClosestToRef(context.refDate, day, month);
++            const year = findYearClosestToRef(context.reference.getDateWithAdjustedTimezone(), day, month);
+             components.imply("year", year);
+         }
+         if (!match[DATE_TO_GROUP]) {
+diff --git a/src/locales/en/parsers/ENMonthNameParser.ts b/src/locales/en/parsers/ENMonthNameParser.ts
+index cd6e89b..6eaf9c2 100644
+--- a/src/locales/en/parsers/ENMonthNameParser.ts
++++ b/src/locales/en/parsers/ENMonthNameParser.ts
+@@ -54,7 +54,7 @@ export default class ENMonthNameParser extends AbstractParserWithWordBoundaryChe
+             const year = parseYear(match[YEAR_GROUP]);
+             result.start.assign("year", year);
+         } else {
+-            const year = findYearClosestToRef(context.refDate, 1, month);
++            const year = findYearClosestToRef(context.reference.getDateWithAdjustedTimezone(), 1, month);
+             result.start.imply("year", year);
+         }
+ 
+diff --git a/src/locales/en/parsers/ENRelativeDateFormatParser.ts b/src/locales/en/parsers/ENRelativeDateFormatParser.ts
+index b015fa8..90b040d 100644
+--- a/src/locales/en/parsers/ENRelativeDateFormatParser.ts
++++ b/src/locales/en/parsers/ENRelativeDateFormatParser.ts
+@@ -35,7 +35,7 @@ export default class ENRelativeDateFormatParser extends AbstractParserWithWordBo
+         }
+ 
+         const components = context.createParsingComponents();
+-        let date = new Date(context.reference.instant.getTime());
++        let date = context.reference.getDateWithAdjustedTimezone();
+ 
+         // This week
+         if (unitWord.match(/week/i)) {
+diff --git a/test/en/en_relative.test.ts b/test/en/en_relative.test.ts
+index a8e736e..c89580b 100644
+--- a/test/en/en_relative.test.ts
++++ b/test/en/en_relative.test.ts
+@@ -36,6 +36,31 @@ test("Test - 'This' expressions", () => {
+     });
+ });
+ 
++test("Test - 'This' and year-less expressions use the calendar of the reference timezone", () => {
++    // The reference timezone is 3 hours ahead of the system timezone, whatever the system timezone is.
++    // The system clock reads `local`, and the clock in the reference timezone reads 3 hours later.
++    const cases = [
++        { phrase: "this month", local: new Date(2012, 7 - 1, 31, 22), expected: [2012, 8, 1] },
++        { phrase: "this year", local: new Date(2012, 12 - 1, 31, 22), expected: [2013, 1, 1] },
++        { phrase: "this week", local: new Date(2012, 8 - 1, 4, 22), expected: [2012, 8, 5] },
++        { phrase: "last night", local: new Date(2012, 8 - 1, 1, 4), expected: [2012, 7, 31] },
++        { phrase: "Feb 15", local: new Date(2021, 8 - 1, 16, 22), expected: [2022, 2, 15] },
++        { phrase: "15 Feb", local: new Date(2021, 8 - 1, 16, 22), expected: [2022, 2, 15] },
++        { phrase: "2/15", local: new Date(2021, 8 - 1, 16, 22), expected: [2022, 2, 15] },
++        { phrase: "February", local: new Date(2021, 8 - 1, 2, 22), expected: [2022, 2, 1] },
++    ];
++
++    for (const { phrase, local, expected } of cases) {
++        const reference = { instant: local, timezone: -local.getTimezoneOffset() + 180 };
++        testSingleCase(chrono, "Deadline is " + phrase, reference, (result) => {
++            expect(result.index).toBe(12);
++            expect(result.text).toBe(phrase);
++            const { start } = result;
++            expect([phrase, start.get("year"), start.get("month"), start.get("day")]).toEqual([phrase, ...expected]);
++        });
++    }
++});
++
+ test("Test - End of current month", () => {
+     testSingleCase(chrono, "end of the month", new Date(2012, 7, 10), (result, text) => {
+         expect(result.text).toBe(text);
+-- 
+2.43.0
+

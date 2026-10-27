@@ -1,0 +1,29 @@
+$ /work/batch/runs/money/bin/run-tests /work/batch/runs/money/scratch/fix-money-subclass-money-ratio spec/money/arithmetic_spec.rb -e 'returns a Float when dividing a subclass'
+Run options: include {:full_description=>/returns\ a\ Float\ when\ dividing\ a\ subclass/}
+
+Randomized with seed 45682
+
+Money::Arithmetic
+  #/
+    returns a Float when dividing a subclass of Money by a Money (FAILED - 1)
+
+Failures:
+
+  1) Money::Arithmetic#/ returns a Float when dividing a subclass of Money by a Money
+     Failure/Error: expect(ratio).to be_a Float
+       expected #< fractional:1000 currency:USD> to be a kind of Float
+     # ./spec/money/arithmetic_spec.rb:377:in `block (3 levels) in <top (required)>'
+
+Top 1 slowest examples (0.00888 seconds, 72.9% of total time):
+  Money::Arithmetic#/ returns a Float when dividing a subclass of Money by a Money
+    0.00888 seconds ./spec/money/arithmetic_spec.rb:374
+
+Finished in 0.01218 seconds (files took 0.15846 seconds to load)
+1 example, 1 failure
+
+Failed examples:
+
+rspec ./spec/money/arithmetic_spec.rb:374 # Money::Arithmetic#/ returns a Float when dividing a subclass of Money by a Money
+
+Randomized with seed 45682
+

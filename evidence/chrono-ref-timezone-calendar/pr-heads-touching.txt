@@ -1,0 +1,7 @@
+pr/356 2020-11-10 Fix for XX-YY dates not being parsed as dates :: src/common/parsers/SlashDateFormatParser.ts 
+pr/359 2020-11-15 Fix parsing of "May" using ENMonthNameParser :: src/locales/en/parsers/ENMonthNameParser.ts 
+pr/525 2023-08-10 Add casualText to expose casual match :: src/locales/en/parsers/ENCasualDateParser.ts 
+pr/648 2026-06-18 fix: parse year-before-month-name expressions (e.g. "2024 Aug") :: src/locales/en/parsers/ENMonthNameLittleEndianParser.ts src/locales/en/parsers/ENMonthNameParser.ts 
+pr/662 2026-10-04 fix: keep the day within the target month when adding months :: test/en/en_relative.test.ts 
+pr/663 2026-09-27 fix: keep the local time for relative dates across a DST change :: test/en/en_relative.test.ts 
+pr/665 2026-09-27 fix(en): keep end-of-period days in ranges on their own side :: test/en/en_relative.test.ts 

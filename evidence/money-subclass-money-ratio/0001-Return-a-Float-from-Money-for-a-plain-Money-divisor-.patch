@@ -1,0 +1,71 @@
+From 7e8215a2fd4ddaf13e749d7f46906f86bbd3ab28 Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <andrew@stellman.com>
+Date: Tue, 6 Oct 2026 00:17:05 -0400
+Subject: [PATCH] Return a Float from Money#/ for a plain Money divisor on a
+ subclass
+
+---
+ AUTHORS                       | 1 +
+ CHANGELOG.md                  | 1 +
+ lib/money/money/arithmetic.rb | 2 +-
+ spec/money/arithmetic_spec.rb | 7 +++++++
+ 4 files changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/AUTHORS b/AUTHORS
+index 2d9b131..bb78bb6 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -7,6 +7,7 @@ AmineAffifSkello
+ Andreas Loupasakis
+ Andrei
+ Andrei Andriichuk
++Andrew Stellman
+ Andrew White
+ Andrius Chamentauskas
+ Anthony Hristov
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index 519ff8f..adb06e8 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -2,6 +2,7 @@
+ 
+ ## Unreleased
+ 
++- Fix `Money#/` on an instance of a `Money` subclass treating a plain `Money` divisor as a number, so it returned a `Money` instead of the documented `Float`
+ - Fix `Money::Allocation.generate` converting a Rational with unlimited `to_d` precision. It now uses `Money.conversion_precision`
+ - Fix `Money::Currency.reset!` keeping the cached key set, so a currency registered before the reset was still accepted by `Money::Currency.new` and raised `NoMethodError` instead of `UnknownCurrency`
+ - Fix `Money::Bank::VariableExchange#import_rates` parsing `:json` with `JSON.load`, which instantiates any class named by a `json_class` key; it now uses `JSON.parse`
+diff --git a/lib/money/money/arithmetic.rb b/lib/money/money/arithmetic.rb
+index 9161dce..e43d95d 100644
+--- a/lib/money/money/arithmetic.rb
++++ b/lib/money/money/arithmetic.rb
+@@ -202,7 +202,7 @@ class Money
+     #   Money.new(100) / Money.new(10) #=> 10.0
+     #
+     def /(other)
+-      if other.is_a?(self.class)
++      if other.is_a?(Money)
+         exchanged = other.exchange_to(currency)
+         raise ZeroDivisionError, "divided by Money(0)" if exchanged.zero?
+ 
+diff --git a/spec/money/arithmetic_spec.rb b/spec/money/arithmetic_spec.rb
+index 5f1a4f7..4fcb48a 100644
+--- a/spec/money/arithmetic_spec.rb
++++ b/spec/money/arithmetic_spec.rb
+@@ -371,6 +371,13 @@ RSpec.describe Money::Arithmetic do
+       expect(special_money_class.new(10_00, "USD") / 2).to be_a special_money_class
+     end
+ 
++    it "returns a Float when dividing a subclass of Money by a Money" do
++      special_money_class = Class.new(Money)
++      ratio = special_money_class.new(10_00, "USD") / Money.new(1_00, "USD")
++      expect(ratio).to be_a Float
++      expect(ratio).to eq 10.0
++    end
++
+     describe "rounding preference" do
+       before do
+         allow(Money).to receive(:rounding_mode).and_return(rounding_mode)
+-- 
+2.43.0
+

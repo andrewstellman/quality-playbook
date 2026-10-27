@@ -1,0 +1,3 @@
+`JettyPrecompressingResourceHandler` cached precompressed bytes under the request path after the config's `hostedPath` was stripped, so two static file configs with the same relative file (usually `index.html`) shared one cache entry. After an authorised user loaded a role-protected `/admin/index.html`, an anonymous request for `/index.html` returned the admin page. The cache is now keyed by the resolved file. The test in `TestStaticFilesPrecompressor` uses two hosted paths whose `index.html` files differ. `JavalinStaticResourceHandler` already keyed by file and is unchanged.
+
+Reported to @tipsy by email on 21 Oct. Found with the Quality Playbook, an AI code-review tool I maintain; Claude reproduced it and wrote the fix and test, and I reviewed them.

@@ -1,0 +1,128 @@
+From 5a2643872ddcdac2bf17a5ba39d3082638465103 Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <andrew@stellman.com>
+Date: Tue, 20 Oct 2026 12:27:29 -0400
+Subject: [PATCH] [plugins] BasicAuthPlugin: fail closed without configured
+ credentials and protect WebSocket upgrades
+
+---
+ .../javalin/plugin/bundled/BasicAuthPlugin.kt | 23 ++++++++-----------
+ .../src/test/java/io/javalin/TestRequest.kt   | 13 +++++++++++
+ .../io/javalin/websocket/TestWsUpgrade.kt     | 16 +++++++++++++
+ 3 files changed, 39 insertions(+), 13 deletions(-)
+
+diff --git a/javalin/src/main/java/io/javalin/plugin/bundled/BasicAuthPlugin.kt b/javalin/src/main/java/io/javalin/plugin/bundled/BasicAuthPlugin.kt
+index 24b2840..ccca12b 100644
+--- a/javalin/src/main/java/io/javalin/plugin/bundled/BasicAuthPlugin.kt
++++ b/javalin/src/main/java/io/javalin/plugin/bundled/BasicAuthPlugin.kt
+@@ -7,14 +7,14 @@
+ package io.javalin.plugin.bundled
+ 
+ import io.javalin.config.JavalinState
++import io.javalin.http.Context
+ import io.javalin.http.Header.WWW_AUTHENTICATE
+ import io.javalin.http.UnauthorizedResponse
+ import io.javalin.plugin.Plugin
+ import java.util.function.Consumer
+ 
+ /**
+- * Adds a filter that runs before every http request.
+- * Note: It does not apply to websocket upgrade requests
++ * Adds a filter that runs before every http request and every websocket upgrade request.
+  */
+ class BasicAuthPlugin(userConfig: Consumer<Config>) : Plugin<BasicAuthPlugin.Config>(userConfig, Config()) {
+ 
+@@ -24,18 +24,15 @@ class BasicAuthPlugin(userConfig: Consumer<Config>) : Plugin<BasicAuthPlugin.Con
+     }
+ 
+     override fun onStart(state: JavalinState) {
+-        state.routes.before { ctx ->
+-            val matched = runCatching { ctx.basicAuthCredentials() }
+-                .fold(
+-                    onSuccess = { auth -> auth?.username == pluginConfig.username && auth?.password == pluginConfig.password },
+-                    onFailure = { false }
+-                )
++        state.routes.before { ctx -> if (!authorized(ctx)) { ctx.header(WWW_AUTHENTICATE, "Basic"); throw UnauthorizedResponse() } }
++        state.routes.wsBeforeUpgrade { ctx -> if (!authorized(ctx)) { ctx.header(WWW_AUTHENTICATE, "Basic"); throw UnauthorizedResponse() } }
++    }
+ 
+-            if (!matched) {
+-                ctx.header(WWW_AUTHENTICATE, "Basic")
+-                throw UnauthorizedResponse()
+-            }
+-        }
++    private fun authorized(ctx: Context): Boolean {
++        val auth = runCatching { ctx.basicAuthCredentials() }.getOrNull() ?: return false
++        val username = pluginConfig.username ?: return false // no configured credentials: nothing can match, fail closed
++        val password = pluginConfig.password ?: return false
++        return auth.username == username && auth.password == password
+     }
+ 
+ }
+diff --git a/javalin/src/test/java/io/javalin/TestRequest.kt b/javalin/src/test/java/io/javalin/TestRequest.kt
+index 583919d..6e01add 100644
+--- a/javalin/src/test/java/io/javalin/TestRequest.kt
++++ b/javalin/src/test/java/io/javalin/TestRequest.kt
+@@ -18,6 +18,7 @@ import io.javalin.http.servlet.SESSION_CACHE_KEY_PREFIX
+ import io.javalin.http.staticfiles.Location
+ import io.javalin.plugin.bundled.BasicAuthPlugin
+ import io.javalin.testing.TestUtil
++import io.javalin.testing.httpCode
+ 
+ import kong.unirest.Unirest
+ import okhttp3.OkHttpClient
+@@ -327,6 +328,18 @@ class TestRequest {
+         }
+     }
+ 
++    @Test
++    fun `basic auth filter plugin denies every request when no credentials are configured`() {
++        val basicAuthApp = Javalin.create { cfg ->
++            cfg.registerPlugin(BasicAuthPlugin { })
++            cfg.routes.get("/hellopath") { it.result("Hello") }
++        }
++        TestUtil.test(basicAuthApp) { _, http ->
++            assertThat(http.get("/hellopath").httpCode()).isEqualTo(HttpStatus.UNAUTHORIZED)
++            Unirest.get("${http.origin}/hellopath").basicAuth("", "").asString().let { assertThat(it.httpCode()).isEqualTo(HttpStatus.UNAUTHORIZED) }
++        }
++    }
++
+     @Test
+     fun `servlet-context is not null`() = TestUtil.test { app, http ->
+         app.unsafe.routes.get("/") { it.result(if (it.req().servletContext != null) "not-null" else "null") }
+diff --git a/javalin/src/test/java/io/javalin/websocket/TestWsUpgrade.kt b/javalin/src/test/java/io/javalin/websocket/TestWsUpgrade.kt
+index 5ad234a..f6c80b9 100644
+--- a/javalin/src/test/java/io/javalin/websocket/TestWsUpgrade.kt
++++ b/javalin/src/test/java/io/javalin/websocket/TestWsUpgrade.kt
+@@ -6,9 +6,12 @@
+ 
+ package io.javalin.websocket
+ 
++import io.javalin.Javalin
++import io.javalin.http.Header
+ import io.javalin.http.HttpStatus
+ import io.javalin.security.RouteRole
+ import io.javalin.testing.TestUtil
++import kong.unirest.Unirest
+ import org.assertj.core.api.Assertions.assertThat
+ import org.junit.jupiter.api.Test
+ import org.junit.jupiter.api.Timeout
+@@ -52,6 +55,19 @@ class TestWsUpgrade {
+         assertThat(log).isEmpty()
+     }
+ 
++    @Test
++    fun `basic auth plugin protects websocket upgrades`() = TestUtil.test(Javalin.create { it.bundledPlugins.enableBasicAuth("u", "p") }) { app, http ->
++        val log = ConcurrentLinkedQueue<String>()
++        app.unsafe.routes.ws("/ws") { ws -> ws.onConnect { log.add("connected") } }
++        val denied = http.wsUpgradeRequest("/ws")
++        assertThat(denied.status).isEqualTo(HttpStatus.UNAUTHORIZED.code)
++        assertThat(denied.headers.getFirst(Header.WWW_AUTHENTICATE)).isEqualTo("Basic")
++        val token = java.util.Base64.getEncoder().encodeToString("u:p".toByteArray())
++        val authorized = Unirest.get("${http.origin}/ws").header(Header.SEC_WEBSOCKET_KEY, "not-null").header(Header.SEC_WEBSOCKET_VERSION, "13").header(Header.AUTHORIZATION, "Basic $token").asString()
++        assertThat(authorized.status).isNotEqualTo(HttpStatus.UNAUTHORIZED.code)
++        assertThat(log).isEmpty()
++    }
++
+     @Test
+     fun `wsBeforeUpgrade exception pattern can be combined with a custom exception handler`() = TestUtil.test { app, http ->
+         val log = ConcurrentLinkedQueue<String>()

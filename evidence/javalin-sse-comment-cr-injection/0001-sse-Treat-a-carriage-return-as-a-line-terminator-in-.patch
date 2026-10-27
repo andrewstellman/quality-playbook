@@ -1,0 +1,42 @@
+From 02fb4f0fb78a77605d0d07547ee685d3a23b7316 Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <andrew@stellman.com>
+Date: Tue, 20 Oct 2026 12:27:29 -0400
+Subject: [PATCH] [sse] Treat a carriage return as a line terminator in SSE
+ comments
+
+---
+ javalin/src/main/java/io/javalin/http/sse/Emitter.kt | 2 +-
+ javalin/src/test/java/io/javalin/TestSse.kt          | 7 +++++++
+ 2 files changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/javalin/src/main/java/io/javalin/http/sse/Emitter.kt b/javalin/src/main/java/io/javalin/http/sse/Emitter.kt
+index 32fa68d..06886e3 100644
+--- a/javalin/src/main/java/io/javalin/http/sse/Emitter.kt
++++ b/javalin/src/main/java/io/javalin/http/sse/Emitter.kt
+@@ -41,7 +41,7 @@ class Emitter(private var response: HttpServletResponse) {
+ 
+     fun emit(comment: String) = synchronized(this) {
+         try {
+-            comment.split(NEW_LINE).forEach {
++            comment.split(Regex("\r\n|\r|\n")).forEach { // CR alone is also an SSE line terminator
+                 write("$COMMENT_PREFIX $it$NEW_LINE")
+             }
+             response.flushBuffer()
+diff --git a/javalin/src/test/java/io/javalin/TestSse.kt b/javalin/src/test/java/io/javalin/TestSse.kt
+index ba91e12..2b93c53 100644
+--- a/javalin/src/test/java/io/javalin/TestSse.kt
++++ b/javalin/src/test/java/io/javalin/TestSse.kt
+@@ -301,6 +301,13 @@ class TestSse {
+         }
+     }
+ 
++    @Test
++    fun `carriage return in a comment cannot inject a field`() = TestUtil.test { app, http ->
++        app.unsafe.routes.sse("/sse") { it.doAndClose { it.sendComment("hello\rdata: forged") } }
++        val body = http.getBody("/sse", mapOf(Header.ACCEPT to "text/event-stream"))
++        assertThat(body.split("\r\n", "\r", "\n").filter { it.startsWith("data:") }).isEmpty()
++    }
++
+     @Test
+     fun `sse does not work without text-event-stream in Accept header`() = TestUtil.test { app, http ->
+         app.unsafe.routes.sse("/sse") { it.doAndClose { it.sendEvent(event, data) } }

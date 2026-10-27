@@ -1,0 +1,64 @@
+From 3a64348a8146f992883066a616293abaddb390ab Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <andrew@stellman.com>
+Date: Tue, 20 Oct 2026 11:40:24 -0400
+Subject: [PATCH] Do not let an unknown key under INCLUDE overwrite a declared
+ field's value
+
+---
+ src/marshmallow/schema.py        | 11 ++++++++++-
+ tests/test_bug_006_regression.py | 21 +++++++++++++++++++++
+ 2 files changed, 31 insertions(+), 1 deletion(-)
+ create mode 100644 tests/test_bug_006_regression.py
+
+diff --git a/src/marshmallow/schema.py b/src/marshmallow/schema.py
+index f68da9d..0f9518f 100644
+--- a/src/marshmallow/schema.py
++++ b/src/marshmallow/schema.py
+@@ -692,10 +692,19 @@ class Schema(metaclass=SchemaMeta):
+                     field_obj.data_key if field_obj.data_key is not None else field_name
+                     for field_name, field_obj in self.load_fields.items()
+                 }
++                # Output keys written by declared fields (a dotted attribute
++                # writes under its first segment).
++                loaded_keys = {
++                    (field_obj.attribute or field_name).split(".")[0]
++                    for field_name, field_obj in self.load_fields.items()
++                }
+                 for key in set(data) - fields:
+                     value = data[key]
+                     if unknown == INCLUDE:
+-                        ret_d[key] = value
++                        # An unknown key must not overwrite the validated
++                        # value of a declared field loaded under the same key.
++                        if key not in loaded_keys:
++                            ret_d[key] = value
+                     elif unknown == RAISE:
+                         error_store.store_error(
+                             [self.error_messages["unknown"]],
+diff --git a/tests/test_bug_006_regression.py b/tests/test_bug_006_regression.py
+new file mode 100644
+index 0000000..fef4704
+--- /dev/null
++++ b/tests/test_bug_006_regression.py
+@@ -0,0 +1,21 @@
++from __future__ import annotations
++
++from marshmallow import INCLUDE, Schema, fields
++
++
++def test_bug_006_include_unknown_does_not_overwrite_declared_field():
++    class S(Schema):
++        class Meta:
++            unknown = INCLUDE
++
++        first_name = fields.Int(data_key="firstName")
++
++    assert S().load({"firstName": "5", "first_name": "evil"}) == {"first_name": 5}
++
++    class T(Schema):
++        class Meta:
++            unknown = INCLUDE
++
++        x = fields.Int(attribute="y")
++
++    assert T().load({"x": "1", "y": "evil"}) == {"y": 1}

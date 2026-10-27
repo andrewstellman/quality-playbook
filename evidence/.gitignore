@@ -1,0 +1,14 @@
+# Kept out of the public repository. README.md, "What is not published here", says why.
+
+# Private security reports, until the maintainers publish them
+addressable-display-uri-bidi/
+adonis-authority-forwarded-host/
+cron-parser-proto-crontab-key/
+
+# Private correspondence and drafts of it
+*.eml
+EMAIL-AS-DRAFTED.md
+REPORT-DRAFT.md
+
+# The full report from the 2026-09-29 javalin run, withheld until the maintainer has had the re-run
+javalin-security-batch-2026-10-20/BUGS.md

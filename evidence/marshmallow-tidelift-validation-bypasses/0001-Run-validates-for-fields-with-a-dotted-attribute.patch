@@ -1,0 +1,101 @@
+From f0f942bd2f071599a498d95ede80a232fde78264 Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <andrew@stellman.com>
+Date: Tue, 20 Oct 2026 11:39:52 -0400
+Subject: [PATCH] Run @validates for fields with a dotted attribute
+
+---
+ src/marshmallow/schema.py        | 16 ++++++++++--
+ tests/test_bug_001_regression.py | 45 ++++++++++++++++++++++++++++++++
+ 2 files changed, 59 insertions(+), 2 deletions(-)
+ create mode 100644 tests/test_bug_001_regression.py
+
+diff --git a/src/marshmallow/schema.py b/src/marshmallow/schema.py
+index f68da9d..cfd814c 100644
+--- a/src/marshmallow/schema.py
++++ b/src/marshmallow/schema.py
+@@ -1143,7 +1143,9 @@ class Schema(metaclass=SchemaMeta):
+                 if many:
+                     for idx, item in enumerate(data):
+                         try:
+-                            value = item[field_obj.attribute or field_name]
++                            value = _get_loaded_value(
++                                item, field_obj.attribute or field_name
++                            )
+                         except KeyError:
+                             pass
+                         else:
+@@ -1158,7 +1160,9 @@ class Schema(metaclass=SchemaMeta):
+                                 item.pop(field_name, None)
+                 else:
+                     try:
+-                        value = data[field_obj.attribute or field_name]
++                        value = _get_loaded_value(
++                            data, field_obj.attribute or field_name
++                        )
+                     except KeyError:
+                         pass
+                     else:
+@@ -1250,4 +1254,12 @@ class Schema(metaclass=SchemaMeta):
+         return data
+ 
+ 
++def _get_loaded_value(data, key: str):
++    """Read the value stored under `key` (possibly a dotted path) in loaded data.
++
++    Raises `KeyError` when the path is absent, mirroring `set_value`.
++    """
++    return functools.reduce(operator.getitem, key.split("."), data)
++
++
+ BaseSchema = Schema  # for backwards compatibility
+diff --git a/tests/test_bug_001_regression.py b/tests/test_bug_001_regression.py
+new file mode 100644
+index 0000000..6f5a247
+--- /dev/null
++++ b/tests/test_bug_001_regression.py
+@@ -0,0 +1,45 @@
++from __future__ import annotations
++
++import pytest
++
++from marshmallow import (
++    Schema,
++    ValidationError,
++    fields,
++    pre_load,
++    validate,
++    validates,
++    validates_schema,
++)
++
++
++def test_bug_001_validates_runs_for_dotted_attribute():
++    """[BUG-001, schema.py:1161] @validates reads data[attribute or name]; a dotted
++    attribute is stored nested by set_value, so the lookup raises KeyError and the
++    validator is silently skipped."""
++
++    class S(Schema):
++        name = fields.Str(attribute="a.b")
++
++        @validates("name")
++        def check(self, value, **kwargs):
++            raise ValidationError("rejected")
++
++    with pytest.raises(ValidationError) as exc:
++        S().load({"name": "x"})
++    assert exc.value.messages == {"name": ["rejected"]}
++
++
++def test_bug_001_validates_runs_for_dotted_attribute_many():
++    """[BUG-001, schema.py:1146] many=True branch of the same defect."""
++
++    class S(Schema):
++        name = fields.Str(attribute="a.b")
++
++        @validates("name")
++        def check(self, value, **kwargs):
++            raise ValidationError("rejected")
++
++    with pytest.raises(ValidationError) as exc:
++        S(many=True).load([{"name": "x"}])
++    assert exc.value.messages == {0: {"name": ["rejected"]}}

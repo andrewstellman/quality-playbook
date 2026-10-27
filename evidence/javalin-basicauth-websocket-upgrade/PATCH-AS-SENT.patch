@@ -1,0 +1,87 @@
+From 55f8e5d3c1d5e8ce9fc3274ed3550f7a86aaf492 Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <andrew@stellman.com>
+Date: Wed, 21 Oct 2026 14:45:57 -0400
+Subject: [PATCH] [plugins] BasicAuthPlugin: protect WebSocket upgrades
+
+---
+ .../javalin/plugin/bundled/BasicAuthPlugin.kt | 27 +++++++------------
+ .../io/javalin/websocket/TestWsUpgrade.kt     |  7 +++++
+ 2 files changed, 17 insertions(+), 17 deletions(-)
+
+diff --git a/javalin/src/main/java/io/javalin/plugin/bundled/BasicAuthPlugin.kt b/javalin/src/main/java/io/javalin/plugin/bundled/BasicAuthPlugin.kt
+index d364c38..ccca12b 100644
+--- a/javalin/src/main/java/io/javalin/plugin/bundled/BasicAuthPlugin.kt
++++ b/javalin/src/main/java/io/javalin/plugin/bundled/BasicAuthPlugin.kt
+@@ -7,14 +7,14 @@
+ package io.javalin.plugin.bundled
+ 
+ import io.javalin.config.JavalinState
++import io.javalin.http.Context
+ import io.javalin.http.Header.WWW_AUTHENTICATE
+ import io.javalin.http.UnauthorizedResponse
+ import io.javalin.plugin.Plugin
+ import java.util.function.Consumer
+ 
+ /**
+- * Adds a filter that runs before every http request.
+- * Note: It does not apply to websocket upgrade requests
++ * Adds a filter that runs before every http request and every websocket upgrade request.
+  */
+ class BasicAuthPlugin(userConfig: Consumer<Config>) : Plugin<BasicAuthPlugin.Config>(userConfig, Config()) {
+ 
+@@ -24,22 +24,15 @@ class BasicAuthPlugin(userConfig: Consumer<Config>) : Plugin<BasicAuthPlugin.Con
+     }
+ 
+     override fun onStart(state: JavalinState) {
+-        state.routes.before { ctx ->
+-            val matched = runCatching { ctx.basicAuthCredentials() }
+-                .fold(
+-                    onSuccess = { auth ->
+-                        // with no configured credentials nothing can match, so fail closed
+-                        auth != null && pluginConfig.username != null && pluginConfig.password != null &&
+-                            auth.username == pluginConfig.username && auth.password == pluginConfig.password
+-                    },
+-                    onFailure = { false }
+-                )
++        state.routes.before { ctx -> if (!authorized(ctx)) { ctx.header(WWW_AUTHENTICATE, "Basic"); throw UnauthorizedResponse() } }
++        state.routes.wsBeforeUpgrade { ctx -> if (!authorized(ctx)) { ctx.header(WWW_AUTHENTICATE, "Basic"); throw UnauthorizedResponse() } }
++    }
+ 
+-            if (!matched) {
+-                ctx.header(WWW_AUTHENTICATE, "Basic")
+-                throw UnauthorizedResponse()
+-            }
+-        }
++    private fun authorized(ctx: Context): Boolean {
++        val auth = runCatching { ctx.basicAuthCredentials() }.getOrNull() ?: return false
++        val username = pluginConfig.username ?: return false // no configured credentials: nothing can match, fail closed
++        val password = pluginConfig.password ?: return false
++        return auth.username == username && auth.password == password
+     }
+ 
+ }
+diff --git a/javalin/src/test/java/io/javalin/websocket/TestWsUpgrade.kt b/javalin/src/test/java/io/javalin/websocket/TestWsUpgrade.kt
+index 5ad234a..3e987ae 100644
+--- a/javalin/src/test/java/io/javalin/websocket/TestWsUpgrade.kt
++++ b/javalin/src/test/java/io/javalin/websocket/TestWsUpgrade.kt
+@@ -6,6 +6,7 @@
+ 
+ package io.javalin.websocket
+ 
++import io.javalin.Javalin
+ import io.javalin.http.HttpStatus
+ import io.javalin.security.RouteRole
+ import io.javalin.testing.TestUtil
+@@ -52,6 +53,12 @@ class TestWsUpgrade {
+         assertThat(log).isEmpty()
+     }
+ 
++    @Test
++    fun `basic auth plugin protects websocket upgrades`() = TestUtil.test(Javalin.create { it.bundledPlugins.enableBasicAuth("u", "p") }) { app, http ->
++        app.unsafe.routes.ws("/ws") { }
++        assertThat(http.wsUpgradeRequest("/ws").status).isEqualTo(HttpStatus.UNAUTHORIZED.code)
++    }
++
+     @Test
+     fun `wsBeforeUpgrade exception pattern can be combined with a custom exception handler`() = TestUtil.test { app, http ->
+         val log = ConcurrentLinkedQueue<String>()

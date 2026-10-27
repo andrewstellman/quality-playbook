@@ -1,0 +1,19 @@
+=== bug001.py
+many=False result={'a': {'b': 'x'}}
+many=True result=[{'a': {'b': 'x'}}]
+exit=0
+=== bug002.py
+messages={'name': ['rejected']} valid_data={'n': 'x', 'age': 1}
+{'a': {'b': 'x'}, 'age': 1}
+exit=0
+=== bug003.py
+dump with load_only: {'by_class': {'a': 1}, 'by_instance': {'a': 1, 'b': 2}}
+load with dump_only: ValidationError {'by_class': {'b': ['Unknown field.']}}
+exit=0
+=== bug004.py
+ValueError: zip() argument 2 is shorter than argument 1
+exit=0
+=== bug006.py
+data_key collision: {'first_name': 'evil'}
+attribute collision: {'y': 'evil'}
+exit=0

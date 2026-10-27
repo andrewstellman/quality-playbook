@@ -1,0 +1,72 @@
+From f00d4085de569b8fcaf34d2c473b7a4bd8595a6d Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <astellman@stellman-greene.com>
+Date: Thu, 22 Oct 2026 18:23:21 -0400
+Subject: [PATCH] [context] Strip directory components from uploaded file names
+
+UploadedFile.filename() returned the multipart filename exactly as the
+client sent it, and Jetty passes values like "../../evil.txt" through.
+The documented upload example saves files with
+FileUtil.streamToFile(content, "upload/" + uploadedFile.filename()), so
+a client could write files outside the upload directory. filename() now
+returns only the last path segment (splitting on '/' and '\'), maps "."
+and ".." to an empty name, and extension() is derived from it.
+---
+ .../main/java/io/javalin/http/UploadedFile.kt   |  7 ++++---
+ .../test/java/io/javalin/TestMultipartForms.kt  | 17 +++++++++++++++++
+ 2 files changed, 21 insertions(+), 3 deletions(-)
+
+diff --git a/javalin/src/main/java/io/javalin/http/UploadedFile.kt b/javalin/src/main/java/io/javalin/http/UploadedFile.kt
+index 54ff0d2..e6a3fda 100644
+--- a/javalin/src/main/java/io/javalin/http/UploadedFile.kt
++++ b/javalin/src/main/java/io/javalin/http/UploadedFile.kt
+@@ -14,7 +14,7 @@ import java.io.InputStream
+  * [content]: the file-content as an [InputStream]
+  * [contentType]: the content-type passed by the client
+  * [size]: the size of the file in bytes
+- * [filename]: the file-name reported by the client
++ * [filename]: the file-name reported by the client, without any directory components
+  * [extension]: the file-extension, extracted from the [filename]
+  * @see Context.uploadedFile
+  * @see <a href="https://javalin.io/documentation#faq">Uploads in FAQ</a>
+@@ -23,7 +23,8 @@ class UploadedFile(private val part: Part) {
+     fun content(): InputStream = part.inputStream
+     fun <T> contentAndClose(callback: (InputStream) -> T) = content().use { callback(it) }
+     fun contentType(): String? = part.contentType
+-    fun filename(): String = part.submittedFileName
+-    fun extension(): String = part.submittedFileName.replaceBeforeLast(".", "")
++    /** The client-supplied file name reduced to its last path segment, so it can't point outside a target directory. */
++    fun filename(): String = part.submittedFileName.substringAfterLast('/').substringAfterLast('\\').let { if (it == "." || it == "..") "" else it }
++    fun extension(): String = filename().replaceBeforeLast(".", "")
+     fun size(): Long = part.size
+ }
+diff --git a/javalin/src/test/java/io/javalin/TestMultipartForms.kt b/javalin/src/test/java/io/javalin/TestMultipartForms.kt
+index eb9d429..519a6ed 100644
+--- a/javalin/src/test/java/io/javalin/TestMultipartForms.kt
++++ b/javalin/src/test/java/io/javalin/TestMultipartForms.kt
+@@ -175,6 +175,23 @@ class TestMultipartForms {
+         assertThat(response.body).isEqualTo("")
+     }
+ 
++    @Test
++    fun `uploaded file names have no directory components`() = TestUtil.test { app, http ->
++        app.unsafe.routes.post("/test-upload") { ctx ->
++            val file = ctx.uploadedFile("upload")!!
++            ctx.result(file.filename() + "|" + file.extension())
++        }
++        fun upload(filename: String) = http.post("/test-upload")
++            .header("Content-Type", "multipart/form-data; boundary=XyZ")
++            .body("--XyZ\r\nContent-Disposition: form-data; name=\"upload\"; filename=\"$filename\"\r\nContent-Type: text/plain\r\n\r\ndata\r\n--XyZ--\r\n")
++            .asString().body
++        assertThat(upload("../../evil.txt")).isEqualTo("evil.txt|.txt")
++        assertThat(upload("/etc/evil.txt")).isEqualTo("evil.txt|.txt")
++        assertThat(upload("..\\\\..\\\\evil.txt")).isEqualTo("evil.txt|.txt")
++        assertThat(upload("..")).isEqualTo("|")
++        assertThat(upload("plain.txt")).isEqualTo("plain.txt|.txt")
++    }
++
+     @Test
+     fun `mixing files and text fields works`() = TestUtil.test { app, http ->
+         app.unsafe.routes.post("/test-upload") { it.result(it.formParam("field") + " and " + it.uploadedFile("upload")!!.filename()) }
+-- 
+2.43.0
+

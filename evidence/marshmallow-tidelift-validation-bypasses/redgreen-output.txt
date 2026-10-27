@@ -1,0 +1,99 @@
+##### BUG-001 2026-10-20T15:39:44Z
+base=b762ea2 branch=bug-001
+--- apply regression test patch
+applied
+--- RED
+=========================== short test summary info ============================
+FAILED tests/test_bug_001_regression.py::test_bug_001_validates_runs_for_dotted_attribute
+FAILED tests/test_bug_001_regression.py::test_bug_001_validates_runs_for_dotted_attribute_many
+2 failed in 0.09s
+--- apply fix patch
+applied
+--- GREEN
+..                                                                       [100%]
+2 passed in 0.03s
+--- repro script after fix
+many=False ValidationError {'name': ['rejected']}
+many=True ValidationError {0: {'name': ['rejected']}}
+--- FULL SUITE
+1194 passed in 4.21s
+committed
+##### BUG-002 2026-10-20T15:39:52Z
+base=b762ea2 branch=bug-002
+--- apply regression test patch
+applied
+--- RED
+tests/test_bug_002_regression.py:30: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_bug_002_regression.py::test_bug_002_valid_data_excludes_rejected_renamed_attribute
+1 failed in 0.05s
+--- apply fix patch
+applied
+--- GREEN
+.                                                                        [100%]
+1 passed in 0.02s
+--- repro script after fix
+messages={'name': ['rejected']} valid_data={'age': 1}
+{'a': {'b': 'x'}, 'age': 1}
+--- FULL SUITE
+1193 passed in 4.95s
+committed
+##### BUG-003 2026-10-20T15:40:01Z
+base=b762ea2 branch=bug-003
+--- apply regression test patch
+applied
+--- RED
+tests/test_bug_003_regression.py:30: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_bug_003_regression.py::test_bug_003_instance_nested_honours_dotted_dump_only_and_load_only
+1 failed in 0.08s
+--- apply fix patch
+applied
+--- GREEN
+.                                                                        [100%]
+1 passed in 0.03s
+--- repro script after fix
+dump with load_only: {'by_class': {'a': 1}, 'by_instance': {'a': 1}}
+load with dump_only: ValidationError {'by_class': {'b': ['Unknown field.']}, 'by_instance': {'b': ['Unknown field.']}}
+--- FULL SUITE
+1193 passed in 3.98s
+committed
+##### BUG-004 2026-10-20T15:40:09Z
+base=b762ea2 branch=bug-004
+--- apply regression test patch
+applied
+--- RED
+src/marshmallow/schema.py:1195: ValueError
+=========================== short test summary info ============================
+FAILED tests/test_bug_004_regression.py::test_bug_004_per_item_schema_validator_with_envelope_pre_load
+1 failed in 0.13s
+--- apply fix patch
+applied
+--- GREEN
+.                                                                        [100%]
+1 passed in 0.02s
+--- repro script after fix
+[{'n': 1}, {'n': 2}]
+--- FULL SUITE
+1193 passed in 4.14s
+committed
+##### BUG-006 2026-10-20T15:40:18Z
+base=b762ea2 branch=bug-006
+--- apply regression test patch
+applied
+--- RED
+tests/test_bug_006_regression.py:13: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_bug_006_regression.py::test_bug_006_include_unknown_does_not_overwrite_declared_field
+1 failed in 0.08s
+--- apply fix patch
+applied
+--- GREEN
+.                                                                        [100%]
+1 passed in 0.02s
+--- repro script after fix
+data_key collision: {'first_name': 5}
+attribute collision: {'y': 1}
+--- FULL SUITE
+1193 passed in 2.85s
+committed

@@ -1,0 +1,44 @@
+== 012 RED
+java.lang.Exception: Assertion error: 
+Caused by: java.lang.Exception: Assertion error: 
+java.lang.Exception: Assertion error: 
+name="precompressed files are cached per file, not per path relative to the hosted path"
+name="io.javalin.staticfiles.TestStaticFilesPrecompressor"
+message="java.lang.Exception: Assertion error: &#10;expected: &quot;TEST&quot;&#10; but was: &quot;&lt;h1&gt;Welcome file&lt;/h1&gt;&quot;
+tests="11" errors="1" skipped="0" failures="0"
+== 013 RED
+java.lang.Exception: Assertion error: 
+Caused by: java.lang.Exception: Assertion error: 
+java.lang.Exception: Assertion error: 
+name="hosted path only matches whole path segments"
+name="io.javalin.staticfiles.TestStaticFiles"
+message="java.lang.Exception: Assertion error: &#10;expected: 404 Not Found&#10; but was: 200 OK
+tests="32" errors="1" skipped="0" failures="0"
+== 022 RED
+java.lang.Exception: Assertion error: 
+Caused by: java.lang.Exception: Assertion error: 
+java.lang.Exception: Assertion error: 
+name="upgrade requests don&apos;t create http sessions"
+name="io.javalin.websocket.TestWsUpgrade"
+message="java.lang.Exception: Assertion error: &#10;Expecting empty but was: [&quot;JSESSIONID=node01qjtv7094sbf01elh5pmpk17t76.node0; Path=/; HttpOnly; SameSite=Lax&quo
+tests="10" errors="1" skipped="0" failures="0"
+== 060 RED
+java.lang.Exception: Assertion error: 
+Caused by: java.lang.Exception: Assertion error: 
+java.lang.Exception: Assertion error: 
+name="uploaded file names have no directory components"
+name="io.javalin.TestMultipartForms"
+message="java.lang.Exception: Assertion error: &#10;expected: &quot;evil.txt|.txt&quot;&#10; but was: &quot;../../evil.txt|.txt&quot;
+tests="18" errors="1" skipped="0" failures="0"
+== 022 flaky check: TestWsUpgrade on master x2, on branch x2
+origin/master: tests="9" errors="0" skipped="0" failures="0"
+pr2-022: tests="10" errors="0" skipped="0" failures="0"
+origin/master: tests="9" errors="0" skipped="0" failures="0"
+pr2-022: tests="10" errors="0" skipped="0" failures="0"
+== full module suite on all four
+[ERROR] Tests run: 1024, Failures: 0, Errors: 2, Skipped: 24, Flakes: 1
+[ERROR] Tests run: 16, Failures: 0, Errors: 2, Skipped: 14, Time elapsed: 20.68 s <<< FAILURE! -- in io.javalin.javalinvue.TestJavalinVueBrowser
+[ERROR] io.javalin.javalinvue.TestJavalinVueBrowser.script tag without nonce is not loaded if csp is enabled -- Time elapsed: 19.96 s <<< ERROR!
+[ERROR] io.javalin.javalinvue.TestJavalinVueBrowser.script tags in state function does not break page rendering -- Time elapsed: 0.673 s <<< ERROR!
+[ERROR] Tests run: 8, Failures: 0, Errors: 1, Skipped: 0, Time elapsed: 0.540 s <<< FAILURE! -- in io.javalin.websocket.TestWsContext
+[ERROR] io.javalin.websocket.TestWsContext.set attributes works -- Time elapsed: 0.126 s <<< ERROR!

@@ -1,0 +1,59 @@
+Don't run Bundler as root. Installing your bundle as root will break this
+application for all non-root users on this machine.
+Fetching gem metadata from https://rubygems.org/........
+Resolving dependencies...
+Bundle complete! 14 Gemfile dependencies, 43 gems now installed.
+Use `bundle info [gemname]` to see where a bundled gem is installed.
+
+Randomized with seed 60766
+.......................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................
+
+Top 10 slowest examples (0.32668 seconds, 35.2% of total time):
+  Money formatting with currencies with ambiguous signs when disambiguate is true nevers returns an ambiguous format
+    0.07587 seconds ./spec/money/formatting_spec.rb:768
+  Money::Currency#to_currency doesn't create new symbols indefinitely
+    0.04509 seconds ./spec/money/currency_spec.rb:480
+  Money::Arithmetic#% calculates modulo with Money (different currency)
+    0.04115 seconds ./spec/money/arithmetic_spec.rb:696
+  Money::Currency#reset! resets modified currency
+    0.03718 seconds ./spec/money/currency_spec.rb:531
+  Money::Currency::Loader returns a currency table hash
+    0.02566 seconds ./spec/money/currency/loader_spec.rb:4
+  Money::FormattingRules format when there is no locale backend returns the default format for the locale
+    0.02483 seconds ./spec/money/formatting_rules_spec.rb:47
+  Money.with_bank safely handles concurrent usage in different threads
+    0.02214 seconds ./spec/money_spec.rb:352
+  Money formatting with i18n locale_backend with number.format.* uses ',' as the decimal mark
+    0.02053 seconds ./spec/money/formatting_spec.rb:55
+  Money.with_rounding_mode safely handles concurrent usage in different threads
+    0.01719 seconds ./spec/money_spec.rb:268
+  Money::Arithmetic#eql? returns true if and only if their amount and currency are equal
+    0.01705 seconds ./spec/money/arithmetic_spec.rb:69
+
+Top 10 slowest example groups:
+  Money::Currency::Loader
+    0.01346 seconds average (0.02692 seconds / 2 examples) ./spec/money/currency/loader_spec.rb:3
+  Money::FormattingRules
+    0.00732 seconds average (0.04392 seconds / 6 examples) ./spec/money/formatting_rules_spec.rb:3
+  Money::LocaleBackend::Currency
+    0.00428 seconds average (0.01284 seconds / 3 examples) ./spec/money/locale_backend/currency_spec.rb:3
+  Money::Currency
+    0.0027 seconds average (0.14871 seconds / 55 examples) ./spec/money/currency_spec.rb:18
+  Money::LocaleBackend::I18n
+    0.00232 seconds average (0.02548 seconds / 11 examples) ./spec/money/locale_backend/i18n_spec.rb:3
+  Money::Arithmetic
+    0.00207 seconds average (0.24003 seconds / 116 examples) ./spec/money/arithmetic_spec.rb:3
+  Money formatting
+    0.002 seconds average (0.16402 seconds / 82 examples) ./spec/money/formatting_spec.rb:4
+  Money::Bank::VariableExchange
+    0.00136 seconds average (0.05296 seconds / 39 examples) ./spec/money/bank/variable_exchange_spec.rb:6
+  Money
+    0.00127 seconds average (0.16268 seconds / 128 examples) ./spec/money_spec.rb:5
+  Money::RatesStore::Memory
+    0.00112 seconds average (0.00782 seconds / 7 examples) ./spec/money/rates_store/memory_spec.rb:3
+
+Finished in 0.92924 seconds (files took 0.94465 seconds to load)
+503 examples, 0 failures
+
+Randomized with seed 60766
+

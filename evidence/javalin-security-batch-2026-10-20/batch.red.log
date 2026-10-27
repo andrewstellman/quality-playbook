@@ -1,0 +1,612 @@
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djavax.net.ssl.trustStoreType=JKS -Dhttps.proxyHost=127.0.0.1 -Dhttps.proxyPort=34059 -Dhttp.nonProxyHosts=localhost|127.0.0.1|::1|127.*|0.*|::|169.254.*|api.anthropic.com|api-staging.anthropic.com|api-pr-preview.anthropic.com|mcp-proxy.anthropic.com|mcp-proxy-staging.anthropic.com|registry.npmjs.org|jsr.io|npm.jsr.io|pypi.org|files.pythonhosted.org|index.crates.io|proxy.golang.org|host.docker.internal|10.*|172.16.*|172.17.*|172.18.*|172.19.*|172.20.*|172.21.*|172.22.*|172.23.*|172.24.*|172.25.*|172.26.*|172.27.*|172.28.*|172.29.*|172.30.*|172.31.*|192.168.*|100.64.0.0/10|*.svc.cluster.local|*.svc.cluster.local -Djdk.http.auth.tunneling.disabledSchemes= -Djdk.http.auth.proxying.disabledSchemes=
+[INFO] Scanning for projects...
+[INFO] Inspecting build with total of 1 modules
+[INFO] Installing Central Publishing features
+[INFO] 
+[INFO] -------------------------< io.javalin:javalin >-------------------------
+[INFO] Building Javalin 7.2.4-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- git-commit-id:10.0.0:revision (default) @ javalin ---
+[INFO] 
+[INFO] --- resources:3.5.0:copy-resources (copy-license) @ javalin ---
+[INFO] Copying 1 resource from .. to target/classes/META-INF
+[INFO] 
+[INFO] --- resources:3.5.0:copy-resources (copy-pom-properties) @ javalin ---
+[INFO] Copying 1 resource from .. to target
+[INFO] 
+[INFO] --- jacoco:0.8.15:prepare-agent (default) @ javalin ---
+[INFO] argLine set to -javaagent:/root/.m2/repository/org/jacoco/org.jacoco.agent/0.8.15/org.jacoco.agent-0.8.15-runtime.jar=destfile=/tmp/claude-0/sec/javalin/src/javalin/target/jacoco.exec
+[INFO] 
+[INFO] --- resources:3.5.0:resources (default-resources) @ javalin ---
+[INFO] skip non existing resourceDirectory /tmp/claude-0/sec/javalin/src/javalin/src/main/resources
+[INFO] 
+[INFO] --- kotlin:2.2.20:compile (compile) @ javalin ---
+[WARNING] Source root doesn't exist: /tmp/claude-0/sec/javalin/src/javalin/src/main/kotlin
+[WARNING] Using experimental Kotlin incremental compilation
+[INFO] 
+[INFO] --- compiler:3.15.0:compile (java-compile) @ javalin ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ javalin ---
+[INFO] Copying 42 resources from src/test/resources to target/test-classes
+[INFO] 
+[INFO] --- kotlin:2.2.20:test-compile (test-compile) @ javalin ---
+[WARNING] Using experimental Kotlin incremental compilation
+[INFO] 
+[INFO] --- compiler:3.15.0:testCompile (java-test-compile) @ javalin ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- surefire:3.5.6:test (default-test) @ javalin ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO] 
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djavax.net.ssl.trustStoreType=JKS -Dhttps.proxyHost=127.0.0.1 -Dhttps.proxyPort=34059 -Dhttp.nonProxyHosts=localhost|127.0.0.1|::1|127.*|0.*|::|169.254.*|api.anthropic.com|api-staging.anthropic.com|api-pr-preview.anthropic.com|mcp-proxy.anthropic.com|mcp-proxy-staging.anthropic.com|registry.npmjs.org|jsr.io|npm.jsr.io|pypi.org|files.pythonhosted.org|index.crates.io|proxy.golang.org|host.docker.internal|10.*|172.16.*|172.17.*|172.18.*|172.19.*|172.20.*|172.21.*|172.22.*|172.23.*|172.24.*|172.25.*|172.26.*|172.27.*|172.28.*|172.29.*|172.30.*|172.31.*|192.168.*|100.64.0.0/10|*.svc.cluster.local|*.svc.cluster.local -Djdk.http.auth.tunneling.disabledSchemes= -Djdk.http.auth.proxying.disabledSchemes=
+[INFO] Running io.javalin.qpb.bug065.Bug065RegressionTest
+[main] INFO io.javalin.Javalin - Starting Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - jetty-12.1.12; built: 2026-08-03T22:37:55.389Z; git: 10dd3948f37767b84cc2c62358364f042e51dbbe; jvm 21.0.12.1+1-1-24.04.4-Ubuntu
+[main] INFO org.eclipse.jetty.session.DefaultSessionIdManager - Session workerName=node0
+[main] INFO org.eclipse.jetty.server.handler.ContextHandler - Started oeje10s.ServletContextHandler@c0013b8{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@2c1ea7be{STARTED}}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Started oeje10s.ServletContextHandler@c0013b8{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@2c1ea7be{STARTED}}
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Started oejs.ServerConnector@4b9f7edc{HTTP/1.1, (http/1.1)}{0.0.0.0:40911}
+[main] INFO org.eclipse.jetty.server.Server - Started oejs.Server@2e0652ab{STARTING}[12.1.12,sto=0] @199ms
+[main] INFO io.javalin.Javalin - Javalin started in 1223ms \o/
+[main] INFO io.javalin.Javalin - Listening on http://localhost:40911/
+[main] INFO io.javalin.Javalin - Stopping Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - Stopped oejs.Server@2e0652ab{STOPPING}[12.1.12,sto=0]
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Stopped oejs.ServerConnector@4b9f7edc{HTTP/1.1, (http/1.1)}{0.0.0.0:0}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Stopped oeje10s.ServletContextHandler@c0013b8{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@2c1ea7be{STOPPED}}
+[main] INFO io.javalin.Javalin - Javalin has stopped
+[ERROR] Tests run: 1, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 3.286 s <<< FAILURE! -- in io.javalin.qpb.bug065.Bug065RegressionTest
+[ERROR] io.javalin.qpb.bug065.Bug065RegressionTest.BUG-065 basic auth scheme is case insensitive -- Time elapsed: 3.240 s <<< FAILURE!
+org.opentest4j.AssertionFailedError: 
+
+expected: 200
+ but was: 401
+	at io.javalin.qpb.bug065.Bug065RegressionTest.BUG_065_basic_auth_scheme_is_case_insensitive$lambda$1(Bug065RegressionTest.kt:96)
+	at io.javalin.qpb.bug065.Bug065RegressionTestKt.withApp(Bug065RegressionTest.kt:64)
+	at io.javalin.qpb.bug065.Bug065RegressionTestKt.access$withApp(Bug065RegressionTest.kt:1)
+	at io.javalin.qpb.bug065.Bug065RegressionTest.BUG-065 basic auth scheme is case insensitive(Bug065RegressionTest.kt:90)
+
+[INFO] Running io.javalin.qpb.bug028.Bug028RegressionTest
+[main] INFO io.javalin.Javalin - Starting Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - jetty-12.1.12; built: 2026-08-03T22:37:55.389Z; git: 10dd3948f37767b84cc2c62358364f042e51dbbe; jvm 21.0.12.1+1-1-24.04.4-Ubuntu
+[main] INFO org.eclipse.jetty.session.DefaultSessionIdManager - Session workerName=node0
+[main] INFO org.eclipse.jetty.server.handler.ContextHandler - Started oeje10s.ServletContextHandler@3acc3ee{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@1f293cb7{STARTED}}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Started oeje10s.ServletContextHandler@3acc3ee{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@1f293cb7{STARTED}}
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Started oejs.ServerConnector@5972e3a{HTTP/1.1, (http/1.1)}{0.0.0.0:32985}
+[main] INFO org.eclipse.jetty.server.Server - Started oejs.Server@5790cbcb{STARTING}[12.1.12,sto=0] @19ms
+[main] INFO io.javalin.Javalin - Javalin started in 22ms \o/
+[main] INFO io.javalin.Javalin - Listening on http://localhost:32985/
+[main] INFO io.javalin.Javalin - Stopping Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - Stopped oejs.Server@5790cbcb{STOPPING}[12.1.12,sto=0]
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Stopped oejs.ServerConnector@5972e3a{HTTP/1.1, (http/1.1)}{0.0.0.0:0}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Stopped oeje10s.ServletContextHandler@3acc3ee{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@1f293cb7{STOPPED}}
+[main] INFO io.javalin.Javalin - Javalin has stopped
+[ERROR] Tests run: 1, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 0.085 s <<< FAILURE! -- in io.javalin.qpb.bug028.Bug028RegressionTest
+[ERROR] io.javalin.qpb.bug028.Bug028RegressionTest.BUG-028 basic auth plugin with unset credentials denies -- Time elapsed: 0.078 s <<< FAILURE!
+org.opentest4j.AssertionFailedError: 
+
+expected: 401
+ but was: 200
+	at io.javalin.qpb.bug028.Bug028RegressionTest.BUG_028_basic_auth_plugin_with_unset_credentials_denies$lambda$1(Bug028RegressionTest.kt:94)
+	at io.javalin.qpb.bug028.Bug028RegressionTestKt.withApp(Bug028RegressionTest.kt:64)
+	at io.javalin.qpb.bug028.Bug028RegressionTestKt.access$withApp(Bug028RegressionTest.kt:1)
+	at io.javalin.qpb.bug028.Bug028RegressionTest.BUG-028 basic auth plugin with unset credentials denies(Bug028RegressionTest.kt:90)
+
+[INFO] Running io.javalin.qpb.bug050.Bug050RegressionTest
+[main] INFO io.javalin.Javalin - Starting Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - jetty-12.1.12; built: 2026-08-03T22:37:55.389Z; git: 10dd3948f37767b84cc2c62358364f042e51dbbe; jvm 21.0.12.1+1-1-24.04.4-Ubuntu
+[main] INFO org.eclipse.jetty.session.DefaultSessionIdManager - Session workerName=node0
+[main] INFO org.eclipse.jetty.server.handler.ContextHandler - Started oeje10s.ServletContextHandler@2e013ba1{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@2d8c729f{STARTED}}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Started oeje10s.ServletContextHandler@2e013ba1{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@2d8c729f{STARTED}}
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Started oejs.ServerConnector@740ee00f{HTTP/1.1, (http/1.1)}{0.0.0.0:34787}
+[main] INFO org.eclipse.jetty.server.Server - Started oejs.Server@430106cf{STARTING}[12.1.12,sto=0] @15ms
+[main] INFO io.javalin.Javalin - Javalin started in 17ms \o/
+[main] INFO io.javalin.Javalin - Listening on http://localhost:34787/
+[main] INFO io.javalin.Javalin - Stopping Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - Stopped oejs.Server@430106cf{STOPPING}[12.1.12,sto=0]
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Stopped oejs.ServerConnector@740ee00f{HTTP/1.1, (http/1.1)}{0.0.0.0:0}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Stopped oeje10s.ServletContextHandler@2e013ba1{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@2d8c729f{STOPPED}}
+[main] INFO io.javalin.Javalin - Javalin has stopped
+[ERROR] Tests run: 1, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 0.124 s <<< FAILURE! -- in io.javalin.qpb.bug050.Bug050RegressionTest
+[ERROR] io.javalin.qpb.bug050.Bug050RegressionTest.BUG-050 HEAD on role protected GET is also protected -- Time elapsed: 0.114 s <<< FAILURE!
+org.opentest4j.AssertionFailedError: 
+
+expected: 401
+ but was: 200
+	at io.javalin.qpb.bug050.Bug050RegressionTest.BUG_050_HEAD_on_role_protected_GET_is_also_protected$lambda$1(Bug050RegressionTest.kt:95)
+	at io.javalin.qpb.bug050.Bug050RegressionTestKt.withApp(Bug050RegressionTest.kt:64)
+	at io.javalin.qpb.bug050.Bug050RegressionTestKt.access$withApp(Bug050RegressionTest.kt:1)
+	at io.javalin.qpb.bug050.Bug050RegressionTest.BUG-050 HEAD on role protected GET is also protected(Bug050RegressionTest.kt:90)
+
+[INFO] Running io.javalin.qpb.bug037.Bug037RegressionTest
+[main] INFO io.javalin.Javalin - Starting Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - jetty-12.1.12; built: 2026-08-03T22:37:55.389Z; git: 10dd3948f37767b84cc2c62358364f042e51dbbe; jvm 21.0.12.1+1-1-24.04.4-Ubuntu
+[main] INFO org.eclipse.jetty.session.DefaultSessionIdManager - Session workerName=node0
+[main] INFO org.eclipse.jetty.server.handler.ContextHandler - Started oeje10s.ServletContextHandler@591a4d25{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@4bfe83d{STARTED}}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Started oeje10s.ServletContextHandler@591a4d25{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@4bfe83d{STARTED}}
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Started oejs.ServerConnector@5906ebfb{HTTP/1.1, (http/1.1)}{0.0.0.0:42737}
+[main] INFO org.eclipse.jetty.server.Server - Started oejs.Server@10fc1a22{STARTING}[12.1.12,sto=0] @18ms
+[main] INFO io.javalin.Javalin - Javalin started in 20ms \o/
+[main] INFO io.javalin.Javalin - Listening on http://localhost:42737/
+[main] INFO io.javalin.Javalin - Stopping Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - Stopped oejs.Server@10fc1a22{STOPPING}[12.1.12,sto=0]
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Stopped oejs.ServerConnector@5906ebfb{HTTP/1.1, (http/1.1)}{0.0.0.0:0}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Stopped oeje10s.ServletContextHandler@591a4d25{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@4bfe83d{STOPPED}}
+[main] INFO io.javalin.Javalin - Javalin has stopped
+[ERROR] Tests run: 1, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 0.471 s <<< FAILURE! -- in io.javalin.qpb.bug037.Bug037RegressionTest
+[ERROR] io.javalin.qpb.bug037.Bug037RegressionTest.BUG-037 enableBasicAuth protects ws upgrades -- Time elapsed: 0.458 s <<< FAILURE!
+java.lang.AssertionError: 
+
+Expecting actual:
+  "HTTP/1.1 101 Switching Protocols"
+not to contain:
+  "101"
+
+	at io.javalin.qpb.bug037.Bug037RegressionTest.BUG_037_enableBasicAuth_protects_ws_upgrades$lambda$1(Bug037RegressionTest.kt:94)
+	at io.javalin.qpb.bug037.Bug037RegressionTestKt.withApp(Bug037RegressionTest.kt:64)
+	at io.javalin.qpb.bug037.Bug037RegressionTestKt.access$withApp(Bug037RegressionTest.kt:1)
+	at io.javalin.qpb.bug037.Bug037RegressionTest.BUG-037 enableBasicAuth protects ws upgrades(Bug037RegressionTest.kt:90)
+
+[INFO] Running io.javalin.qpb.bug020.Bug020RegressionTest
+[main] INFO io.javalin.Javalin - Starting Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - jetty-12.1.12; built: 2026-08-03T22:37:55.389Z; git: 10dd3948f37767b84cc2c62358364f042e51dbbe; jvm 21.0.12.1+1-1-24.04.4-Ubuntu
+[main] INFO org.eclipse.jetty.session.DefaultSessionIdManager - Session workerName=node0
+[main] INFO org.eclipse.jetty.server.handler.ContextHandler - Started oeje10s.ServletContextHandler@b68932b{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@77b27b57{STARTED}}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Started oeje10s.ServletContextHandler@b68932b{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@77b27b57{STARTED}}
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Started oejs.ServerConnector@f4ce14b{HTTP/1.1, (http/1.1)}{0.0.0.0:41907}
+[main] INFO org.eclipse.jetty.server.Server - Started oejs.Server@7adff6cb{STARTING}[12.1.12,sto=0] @33ms
+[main] INFO io.javalin.Javalin - Javalin started in 39ms \o/
+[main] INFO io.javalin.Javalin - Listening on http://localhost:41907/
+[main] INFO io.javalin.Javalin - Stopping Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - Stopped oejs.Server@7adff6cb{STOPPING}[12.1.12,sto=0]
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Stopped oejs.ServerConnector@f4ce14b{HTTP/1.1, (http/1.1)}{0.0.0.0:0}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Stopped oeje10s.ServletContextHandler@b68932b{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@77b27b57{STOPPED}}
+[main] INFO io.javalin.Javalin - Javalin has stopped
+[ERROR] Tests run: 1, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 0.147 s <<< FAILURE! -- in io.javalin.qpb.bug020.Bug020RegressionTest
+[ERROR] io.javalin.qpb.bug020.Bug020RegressionTest.BUG-020 sse comment carriage return cannot inject data -- Time elapsed: 0.130 s <<< FAILURE!
+java.lang.AssertionError: 
+
+Expecting empty but was: ["data: forged"]
+	at io.javalin.qpb.bug020.Bug020RegressionTest.BUG_020_sse_comment_carriage_return_cannot_inject_data$lambda$1(Bug020RegressionTest.kt:94)
+	at io.javalin.qpb.bug020.Bug020RegressionTestKt.withApp(Bug020RegressionTest.kt:64)
+	at io.javalin.qpb.bug020.Bug020RegressionTestKt.access$withApp(Bug020RegressionTest.kt:1)
+	at io.javalin.qpb.bug020.Bug020RegressionTest.BUG-020 sse comment carriage return cannot inject data(Bug020RegressionTest.kt:90)
+
+[INFO] Running io.javalin.qpb.bug033.Bug033RegressionTest
+[main] INFO io.javalin.Javalin - Starting Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - jetty-12.1.12; built: 2026-08-03T22:37:55.389Z; git: 10dd3948f37767b84cc2c62358364f042e51dbbe; jvm 21.0.12.1+1-1-24.04.4-Ubuntu
+[main] INFO org.eclipse.jetty.session.DefaultSessionIdManager - Session workerName=node0
+[main] INFO org.eclipse.jetty.server.handler.ContextHandler - Started oeje10s.ServletContextHandler@278c998{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@25e353dc{STARTED}}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Started oeje10s.ServletContextHandler@278c998{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@25e353dc{STARTED}}
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Started oejs.ServerConnector@785a1ab7{HTTP/1.1, (http/1.1)}{0.0.0.0:40647}
+[main] INFO org.eclipse.jetty.server.Server - Started oejs.Server@234ce7ff{STARTING}[12.1.12,sto=0] @19ms
+[main] INFO io.javalin.Javalin - Javalin started in 31ms \o/
+[main] INFO io.javalin.Javalin - Listening on http://localhost:40647/
+[main] INFO io.javalin.Javalin - Stopping Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - Stopped oejs.Server@234ce7ff{STOPPING}[12.1.12,sto=0]
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Stopped oejs.ServerConnector@785a1ab7{HTTP/1.1, (http/1.1)}{0.0.0.0:0}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Stopped oeje10s.ServletContextHandler@278c998{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@25e353dc{STOPPED}}
+[main] INFO io.javalin.Javalin - Javalin has stopped
+[ERROR] Tests run: 1, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 0.097 s <<< FAILURE! -- in io.javalin.qpb.bug033.Bug033RegressionTest
+[ERROR] io.javalin.qpb.bug033.Bug033RegressionTest.BUG-033 html error body escapes message -- Time elapsed: 0.092 s <<< FAILURE!
+org.opentest4j.AssertionFailedError: 
+
+Expecting value to be false but was true
+	at io.javalin.qpb.bug033.Bug033RegressionTest.BUG_033_html_error_body_escapes_message$lambda$1(Bug033RegressionTest.kt:95)
+	at io.javalin.qpb.bug033.Bug033RegressionTestKt.withApp(Bug033RegressionTest.kt:64)
+	at io.javalin.qpb.bug033.Bug033RegressionTestKt.access$withApp(Bug033RegressionTest.kt:1)
+	at io.javalin.qpb.bug033.Bug033RegressionTest.BUG-033 html error body escapes message(Bug033RegressionTest.kt:90)
+
+[INFO] Running io.javalin.qpb.bug037.Bug037RegressionTest
+[main] INFO io.javalin.Javalin - Starting Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - jetty-12.1.12; built: 2026-08-03T22:37:55.389Z; git: 10dd3948f37767b84cc2c62358364f042e51dbbe; jvm 21.0.12.1+1-1-24.04.4-Ubuntu
+[main] INFO org.eclipse.jetty.session.DefaultSessionIdManager - Session workerName=node0
+[main] INFO org.eclipse.jetty.server.handler.ContextHandler - Started oeje10s.ServletContextHandler@33ccead{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@42ebece0{STARTED}}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Started oeje10s.ServletContextHandler@33ccead{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@42ebece0{STARTED}}
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Started oejs.ServerConnector@15c4b1a4{HTTP/1.1, (http/1.1)}{0.0.0.0:43781}
+[main] INFO org.eclipse.jetty.server.Server - Started oejs.Server@341964d0{STARTING}[12.1.12,sto=0] @14ms
+[main] INFO io.javalin.Javalin - Javalin started in 19ms \o/
+[main] INFO io.javalin.Javalin - Listening on http://localhost:43781/
+[main] INFO io.javalin.Javalin - Stopping Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - Stopped oejs.Server@341964d0{STOPPING}[12.1.12,sto=0]
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Stopped oejs.ServerConnector@15c4b1a4{HTTP/1.1, (http/1.1)}{0.0.0.0:0}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Stopped oeje10s.ServletContextHandler@33ccead{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@42ebece0{STOPPED}}
+[main] INFO io.javalin.Javalin - Javalin has stopped
+[ERROR] Tests run: 1, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 0.060 s <<< FAILURE! -- in io.javalin.qpb.bug037.Bug037RegressionTest
+[ERROR] io.javalin.qpb.bug037.Bug037RegressionTest.BUG-037 enableBasicAuth protects ws upgrades -- Time elapsed: 0.050 s <<< FAILURE!
+java.lang.AssertionError: 
+
+Expecting actual:
+  "HTTP/1.1 101 Switching Protocols"
+not to contain:
+  "101"
+
+	at io.javalin.qpb.bug037.Bug037RegressionTest.BUG_037_enableBasicAuth_protects_ws_upgrades$lambda$1(Bug037RegressionTest.kt:94)
+	at io.javalin.qpb.bug037.Bug037RegressionTestKt.withApp(Bug037RegressionTest.kt:64)
+	at io.javalin.qpb.bug037.Bug037RegressionTestKt.access$withApp(Bug037RegressionTest.kt:1)
+	at io.javalin.qpb.bug037.Bug037RegressionTest.BUG-037 enableBasicAuth protects ws upgrades(Bug037RegressionTest.kt:90)
+
+[INFO] Running io.javalin.qpb.bug033.Bug033RegressionTest
+[main] INFO io.javalin.Javalin - Starting Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - jetty-12.1.12; built: 2026-08-03T22:37:55.389Z; git: 10dd3948f37767b84cc2c62358364f042e51dbbe; jvm 21.0.12.1+1-1-24.04.4-Ubuntu
+[main] INFO org.eclipse.jetty.session.DefaultSessionIdManager - Session workerName=node0
+[main] INFO org.eclipse.jetty.server.handler.ContextHandler - Started oeje10s.ServletContextHandler@7cbede2b{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@1ef04613{STARTED}}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Started oeje10s.ServletContextHandler@7cbede2b{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@1ef04613{STARTED}}
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Started oejs.ServerConnector@35f66b8{HTTP/1.1, (http/1.1)}{0.0.0.0:34019}
+[main] INFO org.eclipse.jetty.server.Server - Started oejs.Server@2d3d4a54{STARTING}[12.1.12,sto=0] @16ms
+[main] INFO io.javalin.Javalin - Javalin started in 18ms \o/
+[main] INFO io.javalin.Javalin - Listening on http://localhost:34019/
+[main] INFO io.javalin.Javalin - Stopping Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - Stopped oejs.Server@2d3d4a54{STOPPING}[12.1.12,sto=0]
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Stopped oejs.ServerConnector@35f66b8{HTTP/1.1, (http/1.1)}{0.0.0.0:0}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Stopped oeje10s.ServletContextHandler@7cbede2b{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@1ef04613{STOPPED}}
+[main] INFO io.javalin.Javalin - Javalin has stopped
+[ERROR] Tests run: 1, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 0.073 s <<< FAILURE! -- in io.javalin.qpb.bug033.Bug033RegressionTest
+[ERROR] io.javalin.qpb.bug033.Bug033RegressionTest.BUG-033 html error body escapes message -- Time elapsed: 0.063 s <<< FAILURE!
+org.opentest4j.AssertionFailedError: 
+
+Expecting value to be false but was true
+	at io.javalin.qpb.bug033.Bug033RegressionTest.BUG_033_html_error_body_escapes_message$lambda$1(Bug033RegressionTest.kt:95)
+	at io.javalin.qpb.bug033.Bug033RegressionTestKt.withApp(Bug033RegressionTest.kt:64)
+	at io.javalin.qpb.bug033.Bug033RegressionTestKt.access$withApp(Bug033RegressionTest.kt:1)
+	at io.javalin.qpb.bug033.Bug033RegressionTest.BUG-033 html error body escapes message(Bug033RegressionTest.kt:90)
+
+[INFO] Running io.javalin.qpb.bug050.Bug050RegressionTest
+[main] INFO io.javalin.Javalin - Starting Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - jetty-12.1.12; built: 2026-08-03T22:37:55.389Z; git: 10dd3948f37767b84cc2c62358364f042e51dbbe; jvm 21.0.12.1+1-1-24.04.4-Ubuntu
+[main] INFO org.eclipse.jetty.session.DefaultSessionIdManager - Session workerName=node0
+[main] INFO org.eclipse.jetty.server.handler.ContextHandler - Started oeje10s.ServletContextHandler@fcd3a6f{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@7845ee8a{STARTED}}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Started oeje10s.ServletContextHandler@fcd3a6f{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@7845ee8a{STARTED}}
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Started oejs.ServerConnector@5f35370b{HTTP/1.1, (http/1.1)}{0.0.0.0:42931}
+[main] INFO org.eclipse.jetty.server.Server - Started oejs.Server@16c8e9b8{STARTING}[12.1.12,sto=0] @21ms
+[main] INFO io.javalin.Javalin - Javalin started in 23ms \o/
+[main] INFO io.javalin.Javalin - Listening on http://localhost:42931/
+[main] INFO io.javalin.Javalin - Stopping Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - Stopped oejs.Server@16c8e9b8{STOPPING}[12.1.12,sto=0]
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Stopped oejs.ServerConnector@5f35370b{HTTP/1.1, (http/1.1)}{0.0.0.0:0}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Stopped oeje10s.ServletContextHandler@fcd3a6f{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@7845ee8a{STOPPED}}
+[main] INFO io.javalin.Javalin - Javalin has stopped
+[ERROR] Tests run: 1, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 0.072 s <<< FAILURE! -- in io.javalin.qpb.bug050.Bug050RegressionTest
+[ERROR] io.javalin.qpb.bug050.Bug050RegressionTest.BUG-050 HEAD on role protected GET is also protected -- Time elapsed: 0.066 s <<< FAILURE!
+org.opentest4j.AssertionFailedError: 
+
+expected: 401
+ but was: 200
+	at io.javalin.qpb.bug050.Bug050RegressionTest.BUG_050_HEAD_on_role_protected_GET_is_also_protected$lambda$1(Bug050RegressionTest.kt:95)
+	at io.javalin.qpb.bug050.Bug050RegressionTestKt.withApp(Bug050RegressionTest.kt:64)
+	at io.javalin.qpb.bug050.Bug050RegressionTestKt.access$withApp(Bug050RegressionTest.kt:1)
+	at io.javalin.qpb.bug050.Bug050RegressionTest.BUG-050 HEAD on role protected GET is also protected(Bug050RegressionTest.kt:90)
+
+[INFO] Running io.javalin.qpb.bug020.Bug020RegressionTest
+[main] INFO io.javalin.Javalin - Starting Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - jetty-12.1.12; built: 2026-08-03T22:37:55.389Z; git: 10dd3948f37767b84cc2c62358364f042e51dbbe; jvm 21.0.12.1+1-1-24.04.4-Ubuntu
+[main] INFO org.eclipse.jetty.session.DefaultSessionIdManager - Session workerName=node0
+[main] INFO org.eclipse.jetty.server.handler.ContextHandler - Started oeje10s.ServletContextHandler@5c0ece6d{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@69419d59{STARTED}}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Started oeje10s.ServletContextHandler@5c0ece6d{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@69419d59{STARTED}}
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Started oejs.ServerConnector@4671bde7{HTTP/1.1, (http/1.1)}{0.0.0.0:38143}
+[main] INFO org.eclipse.jetty.server.Server - Started oejs.Server@7affee54{STARTING}[12.1.12,sto=0] @23ms
+[main] INFO io.javalin.Javalin - Javalin started in 25ms \o/
+[main] INFO io.javalin.Javalin - Listening on http://localhost:38143/
+[main] INFO io.javalin.Javalin - Stopping Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - Stopped oejs.Server@7affee54{STOPPING}[12.1.12,sto=0]
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Stopped oejs.ServerConnector@4671bde7{HTTP/1.1, (http/1.1)}{0.0.0.0:0}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Stopped oeje10s.ServletContextHandler@5c0ece6d{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@69419d59{STOPPED}}
+[main] INFO io.javalin.Javalin - Javalin has stopped
+[ERROR] Tests run: 1, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 0.065 s <<< FAILURE! -- in io.javalin.qpb.bug020.Bug020RegressionTest
+[ERROR] io.javalin.qpb.bug020.Bug020RegressionTest.BUG-020 sse comment carriage return cannot inject data -- Time elapsed: 0.059 s <<< FAILURE!
+java.lang.AssertionError: 
+
+Expecting empty but was: ["data: forged"]
+	at io.javalin.qpb.bug020.Bug020RegressionTest.BUG_020_sse_comment_carriage_return_cannot_inject_data$lambda$1(Bug020RegressionTest.kt:94)
+	at io.javalin.qpb.bug020.Bug020RegressionTestKt.withApp(Bug020RegressionTest.kt:64)
+	at io.javalin.qpb.bug020.Bug020RegressionTestKt.access$withApp(Bug020RegressionTest.kt:1)
+	at io.javalin.qpb.bug020.Bug020RegressionTest.BUG-020 sse comment carriage return cannot inject data(Bug020RegressionTest.kt:90)
+
+[INFO] Running io.javalin.qpb.bug028.Bug028RegressionTest
+[main] INFO io.javalin.Javalin - Starting Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - jetty-12.1.12; built: 2026-08-03T22:37:55.389Z; git: 10dd3948f37767b84cc2c62358364f042e51dbbe; jvm 21.0.12.1+1-1-24.04.4-Ubuntu
+[main] INFO org.eclipse.jetty.session.DefaultSessionIdManager - Session workerName=node0
+[main] INFO org.eclipse.jetty.server.handler.ContextHandler - Started oeje10s.ServletContextHandler@2ab7f649{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@52a74328{STARTED}}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Started oeje10s.ServletContextHandler@2ab7f649{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@52a74328{STARTED}}
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Started oejs.ServerConnector@3093b9ff{HTTP/1.1, (http/1.1)}{0.0.0.0:40369}
+[main] INFO org.eclipse.jetty.server.Server - Started oejs.Server@220be130{STARTING}[12.1.12,sto=0] @52ms
+[main] INFO io.javalin.Javalin - Javalin started in 54ms \o/
+[main] INFO io.javalin.Javalin - Listening on http://localhost:40369/
+[main] INFO io.javalin.Javalin - Stopping Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - Stopped oejs.Server@220be130{STOPPING}[12.1.12,sto=0]
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Stopped oejs.ServerConnector@3093b9ff{HTTP/1.1, (http/1.1)}{0.0.0.0:0}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Stopped oeje10s.ServletContextHandler@2ab7f649{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@52a74328{STOPPED}}
+[main] INFO io.javalin.Javalin - Javalin has stopped
+[ERROR] Tests run: 1, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 0.086 s <<< FAILURE! -- in io.javalin.qpb.bug028.Bug028RegressionTest
+[ERROR] io.javalin.qpb.bug028.Bug028RegressionTest.BUG-028 basic auth plugin with unset credentials denies -- Time elapsed: 0.081 s <<< FAILURE!
+org.opentest4j.AssertionFailedError: 
+
+expected: 401
+ but was: 200
+	at io.javalin.qpb.bug028.Bug028RegressionTest.BUG_028_basic_auth_plugin_with_unset_credentials_denies$lambda$1(Bug028RegressionTest.kt:94)
+	at io.javalin.qpb.bug028.Bug028RegressionTestKt.withApp(Bug028RegressionTest.kt:64)
+	at io.javalin.qpb.bug028.Bug028RegressionTestKt.access$withApp(Bug028RegressionTest.kt:1)
+	at io.javalin.qpb.bug028.Bug028RegressionTest.BUG-028 basic auth plugin with unset credentials denies(Bug028RegressionTest.kt:90)
+
+[INFO] Running io.javalin.qpb.bug065.Bug065RegressionTest
+[main] INFO io.javalin.Javalin - Starting Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - jetty-12.1.12; built: 2026-08-03T22:37:55.389Z; git: 10dd3948f37767b84cc2c62358364f042e51dbbe; jvm 21.0.12.1+1-1-24.04.4-Ubuntu
+[main] INFO org.eclipse.jetty.session.DefaultSessionIdManager - Session workerName=node0
+[main] INFO org.eclipse.jetty.server.handler.ContextHandler - Started oeje10s.ServletContextHandler@c335b9{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@75c8d8e7{STARTED}}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Started oeje10s.ServletContextHandler@c335b9{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@75c8d8e7{STARTED}}
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Started oejs.ServerConnector@3c68e82{HTTP/1.1, (http/1.1)}{0.0.0.0:41369}
+[main] INFO org.eclipse.jetty.server.Server - Started oejs.Server@1e66bf2d{STARTING}[12.1.12,sto=0] @6ms
+[main] INFO io.javalin.Javalin - Javalin started in 7ms \o/
+[main] INFO io.javalin.Javalin - Listening on http://localhost:41369/
+[main] INFO io.javalin.Javalin - Stopping Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - Stopped oejs.Server@1e66bf2d{STOPPING}[12.1.12,sto=0]
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Stopped oejs.ServerConnector@3c68e82{HTTP/1.1, (http/1.1)}{0.0.0.0:0}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Stopped oeje10s.ServletContextHandler@c335b9{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@75c8d8e7{STOPPED}}
+[main] INFO io.javalin.Javalin - Javalin has stopped
+[ERROR] Tests run: 1, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 0.025 s <<< FAILURE! -- in io.javalin.qpb.bug065.Bug065RegressionTest
+[ERROR] io.javalin.qpb.bug065.Bug065RegressionTest.BUG-065 basic auth scheme is case insensitive -- Time elapsed: 0.023 s <<< FAILURE!
+org.opentest4j.AssertionFailedError: 
+
+expected: 200
+ but was: 401
+	at io.javalin.qpb.bug065.Bug065RegressionTest.BUG_065_basic_auth_scheme_is_case_insensitive$lambda$1(Bug065RegressionTest.kt:96)
+	at io.javalin.qpb.bug065.Bug065RegressionTestKt.withApp(Bug065RegressionTest.kt:64)
+	at io.javalin.qpb.bug065.Bug065RegressionTestKt.access$withApp(Bug065RegressionTest.kt:1)
+	at io.javalin.qpb.bug065.Bug065RegressionTest.BUG-065 basic auth scheme is case insensitive(Bug065RegressionTest.kt:90)
+
+[INFO] Running io.javalin.qpb.bug037.Bug037RegressionTest
+[main] INFO io.javalin.Javalin - Starting Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - jetty-12.1.12; built: 2026-08-03T22:37:55.389Z; git: 10dd3948f37767b84cc2c62358364f042e51dbbe; jvm 21.0.12.1+1-1-24.04.4-Ubuntu
+[main] INFO org.eclipse.jetty.session.DefaultSessionIdManager - Session workerName=node0
+[main] INFO org.eclipse.jetty.server.handler.ContextHandler - Started oeje10s.ServletContextHandler@17e2835c{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@4d2bc56a{STARTED}}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Started oeje10s.ServletContextHandler@17e2835c{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@4d2bc56a{STARTED}}
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Started oejs.ServerConnector@7cbfbcd1{HTTP/1.1, (http/1.1)}{0.0.0.0:40955}
+[main] INFO org.eclipse.jetty.server.Server - Started oejs.Server@2c6aa46c{STARTING}[12.1.12,sto=0] @23ms
+[main] INFO io.javalin.Javalin - Javalin started in 25ms \o/
+[main] INFO io.javalin.Javalin - Listening on http://localhost:40955/
+[main] INFO io.javalin.Javalin - Stopping Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - Stopped oejs.Server@2c6aa46c{STOPPING}[12.1.12,sto=0]
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Stopped oejs.ServerConnector@7cbfbcd1{HTTP/1.1, (http/1.1)}{0.0.0.0:0}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Stopped oeje10s.ServletContextHandler@17e2835c{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@4d2bc56a{STOPPED}}
+[main] INFO io.javalin.Javalin - Javalin has stopped
+[ERROR] Tests run: 1, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 0.057 s <<< FAILURE! -- in io.javalin.qpb.bug037.Bug037RegressionTest
+[ERROR] io.javalin.qpb.bug037.Bug037RegressionTest.BUG-037 enableBasicAuth protects ws upgrades -- Time elapsed: 0.049 s <<< FAILURE!
+java.lang.AssertionError: 
+
+Expecting actual:
+  "HTTP/1.1 101 Switching Protocols"
+not to contain:
+  "101"
+
+	at io.javalin.qpb.bug037.Bug037RegressionTest.BUG_037_enableBasicAuth_protects_ws_upgrades$lambda$1(Bug037RegressionTest.kt:94)
+	at io.javalin.qpb.bug037.Bug037RegressionTestKt.withApp(Bug037RegressionTest.kt:64)
+	at io.javalin.qpb.bug037.Bug037RegressionTestKt.access$withApp(Bug037RegressionTest.kt:1)
+	at io.javalin.qpb.bug037.Bug037RegressionTest.BUG-037 enableBasicAuth protects ws upgrades(Bug037RegressionTest.kt:90)
+
+[INFO] Running io.javalin.qpb.bug033.Bug033RegressionTest
+[main] INFO io.javalin.Javalin - Starting Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - jetty-12.1.12; built: 2026-08-03T22:37:55.389Z; git: 10dd3948f37767b84cc2c62358364f042e51dbbe; jvm 21.0.12.1+1-1-24.04.4-Ubuntu
+[main] INFO org.eclipse.jetty.session.DefaultSessionIdManager - Session workerName=node0
+[main] INFO org.eclipse.jetty.server.handler.ContextHandler - Started oeje10s.ServletContextHandler@5edd9b4f{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@5db90818{STARTED}}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Started oeje10s.ServletContextHandler@5edd9b4f{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@5db90818{STARTED}}
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Started oejs.ServerConnector@2f9e4706{HTTP/1.1, (http/1.1)}{0.0.0.0:42485}
+[main] INFO org.eclipse.jetty.server.Server - Started oejs.Server@3c17794e{STARTING}[12.1.12,sto=0] @21ms
+[main] INFO io.javalin.Javalin - Javalin started in 28ms \o/
+[main] INFO io.javalin.Javalin - Listening on http://localhost:42485/
+[main] INFO io.javalin.Javalin - Stopping Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - Stopped oejs.Server@3c17794e{STOPPING}[12.1.12,sto=0]
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Stopped oejs.ServerConnector@2f9e4706{HTTP/1.1, (http/1.1)}{0.0.0.0:0}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Stopped oeje10s.ServletContextHandler@5edd9b4f{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@5db90818{STOPPED}}
+[main] INFO io.javalin.Javalin - Javalin has stopped
+[ERROR] Tests run: 1, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 0.058 s <<< FAILURE! -- in io.javalin.qpb.bug033.Bug033RegressionTest
+[ERROR] io.javalin.qpb.bug033.Bug033RegressionTest.BUG-033 html error body escapes message -- Time elapsed: 0.057 s <<< FAILURE!
+org.opentest4j.AssertionFailedError: 
+
+Expecting value to be false but was true
+	at io.javalin.qpb.bug033.Bug033RegressionTest.BUG_033_html_error_body_escapes_message$lambda$1(Bug033RegressionTest.kt:95)
+	at io.javalin.qpb.bug033.Bug033RegressionTestKt.withApp(Bug033RegressionTest.kt:64)
+	at io.javalin.qpb.bug033.Bug033RegressionTestKt.access$withApp(Bug033RegressionTest.kt:1)
+	at io.javalin.qpb.bug033.Bug033RegressionTest.BUG-033 html error body escapes message(Bug033RegressionTest.kt:90)
+
+[INFO] Running io.javalin.qpb.bug050.Bug050RegressionTest
+[main] INFO io.javalin.Javalin - Starting Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - jetty-12.1.12; built: 2026-08-03T22:37:55.389Z; git: 10dd3948f37767b84cc2c62358364f042e51dbbe; jvm 21.0.12.1+1-1-24.04.4-Ubuntu
+[main] INFO org.eclipse.jetty.session.DefaultSessionIdManager - Session workerName=node0
+[main] INFO org.eclipse.jetty.server.handler.ContextHandler - Started oeje10s.ServletContextHandler@52bb3dcd{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@654db80b{STARTED}}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Started oeje10s.ServletContextHandler@52bb3dcd{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@654db80b{STARTED}}
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Started oejs.ServerConnector@516037be{HTTP/1.1, (http/1.1)}{0.0.0.0:36093}
+[main] INFO org.eclipse.jetty.server.Server - Started oejs.Server@383e6734{STARTING}[12.1.12,sto=0] @20ms
+[main] INFO io.javalin.Javalin - Javalin started in 23ms \o/
+[main] INFO io.javalin.Javalin - Listening on http://localhost:36093/
+[main] INFO io.javalin.Javalin - Stopping Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - Stopped oejs.Server@383e6734{STOPPING}[12.1.12,sto=0]
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Stopped oejs.ServerConnector@516037be{HTTP/1.1, (http/1.1)}{0.0.0.0:0}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Stopped oeje10s.ServletContextHandler@52bb3dcd{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@654db80b{STOPPED}}
+[main] INFO io.javalin.Javalin - Javalin has stopped
+[ERROR] Tests run: 1, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 0.063 s <<< FAILURE! -- in io.javalin.qpb.bug050.Bug050RegressionTest
+[ERROR] io.javalin.qpb.bug050.Bug050RegressionTest.BUG-050 HEAD on role protected GET is also protected -- Time elapsed: 0.059 s <<< FAILURE!
+org.opentest4j.AssertionFailedError: 
+
+expected: 401
+ but was: 200
+	at io.javalin.qpb.bug050.Bug050RegressionTest.BUG_050_HEAD_on_role_protected_GET_is_also_protected$lambda$1(Bug050RegressionTest.kt:95)
+	at io.javalin.qpb.bug050.Bug050RegressionTestKt.withApp(Bug050RegressionTest.kt:64)
+	at io.javalin.qpb.bug050.Bug050RegressionTestKt.access$withApp(Bug050RegressionTest.kt:1)
+	at io.javalin.qpb.bug050.Bug050RegressionTest.BUG-050 HEAD on role protected GET is also protected(Bug050RegressionTest.kt:90)
+
+[INFO] Running io.javalin.qpb.bug020.Bug020RegressionTest
+[main] INFO io.javalin.Javalin - Starting Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - jetty-12.1.12; built: 2026-08-03T22:37:55.389Z; git: 10dd3948f37767b84cc2c62358364f042e51dbbe; jvm 21.0.12.1+1-1-24.04.4-Ubuntu
+[main] INFO org.eclipse.jetty.session.DefaultSessionIdManager - Session workerName=node0
+[main] INFO org.eclipse.jetty.server.handler.ContextHandler - Started oeje10s.ServletContextHandler@4be7acd9{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@58afecfd{STARTED}}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Started oeje10s.ServletContextHandler@4be7acd9{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@58afecfd{STARTED}}
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Started oejs.ServerConnector@4d79d187{HTTP/1.1, (http/1.1)}{0.0.0.0:38527}
+[main] INFO org.eclipse.jetty.server.Server - Started oejs.Server@3e63bd6b{STARTING}[12.1.12,sto=0] @24ms
+[main] INFO io.javalin.Javalin - Javalin started in 30ms \o/
+[main] INFO io.javalin.Javalin - Listening on http://localhost:38527/
+[main] INFO io.javalin.Javalin - Stopping Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - Stopped oejs.Server@3e63bd6b{STOPPING}[12.1.12,sto=0]
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Stopped oejs.ServerConnector@4d79d187{HTTP/1.1, (http/1.1)}{0.0.0.0:0}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Stopped oeje10s.ServletContextHandler@4be7acd9{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@58afecfd{STOPPED}}
+[main] INFO io.javalin.Javalin - Javalin has stopped
+[ERROR] Tests run: 1, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 0.119 s <<< FAILURE! -- in io.javalin.qpb.bug020.Bug020RegressionTest
+[ERROR] io.javalin.qpb.bug020.Bug020RegressionTest.BUG-020 sse comment carriage return cannot inject data -- Time elapsed: 0.114 s <<< FAILURE!
+java.lang.AssertionError: 
+
+Expecting empty but was: ["data: forged"]
+	at io.javalin.qpb.bug020.Bug020RegressionTest.BUG_020_sse_comment_carriage_return_cannot_inject_data$lambda$1(Bug020RegressionTest.kt:94)
+	at io.javalin.qpb.bug020.Bug020RegressionTestKt.withApp(Bug020RegressionTest.kt:64)
+	at io.javalin.qpb.bug020.Bug020RegressionTestKt.access$withApp(Bug020RegressionTest.kt:1)
+	at io.javalin.qpb.bug020.Bug020RegressionTest.BUG-020 sse comment carriage return cannot inject data(Bug020RegressionTest.kt:90)
+
+[INFO] Running io.javalin.qpb.bug028.Bug028RegressionTest
+[main] INFO io.javalin.Javalin - Starting Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - jetty-12.1.12; built: 2026-08-03T22:37:55.389Z; git: 10dd3948f37767b84cc2c62358364f042e51dbbe; jvm 21.0.12.1+1-1-24.04.4-Ubuntu
+[main] INFO org.eclipse.jetty.session.DefaultSessionIdManager - Session workerName=node0
+[main] INFO org.eclipse.jetty.server.handler.ContextHandler - Started oeje10s.ServletContextHandler@24a7d3d3{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@43fbc2bf{STARTED}}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Started oeje10s.ServletContextHandler@24a7d3d3{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@43fbc2bf{STARTED}}
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Started oejs.ServerConnector@2c978637{HTTP/1.1, (http/1.1)}{0.0.0.0:44709}
+[main] INFO org.eclipse.jetty.server.Server - Started oejs.Server@5e2718b3{STARTING}[12.1.12,sto=0] @22ms
+[main] INFO io.javalin.Javalin - Javalin started in 25ms \o/
+[main] INFO io.javalin.Javalin - Listening on http://localhost:44709/
+[main] INFO io.javalin.Javalin - Stopping Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - Stopped oejs.Server@5e2718b3{STOPPING}[12.1.12,sto=0]
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Stopped oejs.ServerConnector@2c978637{HTTP/1.1, (http/1.1)}{0.0.0.0:0}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Stopped oeje10s.ServletContextHandler@24a7d3d3{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@43fbc2bf{STOPPED}}
+[main] INFO io.javalin.Javalin - Javalin has stopped
+[ERROR] Tests run: 1, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 0.075 s <<< FAILURE! -- in io.javalin.qpb.bug028.Bug028RegressionTest
+[ERROR] io.javalin.qpb.bug028.Bug028RegressionTest.BUG-028 basic auth plugin with unset credentials denies -- Time elapsed: 0.072 s <<< FAILURE!
+org.opentest4j.AssertionFailedError: 
+
+expected: 401
+ but was: 200
+	at io.javalin.qpb.bug028.Bug028RegressionTest.BUG_028_basic_auth_plugin_with_unset_credentials_denies$lambda$1(Bug028RegressionTest.kt:94)
+	at io.javalin.qpb.bug028.Bug028RegressionTestKt.withApp(Bug028RegressionTest.kt:64)
+	at io.javalin.qpb.bug028.Bug028RegressionTestKt.access$withApp(Bug028RegressionTest.kt:1)
+	at io.javalin.qpb.bug028.Bug028RegressionTest.BUG-028 basic auth plugin with unset credentials denies(Bug028RegressionTest.kt:90)
+
+[INFO] Running io.javalin.qpb.bug065.Bug065RegressionTest
+[main] INFO io.javalin.Javalin - Starting Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - jetty-12.1.12; built: 2026-08-03T22:37:55.389Z; git: 10dd3948f37767b84cc2c62358364f042e51dbbe; jvm 21.0.12.1+1-1-24.04.4-Ubuntu
+[main] INFO org.eclipse.jetty.session.DefaultSessionIdManager - Session workerName=node0
+[main] INFO org.eclipse.jetty.server.handler.ContextHandler - Started oeje10s.ServletContextHandler@76d0a290{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@ea84346{STARTED}}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Started oeje10s.ServletContextHandler@76d0a290{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@ea84346{STARTED}}
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Started oejs.ServerConnector@4770bfcc{HTTP/1.1, (http/1.1)}{0.0.0.0:35203}
+[main] INFO org.eclipse.jetty.server.Server - Started oejs.Server@4e614370{STARTING}[12.1.12,sto=0] @18ms
+[main] INFO io.javalin.Javalin - Javalin started in 24ms \o/
+[main] INFO io.javalin.Javalin - Listening on http://localhost:35203/
+[main] INFO io.javalin.Javalin - Stopping Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - Stopped oejs.Server@4e614370{STOPPING}[12.1.12,sto=0]
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Stopped oejs.ServerConnector@4770bfcc{HTTP/1.1, (http/1.1)}{0.0.0.0:0}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Stopped oeje10s.ServletContextHandler@76d0a290{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@ea84346{STOPPED}}
+[main] INFO io.javalin.Javalin - Javalin has stopped
+[ERROR] Tests run: 1, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 0.075 s <<< FAILURE! -- in io.javalin.qpb.bug065.Bug065RegressionTest
+[ERROR] io.javalin.qpb.bug065.Bug065RegressionTest.BUG-065 basic auth scheme is case insensitive -- Time elapsed: 0.063 s <<< FAILURE!
+org.opentest4j.AssertionFailedError: 
+
+expected: 200
+ but was: 401
+	at io.javalin.qpb.bug065.Bug065RegressionTest.BUG_065_basic_auth_scheme_is_case_insensitive$lambda$1(Bug065RegressionTest.kt:96)
+	at io.javalin.qpb.bug065.Bug065RegressionTestKt.withApp(Bug065RegressionTest.kt:64)
+	at io.javalin.qpb.bug065.Bug065RegressionTestKt.access$withApp(Bug065RegressionTest.kt:1)
+	at io.javalin.qpb.bug065.Bug065RegressionTest.BUG-065 basic auth scheme is case insensitive(Bug065RegressionTest.kt:90)
+
+[INFO] 
+[INFO] Results:
+[INFO] 
+[ERROR] Failures: 
+[ERROR] io.javalin.qpb.bug020.Bug020RegressionTest.BUG-020 sse comment carriage return cannot inject data
+[ERROR]   Run 1: Bug020RegressionTest.BUG-020 sse comment carriage return cannot inject data:90->BUG_020_sse_comment_carriage_return_cannot_inject_data$lambda$1:94 
+Expecting empty but was: ["data: forged"]
+[ERROR]   Run 2: Bug020RegressionTest.BUG-020 sse comment carriage return cannot inject data:90->BUG_020_sse_comment_carriage_return_cannot_inject_data$lambda$1:94 
+Expecting empty but was: ["data: forged"]
+[ERROR]   Run 3: Bug020RegressionTest.BUG-020 sse comment carriage return cannot inject data:90->BUG_020_sse_comment_carriage_return_cannot_inject_data$lambda$1:94 
+Expecting empty but was: ["data: forged"]
+[INFO] 
+[ERROR] io.javalin.qpb.bug028.Bug028RegressionTest.BUG-028 basic auth plugin with unset credentials denies
+[ERROR]   Run 1: Bug028RegressionTest.BUG-028 basic auth plugin with unset credentials denies:90->BUG_028_basic_auth_plugin_with_unset_credentials_denies$lambda$1:94 
+expected: 401
+ but was: 200
+[ERROR]   Run 2: Bug028RegressionTest.BUG-028 basic auth plugin with unset credentials denies:90->BUG_028_basic_auth_plugin_with_unset_credentials_denies$lambda$1:94 
+expected: 401
+ but was: 200
+[ERROR]   Run 3: Bug028RegressionTest.BUG-028 basic auth plugin with unset credentials denies:90->BUG_028_basic_auth_plugin_with_unset_credentials_denies$lambda$1:94 
+expected: 401
+ but was: 200
+[INFO] 
+[ERROR] io.javalin.qpb.bug033.Bug033RegressionTest.BUG-033 html error body escapes message
+[ERROR]   Run 1: Bug033RegressionTest.BUG-033 html error body escapes message:90->BUG_033_html_error_body_escapes_message$lambda$1:95 
+Expecting value to be false but was true
+[ERROR]   Run 2: Bug033RegressionTest.BUG-033 html error body escapes message:90->BUG_033_html_error_body_escapes_message$lambda$1:95 
+Expecting value to be false but was true
+[ERROR]   Run 3: Bug033RegressionTest.BUG-033 html error body escapes message:90->BUG_033_html_error_body_escapes_message$lambda$1:95 
+Expecting value to be false but was true
+[INFO] 
+[ERROR] io.javalin.qpb.bug037.Bug037RegressionTest.BUG-037 enableBasicAuth protects ws upgrades
+[ERROR]   Run 1: Bug037RegressionTest.BUG-037 enableBasicAuth protects ws upgrades:90->BUG_037_enableBasicAuth_protects_ws_upgrades$lambda$1:94 
+Expecting actual:
+  "HTTP/1.1 101 Switching Protocols"
+not to contain:
+  "101"
+
+[ERROR]   Run 2: Bug037RegressionTest.BUG-037 enableBasicAuth protects ws upgrades:90->BUG_037_enableBasicAuth_protects_ws_upgrades$lambda$1:94 
+Expecting actual:
+  "HTTP/1.1 101 Switching Protocols"
+not to contain:
+  "101"
+
+[ERROR]   Run 3: Bug037RegressionTest.BUG-037 enableBasicAuth protects ws upgrades:90->BUG_037_enableBasicAuth_protects_ws_upgrades$lambda$1:94 
+Expecting actual:
+  "HTTP/1.1 101 Switching Protocols"
+not to contain:
+  "101"
+
+[INFO] 
+[ERROR] io.javalin.qpb.bug050.Bug050RegressionTest.BUG-050 HEAD on role protected GET is also protected
+[ERROR]   Run 1: Bug050RegressionTest.BUG-050 HEAD on role protected GET is also protected:90->BUG_050_HEAD_on_role_protected_GET_is_also_protected$lambda$1:95 
+expected: 401
+ but was: 200
+[ERROR]   Run 2: Bug050RegressionTest.BUG-050 HEAD on role protected GET is also protected:90->BUG_050_HEAD_on_role_protected_GET_is_also_protected$lambda$1:95 
+expected: 401
+ but was: 200
+[ERROR]   Run 3: Bug050RegressionTest.BUG-050 HEAD on role protected GET is also protected:90->BUG_050_HEAD_on_role_protected_GET_is_also_protected$lambda$1:95 
+expected: 401
+ but was: 200
+[INFO] 
+[ERROR] io.javalin.qpb.bug065.Bug065RegressionTest.BUG-065 basic auth scheme is case insensitive
+[ERROR]   Run 1: Bug065RegressionTest.BUG-065 basic auth scheme is case insensitive:90->BUG_065_basic_auth_scheme_is_case_insensitive$lambda$1:96 
+expected: 200
+ but was: 401
+[ERROR]   Run 2: Bug065RegressionTest.BUG-065 basic auth scheme is case insensitive:90->BUG_065_basic_auth_scheme_is_case_insensitive$lambda$1:96 
+expected: 200
+ but was: 401
+[ERROR]   Run 3: Bug065RegressionTest.BUG-065 basic auth scheme is case insensitive:90->BUG_065_basic_auth_scheme_is_case_insensitive$lambda$1:96 
+expected: 200
+ but was: 401
+[INFO] 
+[INFO] 
+[ERROR] Tests run: 6, Failures: 6, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  17.643 s
+[INFO] Finished at: 2026-10-20T11:45:02-04:00
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:3.5.6:test (default-test) on project javalin: There are test failures.
+[ERROR] 
+[ERROR] See /tmp/claude-0/sec/javalin/src/javalin/target/surefire-reports for the individual test results.
+[ERROR] See dump files (if any exist) [date].dump, [date]-jvmRun[N].dump and [date].dumpstream.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException
+exit 1

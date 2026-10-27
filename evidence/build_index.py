@@ -9,6 +9,12 @@ Every bug folder under evidence/ carries a STATUS.md with these lines:
     updated: <YYYY-MM-DD>
     note: <one line>
 
+The fields end at the first blank line; anything after it (a "## History"
+section, say) is for people and is not parsed.
+
+Folders with status "advisory" are private security reports. They are kept out
+of git (see .gitignore) and are not listed in the tables.
+
 Changing a bug's status means editing that one file and re-running this script.
 Folders never move, so links into them stay valid.
 
@@ -27,6 +33,8 @@ STATUSES = [
     ("merged", "Merged upstream"),
     ("open", "Submitted, open"),
     ("sent", "Sent to a mailing list"),
+    ("applied", "Applied to a maintainer's tree, not yet in mainline"),
+    ("advisory", "Private security report (not listed)"),
     ("ready", "Ready: reviewed, not yet presented to Andrew under SUBMISSION-PROTOCOL.md"),
     ("needs-work", "Needs work before it can go out"),
     ("held", "Held"),
@@ -44,6 +52,8 @@ def read_status(folder):
     fields = {}
     with open(os.path.join(HERE, folder, "STATUS.md"), encoding="utf-8") as f:
         for line in f:
+            if not line.strip():
+                break
             if ":" in line:
                 key, value = line.split(":", 1)
                 fields[key.strip()] = value.strip()
@@ -67,6 +77,8 @@ def build():
         )
     out = [BEGIN, ""]
     for status, heading in STATUSES:
+        if status == "advisory":
+            continue
         if not rows[status]:
             continue
         out += [f"### {heading} ({len(rows[status])})", "",

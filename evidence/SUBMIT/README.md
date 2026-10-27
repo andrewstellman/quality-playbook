@@ -1,5 +1,7 @@
 # Submission kit
 
+These are the scripts for the submissions made from 1 to 10 October 2026. Scripts for later submissions are kept with the run records, which are not in this repository; each bug folder's `STATUS.md` and `REVIEW.md` record what was sent.
+
 **Every submission follows [`../SUBMISSION-PROTOCOL.md`](../SUBMISSION-PROTOCOL.md):** one bug at a time, explained to Andrew and written to `evidence/<slug>/REVIEW.md` before he runs a script, and the submission recorded there afterwards. No schedules, no batches.
 
 One script per bug. Each opens a **draft** pull request from a branch on your fork

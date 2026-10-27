@@ -1,0 +1,39 @@
+== N-02: nvmet-rdma in-capsule SGL bounds check wraps (rdma.c:867) ==
+
+Legitimate inline write (for contrast):
+benign                 off=0x0000000000000000 len=0x1000 inline_data_size=4096
+    off+len (u64)        = 0x0000000000001000  
+    shipped check :867   = ACCEPTED (passes bounds check)
+    page_idx = off/4096  = 0  (inline_sg[] has 4 entries; index is in bounds)
+    sg_count (num_pages) = 1
+    fixed check verdict  = ACCEPTED
+
+Malicious addr chosen so off+len wraps to 0 (reviewers' example):
+wrap -> idx 2^52-1     off=0xfffffffffffff000 len=0x1000 inline_data_size=4096
+    off+len (u64)        = 0x0000000000000000  <-- WRAPPED past 2^64
+    shipped check :867   = ACCEPTED (passes bounds check)
+    page_idx = off/4096  = 4503599627370495  (inline_sg[] has 4 entries; index is OUT OF BOUNDS)
+    sg_count (num_pages) = 1
+    &inline_sg[page_idx] = base + 144115188075855840 bytes (= base + ~2^57)
+    => loop writes sg->offset/sg->length/sg_mark_end() at that wild address
+    fixed check verdict  = REJECTED (fix stops it)
+
+Same attack with the larger 16K inline_data_size:
+wrap, ids=16K          off=0xfffffffffffff000 len=0x1000 inline_data_size=16384
+    off+len (u64)        = 0x0000000000000000  <-- WRAPPED past 2^64
+    shipped check :867   = ACCEPTED (passes bounds check)
+    page_idx = off/4096  = 4503599627370495  (inline_sg[] has 4 entries; index is OUT OF BOUNDS)
+    sg_count (num_pages) = 1
+    &inline_sg[page_idx] = base + 144115188075855840 bytes (= base + ~2^57)
+    => loop writes sg->offset/sg->length/sg_mark_end() at that wild address
+    fixed check verdict  = REJECTED (fix stops it)
+
+A different wrap point (off just below 2^64, len large):
+wrap, big len          off=0xffffffff00000000 len=0xff000000 inline_data_size=4096
+    off+len (u64)        = 0xffffffffff000000  
+    shipped check :867   = rejected
+
+Conclusion: the shipped check accepts host addresses it must reject,
+and page_idx = off/PAGE_SIZE then indexes a 4-entry array at ~2^52;
+the non-wrapping fix rejects every crafted case above.
+gcc: gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0

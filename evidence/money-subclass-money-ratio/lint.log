@@ -1,0 +1,5 @@
+$ /work/batch/runs/money/bin/lint /work/batch/runs/money/scratch/fix-money-subclass-money-ratio lib/money/money/arithmetic.rb spec/money/arithmetic_spec.rb
+Inspecting 2 files
+..
+
+2 files inspected, no offenses detected

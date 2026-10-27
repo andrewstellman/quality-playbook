@@ -1,0 +1,3 @@
+$ /work/batch/runs/chrono/bin/lint /work/batch/runs/chrono/scratch/fix-chrono-ref-timezone-calendar src/common/parsers/SlashDateFormatParser.ts src/locales/en/parsers/ENCasualDateParser.ts src/locales/en/parsers/ENMonthNameLittleEndianParser.ts src/locales/en/parsers/ENMonthNameMiddleEndianParser.ts src/locales/en/parsers/ENMonthNameParser.ts src/locales/en/parsers/ENRelativeDateFormatParser.ts test/en/en_relative.test.ts
+lint exit 0
+lint exit 0

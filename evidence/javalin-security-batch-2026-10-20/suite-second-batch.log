@@ -1,0 +1,1645 @@
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djavax.net.ssl.trustStoreType=JKS -Dhttps.proxyHost=127.0.0.1 -Dhttps.proxyPort=32991 -Dhttp.nonProxyHosts=localhost|127.0.0.1|::1|127.*|0.*|::|169.254.*|api.anthropic.com|api-staging.anthropic.com|api-pr-preview.anthropic.com|mcp-proxy.anthropic.com|mcp-proxy-staging.anthropic.com|registry.npmjs.org|jsr.io|npm.jsr.io|pypi.org|files.pythonhosted.org|index.crates.io|proxy.golang.org|host.docker.internal|10.*|172.16.*|172.17.*|172.18.*|172.19.*|172.20.*|172.21.*|172.22.*|172.23.*|172.24.*|172.25.*|172.26.*|172.27.*|172.28.*|172.29.*|172.30.*|172.31.*|192.168.*|100.64.0.0/10|*.svc.cluster.local|*.svc.cluster.local -Djdk.http.auth.tunneling.disabledSchemes= -Djdk.http.auth.proxying.disabledSchemes=
+[INFO] Scanning for projects...
+[INFO] Inspecting build with total of 1 modules
+[INFO] Installing Central Publishing features
+[INFO] 
+[INFO] -------------------------< io.javalin:javalin >-------------------------
+[INFO] Building Javalin 7.2.4-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- git-commit-id:10.0.0:revision (default) @ javalin ---
+[INFO] 
+[INFO] --- resources:3.5.0:copy-resources (copy-license) @ javalin ---
+[INFO] Copying 1 resource from .. to target/classes/META-INF
+[INFO] 
+[INFO] --- resources:3.5.0:copy-resources (copy-pom-properties) @ javalin ---
+[INFO] Copying 1 resource from .. to target
+[INFO] 
+[INFO] --- jacoco:0.8.15:prepare-agent (default) @ javalin ---
+[INFO] argLine set to -javaagent:/root/.m2/repository/org/jacoco/org.jacoco.agent/0.8.15/org.jacoco.agent-0.8.15-runtime.jar=destfile=/tmp/claude-0/sec/javalin/src/javalin/target/jacoco.exec
+[INFO] 
+[INFO] --- resources:3.5.0:resources (default-resources) @ javalin ---
+[INFO] skip non existing resourceDirectory /tmp/claude-0/sec/javalin/src/javalin/src/main/resources
+[INFO] 
+[INFO] --- kotlin:2.2.20:compile (compile) @ javalin ---
+[WARNING] Source root doesn't exist: /tmp/claude-0/sec/javalin/src/javalin/src/main/kotlin
+[WARNING] Using experimental Kotlin incremental compilation
+[INFO] 
+[INFO] --- compiler:3.15.0:compile (java-compile) @ javalin ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ javalin ---
+[INFO] Copying 42 resources from src/test/resources to target/test-classes
+[INFO] 
+[INFO] --- kotlin:2.2.20:test-compile (test-compile) @ javalin ---
+[WARNING] Using experimental Kotlin incremental compilation
+[INFO] 
+[INFO] --- compiler:3.15.0:testCompile (java-test-compile) @ javalin ---
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 42 source files with javac [debug release 17] to target/test-classes
+[INFO] 
+[INFO] --- surefire:3.5.6:test (default-test) @ javalin ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO] 
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djavax.net.ssl.trustStoreType=JKS -Dhttps.proxyHost=127.0.0.1 -Dhttps.proxyPort=32991 -Dhttp.nonProxyHosts=localhost|127.0.0.1|::1|127.*|0.*|::|169.254.*|api.anthropic.com|api-staging.anthropic.com|api-pr-preview.anthropic.com|mcp-proxy.anthropic.com|mcp-proxy-staging.anthropic.com|registry.npmjs.org|jsr.io|npm.jsr.io|pypi.org|files.pythonhosted.org|index.crates.io|proxy.golang.org|host.docker.internal|10.*|172.16.*|172.17.*|172.18.*|172.19.*|172.20.*|172.21.*|172.22.*|172.23.*|172.24.*|172.25.*|172.26.*|172.27.*|172.28.*|172.29.*|172.30.*|172.31.*|192.168.*|100.64.0.0/10|*.svc.cluster.local|*.svc.cluster.local -Djdk.http.auth.tunneling.disabledSchemes= -Djdk.http.auth.proxying.disabledSchemes=
+[INFO] Running io.javalin.TestMultipleSlashes
+[INFO] Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.559 s -- in io.javalin.TestMultipleSlashes
+[INFO] Running io.javalin.TestSse
+[Thread-2] INFO io.javalin.Javalin - It looks like you created a Javalin instance, but you never started it.
+[Thread-2] INFO io.javalin.Javalin - Try: Javalin app = Javalin.create().start();
+[Thread-2] INFO io.javalin.Javalin - For more help, visit https://javalin.io/documentation#server-setup
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 28, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 3.092 s -- in io.javalin.TestSse
+[INFO] Running io.javalin.TestFilters
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.352 s -- in io.javalin.TestFilters
+[INFO] Running io.javalin.TestExceptionMapper
+[INFO] Tests run: 15, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.749 s -- in io.javalin.TestExceptionMapper
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Running io.javalin.TestHttpAllowedMethodsPlugin
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.069 s -- in io.javalin.TestHttpAllowedMethodsPlugin
+[INFO] Running io.javalin.TestContextHandlerType
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.074 s -- in io.javalin.TestContextHandlerType
+[INFO] Running io.javalin.TestContextRouteRoles
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.309 s -- in io.javalin.TestContextRouteRoles
+[INFO] Running io.javalin.TestEndpoint
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.231 s -- in io.javalin.TestEndpoint
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Running io.javalin.TestCors
+[INFO] Running io.javalin.TestCors$ConvenienceFeatures
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.207 s -- in io.javalin.TestCors$ConvenienceFeatures
+[INFO] Running io.javalin.TestCors$NegativeTests
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.210 s -- in io.javalin.TestCors$NegativeTests
+[INFO] Running io.javalin.TestCors$EdgeCases
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.100 s -- in io.javalin.TestCors$EdgeCases
+[INFO] Running io.javalin.TestCors$HappyPath
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 11, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.471 s -- in io.javalin.TestCors$HappyPath
+[INFO] Running io.javalin.TestCors$ExceptionTests
+[INFO] Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.042 s -- in io.javalin.TestCors$ExceptionTests
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Running io.javalin.TestCors$ExposingHeaders
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.062 s -- in io.javalin.TestCors$ExposingHeaders
+[INFO] Running io.javalin.TestCors$ComplexSetup
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.046 s -- in io.javalin.TestCors$ComplexSetup
+[INFO] Tests run: 0, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.161 s -- in io.javalin.TestCors
+[INFO] Running io.javalin.TestCustomJettyHttpConfiguration
+[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.216 s -- in io.javalin.TestCustomJettyHttpConfiguration
+[INFO] Running io.javalin.TestCookieStore
+[INFO] Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.504 s -- in io.javalin.TestCookieStore
+[INFO] Running io.javalin.TestPlugins
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 11, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.219 s -- in io.javalin.TestPlugins
+[INFO] Running io.javalin.TestCorsUtils
+[INFO] Running io.javalin.TestCorsUtils$WildcardRequirements
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.016 s -- in io.javalin.TestCorsUtils$WildcardRequirements
+[INFO] Running io.javalin.TestCorsUtils$AddSchemeIfMissing
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.139 s -- in io.javalin.TestCorsUtils$AddSchemeIfMissing
+[INFO] Running io.javalin.TestCorsUtils$OriginsMatch
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.033 s -- in io.javalin.TestCorsUtils$OriginsMatch
+[INFO] Running io.javalin.TestCorsUtils$TestOriginParts
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 14, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.070 s -- in io.javalin.TestCorsUtils$TestOriginParts
+[INFO] Running io.javalin.TestCorsUtils$IsValidOrigin
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 15, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.058 s -- in io.javalin.TestCorsUtils$IsValidOrigin
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 0, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.327 s -- in io.javalin.TestCorsUtils
+[INFO] Running io.javalin.TestFuture
+[INFO] Running io.javalin.TestFuture$AsyncLifecycle
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.205 s -- in io.javalin.TestFuture$AsyncLifecycle
+[INFO] Running io.javalin.TestFuture$FutureBasics
+[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.413 s -- in io.javalin.TestFuture$FutureBasics
+[INFO] Running io.javalin.TestFuture$FutureTimeouts
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.179 s -- in io.javalin.TestFuture$FutureTimeouts
+[INFO] Running io.javalin.TestFuture$FutureLifecycle
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.297 s -- in io.javalin.TestFuture$FutureLifecycle
+[INFO] Running io.javalin.TestFuture$AsyncBasics
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.224 s -- in io.javalin.TestFuture$AsyncBasics
+[INFO] Running io.javalin.TestFuture$FutureExceptions
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.159 s -- in io.javalin.TestFuture$FutureExceptions
+[INFO] Tests run: 0, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.493 s -- in io.javalin.TestFuture
+[INFO] Running io.javalin.TestUnixSocketConnector
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.031 s -- in io.javalin.TestUnixSocketConnector
+[INFO] Running io.javalin.TestApiBuilder
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 26, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.596 s -- in io.javalin.TestApiBuilder
+[INFO] Running io.javalin.TestLifecycleEvents
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.126 s -- in io.javalin.TestLifecycleEvents
+[INFO] Running io.javalin.TestBodyReading
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 14, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.387 s -- in io.javalin.TestBodyReading
+[INFO] Running io.javalin.TestJson
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 18, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.350 s -- in io.javalin.TestJson
+[INFO] Running io.javalin.TestCookie
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 14, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.604 s -- in io.javalin.TestCookie
+[INFO] Running io.javalin.TestRateLimitPlugin
+[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.243 s -- in io.javalin.TestRateLimitPlugin
+[INFO] Running io.javalin.http.HttpResponseExceptionTest
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.032 s -- in io.javalin.http.HttpResponseExceptionTest
+[INFO] Running io.javalin.http.ContentTypeTest
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/markdown, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/markdown/'
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.213 s -- in io.javalin.http.ContentTypeTest
+[INFO] Running io.javalin.http.HttpStatusCodeTest
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.021 s -- in io.javalin.http.HttpStatusCodeTest
+[INFO] Running io.javalin.http.TestCustomHttpMethods
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 12, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.547 s -- in io.javalin.http.TestCustomHttpMethods
+[INFO] Running io.javalin.routeoverview.TestRouteOverviewPlugin
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.111 s -- in io.javalin.routeoverview.TestRouteOverviewPlugin
+[INFO] Running io.javalin.routeoverview.TestRouteOverviewInKotlin
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.021 s -- in io.javalin.routeoverview.TestRouteOverviewInKotlin
+[INFO] Running io.javalin.routeoverview.TestRouteOverviewInJava
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.003 s -- in io.javalin.routeoverview.TestRouteOverviewInJava
+[INFO] Running io.javalin.TestValidation_Java
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.120 s -- in io.javalin.TestValidation_Java
+[INFO] Running io.javalin.TestMultipartForms
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 18, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.117 s -- in io.javalin.TestMultipartForms
+[INFO] Running io.javalin.TestLogging
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.283 s -- in io.javalin.TestLogging
+[INFO] Running io.javalin.TestCompression
+[Thread-1612] INFO io.javalin.Javalin - It looks like you created a Javalin instance, but you never started it.
+[Thread-1612] INFO io.javalin.Javalin - Try: Javalin app = Javalin.create().start();
+[Thread-1612] INFO io.javalin.Javalin - For more help, visit https://javalin.io/documentation#server-setup
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[Thread-1641] INFO io.javalin.Javalin - It looks like you created a Javalin instance, but you never started it.
+[Thread-1641] INFO io.javalin.Javalin - Try: Javalin app = Javalin.create().start();
+[Thread-1641] INFO io.javalin.Javalin - For more help, visit https://javalin.io/documentation#server-setup
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[Thread-1778] INFO io.javalin.Javalin - It looks like you created a Javalin instance, but you never started it.
+[Thread-1778] INFO io.javalin.Javalin - Try: Javalin app = Javalin.create().start();
+[Thread-1778] INFO io.javalin.Javalin - For more help, visit https://javalin.io/documentation#server-setup
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[Thread-1788] INFO io.javalin.Javalin - It looks like you created a Javalin instance, but you never started it.
+[Thread-1788] INFO io.javalin.Javalin - Try: Javalin app = Javalin.create().start();
+[Thread-1788] INFO io.javalin.Javalin - For more help, visit https://javalin.io/documentation#server-setup
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[Thread-1798] INFO io.javalin.Javalin - It looks like you created a Javalin instance, but you never started it.
+[Thread-1798] INFO io.javalin.Javalin - Try: Javalin app = Javalin.create().start();
+[Thread-1798] INFO io.javalin.Javalin - For more help, visit https://javalin.io/documentation#server-setup
+[Thread-1808] INFO io.javalin.Javalin - It looks like you created a Javalin instance, but you never started it.
+[Thread-1808] INFO io.javalin.Javalin - Try: Javalin app = Javalin.create().start();
+[Thread-1808] INFO io.javalin.Javalin - For more help, visit https://javalin.io/documentation#server-setup
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[Thread-1818] INFO io.javalin.Javalin - It looks like you created a Javalin instance, but you never started it.
+[Thread-1818] INFO io.javalin.Javalin - Try: Javalin app = Javalin.create().start();
+[Thread-1818] INFO io.javalin.Javalin - For more help, visit https://javalin.io/documentation#server-setup
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[Thread-1828] INFO io.javalin.Javalin - It looks like you created a Javalin instance, but you never started it.
+[Thread-1828] INFO io.javalin.Javalin - Try: Javalin app = Javalin.create().start();
+[Thread-1828] INFO io.javalin.Javalin - For more help, visit https://javalin.io/documentation#server-setup
+[Thread-1838] INFO io.javalin.Javalin - It looks like you created a Javalin instance, but you never started it.
+[Thread-1838] INFO io.javalin.Javalin - Try: Javalin app = Javalin.create().start();
+[Thread-1838] INFO io.javalin.Javalin - For more help, visit https://javalin.io/documentation#server-setup
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[Thread-1848] INFO io.javalin.Javalin - It looks like you created a Javalin instance, but you never started it.
+[Thread-1848] INFO io.javalin.Javalin - Try: Javalin app = Javalin.create().start();
+[Thread-1848] INFO io.javalin.Javalin - For more help, visit https://javalin.io/documentation#server-setup
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/webjars, directory=META-INF/resources/webjars, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=31622400}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: '[jar:file:///root/.m2/repository/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/, jar:file:///root/.m2/repository/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/]'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/upload-test, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/upload-test/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/webjars, directory=META-INF/resources/webjars, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=31622400}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: '[jar:file:///root/.m2/repository/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/, jar:file:///root/.m2/repository/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/]'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/webjars, directory=META-INF/resources/webjars, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=31622400}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: '[jar:file:///root/.m2/repository/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/, jar:file:///root/.m2/repository/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/]'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/webjars, directory=META-INF/resources/webjars, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=31622400}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: '[jar:file:///root/.m2/repository/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/, jar:file:///root/.m2/repository/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/]'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/webjars, directory=META-INF/resources/webjars, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=31622400}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: '[jar:file:///root/.m2/repository/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/, jar:file:///root/.m2/repository/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/]'
+[INFO] Tests run: 37, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 4.464 s -- in io.javalin.TestCompression
+[INFO] Running io.javalin.TestWebBrowser
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO io.github.bonigarcia.wdm.WebDriverManager - Exporting webdriver.chrome.driver as /root/.cache/selenium/chromedriver/linux64/156.0.8078.47/chromedriver
+[WARNING] Tests run: 4, Failures: 0, Errors: 0, Skipped: 4, Time elapsed: 1.635 s -- in io.javalin.TestWebBrowser
+[INFO] Running io.javalin.TestRequest
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 47, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.416 s -- in io.javalin.TestRequest
+[INFO] Running io.javalin.TestConfiguration
+[INFO] Tests run: 10, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.184 s -- in io.javalin.TestConfiguration
+[INFO] Running io.javalin.TestApiBuilderRouteRoles
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.018 s -- in io.javalin.TestApiBuilderRouteRoles
+[INFO] Running io.javalin.staticfiles.TestStaticFiles
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=src/test/external/, location=EXTERNAL, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/src/test/external/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/tmp/junit-6260684840895934684, location=EXTERNAL, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/junit-6260684840895934684/'
+Oct 22, 2026 6:32:20 PM org.junit.jupiter.api.io.TempDirDeletionStrategy$Standard$1 warnAboutLinkWithTargetOutsideTempDir
+WARNING: Deleting symbolic link from location inside of temp dir (/tmp/junit-6260684840895934684/linked_html.html) to location outside of temp dir (/tmp/claude-0/sec/javalin/src/javalin/src/test/external/html.html) but not the target file/directory
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=src/test/external/, location=EXTERNAL, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/src/test/external/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public/immutable, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/immutable/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public/protected, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/protected/'
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public/subdir, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/subdir/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public/subdir, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/subdir/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/url-prefix, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/webjars, directory=META-INF/resources/webjars, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=31622400}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: '[jar:file:///root/.m2/repository/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/, jar:file:///root/.m2/repository/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/]'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/assets, directory=/public/assets, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/assets/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={javalin=application/x-javalin}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/url-prefix, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/url-prefix, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=31622400}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/subdir, directory=/public/subdir, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/subdir/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/tmp/junit-16809705994291458861, location=EXTERNAL, precompressMaxSize=-1, aliasCheck=io.javalin.staticfiles.TestStaticFiles$$Lambda/0x00007f50b882f3b8@27a067d6, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/junit-16809705994291458861/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/url-prefix, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=io.javalin.staticfiles.TestStaticFiles$$Lambda/0x00007f50b882f3b8@27a067d6, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+Oct 22, 2026 6:32:21 PM org.junit.jupiter.api.io.TempDirDeletionStrategy$Standard$1 warnAboutLinkWithTargetOutsideTempDir
+WARNING: Deleting symbolic link from location inside of temp dir (/tmp/junit-16809705994291458861/linked_html.html) to location outside of temp dir (/tmp/claude-0/sec/javalin/src/javalin/src/test/external/html.html) but not the target file/directory
+Oct 22, 2026 6:32:21 PM org.junit.jupiter.api.io.TempDirDeletionStrategy$Standard$1 warnAboutLinkWithTargetOutsideTempDir
+WARNING: Deleting symbolic link from location inside of temp dir (/tmp/junit-16809705994291458861/linked_txt.txt) to location outside of temp dir (/tmp/claude-0/sec/javalin/src/javalin/src/test/external/txt.txt) but not the target file/directory
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/url-prefix, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=io.javalin.staticfiles.TestStaticFiles$$Lambda/0x00007f50b8831678@54f10c5c, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[INFO] Tests run: 32, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.648 s -- in io.javalin.staticfiles.TestStaticFiles
+[INFO] Running io.javalin.staticfiles.TestStaticFilesPathTraversal
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/tmp/junit-10384715066853446774/public, location=EXTERNAL, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/junit-10384715066853446774/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[INFO] Tests run: 10, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.493 s -- in io.javalin.staticfiles.TestStaticFilesPathTraversal
+[INFO] Running io.javalin.staticfiles.TestSinglePageMode
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/webjars, directory=META-INF/resources/webjars, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=31622400}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: '[jar:file:///root/.m2/repository/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/, jar:file:///root/.m2/repository/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/]'
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/webjars, directory=META-INF/resources/webjars, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=31622400}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: '[jar:file:///root/.m2/repository/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/, jar:file:///root/.m2/repository/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/]'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/webjars, directory=META-INF/resources/webjars, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=31622400}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: '[jar:file:///root/.m2/repository/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/, jar:file:///root/.m2/repository/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/]'
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/webjars, directory=META-INF/resources/webjars, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=31622400}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: '[jar:file:///root/.m2/repository/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/, jar:file:///root/.m2/repository/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/]'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/webjars, directory=META-INF/resources/webjars, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=31622400}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: '[jar:file:///root/.m2/repository/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/, jar:file:///root/.m2/repository/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/]'
+[INFO] Tests run: 12, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.366 s -- in io.javalin.staticfiles.TestSinglePageMode
+[INFO] Running io.javalin.staticfiles.TestStaticFilesEdgeCases
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO io.javalin.Javalin - Starting Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - jetty-12.1.12; built: 2026-08-03T22:37:55.389Z; git: 10dd3948f37767b84cc2c62358364f042e51dbbe; jvm 21.0.12.1+1-1-24.04.4-Ubuntu
+[main] INFO org.eclipse.jetty.session.DefaultSessionIdManager - Session workerName=node0
+[main] INFO org.eclipse.jetty.server.handler.ContextHandler - Started oeje10s.ServletContextHandler@6ed5c449{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@42210435{STARTED}}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Started oeje10s.ServletContextHandler@6ed5c449{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@42210435{STARTED}}
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO org.eclipse.jetty.util.ssl.SslContextFactory - x509=oejus.X509@301fe489(my-alias,h=[localhost],a=[],w=[]) for oejus.SslContextFactory$Server@35e37ba0[provider=null,keyStore=file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/keystore.jks,trustStore=null]
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Started oejs.ServerConnector@1a006de5{SSL, (ssl, http/1.1)}{0.0.0.0:37135}
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Started oejs.ServerConnector@19d2b1ec{HTTP/1.1, (http/1.1)}{0.0.0.0:37905}
+[main] INFO org.eclipse.jetty.server.Server - Started oejs.Server@357972dc{STARTING}[12.1.12,sto=0] @184ms
+[main] INFO io.javalin.Javalin - 
+       __                  ___          _____
+      / /___ __   ______ _/ (_)___     /__  /
+ __  / / __ `/ | / / __ `/ / / __ \      / /
+/ /_/ / /_/ /| |/ / /_/ / / / / / /     / /
+\____/\__,_/ |___/\__,_/_/_/_/ /_/     /_/
+
+       https://javalin.io/documentation
+
+[main] INFO io.javalin.Javalin - Javalin started in 224ms \o/
+[main] INFO io.javalin.Javalin - Listening on https://localhost:37135/
+[main] INFO io.javalin.Javalin - Listening on http://localhost:37905/
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO io.javalin.Javalin - Stopping Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - Stopped oejs.Server@357972dc{STOPPING}[12.1.12,sto=0]
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Stopped oejs.ServerConnector@1a006de5{SSL, (ssl, http/1.1)}{0.0.0.0:37135}
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Stopped oejs.ServerConnector@19d2b1ec{HTTP/1.1, (http/1.1)}{0.0.0.0:0}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Stopped oeje10s.ServletContextHandler@6ed5c449{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@42210435{STOPPED}}
+[main] INFO io.javalin.Javalin - Javalin has stopped
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO io.javalin.Javalin - Starting Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - jetty-12.1.12; built: 2026-08-03T22:37:55.389Z; git: 10dd3948f37767b84cc2c62358364f042e51dbbe; jvm 21.0.12.1+1-1-24.04.4-Ubuntu
+[main] INFO org.eclipse.jetty.session.DefaultSessionIdManager - Session workerName=node0
+[main] INFO org.eclipse.jetty.server.handler.ContextHandler - Started oeje10s.ServletContextHandler@885620d{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@958fec{STARTED}}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Started oeje10s.ServletContextHandler@885620d{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@958fec{STARTED}}
+[main] INFO org.eclipse.jetty.util.ssl.SslContextFactory - x509=oejus.X509@53329bdb(my-alias,h=[localhost],a=[],w=[]) for oejus.SslContextFactory$Server@70841eba[provider=null,keyStore=file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/keystore.jks,trustStore=null]
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Started oejs.ServerConnector@5cc205a9{SSL, (ssl, alpn, h2, http/1.1)}{0.0.0.0:45245}
+[main] INFO org.eclipse.jetty.server.Server - Started oejs.Server@2281ede7{STARTING}[12.1.12,sto=0] @57ms
+[main] INFO io.javalin.Javalin - 
+       __                  ___          _____
+      / /___ __   ______ _/ (_)___     /__  /
+ __  / / __ `/ | / / __ `/ / / __ \      / /
+/ /_/ / /_/ /| |/ / /_/ / / / / / /     / /
+\____/\__,_/ |___/\__,_/_/_/_/ /_/     /_/
+
+       https://javalin.io/documentation
+
+[main] INFO io.javalin.Javalin - Javalin started in 78ms \o/
+[main] INFO io.javalin.Javalin - Listening on https://localhost:45245/
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO io.javalin.Javalin - Stopping Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - Stopped oejs.Server@2281ede7{STOPPING}[12.1.12,sto=0]
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Stopped oejs.ServerConnector@5cc205a9{SSL, (ssl, alpn, h2, http/1.1)}{0.0.0.0:45245}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Stopped oeje10s.ServletContextHandler@885620d{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@958fec{STOPPED}}
+[main] INFO io.javalin.Javalin - Javalin has stopped
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Starting Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - jetty-12.1.12; built: 2026-08-03T22:37:55.389Z; git: 10dd3948f37767b84cc2c62358364f042e51dbbe; jvm 21.0.12.1+1-1-24.04.4-Ubuntu
+[main] INFO org.eclipse.jetty.session.DefaultSessionIdManager - Session workerName=node0
+[main] INFO org.eclipse.jetty.server.handler.ContextHandler - Started oeje10s.ServletContextHandler@148a3112{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@1d233a80{STARTED}}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Started oeje10s.ServletContextHandler@148a3112{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@1d233a80{STARTED}}
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Started oejs.ServerConnector@2d583f20{HTTP/1.1, (http/1.1, h2c)}{0.0.0.0:43967}
+[main] INFO org.eclipse.jetty.server.Server - Started oejs.Server@3e971bd5{STARTING}[12.1.12,sto=0] @3ms
+[main] INFO io.javalin.Javalin - 
+       __                  ___          _____
+      / /___ __   ______ _/ (_)___     /__  /
+ __  / / __ `/ | / / __ `/ / / __ \      / /
+/ /_/ / /_/ /| |/ / /_/ / / / / / /     / /
+\____/\__,_/ |___/\__,_/_/_/_/ /_/     /_/
+
+       https://javalin.io/documentation
+
+[main] INFO io.javalin.Javalin - Javalin started in 6ms \o/
+[main] INFO io.javalin.Javalin - Listening on http://localhost:43967/
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO io.javalin.Javalin - Stopping Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - Stopped oejs.Server@3e971bd5{STOPPING}[12.1.12,sto=0]
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Stopped oejs.ServerConnector@2d583f20{HTTP/1.1, (http/1.1, h2c)}{0.0.0.0:43967}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Stopped oeje10s.ServletContextHandler@148a3112{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@1d233a80{STOPPED}}
+[main] INFO io.javalin.Javalin - Javalin has stopped
+[INFO] Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.931 s -- in io.javalin.staticfiles.TestStaticFilesEdgeCases
+[INFO] Running io.javalin.staticfiles.TestStaticFilesPrecompressor
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=public, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/webjars, directory=META-INF/resources/webjars, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: '[jar:file:///root/.m2/repository/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/, jar:file:///root/.m2/repository/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/]'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public/immutable, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/immutable/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public/protected, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/protected/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/webjars, directory=META-INF/resources/webjars, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: '[jar:file:///root/.m2/repository/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/, jar:file:///root/.m2/repository/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/]'
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public/immutable, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/immutable/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public/protected, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/protected/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/webjars, directory=META-INF/resources/webjars, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: '[jar:file:///root/.m2/repository/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/, jar:file:///root/.m2/repository/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/]'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public/immutable, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/immutable/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public/protected, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/protected/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=public, location=CLASSPATH, precompressMaxSize=1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/webjars, directory=META-INF/resources/webjars, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: '[jar:file:///root/.m2/repository/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/, jar:file:///root/.m2/repository/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/]'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public/immutable, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/immutable/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public/protected, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/protected/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/webjars, directory=META-INF/resources/webjars, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=31622400}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: '[jar:file:///root/.m2/repository/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/, jar:file:///root/.m2/repository/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/]'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/webjars, directory=META-INF/resources/webjars, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: '[jar:file:///root/.m2/repository/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/, jar:file:///root/.m2/repository/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/]'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public/immutable, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/immutable/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public/protected, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/protected/'
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/webjars, directory=META-INF/resources/webjars, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: '[jar:file:///root/.m2/repository/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/, jar:file:///root/.m2/repository/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/]'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public/immutable, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/immutable/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public/protected, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/protected/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/a, directory=/public/subdir, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/subdir/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/b, directory=/public/subpage, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/subpage/'
+[INFO] Tests run: 11, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.368 s -- in io.javalin.staticfiles.TestStaticFilesPrecompressor
+[INFO] Running io.javalin.staticfiles.TestStaticDirectorySlash
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=public, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[Thread-3555] INFO io.javalin.Javalin - It looks like you created a Javalin instance, but you never started it.
+[Thread-3555] INFO io.javalin.Javalin - Try: Javalin app = Javalin.create().start();
+[Thread-3555] INFO io.javalin.Javalin - For more help, visit https://javalin.io/documentation#server-setup
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[Thread-3595] INFO io.javalin.Javalin - It looks like you created a Javalin instance, but you never started it.
+[Thread-3595] INFO io.javalin.Javalin - Try: Javalin app = Javalin.create().start();
+[Thread-3595] INFO io.javalin.Javalin - For more help, visit https://javalin.io/documentation#server-setup
+[Thread-3596] INFO io.javalin.Javalin - It looks like you created a Javalin instance, but you never started it.
+[Thread-3596] INFO io.javalin.Javalin - Try: Javalin app = Javalin.create().start();
+[Thread-3596] INFO io.javalin.Javalin - For more help, visit https://javalin.io/documentation#server-setup
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=public, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.192 s -- in io.javalin.staticfiles.TestStaticDirectorySlash
+[INFO] Running io.javalin.staticfiles.TestStaticFileAccess
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[ROLE_ONE]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=src/test/external/, location=EXTERNAL, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[ROLE_ONE]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/src/test/external/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public/immutable, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[ROLE_TWO]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/immutable/'
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[ROLE_ONE]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=src/test/external/, location=EXTERNAL, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[ROLE_ONE]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/src/test/external/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[ROLE_ONE]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.249 s -- in io.javalin.staticfiles.TestStaticFileAccess
+[INFO] Running io.javalin.TestEventManager
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.012 s -- in io.javalin.TestEventManager
+[INFO] Running io.javalin.TestMocking
+[INFO] Running io.javalin.TestMocking$Mockk
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+WARNING: A Java agent has been loaded dynamically (/root/.m2/repository/net/bytebuddy/byte-buddy-agent/1.17.7/byte-buddy-agent-1.17.7.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 4.578 s -- in io.javalin.TestMocking$Mockk
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Running io.javalin.TestMocking$Mockito
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.622 s -- in io.javalin.TestMocking$Mockito
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 0, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 6.249 s -- in io.javalin.TestMocking
+[INFO] Running io.javalin.TestRoutesConfig
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.449 s -- in io.javalin.TestRoutesConfig
+[INFO] Running io.javalin.TestValidation
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 37, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.280 s -- in io.javalin.TestValidation
+[INFO] Running io.javalin.TestContextPath
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.155 s -- in io.javalin.TestContextPath
+[INFO] Running io.javalin.TestGlobalGlobalHeaderConfigPlugin
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 17, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.134 s -- in io.javalin.TestGlobalGlobalHeaderConfigPlugin
+[INFO] Running io.javalin.TestMethodNotAllowed
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.638 s -- in io.javalin.TestMethodNotAllowed
+[INFO] Running io.javalin.TestJavalinJackson
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.543 s -- in io.javalin.TestJavalinJackson
+[INFO] Running io.javalin.TestGracefulShutdown
+[WARNING] Tests run: 3, Failures: 0, Errors: 0, Skipped: 3, Time elapsed: 0 s -- in io.javalin.TestGracefulShutdown
+[INFO] Running io.javalin.TestServerHeader
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.032 s -- in io.javalin.TestServerHeader
+[INFO] Running io.javalin.TestMaxRequestSize
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.264 s -- in io.javalin.TestMaxRequestSize
+[INFO] Running io.javalin.TestDependencyUtil
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.027 s -- in io.javalin.TestDependencyUtil
+[INFO] Running io.javalin.TestEtags
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.239 s -- in io.javalin.TestEtags
+[INFO] Running io.javalin.TestResponse
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[WARNING] Tests run: 25, Failures: 0, Errors: 0, Skipped: 1, Time elapsed: 1.259 s -- in io.javalin.TestResponse
+[INFO] Running io.javalin.javalinvue.TestJavalinVueResolution
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.317 s -- in io.javalin.javalinvue.TestJavalinVueResolution
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Running io.javalin.javalinvue.TestJavalinVueBrowser
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[Thread-5194] INFO io.javalin.Javalin - It looks like you created a Javalin instance, but you never started it.
+[Thread-5194] INFO io.javalin.Javalin - Try: Javalin app = Javalin.create().start();
+[Thread-5194] INFO io.javalin.Javalin - For more help, visit https://javalin.io/documentation#server-setup
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[Thread-5213] INFO io.javalin.Javalin - It looks like you created a Javalin instance, but you never started it.
+[Thread-5213] INFO io.javalin.Javalin - Try: Javalin app = Javalin.create().start();
+[Thread-5213] INFO io.javalin.Javalin - For more help, visit https://javalin.io/documentation#server-setup
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[Thread-5223] INFO io.javalin.Javalin - It looks like you created a Javalin instance, but you never started it.
+[Thread-5223] INFO io.javalin.Javalin - Try: Javalin app = Javalin.create().start();
+[Thread-5223] INFO io.javalin.Javalin - For more help, visit https://javalin.io/documentation#server-setup
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[Thread-5233] INFO io.javalin.Javalin - It looks like you created a Javalin instance, but you never started it.
+[Thread-5233] INFO io.javalin.Javalin - Try: Javalin app = Javalin.create().start();
+[Thread-5233] INFO io.javalin.Javalin - For more help, visit https://javalin.io/documentation#server-setup
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[Thread-5243] INFO io.javalin.Javalin - It looks like you created a Javalin instance, but you never started it.
+[Thread-5243] INFO io.javalin.Javalin - Try: Javalin app = Javalin.create().start();
+[Thread-5243] INFO io.javalin.Javalin - For more help, visit https://javalin.io/documentation#server-setup
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[Thread-5253] INFO io.javalin.Javalin - It looks like you created a Javalin instance, but you never started it.
+[Thread-5253] INFO io.javalin.Javalin - Try: Javalin app = Javalin.create().start();
+[Thread-5253] INFO io.javalin.Javalin - For more help, visit https://javalin.io/documentation#server-setup
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[Thread-5353] INFO io.javalin.Javalin - It looks like you created a Javalin instance, but you never started it.
+[Thread-5353] INFO io.javalin.Javalin - Try: Javalin app = Javalin.create().start();
+[Thread-5353] INFO io.javalin.Javalin - For more help, visit https://javalin.io/documentation#server-setup
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[Thread-5390] INFO io.javalin.Javalin - It looks like you created a Javalin instance, but you never started it.
+[Thread-5390] INFO io.javalin.Javalin - Try: Javalin app = Javalin.create().start();
+[Thread-5390] INFO io.javalin.Javalin - For more help, visit https://javalin.io/documentation#server-setup
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[ERROR] Tests run: 16, Failures: 0, Errors: 2, Skipped: 14, Time elapsed: 20.68 s <<< FAILURE! -- in io.javalin.javalinvue.TestJavalinVueBrowser
+[ERROR] io.javalin.javalinvue.TestJavalinVueBrowser.script tag without nonce is not loaded if csp is enabled -- Time elapsed: 19.96 s <<< ERROR!
+org.openqa.selenium.SessionNotCreatedException: 
+Could not start a new session. Response code 500. Message: session not created: This version of ChromeDriver only supports Chrome version 156
+Current browser version is 141.0.7390.37 with binary path /opt/google/chrome/chrome 
+Host info: host: 'vm', ip: '127.0.0.1'
+Build info: version: '4.48.0', revision: '27f5213 27f5213055e28398a5105b7892b7a3bb2012a6ef'
+System info: os.name: 'Linux', os.arch: 'amd64', os.version: '6.18.44-fc-v140', java.version: '21.0.12.1'
+Driver info: org.openqa.selenium.chrome.ChromeDriver
+Command: [null, newSession {capabilities=[Capabilities {browserName: chrome, goog:chromeOptions: {args: [--no-sandbox, --headless=new, --disable-gpu, --remote-allow-origins=*, --disable-dev-shm-usage], extensions: []}}]}]
+Capabilities {browserName: chrome, goog:chromeOptions: {args: [--no-sandbox, --headless=new, --disable-gpu, --remote-allow-origins=*, --disable-dev-shm-usage], extensions: []}}
+	at org.openqa.selenium.remote.ProtocolHandshake.createSession(ProtocolHandshake.java:115)
+	at org.openqa.selenium.remote.ProtocolHandshake.createSession(ProtocolHandshake.java:76)
+	at org.openqa.selenium.remote.ProtocolHandshake.createSession(ProtocolHandshake.java:62)
+	at org.openqa.selenium.remote.HttpCommandExecutor.execute(HttpCommandExecutor.java:171)
+	at org.openqa.selenium.remote.service.DriverCommandExecutor.invokeExecute(DriverCommandExecutor.java:217)
+	at org.openqa.selenium.remote.service.DriverCommandExecutor.execute(DriverCommandExecutor.java:175)
+	at org.openqa.selenium.remote.RemoteWebDriver.execute(RemoteWebDriver.java:653)
+	at org.openqa.selenium.remote.RemoteWebDriver.startSession(RemoteWebDriver.java:279)
+	at org.openqa.selenium.remote.RemoteWebDriver.<init>(RemoteWebDriver.java:213)
+	at org.openqa.selenium.chromium.ChromiumDriver.<init>(ChromiumDriver.java:108)
+	at org.openqa.selenium.chrome.ChromeDriver.<init>(ChromeDriver.java:92)
+	at org.openqa.selenium.chrome.ChromeDriver.<init>(ChromeDriver.java:76)
+	at org.openqa.selenium.chrome.ChromeDriver.<init>(ChromeDriver.java:72)
+	at io.javalin.testing.WebDriverUtil.getDriver(WebDriverUtil.kt:21)
+	at io.javalin.javalinvue.TestJavalinVueBrowser.setup(TestJavalinVueBrowser.kt:23)
+
+[ERROR] io.javalin.javalinvue.TestJavalinVueBrowser.script tags in state function does not break page rendering -- Time elapsed: 0.673 s <<< ERROR!
+org.openqa.selenium.SessionNotCreatedException: 
+Could not start a new session. Response code 500. Message: session not created: This version of ChromeDriver only supports Chrome version 156
+Current browser version is 141.0.7390.37 with binary path /opt/google/chrome/chrome 
+Host info: host: 'vm', ip: '127.0.0.1'
+Build info: version: '4.48.0', revision: '27f5213 27f5213055e28398a5105b7892b7a3bb2012a6ef'
+System info: os.name: 'Linux', os.arch: 'amd64', os.version: '6.18.44-fc-v140', java.version: '21.0.12.1'
+Driver info: org.openqa.selenium.chrome.ChromeDriver
+Command: [null, newSession {capabilities=[Capabilities {browserName: chrome, goog:chromeOptions: {args: [--no-sandbox, --headless=new, --disable-gpu, --remote-allow-origins=*, --disable-dev-shm-usage], extensions: []}}]}]
+Capabilities {browserName: chrome, goog:chromeOptions: {args: [--no-sandbox, --headless=new, --disable-gpu, --remote-allow-origins=*, --disable-dev-shm-usage], extensions: []}}
+	at org.openqa.selenium.remote.ProtocolHandshake.createSession(ProtocolHandshake.java:115)
+	at org.openqa.selenium.remote.ProtocolHandshake.createSession(ProtocolHandshake.java:76)
+	at org.openqa.selenium.remote.ProtocolHandshake.createSession(ProtocolHandshake.java:62)
+	at org.openqa.selenium.remote.HttpCommandExecutor.execute(HttpCommandExecutor.java:171)
+	at org.openqa.selenium.remote.service.DriverCommandExecutor.invokeExecute(DriverCommandExecutor.java:217)
+	at org.openqa.selenium.remote.service.DriverCommandExecutor.execute(DriverCommandExecutor.java:175)
+	at org.openqa.selenium.remote.RemoteWebDriver.execute(RemoteWebDriver.java:653)
+	at org.openqa.selenium.remote.RemoteWebDriver.startSession(RemoteWebDriver.java:279)
+	at org.openqa.selenium.remote.RemoteWebDriver.<init>(RemoteWebDriver.java:213)
+	at org.openqa.selenium.chromium.ChromiumDriver.<init>(ChromiumDriver.java:108)
+	at org.openqa.selenium.chrome.ChromeDriver.<init>(ChromeDriver.java:92)
+	at org.openqa.selenium.chrome.ChromeDriver.<init>(ChromeDriver.java:76)
+	at org.openqa.selenium.chrome.ChromeDriver.<init>(ChromeDriver.java:72)
+	at io.javalin.testing.WebDriverUtil.getDriver(WebDriverUtil.kt:21)
+	at io.javalin.javalinvue.TestJavalinVueBrowser.setup(TestJavalinVueBrowser.kt:23)
+
+[INFO] Running io.javalin.javalinvue.TestJavalinVueHandler
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.240 s -- in io.javalin.javalinvue.TestJavalinVueHandler
+[INFO] Running io.javalin.javalinvue.TestJavalinVue
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 25, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.081 s -- in io.javalin.javalinvue.TestJavalinVue
+[INFO] Running io.javalin.TestCustomJetty
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 12, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.516 s -- in io.javalin.TestCustomJetty
+[INFO] Running io.javalin.TestRequest_Java
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.042 s -- in io.javalin.TestRequest_Java
+[INFO] Running io.javalin.TestSslRedirectPlugin
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.098 s -- in io.javalin.TestSslRedirectPlugin
+[INFO] Running io.javalin.TestJsonMapperExtensions
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.010 s -- in io.javalin.TestJsonMapperExtensions
+[INFO] Running io.javalin.TestEncoding
+[INFO] Tests run: 10, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.397 s -- in io.javalin.TestEncoding
+[INFO] Running io.javalin.TestLegacyAccessManager
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.238 s -- in io.javalin.TestLegacyAccessManager
+[INFO] Running io.javalin.TestErrorMapper
+[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.196 s -- in io.javalin.TestErrorMapper
+[INFO] Running io.javalin.TestConfigureServletContextHandler
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.050 s -- in io.javalin.TestConfigureServletContextHandler
+[INFO] Running io.javalin.TestUnsafeStateAccess
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.090 s -- in io.javalin.TestUnsafeStateAccess
+[INFO] Running io.javalin.TestRedirectToLowercasePathPlugin
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.285 s -- in io.javalin.TestRedirectToLowercasePathPlugin
+[INFO] Running io.javalin.TestConcurrencyUtil
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 12, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.052 s -- in io.javalin.TestConcurrencyUtil
+[INFO] Running io.javalin.TestTrailingSlashes
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[WARNING] Tests run: 13, Failures: 0, Errors: 0, Skipped: 1, Time elapsed: 0.401 s -- in io.javalin.TestTrailingSlashes
+[INFO] Running io.javalin.TestUtil
+[INFO] Tests run: 11, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.010 s -- in io.javalin.TestUtil
+[INFO] Running io.javalin.TestBeforeAfterMatched
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=io.javalin.TestBeforeAfterMatched$$Lambda/0x00007f50b8b25fe0@5708a488, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public/subdir, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/subdir/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=/public/assets, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/assets/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=src/test/external/, location=EXTERNAL, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/src/test/external/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=public, location=CLASSPATH, precompressMaxSize=2097152, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=io.javalin.TestBeforeAfterMatched$$Lambda/0x00007f50b8b2b078@53eea3b2, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/webjars, directory=META-INF/resources/webjars, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=31622400}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: '[jar:file:///root/.m2/repository/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/, jar:file:///root/.m2/repository/org/webjars/swagger-ui/4.10.3/swagger-ui-4.10.3.jar!/META-INF/resources/webjars/]'
+[main] INFO io.javalin.Javalin - Static file handler added: StaticFileConfig(hostedPath=/, directory=public, location=CLASSPATH, precompressMaxSize=-1, aliasCheck=null, headers={Cache-Control=max-age=0}, skipFileFunction=null, mimeTypes={}, roles=[]). File system location: 'file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/public/'
+[INFO] Tests run: 25, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.701 s -- in io.javalin.TestBeforeAfterMatched
+[INFO] Running io.javalin.websocket.TestWebSocketHttp2
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO io.javalin.Javalin - Starting Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - jetty-12.1.12; built: 2026-08-03T22:37:55.389Z; git: 10dd3948f37767b84cc2c62358364f042e51dbbe; jvm 21.0.12.1+1-1-24.04.4-Ubuntu
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO org.eclipse.jetty.session.DefaultSessionIdManager - Session workerName=node0
+[main] INFO org.eclipse.jetty.server.handler.ContextHandler - Started oeje10s.ServletContextHandler@361148f1{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@449df5c{STARTED}}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Started oeje10s.ServletContextHandler@361148f1{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@449df5c{STARTED}}
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO org.eclipse.jetty.util.ssl.SslContextFactory - x509=oejus.X509@14540be7(my-alias,h=[localhost],a=[],w=[]) for oejus.SslContextFactory$Server@5e2d850e[provider=null,keyStore=file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/keystore.jks,trustStore=null]
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Started oejs.ServerConnector@6d4dca87{SSL, (ssl, alpn, h2, http/1.1)}{0.0.0.0:46173}
+[main] INFO org.eclipse.jetty.server.Server - Started oejs.Server@607a156b{STARTING}[12.1.12,sto=0] @369ms
+[main] INFO io.javalin.Javalin - 
+       __                  ___          _____
+      / /___ __   ______ _/ (_)___     /__  /
+ __  / / __ `/ | / / __ `/ / / __ \      / /
+/ /_/ / /_/ /| |/ / /_/ / / / / / /     / /
+\____/\__,_/ |___/\__,_/_/_/_/ /_/     /_/
+
+       https://javalin.io/documentation
+
+[main] INFO io.javalin.Javalin - Javalin started in 372ms \o/
+[main] INFO io.javalin.Javalin - Listening on https://localhost:46173/
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] WARN org.eclipse.jetty.util.ssl.SslContextFactory.config - Trusting all certificates configured for oejus.SslContextFactory$Client@3f23f17[provider=null,keyStore=null,trustStore=null]
+[main] WARN org.eclipse.jetty.util.ssl.SslContextFactory.config - No Client EndPointIdentificationAlgorithm configured for oejus.SslContextFactory$Client@3f23f17[provider=null,keyStore=null,trustStore=null]
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO io.javalin.Javalin - Stopping Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - Stopped oejs.Server@607a156b{STOPPING}[12.1.12,sto=0]
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Stopped oejs.ServerConnector@6d4dca87{SSL, (ssl, alpn, h2, http/1.1)}{0.0.0.0:0}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Stopped oeje10s.ServletContextHandler@361148f1{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@449df5c{STOPPED}}
+[main] INFO io.javalin.Javalin - Javalin has stopped
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO io.javalin.Javalin - Starting Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - jetty-12.1.12; built: 2026-08-03T22:37:55.389Z; git: 10dd3948f37767b84cc2c62358364f042e51dbbe; jvm 21.0.12.1+1-1-24.04.4-Ubuntu
+[main] INFO org.eclipse.jetty.session.DefaultSessionIdManager - Session workerName=node0
+[main] INFO org.eclipse.jetty.server.handler.ContextHandler - Started oeje10s.ServletContextHandler@1ce6136e{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@685c6de0{STARTED}}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Started oeje10s.ServletContextHandler@1ce6136e{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@685c6de0{STARTED}}
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO org.eclipse.jetty.util.ssl.SslContextFactory - x509=oejus.X509@186514f0(my-alias,h=[localhost],a=[],w=[]) for oejus.SslContextFactory$Server@135d5971[provider=null,keyStore=file:///tmp/claude-0/sec/javalin/src/javalin/target/test-classes/keystore.jks,trustStore=null]
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Started oejs.ServerConnector@23aee2fe{SSL, (ssl, alpn, h2, http/1.1)}{0.0.0.0:38913}
+[main] INFO org.eclipse.jetty.server.Server - Started oejs.Server@49240dd0{STARTING}[12.1.12,sto=0] @69ms
+[main] INFO io.javalin.Javalin - 
+       __                  ___          _____
+      / /___ __   ______ _/ (_)___     /__  /
+ __  / / __ `/ | / / __ `/ / / __ \      / /
+/ /_/ / /_/ /| |/ / /_/ / / / / / /     / /
+\____/\__,_/ |___/\__,_/_/_/_/ /_/     /_/
+
+       https://javalin.io/documentation
+
+[main] INFO io.javalin.Javalin - Javalin started in 75ms \o/
+[main] INFO io.javalin.Javalin - Listening on https://localhost:38913/
+[main] WARN org.eclipse.jetty.util.ssl.SslContextFactory.config - Trusting all certificates configured for oejus.SslContextFactory$Client@1452f525[provider=null,keyStore=null,trustStore=null]
+[main] WARN org.eclipse.jetty.util.ssl.SslContextFactory.config - No Client EndPointIdentificationAlgorithm configured for oejus.SslContextFactory$Client@1452f525[provider=null,keyStore=null,trustStore=null]
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[JettyServerThreadPool-7773] WARN io.javalin.websocket.TestWebSocketHttp2$websocket works over http2 via direct jetty mapping$1$1$1$1$1 - Unhandled Error: Endpoint io.javalin.websocket.TestWebSocketHttp2$websocket works over http2 via direct jetty mapping$1$1$1$1$1 : java.io.EOFException: Reset cancel_stream_error
+[main] INFO io.javalin.Javalin - Stopping Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - Stopped oejs.Server@49240dd0{STOPPING}[12.1.12,sto=0]
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Stopped oejs.ServerConnector@23aee2fe{SSL, (ssl, alpn, h2, http/1.1)}{0.0.0.0:0}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Stopped oeje10s.ServletContextHandler@1ce6136e{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@685c6de0{STOPPED}}
+[main] INFO io.javalin.Javalin - Javalin has stopped
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.461 s -- in io.javalin.websocket.TestWebSocketHttp2
+[INFO] Running io.javalin.websocket.TestWsRouting
+[main] INFO io.javalin.Javalin - Starting Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - jetty-12.1.12; built: 2026-08-03T22:37:55.389Z; git: 10dd3948f37767b84cc2c62358364f042e51dbbe; jvm 21.0.12.1+1-1-24.04.4-Ubuntu
+[main] INFO org.eclipse.jetty.session.DefaultSessionIdManager - Session workerName=node0
+[main] INFO org.eclipse.jetty.server.handler.ContextHandler - Started oeje10s.ServletContextHandler@3cecd5ef{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@35d86695{STARTED}}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Started oeje10s.ServletContextHandler@3cecd5ef{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@35d86695{STARTED}}
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Started oejs.ServerConnector@305e8885{HTTP/1.1, (http/1.1)}{0.0.0.0:35195}
+[main] INFO org.eclipse.jetty.server.Server - Started oejs.Server@51b785a1{STARTING}[12.1.12,sto=0] @5ms
+[main] INFO io.javalin.Javalin - 
+       __                  ___          _____
+      / /___ __   ______ _/ (_)___     /__  /
+ __  / / __ `/ | / / __ `/ / / __ \      / /
+/ /_/ / /_/ /| |/ / /_/ / / / / / /     / /
+\____/\__,_/ |___/\__,_/_/_/_/ /_/     /_/
+
+       https://javalin.io/documentation
+
+[main] INFO io.javalin.Javalin - Javalin started in 6ms \o/
+[main] INFO io.javalin.Javalin - Listening on http://localhost:35195/
+[main] INFO io.javalin.Javalin - Starting Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - jetty-12.1.12; built: 2026-08-03T22:37:55.389Z; git: 10dd3948f37767b84cc2c62358364f042e51dbbe; jvm 21.0.12.1+1-1-24.04.4-Ubuntu
+[main] INFO org.eclipse.jetty.session.DefaultSessionIdManager - Session workerName=node0
+[main] INFO org.eclipse.jetty.server.handler.ContextHandler - Started oeje10s.ServletContextHandler@3cc2fe2e{/websocket,/websocket,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@2485cd4a{STARTED}}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Started oeje10s.ServletContextHandler@3cc2fe2e{/websocket,/websocket,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@2485cd4a{STARTED}}
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Started oejs.ServerConnector@38935a1{HTTP/1.1, (http/1.1)}{0.0.0.0:43705}
+[main] INFO org.eclipse.jetty.server.Server - Started oejs.Server@76506d5c{STARTING}[12.1.12,sto=0] @3ms
+[main] INFO io.javalin.Javalin - 
+       __                  ___          _____
+      / /___ __   ______ _/ (_)___     /__  /
+ __  / / __ `/ | / / __ `/ / / __ \      / /
+/ /_/ / /_/ /| |/ / /_/ / / / / / /     / /
+\____/\__,_/ |___/\__,_/_/_/_/ /_/     /_/
+
+       https://javalin.io/documentation
+
+[main] INFO io.javalin.Javalin - Javalin started in 5ms \o/
+[main] INFO io.javalin.Javalin - Listening on http://localhost:43705/websocket
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[main] INFO io.javalin.Javalin - Stopping Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - Stopped oejs.Server@51b785a1{STOPPING}[12.1.12,sto=0]
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Stopped oejs.ServerConnector@305e8885{HTTP/1.1, (http/1.1)}{0.0.0.0:0}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Stopped oeje10s.ServletContextHandler@3cecd5ef{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@35d86695{STOPPED}}
+[main] INFO io.javalin.Javalin - Javalin has stopped
+[main] INFO io.javalin.Javalin - Stopping Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - Stopped oejs.Server@76506d5c{STOPPING}[12.1.12,sto=0]
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Stopped oejs.ServerConnector@38935a1{HTTP/1.1, (http/1.1)}{0.0.0.0:0}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Stopped oeje10s.ServletContextHandler@3cc2fe2e{/websocket,/websocket,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@2485cd4a{STOPPED}}
+[main] INFO io.javalin.Javalin - Javalin has stopped
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.230 s -- in io.javalin.websocket.TestWsRouting
+[INFO] Running io.javalin.websocket.TestWsUpgrade
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 10, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.284 s -- in io.javalin.websocket.TestWsUpgrade
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Running io.javalin.websocket.TestWsBeforeAfter
+[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.306 s -- in io.javalin.websocket.TestWsBeforeAfter
+[INFO] Running io.javalin.websocket.TestWsContext
+[main] ERROR io.javalin.Javalin - TestUtil#test failed - full log output below:
+[main] INFO io.javalin.Javalin - Starting Javalin ...
+[main] INFO org.eclipse.jetty.server.Server - jetty-12.1.12; built: 2026-08-03T22:37:55.389Z; git: 10dd3948f37767b84cc2c62358364f042e51dbbe; jvm 21.0.12.1+1-1-24.04.4-Ubuntu
+[main] INFO org.eclipse.jetty.session.DefaultSessionIdManager - Session workerName=node0
+[main] INFO org.eclipse.jetty.server.handler.ContextHandler - Started oeje10s.ServletContextHandler@7b0b2b98{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@7d7097af{STARTED}}
+[main] INFO org.eclipse.jetty.ee10.servlet.ServletContextHandler - Started oeje10s.ServletContextHandler@7b0b2b98{ROOT,/,b=null,a=AVAILABLE,h=oeje10s.SessionHandler@7d7097af{STARTED}}
+[main] INFO org.eclipse.jetty.server.AbstractConnector - Started oejs.ServerConnector@708b9252{HTTP/1.1, (http/1.1)}{0.0.0.0:36001}
+[main] INFO org.eclipse.jetty.server.Server - Started oejs.Server@736a574a{STARTING}[12.1.12,sto=0] @10ms
+[main] INFO io.javalin.Javalin - 
+       __                  ___          _____
+      / /___ __   ______ _/ (_)___     /__  /
+ __  / / __ `/ | / / __ `/ / / __ \      / /
+/ /_/ / /_/ /| |/ / /_/ / / / / / /     / /
+\____/\__,_/ |___/\__,_/_/_/_/ /_/     /_/
+
+       https://javalin.io/documentation
+
+[main] INFO io.javalin.Javalin - Javalin started in 11ms \o/
+[main] INFO io.javalin.Javalin - Listening on http://localhost:36001/
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[Thread-6342] INFO io.javalin.Javalin - It looks like you created a Javalin instance, but you never started it.
+[Thread-6342] INFO io.javalin.Javalin - Try: Javalin app = Javalin.create().start();
+[Thread-6342] INFO io.javalin.Javalin - For more help, visit https://javalin.io/documentation#server-setup
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[ERROR] Tests run: 8, Failures: 0, Errors: 1, Skipped: 0, Time elapsed: 0.540 s <<< FAILURE! -- in io.javalin.websocket.TestWsContext
+[ERROR] io.javalin.websocket.TestWsContext.set attributes works -- Time elapsed: 0.126 s <<< ERROR!
+java.lang.RuntimeException: 
+java.lang.Exception: Assertion error: 
+Expecting actual:
+  []
+to contain exactly (and in same order):
+  ["Success"]
+but could not find the following elements:
+  ["Success"]
+
+	at io.javalin.testing.TestUtil.testWithResult(TestUtil.java:56)
+	at io.javalin.testing.TestUtil.test(TestUtil.java:33)
+	at io.javalin.testing.TestUtil.test(TestUtil.java:29)
+	at io.javalin.websocket.TestWsContext.set attributes works(TestWsContext.kt:63)
+Caused by: java.lang.Exception: Assertion error: 
+Expecting actual:
+  []
+to contain exactly (and in same order):
+  ["Success"]
+but could not find the following elements:
+  ["Success"]
+
+	at io.javalin.testing.TestUtil.runAndCaptureLogs(TestUtil.java:75)
+	at io.javalin.testing.TestUtil.testWithResult(TestUtil.java:41)
+	... 3 more
+
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Running io.javalin.websocket.TestWebSocket
+[INFO] Tests run: 13, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.871 s -- in io.javalin.websocket.TestWebSocket
+[INFO] Running io.javalin.websocket.TestWsLogging
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.290 s -- in io.javalin.websocket.TestWsLogging
+[INFO] Running io.javalin.websocket.TestWsException
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.197 s -- in io.javalin.websocket.TestWsException
+[INFO] Running io.javalin.TestApiBuilderWebSocket
+[Thread-6534] INFO io.javalin.Javalin - It looks like you created a Javalin instance, but you never started it.
+[Thread-6534] INFO io.javalin.Javalin - Try: Javalin app = Javalin.create().start();
+[Thread-6534] INFO io.javalin.Javalin - For more help, visit https://javalin.io/documentation#server-setup
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.013 s -- in io.javalin.TestApiBuilderWebSocket
+[INFO] Running io.javalin.TestJavalinJackson3
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[Thread-6544] INFO io.javalin.Javalin - It looks like you created a Javalin instance, but you never started it.
+[Thread-6544] INFO io.javalin.Javalin - Try: Javalin app = Javalin.create().start();
+[Thread-6544] INFO io.javalin.Javalin - For more help, visit https://javalin.io/documentation#server-setup
+[Thread-6554] INFO io.javalin.Javalin - It looks like you created a Javalin instance, but you never started it.
+[Thread-6554] INFO io.javalin.Javalin - Try: Javalin app = Javalin.create().start();
+[Thread-6554] INFO io.javalin.Javalin - For more help, visit https://javalin.io/documentation#server-setup
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 11, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.519 s -- in io.javalin.TestJavalinJackson3
+[INFO] Running io.javalin.TestClose_Java
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.046 s -- in io.javalin.TestClose_Java
+[INFO] Running io.javalin.TestRouting
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[WARNING] Tests run: 43, Failures: 0, Errors: 0, Skipped: 1, Time elapsed: 0.768 s -- in io.javalin.TestRouting
+[INFO] Running io.javalin.TestRendering
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.165 s -- in io.javalin.TestRendering
+[INFO] Running io.javalin.TestAppData
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.081 s -- in io.javalin.TestAppData
+[INFO] Running io.javalin.TestHttpResponseExceptions
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 18, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.651 s -- in io.javalin.TestHttpResponseExceptions
+[INFO] Running io.javalin.TestCustomRequestLifecycle
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.093 s -- in io.javalin.TestCustomRequestLifecycle
+[INFO] Running io.javalin.TestBeforeMatched
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.078 s -- in io.javalin.TestBeforeMatched
+[INFO] Running io.javalin.TestClose
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.029 s -- in io.javalin.TestClose
+[INFO] Running io.javalin.TestHandlerWrapper
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.098 s -- in io.javalin.TestHandlerWrapper
+[INFO] Running io.javalin.TestJavalinGson
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.431 s -- in io.javalin.TestJavalinGson
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] Running io.javalin.websocket.TestWsContext
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.033 s -- in io.javalin.websocket.TestWsContext
+[INFO] Running io.javalin.javalinvue.TestJavalinVueBrowser
+[WARNING] Tests run: 2, Failures: 0, Errors: 0, Skipped: 2, Time elapsed: 0.004 s -- in io.javalin.javalinvue.TestJavalinVueBrowser
+[pool-3-thread-1] WARN io.javalin.Javalin - Cannot send data, SseClient has been terminated.
+[INFO] 
+[INFO] Results:
+[INFO] 
+[ERROR] Errors: 
+[ERROR] io.javalin.javalinvue.TestJavalinVueBrowser.script tag without nonce is not loaded if csp is enabled
+[ERROR]   Run 1: TestJavalinVueBrowser.setup:23 ? SessionNotCreated Could not start a new session. Response code 500. Message: session not created: This version of ChromeDriver only supports Chrome version 156
+Current browser version is 141.0.7390.37 with binary path /opt/google/chrome/chrome 
+Host info: host: 'vm', ip: '127.0.0.1'
+Build info: version: '4.48.0', revision: '27f5213 27f5213055e28398a5105b7892b7a3bb2012a6ef'
+System info: os.name: 'Linux', os.arch: 'amd64', os.version: '6.18.44-fc-v140', java.version: '21.0.12.1'
+Driver info: org.openqa.selenium.chrome.ChromeDriver
+Command: [null, newSession {capabilities=[Capabilities {browserName: chrome, goog:chromeOptions: {args: [--no-sandbox, --headless=new, --disable-gpu, --remote-allow-origins=*, --disable-dev-shm-usage], extensions: []}}]}]
+Capabilities {browserName: chrome, goog:chromeOptions: {args: [--no-sandbox, --headless=new, --disable-gpu, --remote-allow-origins=*, --disable-dev-shm-usage], extensions: []}}
+[ERROR]   Run 2: TestJavalinVueBrowser.setup:23 Assumption failed: Skipping random WebDriver tests because we're not on a CI server and the tests are sooo slow
+[INFO] 
+[ERROR] io.javalin.javalinvue.TestJavalinVueBrowser.script tags in state function does not break page rendering
+[ERROR]   Run 1: TestJavalinVueBrowser.setup:23 ? SessionNotCreated Could not start a new session. Response code 500. Message: session not created: This version of ChromeDriver only supports Chrome version 156
+Current browser version is 141.0.7390.37 with binary path /opt/google/chrome/chrome 
+Host info: host: 'vm', ip: '127.0.0.1'
+Build info: version: '4.48.0', revision: '27f5213 27f5213055e28398a5105b7892b7a3bb2012a6ef'
+System info: os.name: 'Linux', os.arch: 'amd64', os.version: '6.18.44-fc-v140', java.version: '21.0.12.1'
+Driver info: org.openqa.selenium.chrome.ChromeDriver
+Command: [null, newSession {capabilities=[Capabilities {browserName: chrome, goog:chromeOptions: {args: [--no-sandbox, --headless=new, --disable-gpu, --remote-allow-origins=*, --disable-dev-shm-usage], extensions: []}}]}]
+Capabilities {browserName: chrome, goog:chromeOptions: {args: [--no-sandbox, --headless=new, --disable-gpu, --remote-allow-origins=*, --disable-dev-shm-usage], extensions: []}}
+[ERROR]   Run 2: TestJavalinVueBrowser.setup:23 Assumption failed: Skipping random WebDriver tests because we're not on a CI server and the tests are sooo slow
+[INFO] 
+[WARNING] Flakes: 
+[WARNING] io.javalin.websocket.TestWsContext.set attributes works
+[ERROR]   Run 1: TestWsContext.set attributes works:63 ? Runtime java.lang.Exception: Assertion error: 
+Expecting actual:
+  []
+to contain exactly (and in same order):
+  ["Success"]
+but could not find the following elements:
+  ["Success"]
+
+[INFO]   Run 2: PASS
+[INFO] 
+[INFO] 
+[ERROR] Tests run: 1024, Failures: 0, Errors: 2, Skipped: 24, Flakes: 1
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  01:37 min
+[INFO] Finished at: 2026-10-22T18:33:13-04:00
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:3.5.6:test (default-test) on project javalin: 
+[ERROR] 
+[ERROR] See /tmp/claude-0/sec/javalin/src/javalin/target/surefire-reports for the individual test results.
+[ERROR] See dump files (if any exist) [date].dump, [date]-jvmRun[N].dump and [date].dumpstream.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

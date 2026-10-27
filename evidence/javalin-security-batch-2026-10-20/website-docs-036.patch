@@ -1,0 +1,42 @@
+From 26eef669a25b55d3505bd7ca14c9bb7590df7004 Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <astellman@stellman-greene.com>
+Date: Thu, 22 Oct 2026 18:25:29 -0400
+Subject: [PATCH] Note that beforeMatched does not run for WebSocket upgrades
+
+---
+ pages/docs/docs.md | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)
+
+diff --git a/pages/docs/docs.md b/pages/docs/docs.md
+index c5fad4d..acbe958 100644
+--- a/pages/docs/docs.md
++++ b/pages/docs/docs.md
+@@ -1051,6 +1051,25 @@ config.routes.beforeMatched { ctx ->
+ {% endcapture %}
+ {% include macros/docsSnippet.html java=java kotlin=kotlin %}
+ 
++`beforeMatched` does not run for WebSocket upgrade requests. To check the roles of a WebSocket endpoint, do it in
++[`wsBeforeUpgrade`](#wsbeforeupgrade), where `ctx.routeRoles()` returns the roles of the matched endpoint:
++
++{% capture java %}
++config.routes.wsBeforeUpgrade(ctx -> {
++    if (!ctx.routeRoles().contains(getUserRole(ctx))) {
++        throw new UnauthorizedResponse();
++    }
++});
++{% endcapture %}
++{% capture kotlin %}
++config.routes.wsBeforeUpgrade { ctx ->
++    if (!ctx.routeRoles().contains(getUserRole(ctx))) {
++        throw UnauthorizedResponse()
++    }
++}
++{% endcapture %}
++{% include macros/docsSnippet.html java=java kotlin=kotlin %}
++
+ If you're using `apiBuilder`, you can also [scope roles to a `path()` block](#scoping-roles-with-path) to apply them to every endpoint inside.
+ 
+ The roles are set when you declare your endpoints:
+-- 
+2.43.0
+

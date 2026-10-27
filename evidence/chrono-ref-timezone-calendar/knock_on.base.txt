@@ -1,0 +1,543 @@
+process TZ=UTC
+## ref: Date 2012-07-31T22:00Z
+this month               index=0 text="this month" start=2012-7-1 h=12 date=2012-07-01T12:00:00.000Z
+this week                index=0 text="this week" start=2012-7-29 h=12 date=2012-07-29T12:00:00.000Z
+this year                index=0 text="this year" start=2012-1-1 h=12 date=2012-01-01T12:00:00.000Z
+last night               index=0 text="last night" start=2012-7-30 h=0 date=2012-07-30T00:00:00.000Z
+Feb 15                   index=0 text="Feb 15" start=2012-2-15 h=12 date=2012-02-15T12:00:00.000Z
+15 Feb                   index=0 text="15 Feb" start=2012-2-15 h=12 date=2012-02-15T12:00:00.000Z
+2/15                     index=0 text="2/15" start=2012-2-15 h=12 date=2012-02-15T12:00:00.000Z
+February                 index=0 text="February" start=2012-2-1 h=12 date=2012-02-01T12:00:00.000Z
+Feb 15, 2013             index=0 text="Feb 15, 2013" start=2013-2-15 h=12 date=2013-02-15T12:00:00.000Z
+today                    index=0 text="today" start=2012-7-31 h=22 date=2012-07-31T22:00:00.000Z
+next month               index=0 text="next month" start=2012-8-31 h=22 date=2012-08-31T22:00:00.000Z
+tomorrow at 5pm          index=0 text="tomorrow at 5pm" start=2012-8-1 h=17 date=2012-08-01T17:00:00.000Z
+end of this month        index=0 text="end of this month" start=2012-7-31 h=12 date=2012-07-31T12:00:00.000Z
+Deadline is this month   index=12 text="this month" start=2012-7-1 h=12 date=2012-07-01T12:00:00.000Z
+## ref: {instant} 2012-07-31T22:00Z
+this month               index=0 text="this month" start=2012-7-1 h=12 date=2012-07-01T12:00:00.000Z
+this week                index=0 text="this week" start=2012-7-29 h=12 date=2012-07-29T12:00:00.000Z
+this year                index=0 text="this year" start=2012-1-1 h=12 date=2012-01-01T12:00:00.000Z
+last night               index=0 text="last night" start=2012-7-30 h=0 date=2012-07-30T00:00:00.000Z
+Feb 15                   index=0 text="Feb 15" start=2012-2-15 h=12 date=2012-02-15T12:00:00.000Z
+15 Feb                   index=0 text="15 Feb" start=2012-2-15 h=12 date=2012-02-15T12:00:00.000Z
+2/15                     index=0 text="2/15" start=2012-2-15 h=12 date=2012-02-15T12:00:00.000Z
+February                 index=0 text="February" start=2012-2-1 h=12 date=2012-02-01T12:00:00.000Z
+Feb 15, 2013             index=0 text="Feb 15, 2013" start=2013-2-15 h=12 date=2013-02-15T12:00:00.000Z
+today                    index=0 text="today" start=2012-7-31 h=22 date=2012-07-31T22:00:00.000Z
+next month               index=0 text="next month" start=2012-8-31 h=22 date=2012-08-31T22:00:00.000Z
+tomorrow at 5pm          index=0 text="tomorrow at 5pm" start=2012-8-1 h=17 date=2012-08-01T17:00:00.000Z
+end of this month        index=0 text="end of this month" start=2012-7-31 h=12 date=2012-07-31T12:00:00.000Z
+Deadline is this month   index=12 text="this month" start=2012-7-1 h=12 date=2012-07-01T12:00:00.000Z
+## ref: {instant,tz:null} 2012-07-31T22:00Z
+this month               index=0 text="this month" start=2012-7-1 h=12 date=2012-07-01T12:00:00.000Z
+this week                index=0 text="this week" start=2012-7-29 h=12 date=2012-07-29T12:00:00.000Z
+this year                index=0 text="this year" start=2012-1-1 h=12 date=2012-01-01T12:00:00.000Z
+last night               index=0 text="last night" start=2012-7-30 h=0 date=2012-07-30T00:00:00.000Z
+Feb 15                   index=0 text="Feb 15" start=2012-2-15 h=12 date=2012-02-15T12:00:00.000Z
+15 Feb                   index=0 text="15 Feb" start=2012-2-15 h=12 date=2012-02-15T12:00:00.000Z
+2/15                     index=0 text="2/15" start=2012-2-15 h=12 date=2012-02-15T12:00:00.000Z
+February                 index=0 text="February" start=2012-2-1 h=12 date=2012-02-01T12:00:00.000Z
+Feb 15, 2013             index=0 text="Feb 15, 2013" start=2013-2-15 h=12 date=2013-02-15T12:00:00.000Z
+today                    index=0 text="today" start=2012-7-31 h=22 date=2012-07-31T22:00:00.000Z
+next month               index=0 text="next month" start=2012-8-31 h=22 date=2012-08-31T22:00:00.000Z
+tomorrow at 5pm          index=0 text="tomorrow at 5pm" start=2012-8-1 h=17 date=2012-08-01T17:00:00.000Z
+end of this month        index=0 text="end of this month" start=2012-7-31 h=12 date=2012-07-31T12:00:00.000Z
+Deadline is this month   index=12 text="this month" start=2012-7-1 h=12 date=2012-07-01T12:00:00.000Z
+## ref: {instant,tz:JST} 2012-07-31T22:00Z
+this month               index=0 text="this month" start=2012-7-1 h=12 date=2012-07-01T03:00:00.000Z
+this week                index=0 text="this week" start=2012-7-29 h=12 date=2012-07-29T03:00:00.000Z
+this year                index=0 text="this year" start=2012-1-1 h=12 date=2012-01-01T03:00:00.000Z
+last night               index=0 text="last night" start=2012-7-30 h=0 date=2012-07-29T15:00:00.000Z
+Feb 15                   index=0 text="Feb 15" start=2012-2-15 h=12 date=2012-02-15T03:00:00.000Z
+15 Feb                   index=0 text="15 Feb" start=2012-2-15 h=12 date=2012-02-15T03:00:00.000Z
+2/15                     index=0 text="2/15" start=2012-2-15 h=12 date=2012-02-15T03:00:00.000Z
+February                 index=0 text="February" start=2012-2-1 h=12 date=2012-02-01T03:00:00.000Z
+Feb 15, 2013             index=0 text="Feb 15, 2013" start=2013-2-15 h=12 date=2013-02-15T03:00:00.000Z
+today                    index=0 text="today" start=2012-8-1 h=7 date=2012-07-31T22:00:00.000Z
+next month               index=0 text="next month" start=2012-9-1 h=7 date=2012-08-31T22:00:00.000Z
+tomorrow at 5pm          index=0 text="tomorrow at 5pm" start=2012-8-2 h=17 date=2012-08-02T08:00:00.000Z
+end of this month        index=0 text="end of this month" start=2012-8-31 h=12 date=2012-08-31T03:00:00.000Z
+Deadline is this month   index=12 text="this month" start=2012-7-1 h=12 date=2012-07-01T03:00:00.000Z
+## ref: {instant,tz:540} 2012-07-31T22:00Z
+this month               index=0 text="this month" start=2012-7-1 h=12 date=2012-07-01T03:00:00.000Z
+this week                index=0 text="this week" start=2012-7-29 h=12 date=2012-07-29T03:00:00.000Z
+this year                index=0 text="this year" start=2012-1-1 h=12 date=2012-01-01T03:00:00.000Z
+last night               index=0 text="last night" start=2012-7-30 h=0 date=2012-07-29T15:00:00.000Z
+Feb 15                   index=0 text="Feb 15" start=2012-2-15 h=12 date=2012-02-15T03:00:00.000Z
+15 Feb                   index=0 text="15 Feb" start=2012-2-15 h=12 date=2012-02-15T03:00:00.000Z
+2/15                     index=0 text="2/15" start=2012-2-15 h=12 date=2012-02-15T03:00:00.000Z
+February                 index=0 text="February" start=2012-2-1 h=12 date=2012-02-01T03:00:00.000Z
+Feb 15, 2013             index=0 text="Feb 15, 2013" start=2013-2-15 h=12 date=2013-02-15T03:00:00.000Z
+today                    index=0 text="today" start=2012-8-1 h=7 date=2012-07-31T22:00:00.000Z
+next month               index=0 text="next month" start=2012-9-1 h=7 date=2012-08-31T22:00:00.000Z
+tomorrow at 5pm          index=0 text="tomorrow at 5pm" start=2012-8-2 h=17 date=2012-08-02T08:00:00.000Z
+end of this month        index=0 text="end of this month" start=2012-8-31 h=12 date=2012-08-31T03:00:00.000Z
+Deadline is this month   index=12 text="this month" start=2012-7-1 h=12 date=2012-07-01T03:00:00.000Z
+## ref: {instant,tz:EST} 2012-08-01T03:00Z
+this month               index=0 text="this month" start=2012-8-1 h=12 date=2012-08-01T17:00:00.000Z
+this week                index=0 text="this week" start=2012-7-29 h=12 date=2012-07-29T17:00:00.000Z
+this year                index=0 text="this year" start=2012-1-1 h=12 date=2012-01-01T17:00:00.000Z
+last night               index=0 text="last night" start=2012-8-1 h=0 date=2012-08-01T05:00:00.000Z
+Feb 15                   index=0 text="Feb 15" start=2012-2-15 h=12 date=2012-02-15T17:00:00.000Z
+15 Feb                   index=0 text="15 Feb" start=2012-2-15 h=12 date=2012-02-15T17:00:00.000Z
+2/15                     index=0 text="2/15" start=2012-2-15 h=12 date=2012-02-15T17:00:00.000Z
+February                 index=0 text="February" start=2012-2-1 h=12 date=2012-02-01T17:00:00.000Z
+Feb 15, 2013             index=0 text="Feb 15, 2013" start=2013-2-15 h=12 date=2013-02-15T17:00:00.000Z
+today                    index=0 text="today" start=2012-7-31 h=22 date=2012-08-01T03:00:00.000Z
+next month               index=0 text="next month" start=2012-8-31 h=22 date=2012-09-01T03:00:00.000Z
+tomorrow at 5pm          index=0 text="tomorrow at 5pm" start=2012-8-1 h=17 date=2012-08-01T22:00:00.000Z
+end of this month        index=0 text="end of this month" start=2012-7-31 h=12 date=2012-07-31T17:00:00.000Z
+Deadline is this month   index=12 text="this month" start=2012-8-1 h=12 date=2012-08-01T17:00:00.000Z
+## ref: {instant,tz:JST} 2012-08-01T12:00Z (mid-day)
+this month               index=0 text="this month" start=2012-8-1 h=12 date=2012-08-01T03:00:00.000Z
+this week                index=0 text="this week" start=2012-7-29 h=12 date=2012-07-29T03:00:00.000Z
+this year                index=0 text="this year" start=2012-1-1 h=12 date=2012-01-01T03:00:00.000Z
+last night               index=0 text="last night" start=2012-7-31 h=0 date=2012-07-30T15:00:00.000Z
+Feb 15                   index=0 text="Feb 15" start=2012-2-15 h=12 date=2012-02-15T03:00:00.000Z
+15 Feb                   index=0 text="15 Feb" start=2012-2-15 h=12 date=2012-02-15T03:00:00.000Z
+2/15                     index=0 text="2/15" start=2012-2-15 h=12 date=2012-02-15T03:00:00.000Z
+February                 index=0 text="February" start=2012-2-1 h=12 date=2012-02-01T03:00:00.000Z
+Feb 15, 2013             index=0 text="Feb 15, 2013" start=2013-2-15 h=12 date=2013-02-15T03:00:00.000Z
+today                    index=0 text="today" start=2012-8-1 h=21 date=2012-08-01T12:00:00.000Z
+next month               index=0 text="next month" start=2012-9-1 h=21 date=2012-09-01T12:00:00.000Z
+tomorrow at 5pm          index=0 text="tomorrow at 5pm" start=2012-8-2 h=17 date=2012-08-02T08:00:00.000Z
+end of this month        index=0 text="end of this month" start=2012-8-31 h=12 date=2012-08-31T03:00:00.000Z
+Deadline is this month   index=12 text="this month" start=2012-8-1 h=12 date=2012-08-01T03:00:00.000Z
+## ref: {instant,tz:JST} 2012-12-31T22:00Z
+this month               index=0 text="this month" start=2012-12-1 h=12 date=2012-12-01T03:00:00.000Z
+this week                index=0 text="this week" start=2012-12-30 h=12 date=2012-12-30T03:00:00.000Z
+this year                index=0 text="this year" start=2012-1-1 h=12 date=2012-01-01T03:00:00.000Z
+last night               index=0 text="last night" start=2012-12-30 h=0 date=2012-12-29T15:00:00.000Z
+Feb 15                   index=0 text="Feb 15" start=2013-2-15 h=12 date=2013-02-15T03:00:00.000Z
+15 Feb                   index=0 text="15 Feb" start=2013-2-15 h=12 date=2013-02-15T03:00:00.000Z
+2/15                     index=0 text="2/15" start=2013-2-15 h=12 date=2013-02-15T03:00:00.000Z
+February                 index=0 text="February" start=2013-2-1 h=12 date=2013-02-01T03:00:00.000Z
+Feb 15, 2013             index=0 text="Feb 15, 2013" start=2013-2-15 h=12 date=2013-02-15T03:00:00.000Z
+today                    index=0 text="today" start=2013-1-1 h=7 date=2012-12-31T22:00:00.000Z
+next month               index=0 text="next month" start=2013-2-1 h=7 date=2013-01-31T22:00:00.000Z
+tomorrow at 5pm          index=0 text="tomorrow at 5pm" start=2013-1-2 h=17 date=2013-01-02T08:00:00.000Z
+end of this month        index=0 text="end of this month" start=2013-1-31 h=12 date=2013-01-31T03:00:00.000Z
+Deadline is this month   index=12 text="this month" start=2012-12-1 h=12 date=2012-12-01T03:00:00.000Z
+## ref: {instant,tz:JST} 2012-08-04T22:00Z
+this month               index=0 text="this month" start=2012-8-1 h=12 date=2012-08-01T03:00:00.000Z
+this week                index=0 text="this week" start=2012-7-29 h=12 date=2012-07-29T03:00:00.000Z
+this year                index=0 text="this year" start=2012-1-1 h=12 date=2012-01-01T03:00:00.000Z
+last night               index=0 text="last night" start=2012-8-3 h=0 date=2012-08-02T15:00:00.000Z
+Feb 15                   index=0 text="Feb 15" start=2012-2-15 h=12 date=2012-02-15T03:00:00.000Z
+15 Feb                   index=0 text="15 Feb" start=2012-2-15 h=12 date=2012-02-15T03:00:00.000Z
+2/15                     index=0 text="2/15" start=2012-2-15 h=12 date=2012-02-15T03:00:00.000Z
+February                 index=0 text="February" start=2013-2-1 h=12 date=2013-02-01T03:00:00.000Z
+Feb 15, 2013             index=0 text="Feb 15, 2013" start=2013-2-15 h=12 date=2013-02-15T03:00:00.000Z
+today                    index=0 text="today" start=2012-8-5 h=7 date=2012-08-04T22:00:00.000Z
+next month               index=0 text="next month" start=2012-9-5 h=7 date=2012-09-04T22:00:00.000Z
+tomorrow at 5pm          index=0 text="tomorrow at 5pm" start=2012-8-6 h=17 date=2012-08-06T08:00:00.000Z
+end of this month        index=0 text="end of this month" start=2012-8-31 h=12 date=2012-08-31T03:00:00.000Z
+Deadline is this month   index=12 text="this month" start=2012-8-1 h=12 date=2012-08-01T03:00:00.000Z
+## ref: {instant,tz:JST} 2021-08-16T20:00Z
+this month               index=0 text="this month" start=2021-8-1 h=12 date=2021-08-01T03:00:00.000Z
+this week                index=0 text="this week" start=2021-8-15 h=12 date=2021-08-15T03:00:00.000Z
+this year                index=0 text="this year" start=2021-1-1 h=12 date=2021-01-01T03:00:00.000Z
+last night               index=0 text="last night" start=2021-8-15 h=0 date=2021-08-14T15:00:00.000Z
+Feb 15                   index=0 text="Feb 15" start=2021-2-15 h=12 date=2021-02-15T03:00:00.000Z
+15 Feb                   index=0 text="15 Feb" start=2021-2-15 h=12 date=2021-02-15T03:00:00.000Z
+2/15                     index=0 text="2/15" start=2021-2-15 h=12 date=2021-02-15T03:00:00.000Z
+February                 index=0 text="February" start=2022-2-1 h=12 date=2022-02-01T03:00:00.000Z
+Feb 15, 2013             index=0 text="Feb 15, 2013" start=2013-2-15 h=12 date=2013-02-15T03:00:00.000Z
+today                    index=0 text="today" start=2021-8-17 h=5 date=2021-08-16T20:00:00.000Z
+next month               index=0 text="next month" start=2021-9-17 h=5 date=2021-09-16T20:00:00.000Z
+tomorrow at 5pm          index=0 text="tomorrow at 5pm" start=2021-8-18 h=17 date=2021-08-18T08:00:00.000Z
+end of this month        index=0 text="end of this month" start=2021-8-31 h=12 date=2021-08-31T03:00:00.000Z
+Deadline is this month   index=12 text="this month" start=2021-8-1 h=12 date=2021-08-01T03:00:00.000Z
+## ref: {instant,tz:JST} 2012-07-31T20:59Z (05:59 JST)
+this month               index=0 text="this month" start=2012-7-1 h=12 date=2012-07-01T03:00:00.000Z
+this week                index=0 text="this week" start=2012-7-29 h=12 date=2012-07-29T03:00:00.000Z
+this year                index=0 text="this year" start=2012-1-1 h=12 date=2012-01-01T03:00:00.000Z
+last night               index=0 text="last night" start=2012-7-30 h=0 date=2012-07-29T15:00:00.000Z
+Feb 15                   index=0 text="Feb 15" start=2012-2-15 h=12 date=2012-02-15T03:00:00.000Z
+15 Feb                   index=0 text="15 Feb" start=2012-2-15 h=12 date=2012-02-15T03:00:00.000Z
+2/15                     index=0 text="2/15" start=2012-2-15 h=12 date=2012-02-15T03:00:00.000Z
+February                 index=0 text="February" start=2012-2-1 h=12 date=2012-02-01T03:00:00.000Z
+Feb 15, 2013             index=0 text="Feb 15, 2013" start=2013-2-15 h=12 date=2013-02-15T03:00:00.000Z
+today                    index=0 text="today" start=2012-8-1 h=5 date=2012-07-31T20:59:00.000Z
+next month               index=0 text="next month" start=2012-9-1 h=5 date=2012-08-31T20:59:00.000Z
+tomorrow at 5pm          index=0 text="tomorrow at 5pm" start=2012-8-2 h=17 date=2012-08-02T08:00:00.000Z
+end of this month        index=0 text="end of this month" start=2012-8-31 h=12 date=2012-08-31T03:00:00.000Z
+Deadline is this month   index=12 text="this month" start=2012-7-1 h=12 date=2012-07-01T03:00:00.000Z
+## ref: {instant,tz:JST} 2012-07-31T22:00Z (07:00 JST)
+this month               index=0 text="this month" start=2012-7-1 h=12 date=2012-07-01T03:00:00.000Z
+this week                index=0 text="this week" start=2012-7-29 h=12 date=2012-07-29T03:00:00.000Z
+this year                index=0 text="this year" start=2012-1-1 h=12 date=2012-01-01T03:00:00.000Z
+last night               index=0 text="last night" start=2012-7-30 h=0 date=2012-07-29T15:00:00.000Z
+Feb 15                   index=0 text="Feb 15" start=2012-2-15 h=12 date=2012-02-15T03:00:00.000Z
+15 Feb                   index=0 text="15 Feb" start=2012-2-15 h=12 date=2012-02-15T03:00:00.000Z
+2/15                     index=0 text="2/15" start=2012-2-15 h=12 date=2012-02-15T03:00:00.000Z
+February                 index=0 text="February" start=2012-2-1 h=12 date=2012-02-01T03:00:00.000Z
+Feb 15, 2013             index=0 text="Feb 15, 2013" start=2013-2-15 h=12 date=2013-02-15T03:00:00.000Z
+today                    index=0 text="today" start=2012-8-1 h=7 date=2012-07-31T22:00:00.000Z
+next month               index=0 text="next month" start=2012-9-1 h=7 date=2012-08-31T22:00:00.000Z
+tomorrow at 5pm          index=0 text="tomorrow at 5pm" start=2012-8-2 h=17 date=2012-08-02T08:00:00.000Z
+end of this month        index=0 text="end of this month" start=2012-8-31 h=12 date=2012-08-31T03:00:00.000Z
+Deadline is this month   index=12 text="this month" start=2012-7-1 h=12 date=2012-07-01T03:00:00.000Z
+process TZ=Asia/Tokyo
+## ref: Date 2012-07-31T22:00Z
+this month               index=0 text="this month" start=2012-8-1 h=12 date=2012-08-01T03:00:00.000Z
+this week                index=0 text="this week" start=2012-7-29 h=12 date=2012-07-29T03:00:00.000Z
+this year                index=0 text="this year" start=2012-1-1 h=12 date=2012-01-01T03:00:00.000Z
+last night               index=0 text="last night" start=2012-7-31 h=0 date=2012-07-30T15:00:00.000Z
+Feb 15                   index=0 text="Feb 15" start=2012-2-15 h=12 date=2012-02-15T03:00:00.000Z
+15 Feb                   index=0 text="15 Feb" start=2012-2-15 h=12 date=2012-02-15T03:00:00.000Z
+2/15                     index=0 text="2/15" start=2012-2-15 h=12 date=2012-02-15T03:00:00.000Z
+February                 index=0 text="February" start=2012-2-1 h=12 date=2012-02-01T03:00:00.000Z
+Feb 15, 2013             index=0 text="Feb 15, 2013" start=2013-2-15 h=12 date=2013-02-15T03:00:00.000Z
+today                    index=0 text="today" start=2012-8-1 h=7 date=2012-07-31T22:00:00.000Z
+next month               index=0 text="next month" start=2012-9-1 h=7 date=2012-08-31T22:00:00.000Z
+tomorrow at 5pm          index=0 text="tomorrow at 5pm" start=2012-8-2 h=17 date=2012-08-02T08:00:00.000Z
+end of this month        index=0 text="end of this month" start=2012-8-31 h=12 date=2012-08-31T03:00:00.000Z
+Deadline is this month   index=12 text="this month" start=2012-8-1 h=12 date=2012-08-01T03:00:00.000Z
+## ref: {instant} 2012-07-31T22:00Z
+this month               index=0 text="this month" start=2012-8-1 h=12 date=2012-08-01T03:00:00.000Z
+this week                index=0 text="this week" start=2012-7-29 h=12 date=2012-07-29T03:00:00.000Z
+this year                index=0 text="this year" start=2012-1-1 h=12 date=2012-01-01T03:00:00.000Z
+last night               index=0 text="last night" start=2012-7-31 h=0 date=2012-07-30T15:00:00.000Z
+Feb 15                   index=0 text="Feb 15" start=2012-2-15 h=12 date=2012-02-15T03:00:00.000Z
+15 Feb                   index=0 text="15 Feb" start=2012-2-15 h=12 date=2012-02-15T03:00:00.000Z
+2/15                     index=0 text="2/15" start=2012-2-15 h=12 date=2012-02-15T03:00:00.000Z
+February                 index=0 text="February" start=2012-2-1 h=12 date=2012-02-01T03:00:00.000Z
+Feb 15, 2013             index=0 text="Feb 15, 2013" start=2013-2-15 h=12 date=2013-02-15T03:00:00.000Z
+today                    index=0 text="today" start=2012-8-1 h=7 date=2012-07-31T22:00:00.000Z
+next month               index=0 text="next month" start=2012-9-1 h=7 date=2012-08-31T22:00:00.000Z
+tomorrow at 5pm          index=0 text="tomorrow at 5pm" start=2012-8-2 h=17 date=2012-08-02T08:00:00.000Z
+end of this month        index=0 text="end of this month" start=2012-8-31 h=12 date=2012-08-31T03:00:00.000Z
+Deadline is this month   index=12 text="this month" start=2012-8-1 h=12 date=2012-08-01T03:00:00.000Z
+## ref: {instant,tz:null} 2012-07-31T22:00Z
+this month               index=0 text="this month" start=2012-8-1 h=12 date=2012-08-01T03:00:00.000Z
+this week                index=0 text="this week" start=2012-7-29 h=12 date=2012-07-29T03:00:00.000Z
+this year                index=0 text="this year" start=2012-1-1 h=12 date=2012-01-01T03:00:00.000Z
+last night               index=0 text="last night" start=2012-7-31 h=0 date=2012-07-30T15:00:00.000Z
+Feb 15                   index=0 text="Feb 15" start=2012-2-15 h=12 date=2012-02-15T03:00:00.000Z
+15 Feb                   index=0 text="15 Feb" start=2012-2-15 h=12 date=2012-02-15T03:00:00.000Z
+2/15                     index=0 text="2/15" start=2012-2-15 h=12 date=2012-02-15T03:00:00.000Z
+February                 index=0 text="February" start=2012-2-1 h=12 date=2012-02-01T03:00:00.000Z
+Feb 15, 2013             index=0 text="Feb 15, 2013" start=2013-2-15 h=12 date=2013-02-15T03:00:00.000Z
+today                    index=0 text="today" start=2012-8-1 h=7 date=2012-07-31T22:00:00.000Z
+next month               index=0 text="next month" start=2012-9-1 h=7 date=2012-08-31T22:00:00.000Z
+tomorrow at 5pm          index=0 text="tomorrow at 5pm" start=2012-8-2 h=17 date=2012-08-02T08:00:00.000Z
+end of this month        index=0 text="end of this month" start=2012-8-31 h=12 date=2012-08-31T03:00:00.000Z
+Deadline is this month   index=12 text="this month" start=2012-8-1 h=12 date=2012-08-01T03:00:00.000Z
+## ref: {instant,tz:JST} 2012-07-31T22:00Z
+this month               index=0 text="this month" start=2012-8-1 h=12 date=2012-08-01T03:00:00.000Z
+this week                index=0 text="this week" start=2012-7-29 h=12 date=2012-07-29T03:00:00.000Z
+this year                index=0 text="this year" start=2012-1-1 h=12 date=2012-01-01T03:00:00.000Z
+last night               index=0 text="last night" start=2012-7-31 h=0 date=2012-07-30T15:00:00.000Z
+Feb 15                   index=0 text="Feb 15" start=2012-2-15 h=12 date=2012-02-15T03:00:00.000Z
+15 Feb                   index=0 text="15 Feb" start=2012-2-15 h=12 date=2012-02-15T03:00:00.000Z
+2/15                     index=0 text="2/15" start=2012-2-15 h=12 date=2012-02-15T03:00:00.000Z
+February                 index=0 text="February" start=2012-2-1 h=12 date=2012-02-01T03:00:00.000Z
+Feb 15, 2013             index=0 text="Feb 15, 2013" start=2013-2-15 h=12 date=2013-02-15T03:00:00.000Z
+today                    index=0 text="today" start=2012-8-1 h=7 date=2012-07-31T22:00:00.000Z
+next month               index=0 text="next month" start=2012-9-1 h=7 date=2012-08-31T22:00:00.000Z
+tomorrow at 5pm          index=0 text="tomorrow at 5pm" start=2012-8-2 h=17 date=2012-08-02T08:00:00.000Z
+end of this month        index=0 text="end of this month" start=2012-8-31 h=12 date=2012-08-31T03:00:00.000Z
+Deadline is this month   index=12 text="this month" start=2012-8-1 h=12 date=2012-08-01T03:00:00.000Z
+## ref: {instant,tz:540} 2012-07-31T22:00Z
+this month               index=0 text="this month" start=2012-8-1 h=12 date=2012-08-01T03:00:00.000Z
+this week                index=0 text="this week" start=2012-7-29 h=12 date=2012-07-29T03:00:00.000Z
+this year                index=0 text="this year" start=2012-1-1 h=12 date=2012-01-01T03:00:00.000Z
+last night               index=0 text="last night" start=2012-7-31 h=0 date=2012-07-30T15:00:00.000Z
+Feb 15                   index=0 text="Feb 15" start=2012-2-15 h=12 date=2012-02-15T03:00:00.000Z
+15 Feb                   index=0 text="15 Feb" start=2012-2-15 h=12 date=2012-02-15T03:00:00.000Z
+2/15                     index=0 text="2/15" start=2012-2-15 h=12 date=2012-02-15T03:00:00.000Z
+February                 index=0 text="February" start=2012-2-1 h=12 date=2012-02-01T03:00:00.000Z
+Feb 15, 2013             index=0 text="Feb 15, 2013" start=2013-2-15 h=12 date=2013-02-15T03:00:00.000Z
+today                    index=0 text="today" start=2012-8-1 h=7 date=2012-07-31T22:00:00.000Z
+next month               index=0 text="next month" start=2012-9-1 h=7 date=2012-08-31T22:00:00.000Z
+tomorrow at 5pm          index=0 text="tomorrow at 5pm" start=2012-8-2 h=17 date=2012-08-02T08:00:00.000Z
+end of this month        index=0 text="end of this month" start=2012-8-31 h=12 date=2012-08-31T03:00:00.000Z
+Deadline is this month   index=12 text="this month" start=2012-8-1 h=12 date=2012-08-01T03:00:00.000Z
+## ref: {instant,tz:EST} 2012-08-01T03:00Z
+this month               index=0 text="this month" start=2012-8-1 h=12 date=2012-08-01T17:00:00.000Z
+this week                index=0 text="this week" start=2012-7-29 h=12 date=2012-07-29T17:00:00.000Z
+this year                index=0 text="this year" start=2012-1-1 h=12 date=2012-01-01T17:00:00.000Z
+last night               index=0 text="last night" start=2012-7-31 h=0 date=2012-07-31T05:00:00.000Z
+Feb 15                   index=0 text="Feb 15" start=2012-2-15 h=12 date=2012-02-15T17:00:00.000Z
+15 Feb                   index=0 text="15 Feb" start=2012-2-15 h=12 date=2012-02-15T17:00:00.000Z
+2/15                     index=0 text="2/15" start=2012-2-15 h=12 date=2012-02-15T17:00:00.000Z
+February                 index=0 text="February" start=2012-2-1 h=12 date=2012-02-01T17:00:00.000Z
+Feb 15, 2013             index=0 text="Feb 15, 2013" start=2013-2-15 h=12 date=2013-02-15T17:00:00.000Z
+today                    index=0 text="today" start=2012-7-31 h=22 date=2012-08-01T03:00:00.000Z
+next month               index=0 text="next month" start=2012-8-31 h=22 date=2012-09-01T03:00:00.000Z
+tomorrow at 5pm          index=0 text="tomorrow at 5pm" start=2012-8-1 h=17 date=2012-08-01T22:00:00.000Z
+end of this month        index=0 text="end of this month" start=2012-7-31 h=12 date=2012-07-31T17:00:00.000Z
+Deadline is this month   index=12 text="this month" start=2012-8-1 h=12 date=2012-08-01T17:00:00.000Z
+## ref: {instant,tz:JST} 2012-08-01T12:00Z (mid-day)
+this month               index=0 text="this month" start=2012-8-1 h=12 date=2012-08-01T03:00:00.000Z
+this week                index=0 text="this week" start=2012-7-29 h=12 date=2012-07-29T03:00:00.000Z
+this year                index=0 text="this year" start=2012-1-1 h=12 date=2012-01-01T03:00:00.000Z
+last night               index=0 text="last night" start=2012-7-31 h=0 date=2012-07-30T15:00:00.000Z
+Feb 15                   index=0 text="Feb 15" start=2012-2-15 h=12 date=2012-02-15T03:00:00.000Z
+15 Feb                   index=0 text="15 Feb" start=2012-2-15 h=12 date=2012-02-15T03:00:00.000Z
+2/15                     index=0 text="2/15" start=2012-2-15 h=12 date=2012-02-15T03:00:00.000Z
+February                 index=0 text="February" start=2012-2-1 h=12 date=2012-02-01T03:00:00.000Z
+Feb 15, 2013             index=0 text="Feb 15, 2013" start=2013-2-15 h=12 date=2013-02-15T03:00:00.000Z
+today                    index=0 text="today" start=2012-8-1 h=21 date=2012-08-01T12:00:00.000Z
+next month               index=0 text="next month" start=2012-9-1 h=21 date=2012-09-01T12:00:00.000Z
+tomorrow at 5pm          index=0 text="tomorrow at 5pm" start=2012-8-2 h=17 date=2012-08-02T08:00:00.000Z
+end of this month        index=0 text="end of this month" start=2012-8-31 h=12 date=2012-08-31T03:00:00.000Z
+Deadline is this month   index=12 text="this month" start=2012-8-1 h=12 date=2012-08-01T03:00:00.000Z
+## ref: {instant,tz:JST} 2012-12-31T22:00Z
+this month               index=0 text="this month" start=2013-1-1 h=12 date=2013-01-01T03:00:00.000Z
+this week                index=0 text="this week" start=2012-12-30 h=12 date=2012-12-30T03:00:00.000Z
+this year                index=0 text="this year" start=2013-1-1 h=12 date=2013-01-01T03:00:00.000Z
+last night               index=0 text="last night" start=2012-12-31 h=0 date=2012-12-30T15:00:00.000Z
+Feb 15                   index=0 text="Feb 15" start=2013-2-15 h=12 date=2013-02-15T03:00:00.000Z
+15 Feb                   index=0 text="15 Feb" start=2013-2-15 h=12 date=2013-02-15T03:00:00.000Z
+2/15                     index=0 text="2/15" start=2013-2-15 h=12 date=2013-02-15T03:00:00.000Z
+February                 index=0 text="February" start=2013-2-1 h=12 date=2013-02-01T03:00:00.000Z
+Feb 15, 2013             index=0 text="Feb 15, 2013" start=2013-2-15 h=12 date=2013-02-15T03:00:00.000Z
+today                    index=0 text="today" start=2013-1-1 h=7 date=2012-12-31T22:00:00.000Z
+next month               index=0 text="next month" start=2013-2-1 h=7 date=2013-01-31T22:00:00.000Z
+tomorrow at 5pm          index=0 text="tomorrow at 5pm" start=2013-1-2 h=17 date=2013-01-02T08:00:00.000Z
+end of this month        index=0 text="end of this month" start=2013-1-31 h=12 date=2013-01-31T03:00:00.000Z
+Deadline is this month   index=12 text="this month" start=2013-1-1 h=12 date=2013-01-01T03:00:00.000Z
+## ref: {instant,tz:JST} 2012-08-04T22:00Z
+this month               index=0 text="this month" start=2012-8-1 h=12 date=2012-08-01T03:00:00.000Z
+this week                index=0 text="this week" start=2012-8-5 h=12 date=2012-08-05T03:00:00.000Z
+this year                index=0 text="this year" start=2012-1-1 h=12 date=2012-01-01T03:00:00.000Z
+last night               index=0 text="last night" start=2012-8-4 h=0 date=2012-08-03T15:00:00.000Z
+Feb 15                   index=0 text="Feb 15" start=2012-2-15 h=12 date=2012-02-15T03:00:00.000Z
+15 Feb                   index=0 text="15 Feb" start=2012-2-15 h=12 date=2012-02-15T03:00:00.000Z
+2/15                     index=0 text="2/15" start=2012-2-15 h=12 date=2012-02-15T03:00:00.000Z
+February                 index=0 text="February" start=2013-2-1 h=12 date=2013-02-01T03:00:00.000Z
+Feb 15, 2013             index=0 text="Feb 15, 2013" start=2013-2-15 h=12 date=2013-02-15T03:00:00.000Z
+today                    index=0 text="today" start=2012-8-5 h=7 date=2012-08-04T22:00:00.000Z
+next month               index=0 text="next month" start=2012-9-5 h=7 date=2012-09-04T22:00:00.000Z
+tomorrow at 5pm          index=0 text="tomorrow at 5pm" start=2012-8-6 h=17 date=2012-08-06T08:00:00.000Z
+end of this month        index=0 text="end of this month" start=2012-8-31 h=12 date=2012-08-31T03:00:00.000Z
+Deadline is this month   index=12 text="this month" start=2012-8-1 h=12 date=2012-08-01T03:00:00.000Z
+## ref: {instant,tz:JST} 2021-08-16T20:00Z
+this month               index=0 text="this month" start=2021-8-1 h=12 date=2021-08-01T03:00:00.000Z
+this week                index=0 text="this week" start=2021-8-15 h=12 date=2021-08-15T03:00:00.000Z
+this year                index=0 text="this year" start=2021-1-1 h=12 date=2021-01-01T03:00:00.000Z
+last night               index=0 text="last night" start=2021-8-17 h=0 date=2021-08-16T15:00:00.000Z
+Feb 15                   index=0 text="Feb 15" start=2022-2-15 h=12 date=2022-02-15T03:00:00.000Z
+15 Feb                   index=0 text="15 Feb" start=2022-2-15 h=12 date=2022-02-15T03:00:00.000Z
+2/15                     index=0 text="2/15" start=2022-2-15 h=12 date=2022-02-15T03:00:00.000Z
+February                 index=0 text="February" start=2022-2-1 h=12 date=2022-02-01T03:00:00.000Z
+Feb 15, 2013             index=0 text="Feb 15, 2013" start=2013-2-15 h=12 date=2013-02-15T03:00:00.000Z
+today                    index=0 text="today" start=2021-8-17 h=5 date=2021-08-16T20:00:00.000Z
+next month               index=0 text="next month" start=2021-9-17 h=5 date=2021-09-16T20:00:00.000Z
+tomorrow at 5pm          index=0 text="tomorrow at 5pm" start=2021-8-18 h=17 date=2021-08-18T08:00:00.000Z
+end of this month        index=0 text="end of this month" start=2021-8-31 h=12 date=2021-08-31T03:00:00.000Z
+Deadline is this month   index=12 text="this month" start=2021-8-1 h=12 date=2021-08-01T03:00:00.000Z
+## ref: {instant,tz:JST} 2012-07-31T20:59Z (05:59 JST)
+this month               index=0 text="this month" start=2012-8-1 h=12 date=2012-08-01T03:00:00.000Z
+this week                index=0 text="this week" start=2012-7-29 h=12 date=2012-07-29T03:00:00.000Z
+this year                index=0 text="this year" start=2012-1-1 h=12 date=2012-01-01T03:00:00.000Z
+last night               index=0 text="last night" start=2012-8-1 h=0 date=2012-07-31T15:00:00.000Z
+Feb 15                   index=0 text="Feb 15" start=2012-2-15 h=12 date=2012-02-15T03:00:00.000Z
+15 Feb                   index=0 text="15 Feb" start=2012-2-15 h=12 date=2012-02-15T03:00:00.000Z
+2/15                     index=0 text="2/15" start=2012-2-15 h=12 date=2012-02-15T03:00:00.000Z
+February                 index=0 text="February" start=2012-2-1 h=12 date=2012-02-01T03:00:00.000Z
+Feb 15, 2013             index=0 text="Feb 15, 2013" start=2013-2-15 h=12 date=2013-02-15T03:00:00.000Z
+today                    index=0 text="today" start=2012-8-1 h=5 date=2012-07-31T20:59:00.000Z
+next month               index=0 text="next month" start=2012-9-1 h=5 date=2012-08-31T20:59:00.000Z
+tomorrow at 5pm          index=0 text="tomorrow at 5pm" start=2012-8-2 h=17 date=2012-08-02T08:00:00.000Z
+end of this month        index=0 text="end of this month" start=2012-8-31 h=12 date=2012-08-31T03:00:00.000Z
+Deadline is this month   index=12 text="this month" start=2012-8-1 h=12 date=2012-08-01T03:00:00.000Z
+## ref: {instant,tz:JST} 2012-07-31T22:00Z (07:00 JST)
+this month               index=0 text="this month" start=2012-8-1 h=12 date=2012-08-01T03:00:00.000Z
+this week                index=0 text="this week" start=2012-7-29 h=12 date=2012-07-29T03:00:00.000Z
+this year                index=0 text="this year" start=2012-1-1 h=12 date=2012-01-01T03:00:00.000Z
+last night               index=0 text="last night" start=2012-7-31 h=0 date=2012-07-30T15:00:00.000Z
+Feb 15                   index=0 text="Feb 15" start=2012-2-15 h=12 date=2012-02-15T03:00:00.000Z
+15 Feb                   index=0 text="15 Feb" start=2012-2-15 h=12 date=2012-02-15T03:00:00.000Z
+2/15                     index=0 text="2/15" start=2012-2-15 h=12 date=2012-02-15T03:00:00.000Z
+February                 index=0 text="February" start=2012-2-1 h=12 date=2012-02-01T03:00:00.000Z
+Feb 15, 2013             index=0 text="Feb 15, 2013" start=2013-2-15 h=12 date=2013-02-15T03:00:00.000Z
+today                    index=0 text="today" start=2012-8-1 h=7 date=2012-07-31T22:00:00.000Z
+next month               index=0 text="next month" start=2012-9-1 h=7 date=2012-08-31T22:00:00.000Z
+tomorrow at 5pm          index=0 text="tomorrow at 5pm" start=2012-8-2 h=17 date=2012-08-02T08:00:00.000Z
+end of this month        index=0 text="end of this month" start=2012-8-31 h=12 date=2012-08-31T03:00:00.000Z
+Deadline is this month   index=12 text="this month" start=2012-8-1 h=12 date=2012-08-01T03:00:00.000Z
+process TZ=America/New_York
+## ref: Date 2012-07-31T22:00Z
+this month               index=0 text="this month" start=2012-7-1 h=12 date=2012-07-01T16:00:00.000Z
+this week                index=0 text="this week" start=2012-7-29 h=12 date=2012-07-29T16:00:00.000Z
+this year                index=0 text="this year" start=2012-1-1 h=12 date=2012-01-01T17:00:00.000Z
+last night               index=0 text="last night" start=2012-7-30 h=0 date=2012-07-30T04:00:00.000Z
+Feb 15                   index=0 text="Feb 15" start=2012-2-15 h=12 date=2012-02-15T17:00:00.000Z
+15 Feb                   index=0 text="15 Feb" start=2012-2-15 h=12 date=2012-02-15T17:00:00.000Z
+2/15                     index=0 text="2/15" start=2012-2-15 h=12 date=2012-02-15T17:00:00.000Z
+February                 index=0 text="February" start=2012-2-1 h=12 date=2012-02-01T17:00:00.000Z
+Feb 15, 2013             index=0 text="Feb 15, 2013" start=2013-2-15 h=12 date=2013-02-15T17:00:00.000Z
+today                    index=0 text="today" start=2012-7-31 h=18 date=2012-07-31T22:00:00.000Z
+next month               index=0 text="next month" start=2012-8-31 h=18 date=2012-08-31T22:00:00.000Z
+tomorrow at 5pm          index=0 text="tomorrow at 5pm" start=2012-8-1 h=17 date=2012-08-01T21:00:00.000Z
+end of this month        index=0 text="end of this month" start=2012-7-31 h=12 date=2012-07-31T16:00:00.000Z
+Deadline is this month   index=12 text="this month" start=2012-7-1 h=12 date=2012-07-01T16:00:00.000Z
+## ref: {instant} 2012-07-31T22:00Z
+this month               index=0 text="this month" start=2012-7-1 h=12 date=2012-07-01T16:00:00.000Z
+this week                index=0 text="this week" start=2012-7-29 h=12 date=2012-07-29T16:00:00.000Z
+this year                index=0 text="this year" start=2012-1-1 h=12 date=2012-01-01T17:00:00.000Z
+last night               index=0 text="last night" start=2012-7-30 h=0 date=2012-07-30T04:00:00.000Z
+Feb 15                   index=0 text="Feb 15" start=2012-2-15 h=12 date=2012-02-15T17:00:00.000Z
+15 Feb                   index=0 text="15 Feb" start=2012-2-15 h=12 date=2012-02-15T17:00:00.000Z
+2/15                     index=0 text="2/15" start=2012-2-15 h=12 date=2012-02-15T17:00:00.000Z
+February                 index=0 text="February" start=2012-2-1 h=12 date=2012-02-01T17:00:00.000Z
+Feb 15, 2013             index=0 text="Feb 15, 2013" start=2013-2-15 h=12 date=2013-02-15T17:00:00.000Z
+today                    index=0 text="today" start=2012-7-31 h=18 date=2012-07-31T22:00:00.000Z
+next month               index=0 text="next month" start=2012-8-31 h=18 date=2012-08-31T22:00:00.000Z
+tomorrow at 5pm          index=0 text="tomorrow at 5pm" start=2012-8-1 h=17 date=2012-08-01T21:00:00.000Z
+end of this month        index=0 text="end of this month" start=2012-7-31 h=12 date=2012-07-31T16:00:00.000Z
+Deadline is this month   index=12 text="this month" start=2012-7-1 h=12 date=2012-07-01T16:00:00.000Z
+## ref: {instant,tz:null} 2012-07-31T22:00Z
+this month               index=0 text="this month" start=2012-7-1 h=12 date=2012-07-01T16:00:00.000Z
+this week                index=0 text="this week" start=2012-7-29 h=12 date=2012-07-29T16:00:00.000Z
+this year                index=0 text="this year" start=2012-1-1 h=12 date=2012-01-01T17:00:00.000Z
+last night               index=0 text="last night" start=2012-7-30 h=0 date=2012-07-30T04:00:00.000Z
+Feb 15                   index=0 text="Feb 15" start=2012-2-15 h=12 date=2012-02-15T17:00:00.000Z
+15 Feb                   index=0 text="15 Feb" start=2012-2-15 h=12 date=2012-02-15T17:00:00.000Z
+2/15                     index=0 text="2/15" start=2012-2-15 h=12 date=2012-02-15T17:00:00.000Z
+February                 index=0 text="February" start=2012-2-1 h=12 date=2012-02-01T17:00:00.000Z
+Feb 15, 2013             index=0 text="Feb 15, 2013" start=2013-2-15 h=12 date=2013-02-15T17:00:00.000Z
+today                    index=0 text="today" start=2012-7-31 h=18 date=2012-07-31T22:00:00.000Z
+next month               index=0 text="next month" start=2012-8-31 h=18 date=2012-08-31T22:00:00.000Z
+tomorrow at 5pm          index=0 text="tomorrow at 5pm" start=2012-8-1 h=17 date=2012-08-01T21:00:00.000Z
+end of this month        index=0 text="end of this month" start=2012-7-31 h=12 date=2012-07-31T16:00:00.000Z
+Deadline is this month   index=12 text="this month" start=2012-7-1 h=12 date=2012-07-01T16:00:00.000Z
+## ref: {instant,tz:JST} 2012-07-31T22:00Z
+this month               index=0 text="this month" start=2012-7-1 h=12 date=2012-07-01T03:00:00.000Z
+this week                index=0 text="this week" start=2012-7-29 h=12 date=2012-07-29T03:00:00.000Z
+this year                index=0 text="this year" start=2012-1-1 h=12 date=2012-01-01T03:00:00.000Z
+last night               index=0 text="last night" start=2012-7-30 h=0 date=2012-07-29T15:00:00.000Z
+Feb 15                   index=0 text="Feb 15" start=2012-2-15 h=12 date=2012-02-15T03:00:00.000Z
+15 Feb                   index=0 text="15 Feb" start=2012-2-15 h=12 date=2012-02-15T03:00:00.000Z
+2/15                     index=0 text="2/15" start=2012-2-15 h=12 date=2012-02-15T03:00:00.000Z
+February                 index=0 text="February" start=2012-2-1 h=12 date=2012-02-01T03:00:00.000Z
+Feb 15, 2013             index=0 text="Feb 15, 2013" start=2013-2-15 h=12 date=2013-02-15T03:00:00.000Z
+today                    index=0 text="today" start=2012-8-1 h=7 date=2012-07-31T22:00:00.000Z
+next month               index=0 text="next month" start=2012-9-1 h=7 date=2012-08-31T22:00:00.000Z
+tomorrow at 5pm          index=0 text="tomorrow at 5pm" start=2012-8-2 h=17 date=2012-08-02T08:00:00.000Z
+end of this month        index=0 text="end of this month" start=2012-8-31 h=12 date=2012-08-31T03:00:00.000Z
+Deadline is this month   index=12 text="this month" start=2012-7-1 h=12 date=2012-07-01T03:00:00.000Z
+## ref: {instant,tz:540} 2012-07-31T22:00Z
+this month               index=0 text="this month" start=2012-7-1 h=12 date=2012-07-01T03:00:00.000Z
+this week                index=0 text="this week" start=2012-7-29 h=12 date=2012-07-29T03:00:00.000Z
+this year                index=0 text="this year" start=2012-1-1 h=12 date=2012-01-01T03:00:00.000Z
+last night               index=0 text="last night" start=2012-7-30 h=0 date=2012-07-29T15:00:00.000Z
+Feb 15                   index=0 text="Feb 15" start=2012-2-15 h=12 date=2012-02-15T03:00:00.000Z
+15 Feb                   index=0 text="15 Feb" start=2012-2-15 h=12 date=2012-02-15T03:00:00.000Z
+2/15                     index=0 text="2/15" start=2012-2-15 h=12 date=2012-02-15T03:00:00.000Z
+February                 index=0 text="February" start=2012-2-1 h=12 date=2012-02-01T03:00:00.000Z
+Feb 15, 2013             index=0 text="Feb 15, 2013" start=2013-2-15 h=12 date=2013-02-15T03:00:00.000Z
+today                    index=0 text="today" start=2012-8-1 h=7 date=2012-07-31T22:00:00.000Z
+next month               index=0 text="next month" start=2012-9-1 h=7 date=2012-08-31T22:00:00.000Z
+tomorrow at 5pm          index=0 text="tomorrow at 5pm" start=2012-8-2 h=17 date=2012-08-02T08:00:00.000Z
+end of this month        index=0 text="end of this month" start=2012-8-31 h=12 date=2012-08-31T03:00:00.000Z
+Deadline is this month   index=12 text="this month" start=2012-7-1 h=12 date=2012-07-01T03:00:00.000Z
+## ref: {instant,tz:EST} 2012-08-01T03:00Z
+this month               index=0 text="this month" start=2012-7-1 h=12 date=2012-07-01T17:00:00.000Z
+this week                index=0 text="this week" start=2012-7-29 h=12 date=2012-07-29T17:00:00.000Z
+this year                index=0 text="this year" start=2012-1-1 h=12 date=2012-01-01T17:00:00.000Z
+last night               index=0 text="last night" start=2012-7-30 h=0 date=2012-07-30T05:00:00.000Z
+Feb 15                   index=0 text="Feb 15" start=2012-2-15 h=12 date=2012-02-15T17:00:00.000Z
+15 Feb                   index=0 text="15 Feb" start=2012-2-15 h=12 date=2012-02-15T17:00:00.000Z
+2/15                     index=0 text="2/15" start=2012-2-15 h=12 date=2012-02-15T17:00:00.000Z
+February                 index=0 text="February" start=2012-2-1 h=12 date=2012-02-01T17:00:00.000Z
+Feb 15, 2013             index=0 text="Feb 15, 2013" start=2013-2-15 h=12 date=2013-02-15T17:00:00.000Z
+today                    index=0 text="today" start=2012-7-31 h=22 date=2012-08-01T03:00:00.000Z
+next month               index=0 text="next month" start=2012-8-31 h=22 date=2012-09-01T03:00:00.000Z
+tomorrow at 5pm          index=0 text="tomorrow at 5pm" start=2012-8-1 h=17 date=2012-08-01T22:00:00.000Z
+end of this month        index=0 text="end of this month" start=2012-7-31 h=12 date=2012-07-31T17:00:00.000Z
+Deadline is this month   index=12 text="this month" start=2012-7-1 h=12 date=2012-07-01T17:00:00.000Z
+## ref: {instant,tz:JST} 2012-08-01T12:00Z (mid-day)
+this month               index=0 text="this month" start=2012-8-1 h=12 date=2012-08-01T03:00:00.000Z
+this week                index=0 text="this week" start=2012-7-29 h=12 date=2012-07-29T03:00:00.000Z
+this year                index=0 text="this year" start=2012-1-1 h=12 date=2012-01-01T03:00:00.000Z
+last night               index=0 text="last night" start=2012-7-31 h=0 date=2012-07-30T15:00:00.000Z
+Feb 15                   index=0 text="Feb 15" start=2012-2-15 h=12 date=2012-02-15T03:00:00.000Z
+15 Feb                   index=0 text="15 Feb" start=2012-2-15 h=12 date=2012-02-15T03:00:00.000Z
+2/15                     index=0 text="2/15" start=2012-2-15 h=12 date=2012-02-15T03:00:00.000Z
+February                 index=0 text="February" start=2012-2-1 h=12 date=2012-02-01T03:00:00.000Z
+Feb 15, 2013             index=0 text="Feb 15, 2013" start=2013-2-15 h=12 date=2013-02-15T03:00:00.000Z
+today                    index=0 text="today" start=2012-8-1 h=21 date=2012-08-01T12:00:00.000Z
+next month               index=0 text="next month" start=2012-9-1 h=21 date=2012-09-01T12:00:00.000Z
+tomorrow at 5pm          index=0 text="tomorrow at 5pm" start=2012-8-2 h=17 date=2012-08-02T08:00:00.000Z
+end of this month        index=0 text="end of this month" start=2012-8-31 h=12 date=2012-08-31T03:00:00.000Z
+Deadline is this month   index=12 text="this month" start=2012-8-1 h=12 date=2012-08-01T03:00:00.000Z
+## ref: {instant,tz:JST} 2012-12-31T22:00Z
+this month               index=0 text="this month" start=2012-12-1 h=12 date=2012-12-01T03:00:00.000Z
+this week                index=0 text="this week" start=2012-12-30 h=12 date=2012-12-30T03:00:00.000Z
+this year                index=0 text="this year" start=2012-1-1 h=12 date=2012-01-01T03:00:00.000Z
+last night               index=0 text="last night" start=2012-12-30 h=0 date=2012-12-29T15:00:00.000Z
+Feb 15                   index=0 text="Feb 15" start=2013-2-15 h=12 date=2013-02-15T03:00:00.000Z
+15 Feb                   index=0 text="15 Feb" start=2013-2-15 h=12 date=2013-02-15T03:00:00.000Z
+2/15                     index=0 text="2/15" start=2013-2-15 h=12 date=2013-02-15T03:00:00.000Z
+February                 index=0 text="February" start=2013-2-1 h=12 date=2013-02-01T03:00:00.000Z
+Feb 15, 2013             index=0 text="Feb 15, 2013" start=2013-2-15 h=12 date=2013-02-15T03:00:00.000Z
+today                    index=0 text="today" start=2013-1-1 h=7 date=2012-12-31T22:00:00.000Z
+next month               index=0 text="next month" start=2013-2-1 h=7 date=2013-01-31T22:00:00.000Z
+tomorrow at 5pm          index=0 text="tomorrow at 5pm" start=2013-1-2 h=17 date=2013-01-02T08:00:00.000Z
+end of this month        index=0 text="end of this month" start=2013-1-31 h=12 date=2013-01-31T03:00:00.000Z
+Deadline is this month   index=12 text="this month" start=2012-12-1 h=12 date=2012-12-01T03:00:00.000Z
+## ref: {instant,tz:JST} 2012-08-04T22:00Z
+this month               index=0 text="this month" start=2012-8-1 h=12 date=2012-08-01T03:00:00.000Z
+this week                index=0 text="this week" start=2012-7-29 h=12 date=2012-07-29T03:00:00.000Z
+this year                index=0 text="this year" start=2012-1-1 h=12 date=2012-01-01T03:00:00.000Z
+last night               index=0 text="last night" start=2012-8-3 h=0 date=2012-08-02T15:00:00.000Z
+Feb 15                   index=0 text="Feb 15" start=2012-2-15 h=12 date=2012-02-15T03:00:00.000Z
+15 Feb                   index=0 text="15 Feb" start=2012-2-15 h=12 date=2012-02-15T03:00:00.000Z
+2/15                     index=0 text="2/15" start=2012-2-15 h=12 date=2012-02-15T03:00:00.000Z
+February                 index=0 text="February" start=2013-2-1 h=12 date=2013-02-01T03:00:00.000Z
+Feb 15, 2013             index=0 text="Feb 15, 2013" start=2013-2-15 h=12 date=2013-02-15T03:00:00.000Z
+today                    index=0 text="today" start=2012-8-5 h=7 date=2012-08-04T22:00:00.000Z
+next month               index=0 text="next month" start=2012-9-5 h=7 date=2012-09-04T22:00:00.000Z
+tomorrow at 5pm          index=0 text="tomorrow at 5pm" start=2012-8-6 h=17 date=2012-08-06T08:00:00.000Z
+end of this month        index=0 text="end of this month" start=2012-8-31 h=12 date=2012-08-31T03:00:00.000Z
+Deadline is this month   index=12 text="this month" start=2012-8-1 h=12 date=2012-08-01T03:00:00.000Z
+## ref: {instant,tz:JST} 2021-08-16T20:00Z
+this month               index=0 text="this month" start=2021-8-1 h=12 date=2021-08-01T03:00:00.000Z
+this week                index=0 text="this week" start=2021-8-15 h=12 date=2021-08-15T03:00:00.000Z
+this year                index=0 text="this year" start=2021-1-1 h=12 date=2021-01-01T03:00:00.000Z
+last night               index=0 text="last night" start=2021-8-15 h=0 date=2021-08-14T15:00:00.000Z
+Feb 15                   index=0 text="Feb 15" start=2021-2-15 h=12 date=2021-02-15T03:00:00.000Z
+15 Feb                   index=0 text="15 Feb" start=2021-2-15 h=12 date=2021-02-15T03:00:00.000Z
+2/15                     index=0 text="2/15" start=2021-2-15 h=12 date=2021-02-15T03:00:00.000Z
+February                 index=0 text="February" start=2022-2-1 h=12 date=2022-02-01T03:00:00.000Z
+Feb 15, 2013             index=0 text="Feb 15, 2013" start=2013-2-15 h=12 date=2013-02-15T03:00:00.000Z
+today                    index=0 text="today" start=2021-8-17 h=5 date=2021-08-16T20:00:00.000Z
+next month               index=0 text="next month" start=2021-9-17 h=5 date=2021-09-16T20:00:00.000Z
+tomorrow at 5pm          index=0 text="tomorrow at 5pm" start=2021-8-18 h=17 date=2021-08-18T08:00:00.000Z
+end of this month        index=0 text="end of this month" start=2021-8-31 h=12 date=2021-08-31T03:00:00.000Z
+Deadline is this month   index=12 text="this month" start=2021-8-1 h=12 date=2021-08-01T03:00:00.000Z
+## ref: {instant,tz:JST} 2012-07-31T20:59Z (05:59 JST)
+this month               index=0 text="this month" start=2012-7-1 h=12 date=2012-07-01T03:00:00.000Z
+this week                index=0 text="this week" start=2012-7-29 h=12 date=2012-07-29T03:00:00.000Z
+this year                index=0 text="this year" start=2012-1-1 h=12 date=2012-01-01T03:00:00.000Z
+last night               index=0 text="last night" start=2012-7-30 h=0 date=2012-07-29T15:00:00.000Z
+Feb 15                   index=0 text="Feb 15" start=2012-2-15 h=12 date=2012-02-15T03:00:00.000Z
+15 Feb                   index=0 text="15 Feb" start=2012-2-15 h=12 date=2012-02-15T03:00:00.000Z
+2/15                     index=0 text="2/15" start=2012-2-15 h=12 date=2012-02-15T03:00:00.000Z
+February                 index=0 text="February" start=2012-2-1 h=12 date=2012-02-01T03:00:00.000Z
+Feb 15, 2013             index=0 text="Feb 15, 2013" start=2013-2-15 h=12 date=2013-02-15T03:00:00.000Z
+today                    index=0 text="today" start=2012-8-1 h=5 date=2012-07-31T20:59:00.000Z
+next month               index=0 text="next month" start=2012-9-1 h=5 date=2012-08-31T20:59:00.000Z
+tomorrow at 5pm          index=0 text="tomorrow at 5pm" start=2012-8-2 h=17 date=2012-08-02T08:00:00.000Z
+end of this month        index=0 text="end of this month" start=2012-8-31 h=12 date=2012-08-31T03:00:00.000Z
+Deadline is this month   index=12 text="this month" start=2012-7-1 h=12 date=2012-07-01T03:00:00.000Z
+## ref: {instant,tz:JST} 2012-07-31T22:00Z (07:00 JST)
+this month               index=0 text="this month" start=2012-7-1 h=12 date=2012-07-01T03:00:00.000Z
+this week                index=0 text="this week" start=2012-7-29 h=12 date=2012-07-29T03:00:00.000Z
+this year                index=0 text="this year" start=2012-1-1 h=12 date=2012-01-01T03:00:00.000Z
+last night               index=0 text="last night" start=2012-7-30 h=0 date=2012-07-29T15:00:00.000Z
+Feb 15                   index=0 text="Feb 15" start=2012-2-15 h=12 date=2012-02-15T03:00:00.000Z
+15 Feb                   index=0 text="15 Feb" start=2012-2-15 h=12 date=2012-02-15T03:00:00.000Z
+2/15                     index=0 text="2/15" start=2012-2-15 h=12 date=2012-02-15T03:00:00.000Z
+February                 index=0 text="February" start=2012-2-1 h=12 date=2012-02-01T03:00:00.000Z
+Feb 15, 2013             index=0 text="Feb 15, 2013" start=2013-2-15 h=12 date=2013-02-15T03:00:00.000Z
+today                    index=0 text="today" start=2012-8-1 h=7 date=2012-07-31T22:00:00.000Z
+next month               index=0 text="next month" start=2012-9-1 h=7 date=2012-08-31T22:00:00.000Z
+tomorrow at 5pm          index=0 text="tomorrow at 5pm" start=2012-8-2 h=17 date=2012-08-02T08:00:00.000Z
+end of this month        index=0 text="end of this month" start=2012-8-31 h=12 date=2012-08-31T03:00:00.000Z
+Deadline is this month   index=12 text="this month" start=2012-7-1 h=12 date=2012-07-01T03:00:00.000Z

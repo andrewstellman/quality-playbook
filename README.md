@@ -12,14 +12,14 @@ The Quality Playbook explores your codebase and works out the behavioral require
 - a duplicate-key check that passes when the first value is null
 - sanitization that runs after the branch decision it was supposed to guard
 
-It catches bugs that a thorough adversarial code-review prompt running on Claude Opus 4.8 misses. Along the way it also builds quality infrastructure that your project keeps, and every later review cycle runs against it:
+It catches bugs that a thorough adversarial code-review prompt misses. The gson bug in the leaderboard below is one: the adversarial review of the same code, made without the playbook, is in that bug's evidence folder and doesn't report it. Along the way it also builds quality infrastructure that your project keeps, and every later review cycle runs against it:
 
 - derived requirements
 - functional and integration tests
 - contracts and a coverage matrix
 - the code-review, spec-audit, and TDD verification protocols themselves
 
-*And this isn't theoretical! Maintainers have [merged fixes for 11 bugs](#merged-bugs-leaderboard) that the Quality Playbook found in the Linux kernel, Google's gson, aiohttp, calibre, OpenTelemetry and four other projects.*
+*And this isn't theoretical! Maintainers have [merged fixes for 22 bugs](#merged-bugs-leaderboard) that the Quality Playbook found in Javalin, the Linux kernel, Google's gson, aiohttp, calibre, OpenTelemetry and four other projects.*
 
 ## Quick start
 
@@ -39,11 +39,9 @@ Swap `claude` for `cursor`, `copilot`, `continue`, `codex`, `windsurf`, `cline`,
 
 The agent finds the installed skill on its own and runs the six phases (explore, generate, code review, spec audit, reconcile, verify), pausing after each one until you say "keep going". It writes the results into a `quality/` folder. Start with `quality/BUGS.md`, which lists the bugs it found.
 
-<!-- TOKENS: pending benchmark run — replace with real input/output token usage from arunner recall runs, e.g. "A full baseline run against repos X / Y / Z cost N input / M output tokens." Do not invent numbers. -->
-
 ## Merged bugs leaderboard
 
-As of 20 October 2026, maintainers have merged these 11 fixes, and 14 more fixes and reports are [submitted and waiting](#submitted-upstream). The full record, including the bugs that were held back, dropped or never filed, is in [`evidence/README.md`](evidence/README.md).
+As of 27 October 2026, maintainers have merged these 22 fixes, and 20 more fixes and reports are [submitted and waiting](#submitted-upstream). The full record, including the bugs that were held back, dropped or never filed, is in [`evidence/README.md`](evidence/README.md).
 
 | Project | The bug | Fix | Merged | Evidence |
 |---|---|---|---|---|
@@ -58,17 +56,28 @@ As of 20 October 2026, maintainers have merged these 11 fixes, and 14 more fixes
 | python-poetry `tomlkit` | Arithmetic on a float written with an explicit sign wrote a negative-zero result as `+-0.0`, which tomlkit itself then rejected | [#629](https://github.com/python-poetry/tomlkit/pull/629) | 2026-10-12 | [Evidence folder](evidence/tomlkit-float-negative-zero-sign/) |
 | harrisiirak `cron-parser` | String dates in the RFC 850 and asctime HTTP formats threw "unhandled timestamp", although cron-parser's README lists HTTP dates as supported | [#455](https://github.com/harrisiirak/cron-parser/pull/455) | 2026-10-11 | [Evidence folder](evidence/cron-parser-http-date-formats/) |
 | bradymholt `cRonstrue` | A list with a plain first value and a step printed "At 09:00 AMonly on Friday and , every 2 days of the week" | [#423](https://github.com/bradymholt/cRonstrue/pull/423) | 2026-10-20 | [Evidence folder](evidence/cronstrue-list-step-separator/) |
+| `javalin` | A percent-encoded or double-slash path served a static file without running the path-scoped before-handler that guards it | [#2665](https://github.com/javalin/javalin/pull/2665), released in 7.2.4 | 2026-10-22 | [Evidence folder](evidence/javalin-static-encoded-path-before-handler/) |
+| `javalin` | `BasicAuthPlugin` let every request through when no username and password were configured | [#2666](https://github.com/javalin/javalin/pull/2666), released in 7.2.4 | 2026-10-22 | [Evidence folder](evidence/javalin-basicauth-unset-credentials/) |
+| `javalin` | A HEAD request answered by a GET route was not checked against the GET route's roles | [#2668](https://github.com/javalin/javalin/pull/2668), released in 7.2.4 | 2026-10-22 | [Evidence folder](evidence/javalin-head-bypasses-get-roles/) |
+| `javalin` | `HttpResponseException` messages were returned unescaped as `text/html` | [#2669](https://github.com/javalin/javalin/pull/2669), released in 7.2.4 | 2026-10-22 | [Evidence folder](evidence/javalin-exception-message-html-xss/) |
+| `javalin` | A carriage return in a server-sent-events comment could start a new event field | [#2670](https://github.com/javalin/javalin/pull/2670), released in 7.2.4 | 2026-10-22 | [Evidence folder](evidence/javalin-sse-comment-cr-injection/) |
+| `javalin` | Basic auth credentials were ignored unless the scheme was spelled exactly `Basic` | [#2671](https://github.com/javalin/javalin/pull/2671), released in 7.2.4 | 2026-10-22 | [Evidence folder](evidence/javalin-basicauth-scheme-case/) |
+| `javalin` | The lowercase-path redirect dropped the context path | [#2660](https://github.com/javalin/javalin/pull/2660), released in 7.2.4 | 2026-10-22 | [Evidence folder](evidence/javalin-lowercase-redirect-contextpath/) |
+| `javalin` | A static `hostedPath` was matched as a string prefix, so files were served at sibling URLs without their before-handler | [#2672](https://github.com/javalin/javalin/pull/2672), released in 7.2.4 | 2026-10-23 | [Evidence folder](evidence/javalin-static-hostedpath-prefix/) |
+| `javalin` | The precompression cache was shared across static-file configs, so one config's file could be served for another's | [#2673](https://github.com/javalin/javalin/pull/2673), released in 7.2.4 | 2026-10-23 | [Evidence folder](evidence/javalin-precompress-cache-shared/) |
+| `javalin` | Any request with a `Sec-WebSocket-Version` header created an HTTP session that never expired | [#2674](https://github.com/javalin/javalin/pull/2674), released in 7.2.4 | 2026-10-23 | [Evidence folder](evidence/javalin-ws-upgrade-creates-session/) |
+| `javalin` | `UploadedFile.filename()` kept directory components such as `../` from the client | [#2675](https://github.com/javalin/javalin/pull/2675), released in 7.2.4 | 2026-10-23 | [Evidence folder](evidence/javalin-upload-filename-directory/) |
 
-*Open-source maintainers are drowning in AI-generated pull requests right now, and I have no intention of adding to that pile. The playbook's agents reproduced each of these bugs and drafted the patches, but before anything went upstream I read the code, ran the red and green tests myself, and checked their output against the finding. For the virtio bug that meant booting a patched kernel under QEMU. Every one of these fixes says in its pull request or commit message that AI was involved, except the zram patch, which went in before I started requiring that.*
+*Open-source maintainers are drowning in AI-generated pull requests right now, and I have no intention of adding to that pile. The playbook's agents reproduced each of these bugs and drafted the patches, but before anything went upstream I read the code, checked that each regression test failed without the fix and passed with it, and checked the output against the finding. For the virtio bug that meant booting a patched kernel under QEMU. Every one of these fixes says in its pull request or commit message that AI was involved, except the zram patch, which went in before I started requiring that.*
 
-*Every bug has a record in this repository, which the evidence column links to: the reproduction logs, the patch as sent, and (for all but virtio, zram and gson, which came before I added that step) the review that preceded submission. The gson and zram records are the raw run output, recovered from a backup after the fact; each folder's `NOTE.md` says what is and is not there.*
+*Every bug in this table and the next has a record in this repository, which the evidence column links to: the reproduction logs, the patch as sent, and (for all but virtio, zram and gson, which came before I added that step) the review that preceded submission. The gson and zram records are the raw run output, recovered from a backup after the fact; each folder's `NOTE.md` says what is and is not there.*
 
 ## Contents
 
+- [Quick start](#quick-start)
 - [Merged bugs leaderboard](#merged-bugs-leaderboard)
 - [How to install the Quality Playbook](#how-to-install-the-quality-playbook)
 - [How to run the Quality Playbook](#how-to-run-the-quality-playbook)
-- [Example output](#example-output)
 - [Need help? Just ask your AI](#need-help-just-ask-your-ai)
 - [Running the playbook](#running-the-playbook)
 - [What the playbook produces](#what-the-playbook-produces)
@@ -183,25 +192,6 @@ quality/
 
 Start with `BUGS.md` for the headline findings. Then read `REQUIREMENTS.md`, the playbook's account of what your code is supposed to do, which includes requirements it derived from issues and docs you may not have known about. The bugs it reports come from the gap between what `REQUIREMENTS.md` says and what your code does.
 
-## Example output
-
-The `quality/` directory in this repository contains the real output of running the playbook against its own code.
-
-| File | What to look at |
-|------|----------------|
-| [REQUIREMENTS.md](quality/REQUIREMENTS.md) | Behavioral requirements derived from the skill specification. Every other file is built from these. |
-| [QUALITY.md](quality/QUALITY.md) | Quality constitution defining fitness-to-purpose scenarios and coverage targets for the playbook itself. |
-| [test_functional.py](quality/test_functional.py) | Functional tests traced to requirements, written in the project's native language. |
-| [CONTRACTS.md](quality/CONTRACTS.md) | Raw behavioral contracts extracted from the codebase before requirement derivation. |
-| [COVERAGE_MATRIX.md](quality/COVERAGE_MATRIX.md) | Traceability matrix mapping every contract to the requirement that covers it. |
-| [COMPLETENESS_REPORT.md](quality/COMPLETENESS_REPORT.md) | Final gate report with post-reconciliation verdict. |
-| [RUN_CODE_REVIEW.md](quality/RUN_CODE_REVIEW.md) | Three-pass code review protocol ready for any AI session to execute. |
-| [RUN_SPEC_AUDIT.md](quality/RUN_SPEC_AUDIT.md) | Council of Three spec audit protocol. |
-| [RUN_TDD_TESTS.md](quality/RUN_TDD_TESTS.md) | Red-green TDD verification protocol for confirmed bugs. |
-| [PROGRESS.md](quality/PROGRESS.md) | Phase-by-phase checkpoint log with a cumulative bug tracker, which keeps every finding on disk so none is lost between phases. |
-| [code_reviews/](quality/code_reviews/) | Code review output from the three-pass protocol. |
-| [spec_audits/](quality/spec_audits/) | Individual auditor reports and triage from the Council of Three. |
-
 ## Need help? Just ask your AI
 
 The rest of this README covers the playbook's phases and output files, but the easiest way to get answers is to **download one file, attach it to your favorite AI chatbot, and ask it whatever you want to know.**
@@ -231,15 +221,17 @@ The playbook runs in **six phases**, each in its own context window. After each 
 | 5. Reconciliation | Every bug from the code review and the spec audit is tracked, and either gets a regression test or is explicitly exempted. |
 | 6. Verify | 45 self-check benchmarks validate generated artifacts. Final gate: GATE PASSED / GATE PASSED WITH CLEANUP NEEDED / GATE PASSED WITH DECISIONS NEEDED / GATE FAILED. |
 
+After Phase 6 the agent presents a summary of the results and a menu of next steps (`SKILL.md` calls this Phase 7). Since v1.6.1 it can also prepare an upstream submission for one confirmed bug at a time: a policy check, confirmation, a fix, a blind review panel and a draft PR. It never submits anything itself.
+
 After the first six-phase run (the baseline), you can run four **iteration** strategies in order: gap, unfiltered, parity, and adversarial. Each strategy looks for different classes of bug, and running all four typically adds 40 to 60 percent more confirmed bugs on top of the baseline. Say *"Run the next iteration using the gap strategy"* to begin.
 
 After you fix bugs, say *"recheck"*. Recheck mode checks your fixes against the existing bug report without re-running the full pipeline, and takes 2 to 10 minutes.
 
-To run the playbook autonomously or in CI, use the prompt under *Running autonomously or in CI* in [Want to learn more?](#want-to-learn-more) below, or the orchestrator agent in `agents/quality-playbook.agent.md`.
+To run the playbook autonomously or in CI, use the prompt under *Running autonomously or in CI* in [Want to learn more?](#want-to-learn-more) below, or the orchestrator agent in `plugins/quality-playbook/skills/quality-playbook/agents/quality-playbook.agent.md`.
 
 ### Run time and token use
 
-A typical baseline run (all six phases) on a 100K-line project takes 1 to 2 hours and uses a large share of a daily or weekly quota on most providers. The autonomous run that adds the four iteration strategies as separate sub-agents takes 1 to 3 hours.
+A full baseline run takes hours and uses a large share of a daily or weekly quota on most providers. One measured example: the run on Javalin (about 13,000 lines of non-test Kotlin and Java) on 29 and 30 September 2026, with QPB 1.6.0 on Claude Opus 5.5, took about 24 hours from start to finish and used the equivalent of about $94 at API prices. That run found the Javalin bugs in the leaderboard above.
 
 For multi-repo benchmark work, see [`harness_plans/`](harness_plans/) for parallel-pool plan formats and `docs/design/QPB_Test_Harness_*.md` for the harness internals.
 
@@ -330,30 +322,36 @@ If `TOOLKIT.md` doesn't answer your question, file an issue at https://github.co
 
 ## Submitted upstream
 
-These fixes and reports, newest first, are still waiting on the maintainers. On 20 October 2026 I checked each pull request below with git against its repository's default branch, and none had been merged; git does not show whether a pull request was closed without merging. I didn't check the two zod issues or the two nvmet patches that day.
+These fixes and reports are still waiting on the maintainers. All of them were checked on GitHub on 27 October 2026, and none had been merged or closed. The three Linux patches were checked against the history of mainline (`torvalds/linux`), not their mailing-list threads. The five marshmallow pull requests from #3086 to #3090 share one evidence folder: three of them were first reported privately to marshmallow's security contact, who ruled them not security issues and asked for public pull requests. Reports that may be security issues and are still private are not listed until the maintainers publish them.
 
-| Project | The bug | Submitted |
-|---|---|---|
-| wanasit `chrono` | With a reference timezone that differs from the system's, "this month", "last night" and dates without a year used the system timezone's calendar | [#670](https://github.com/wanasit/chrono/pull/670) |
-| RubyMoney `money` | Dividing a subclass of `Money` by a plain `Money` returned a `Money` instead of a `Float` | [#1237](https://github.com/RubyMoney/money/pull/1237) |
-| sporkmonger `addressable` | `route_from` returned an empty string when only the base URI had a query | [#623](https://github.com/sporkmonger/addressable/pull/623) |
-| `javalin` | The lowercase-path redirect dropped the context path | [#2660](https://github.com/javalin/javalin/pull/2660) |
-| `marshmallow` | `URL(relative=True)` rejected a relative URL with "://" in its path, query or fragment | [#3067](https://github.com/marshmallow-code/marshmallow/pull/3067) |
-| pypa `setuptools` | `readme` or `requires-python` set outside `dynamic` crashed instead of being warned about and ignored | [#5343](https://github.com/pypa/setuptools/pull/5343) |
-| spf13 `cobra` | Command suggestions measured edit distance in bytes, not characters | [#2514](https://github.com/spf13/cobra/pull/2514) |
-| adonisjs `http-server` | A cookie with `maxAge: 0` was sent without `Max-Age` | [#145](https://github.com/adonisjs/http-server/pull/145) (the maintainer asked for a non-breaking alternative, and I haven't replied yet) |
-| colinhacks `zod` | `registry.remove()` deleted an id that now belonged to another schema | [issue #6640](https://github.com/colinhacks/zod/issues/6640) (zod accepts pull requests only from collaborators) |
-| colinhacks `zod` | An intersection threw when both sides produced `NaN` | [issue #6639](https://github.com/colinhacks/zod/issues/6639) |
-| NVIDIA `bionemo-recipes` | The THD context-parallel split dropped the remainder tokens | [#1765](https://github.com/NVIDIA-BioNeMo/bionemo-recipes/pull/1765) |
-| NVIDIA `bionemo-recipes` | AMPLIFY `_pad_weights` returned fp32 for bf16 input | [#1764](https://github.com/NVIDIA-BioNeMo/bionemo-recipes/pull/1764) |
-| Linux kernel `nvmet` | ANA group ID 128 was clamped to 0 by `array_index_nospec()` | patch sent to linux-nvme, 10 September 2026 |
-| Linux kernel `nvmet` | The CRTO property was computed from CSTS instead of CAP | patch sent to linux-nvme, 10 September 2026 |
+| Project | The bug | Submitted | Evidence |
+|---|---|---|---|
+| wanasit `chrono` | With a reference timezone that differs from the system's, "this month", "last night" and dates without a year used the system timezone's calendar | [#670](https://github.com/wanasit/chrono/pull/670) | [Evidence folder](evidence/chrono-ref-timezone-calendar/) |
+| RubyMoney `money` | Dividing a subclass of `Money` by a plain `Money` returned a `Money` instead of a `Float` | [#1237](https://github.com/RubyMoney/money/pull/1237) (approved by a maintainer, with a suggested extra test) | [Evidence folder](evidence/money-subclass-money-ratio/) |
+| sporkmonger `addressable` | `route_from` returned an empty string when only the base URI had a query | [#623](https://github.com/sporkmonger/addressable/pull/623) | [Evidence folder](evidence/addressable-route-from-base-query/) |
+| `javalin` | `enableBasicAuth` did not protect WebSocket upgrades | [#2667](https://github.com/javalin/javalin/pull/2667) (held by the maintainer for Javalin 8, where it changes documented behaviour) | [Evidence folder](evidence/javalin-basicauth-websocket-upgrade/) |
+| `marshmallow` | `URL(relative=True)` rejected a relative URL with "://" in its path, query or fragment | [#3067](https://github.com/marshmallow-code/marshmallow/pull/3067) | [Evidence folder](evidence/marshmallow-url-relative-scheme/) |
+| `marshmallow` | A `pre_load(pass_collection=True)` hook that changes the data's length made a per-item `@validates_schema` raise `ValueError` under `many=True` | [#3086](https://github.com/marshmallow-code/marshmallow/pull/3086) | [Evidence folder](evidence/marshmallow-tidelift-validation-bypasses/) |
+| `marshmallow` | A `@validates` method never ran for a field with a dotted `attribute` | [#3087](https://github.com/marshmallow-code/marshmallow/pull/3087) | [Evidence folder](evidence/marshmallow-tidelift-validation-bypasses/) |
+| `marshmallow` | A value rejected by `@validates` on a field with `attribute` set stayed in `ValidationError.valid_data` | [#3088](https://github.com/marshmallow-code/marshmallow/pull/3088) | [Evidence folder](evidence/marshmallow-tidelift-validation-bypasses/) |
+| `marshmallow` | `Nested` dropped dotted `load_only` and `dump_only` for a nested schema instance | [#3089](https://github.com/marshmallow-code/marshmallow/pull/3089) | [Evidence folder](evidence/marshmallow-tidelift-validation-bypasses/) |
+| `marshmallow` | Under `unknown=INCLUDE`, an unknown key that matched a loaded field's key overwrote the loaded value | [#3090](https://github.com/marshmallow-code/marshmallow/pull/3090) | [Evidence folder](evidence/marshmallow-tidelift-validation-bypasses/) |
+| pypa `setuptools` | `readme` or `requires-python` set outside `dynamic` crashed instead of being warned about and ignored | [#5343](https://github.com/pypa/setuptools/pull/5343) (the maintainer has pushed review changes to it) | [Evidence folder](evidence/setuptools-missing-dynamic-crash/) |
+| spf13 `cobra` | Command suggestions measured edit distance in bytes, not characters | [#2514](https://github.com/spf13/cobra/pull/2514) | [Evidence folder](evidence/cobra-suggest-runes/) |
+| adonisjs `http-server` | A cookie with `maxAge: 0` was sent without `Max-Age` | [#145](https://github.com/adonisjs/http-server/pull/145) (the maintainer asked for a non-breaking alternative, and I offered a docs change instead) | [Evidence folder](evidence/adonis-cookie-maxage-zero/) |
+| colinhacks `zod` | `registry.remove()` deleted an id that now belonged to another schema | [issue #6640](https://github.com/colinhacks/zod/issues/6640) (zod accepts pull requests only from collaborators) | [Evidence folder](evidence/zod-registry-remove-owner/) |
+| colinhacks `zod` | An intersection threw when both sides produced `NaN` | [issue #6639](https://github.com/colinhacks/zod/issues/6639) | [Evidence folder](evidence/zod-intersection-nan/) |
+| NVIDIA `bionemo-recipes` | The THD context-parallel split dropped the remainder tokens | [#1765](https://github.com/NVIDIA-BioNeMo/bionemo-recipes/pull/1765) | [Evidence folder](evidence/bionemo-thd-cp-divisibility/) |
+| NVIDIA `bionemo-recipes` | AMPLIFY `_pad_weights` returned fp32 for bf16 input | [#1764](https://github.com/NVIDIA-BioNeMo/bionemo-recipes/pull/1764) | [Evidence folder](evidence/bionemo-amplify-pad-weights-dtype/) |
+| Linux kernel `nvmet-rdma` | A wrapping offset check let `nvmet_rdma_map_sgl_inline()` write out of bounds (found independently; an earlier report by Bryam Vargas is credited) | applied to nvme-7.4 by Keith Busch, 21 October 2026, not yet in mainline | [Evidence folder](evidence/nvmet-rdma-inline-sgl-oob/) |
+| Linux kernel `nvmet` | ANA group ID 128 was clamped to 0 by `array_index_nospec()` | patch sent to linux-nvme, 10 September 2026 | [Evidence folder](evidence/nvmet-anagrpid/) |
+| Linux kernel `nvmet` | The CRTO property was computed from CSTS instead of CAP | patch sent to linux-nvme, 10 September 2026 | [Evidence folder](evidence/nvmet-crto/) |
 
 ## Recent releases
 
 These are the highlights; [`CHANGELOG.md`](CHANGELOG.md) has the detail for every release.
 
-- **v1.6.1**: the release built from the open-source bug campaign. **Sub-agents under the parent-witness rule:** phases may run in per-phase sub-agents, as long as the parent session that spawned them re-runs the gate itself after Phase 6 (`bin/qpb_gate_witness.py`). **Preparing upstream submissions:** a new path after the six phases takes one confirmed bug at a time through a policy check, confirmation, a fix, a blind review panel and a prepared draft PR. The skill never submits anything upstream itself; five of its guardrails are written into `SKILL.md` and the rest are in `references/upstream_submission.md`. The release also adds rules for the claims QPB makes in its own output, a gate verdict that reports decisions and bug evidence plainly, and fixes to the persona validation that v1.6.0 introduced.
+- **v1.6.1**: the release built from the open-source bug campaign. **Sub-agents under the parent-witness rule:** phases may run in per-phase sub-agents, as long as the parent session that spawned them re-runs the gate itself after Phase 6 (`scripts/qpb_gate_witness.py` in the plugin's skill folder). **Preparing upstream submissions:** a new path after the six phases takes one confirmed bug at a time through a policy check, confirmation, a fix, a blind review panel and a prepared draft PR. The skill never submits anything upstream itself; five of its guardrails are written into `SKILL.md` and the rest are in `references/upstream_submission.md`. The release also adds rules for the claims QPB makes in its own output, a gate verdict that reports decisions and bug evidence plainly, and fixes to the persona validation that v1.6.0 introduced.
 - **v1.6.0**: the requirements review and grounding release. **Dump-and-go documentation classification:** drop any docs in `reference_docs/` and the model reads and classifies each one. The model cites authoritative references (marked `unconfirmed` until you confirm them), leaves CVEs, advisories and source code for you to decide on, and doesn't demote a real reference just because the project's maintainers didn't write it. **Agent-persona requirements validation:** fresh-context domain-expert and security personas independently check the derived requirements and correct them, with every change grounded in a document and revertable. The release also adds a mechanically checked structure for the requirements document, an opt-in interview in which you validate the requirements, and durable evidence of what you confirmed.
 - **v1.5.10**: repo hygiene. The canonical `SKILL.md` and `references/` moved back to the repo root as the single source of truth (the in-tree skill locations are symlinks), `SKILL.md` was trimmed, with per-phase detail loaded from `references/*.md` as needed, and run output and orphaned partial copies that had been committed were removed from tracking.
 - **v1.5.8**: distribution channels. QPB was published to pip (PyPI), npm, and the Claude Code plugin marketplace, with publish scripts that require an explicit `--publish` after a `--dry-run` (and `--otp` for 2FA), and the repository was restructured to Claude Code's standard self-hosted plugin marketplace layout (`plugins/quality-playbook/`).
@@ -431,14 +429,12 @@ quality-playbook/
 ├── reference_docs/          # Documentation QPB reads to derive requirements
 ├── scripts/                 # Repo-level helper scripts
 ├── quality_playbook_cli/    # CLI package
-├── quality/                 # Generated quality infrastructure (from running the skill on itself)
+├── quality/                 # quality/audits/ only; the self-run output was removed from tracking in v1.5.10
 ├── pyproject.toml           # Pip packaging + bundle globs
 ├── package.json             # npm shim packaging
 ├── CHANGELOG.md             # Per-release detail
 └── LICENSE.txt              # Apache 2.0
 ```
-
-The `quality/` directory holds the example output linked in [Example output](#example-output) above.
 
 ## How I improve the playbook
 
@@ -449,8 +445,8 @@ Each release goes through a Plan-Do-Check-Act loop, and the Check step is **benc
 **Improvement levers** are what I *change* to make the playbook better. Each lever lives in a known place in the codebase and can be tuned without affecting the others. The current levers are:
 
 - exploration breadth and depth (`references/exploration_patterns.md`, `references/iteration.md`)
-- code-derived versus domain-derived requirements (`references/requirements_*.md` plus `bin/citation_verifier.py`)
-- gate strictness (`quality_gate.py`)
+- code-derived versus domain-derived requirements (`references/requirements_*.md` plus the skill's `scripts/citation_verifier.py`)
+- gate strictness (the skill's `scripts/quality_gate.py`)
 - finalization robustness (`bin/run_playbook.py::_finalize_iteration`)
 - the mechanical citation extractor (`bin/skill_derivation/citation_search.py`, with its token-overlap pre-filter)
 - the four-pass skill-derivation pipeline (`bin/skill_derivation/pass_{a,b,c,d}.py` plus the divergence-detection modules under `bin/skill_derivation/divergence_*.py`)
@@ -461,7 +457,7 @@ I connect the levers to outcome recall with **regression replay**. I take a pinn
 
 ## Context
 
-This project accompanies the O'Reilly Radar article [AI Is Writing Our Code Faster Than We Can Verify It](https://www.oreilly.com/radar/ai-is-writing-our-code-faster-than-we-can-verify-it/), part of my [series on AI-driven development](https://oreillyradar.substack.com/p/the-accidental-orchestrator) for O'Reilly Radar. I built the playbook using AI-driven development, with [Octobatch](https://github.com/andrewstellman/octobatch), an open-source Python batch LLM orchestrator. This README was coauthored with Claude Cowork.
+This project accompanies the O'Reilly Radar article [AI Is Writing Our Code Faster Than We Can Verify It](https://www.oreilly.com/radar/ai-is-writing-our-code-faster-than-we-can-verify-it/), part of my [series on AI-driven development](https://oreillyradar.substack.com/p/the-accidental-orchestrator) for O'Reilly Radar. I built the playbook using AI-driven development, with [Octobatch](https://github.com/andrewstellman/octobatch), an open-source Python batch LLM orchestrator. This README was coauthored with Claude.
 
 ## License
 

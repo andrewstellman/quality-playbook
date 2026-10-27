@@ -1,0 +1,41 @@
+round 2 probes, process TZ=UTC. base = src at e925ac7d, fixed = amended commit. Probe files were jest tests in scratch clones.
+-- base (src at HEAD~1):
+    this month month=7
+    next month month=9
+    today month=8
+    Feb 15 year=2021
+    this week (instant 2012-08-04T22:00Z, JST) 2012-7-29
+    this year (instant 2012-12-31T22:00Z, JST) 2012
+-- fixed:
+    this month month=8
+    next month month=9
+    today month=8
+    Feb 15 year=2022
+    this week (instant 2012-08-04T22:00Z, JST) 2012-8-5
+    this year (instant 2012-12-31T22:00Z, JST) 2013
+-- last night and no-timezone rows, base then fixed:
+    last night, JST ref 2012-07-31T20:59:00Z -> 2012-7-30 h0
+    last night, JST ref 2012-07-31T21:00:00Z -> 2012-7-30 h0
+    last night, JST ref 2012-07-31T22:00:00Z -> 2012-7-30 h0
+    no timezone: this month | Date: 2012-7-1 h12 | {instant}: 2012-7-1 h12 | tz undefined: 2012-7-1 h12
+    no timezone: this week | Date: 2012-7-29 h12 | {instant}: 2012-7-29 h12 | tz undefined: 2012-7-29 h12
+    no timezone: this year | Date: 2012-1-1 h12 | {instant}: 2012-1-1 h12 | tz undefined: 2012-1-1 h12
+    no timezone: last night | Date: 2012-7-30 h0 | {instant}: 2012-7-30 h0 | tz undefined: 2012-7-30 h0
+    no timezone: Feb 15 | Date: 2012-2-15 h12 | {instant}: 2012-2-15 h12 | tz undefined: 2012-2-15 h12
+    no timezone: 15 Feb | Date: 2012-2-15 h12 | {instant}: 2012-2-15 h12 | tz undefined: 2012-2-15 h12
+    no timezone: 2/15 | Date: 2012-2-15 h12 | {instant}: 2012-2-15 h12 | tz undefined: 2012-2-15 h12
+    no timezone: February | Date: 2012-2-1 h12 | {instant}: 2012-2-1 h12 | tz undefined: 2012-2-1 h12
+Tests:       1 passed, 1 total
+--
+    last night, JST ref 2012-07-31T20:59:00Z -> 2012-8-1 h0
+    last night, JST ref 2012-07-31T21:00:00Z -> 2012-8-1 h0
+    last night, JST ref 2012-07-31T22:00:00Z -> 2012-7-31 h0
+    no timezone: this month | Date: 2012-7-1 h12 | {instant}: 2012-7-1 h12 | tz undefined: 2012-7-1 h12
+    no timezone: this week | Date: 2012-7-29 h12 | {instant}: 2012-7-29 h12 | tz undefined: 2012-7-29 h12
+    no timezone: this year | Date: 2012-1-1 h12 | {instant}: 2012-1-1 h12 | tz undefined: 2012-1-1 h12
+    no timezone: last night | Date: 2012-7-30 h0 | {instant}: 2012-7-30 h0 | tz undefined: 2012-7-30 h0
+    no timezone: Feb 15 | Date: 2012-2-15 h12 | {instant}: 2012-2-15 h12 | tz undefined: 2012-2-15 h12
+    no timezone: 15 Feb | Date: 2012-2-15 h12 | {instant}: 2012-2-15 h12 | tz undefined: 2012-2-15 h12
+    no timezone: 2/15 | Date: 2012-2-15 h12 | {instant}: 2012-2-15 h12 | tz undefined: 2012-2-15 h12
+    no timezone: February | Date: 2012-2-1 h12 | {instant}: 2012-2-1 h12 | tz undefined: 2012-2-1 h12
+Tests:       1 passed, 1 total
