@@ -223,8 +223,9 @@ quality-playbook install --into /path/to/your/repo --ai-tool <tool>
 
 `<tool>` is one of: `claude`, `cursor`, `copilot`, `continue`, `codex`,
 `windsurf`, `cline`, `aider`. The installer copies the skill files
-(`SKILL.md` and the six support directories, including the gate script
-`scripts/quality_gate.py`) into the right place for your AI coding agent
+(`SKILL.md`, `quality_gate.py` and the `references/`, `phase_prompts/`,
+`agents/`, `ai_context/` and `bin/` directories) into the right place for
+your AI coding agent
 (Claude Code, Cursor, GitHub Copilot CLI, and others),
 auto-detecting `.claude/`, `.github/`, `.cursor/`, `.continue/`,
 `.codex/`, `.windsurf/`, `.cline/`, or `.aider/`.
@@ -869,7 +870,7 @@ def step6_commit_and_push(
             "`git reset HEAD` in the fork to un-stage and inspect."
         )
     r_commit = _run(
-        ["git", "commit", "-m", f"Add {SKILL_NAME} skill v{version}"],
+        ["git", "commit", "-m", f"Update {SKILL_NAME} skill to v{version}"],
         cwd=fork_path,
     )
     _log_subprocess(log_fh, "git commit", r_commit)

@@ -61,30 +61,19 @@ Check that the quality playbook skill is installed. Look for SKILL.md in these l
 9. `.cline/skills/quality-playbook/SKILL.md` (Cline)
 10. `.aider/skills/quality-playbook/SKILL.md` (aider — does not auto-discover; read SKILL.md explicitly)
 
-Also check for a `references/` directory alongside SKILL.md. It should contain .md files (the full set includes iteration.md, review_protocols.md, spec_audit.md, verification.md, requirements_pipeline.md, exploration_patterns.md, defensive_patterns.md, schema_mapping.md, constitution.md, functional_tests.md, orchestrator_protocol.md, and others). Verify the directory exists and has at least 6 .md files.
+Also check for a `references/` directory and a `phase_prompts/` directory alongside SKILL.md. The installer puts both there.
 
 **If the skill is not installed**, tell the user:
 
-> The quality playbook skill isn't installed in this repository yet. Install it from the [quality-playbook repository](https://github.com/andrewstellman/quality-playbook):
+> The Quality Playbook skill isn't installed in this repository yet. Install it from the repository root with one command (it needs Python 3.10 or later):
 >
 > ```bash
-> # For Copilot
-> mkdir -p .github/skills/references .github/skills/phase_prompts
-> cp SKILL.md .github/skills/SKILL.md
-> cp .github/skills/quality_gate/quality_gate.py .github/skills/quality_gate.py
-> cp references/* .github/skills/references/
-> cp phase_prompts/*.md .github/skills/phase_prompts/
->
-> # For Claude Code
-> mkdir -p .claude/skills/quality-playbook/references .claude/skills/quality-playbook/phase_prompts
-> cp SKILL.md .claude/skills/quality-playbook/SKILL.md
-> cp .github/skills/quality_gate/quality_gate.py .claude/skills/quality-playbook/quality_gate.py
-> cp references/* .claude/skills/quality-playbook/references/
-> cp phase_prompts/*.md .claude/skills/quality-playbook/phase_prompts/
->
-> # v1.5.2: single reference_docs/ tree at the target repo root.
-> mkdir -p reference_docs reference_docs/cite
+> npx quality-playbook install --into . --ai-tool copilot
+> # or, without Node:
+> pipx run quality-playbook install --into . --ai-tool copilot
 > ```
+>
+> Use `--ai-tool claude`, `cursor`, `continue`, `codex`, `windsurf`, `cline` or `aider` for other tools. The installer copies SKILL.md, `quality_gate.py` and the `references/`, `phase_prompts/`, `agents/`, `ai_context/` and `bin/` directories into the right place for that tool. Details: https://github.com/andrewstellman/quality-playbook
 
 Then stop and wait for the user to install it.
 
