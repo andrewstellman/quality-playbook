@@ -412,7 +412,7 @@ operator-side unless you pass `--submit`.
    `npm start` regenerates — not `docs/README.skills.md`):
 
    ```bash
-   git add skills/{SKILL_NAME}/ README.md
+   git add -A skills/{SKILL_NAME}/ README.md docs/
    git commit -m "Update {SKILL_NAME} skill to v{version}"
    git push -u origin add-{SKILL_NAME}-{version}
    ```
@@ -846,7 +846,7 @@ def step6_commit_and_push(
     # `git add` is idempotent on already-staged paths; if there's nothing
     # to stage (idempotent re-run), `git commit` below handles it.
     r_add = _run(
-        ["git", "add", f"skills/{SKILL_NAME}/", "README.md"],
+        ["git", "add", "-A", f"skills/{SKILL_NAME}/", "README.md", "docs/"],
         cwd=fork_path,
     )
     _log_subprocess(log_fh, "git add", r_add)
