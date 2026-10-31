@@ -1,0 +1,1 @@
+sent: GHSA-j82w-28jv-3pmj https://github.com/sporkmonger/addressable/security/advisories/GHSA-j82w-28jv-3pmj

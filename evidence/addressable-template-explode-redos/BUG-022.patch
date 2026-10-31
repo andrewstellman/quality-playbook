@@ -1,0 +1,73 @@
+From 7859fd91bac4170eb70463b56b1979a0a3571cc4 Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <astellman@stellman-greene.com>
+Date: Wed, 21 Oct 2026 08:36:08 -0400
+Subject: [PATCH] Make exploded template matching linear for /, . and ;
+ operators
+
+The explode branch of Template#match joined members with an optional
+joiner, and the ; member pattern could split a member without '=' in
+several ways. Both let a run of members be partitioned in exponentially
+many ways, which backtracks catastrophically on regex engines without
+match memoization (MRI < 3.2, JRuby, TruffleRuby). Make the joiner
+mandatory and give each ;, ? and & member a single parse.
+
+---
+ lib/addressable/template.rb       | 10 ++++++++--
+ spec/addressable/template_spec.rb | 18 ++++++++++++++++++
+ 2 files changed, 26 insertions(+), 2 deletions(-)
+
+diff --git a/lib/addressable/template.rb b/lib/addressable/template.rb
+index 4059f03..a733fec 100644
+--- a/lib/addressable/template.rb
++++ b/lib/addressable/template.rb
+@@ -1026,10 +1026,16 @@ module Addressable
+             if modifier == '*'
+               seg = case operator
+                     when '+', '#' then "(?>#{RESERVED_NO_COMMA}*)"
++                    when ';' then "#{UNRESERVED}*(?:=#{UNRESERVED}*)?"
++                    when '?', '&' then "#{UNRESERVED}*=#{UNRESERVED}*"
+                     else group
+                     end
+-              joiner_pattern = operator.nil? ? joiner : "#{joiner}?"
+-              "(?<#{name}>#{seg}(?:#{joiner_pattern}#{seg})*)?"
++              # The joiner between exploded members must be mandatory. With
++              # an optional joiner, a run of members can be partitioned in
++              # exponentially many ways, which backtracks catastrophically on
++              # engines without match memoization (MRI < 3.2, JRuby,
++              # TruffleRuby).
++              "(?<#{name}>#{seg}(?:#{joiner}#{seg})*)?"
+             elsif atomic_multi && varspec != varspecs.last
+               "(?<#{name}>(?>#{RESERVED_NO_COMMA}*))"
+             elsif operator == '+' && varspecs.size == 1 &&
+diff --git a/spec/addressable/template_spec.rb b/spec/addressable/template_spec.rb
+index fa29f12..7a7c439 100644
+--- a/spec/addressable/template_spec.rb
++++ b/spec/addressable/template_spec.rb
+@@ -1083,6 +1083,24 @@ describe Addressable::Template do
+           end.not_to raise_error
+         end
+       end
++      {
++        "{/foo*}" => "/" + ("a/" * 1000) + "!",
++        "/prefix{/foo*}" => "/prefix/" + ("a/" * 1000) + "!",
++        "{.foo*}" => "." + ("a." * 1000) + "!",
++        "{;foo*}" => ";" + ("a=1;" * 1000) + "!",
++        "{;foo*} (members without values)" => ";" + ("ab;" * 1000) + "!"
++      }.each do |pattern, payload|
++        context "#{pattern} against a payload starting with its operator" do
++          subject { Addressable::Template.new(pattern.split(" ").first) }
++          it "should match in linear time against a non-matching payload" do
++            expect do
++              Timeout.timeout(10) do
++                expect(subject.match(payload)).to be_nil
++              end
++            end.not_to raise_error
++          end
++        end
++      end
+       context "? operator with explode modifier" do
+         subject { Addressable::Template.new("{?foo*}") }
+         it "should match in linear time against a non-matching payload" do
+-- 
+2.43.0
+
