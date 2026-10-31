@@ -1,0 +1,22 @@
+crontab content: "__proto__\n__proto__=polluted\n0 0 * * * ok\nconstructor\nFOO=bar"
+errors keys: [ 'constructor' ]
+errors proto is Object.prototype: false
+errors proto: TypeError: expression.trim is not a function
+    at #getRawFields (/tmp/claude-0/sec/cron-parser/src/dist/CronExpressionParser.js:122:34)
+    at CronExpressionParser.parse (/tmp/claude-0/sec/cron-parser/src/dist/CronExpressionParser.js:86:61)
+    at #parseEntry (/tmp/claude-0/sec/cron-parser/src/dist/CronFileParser.js:72:67)
+    at #parseContent (/tmp/claude-0/sec/cron-parser/src/dist/CronFileParser.js:56:63)
+    at CronFileParser.parseFileSync (/tmp/claude-0/sec/cron-parser/src/dist/CronFileParser.js:31:44)
+    at Object.<anonymous> (/tmp/claude-0/sec/cron-parser/notes/repro-bug010.cjs:13:31)
+    at Module._compile (node:internal/modules/cjs/loader:1706:14)
+    at Object..js (node:internal/modules/cjs/loader:1839:10)
+    at Module.load (node:internal/modules/cjs/loader:1441:32)
+    at Function._load (node:internal/modules/cjs/loader:1263:12)
+errors.message (inherited through replaced proto): expression.trim is not a function
+JSON.stringify(errors): {"constructor":{}}
+variables keys: [ 'FOO' ]
+variables proto is Object.prototype: true
+variables: { FOO: 'bar' }
+expressions count: 1
+global Object.prototype polluted? ({}).message: undefined ({}).polluted: undefined
+async parseFile: errors proto is Object.prototype: false | errors keys: [ 'constructor' ] | variables keys: [ 'FOO' ]

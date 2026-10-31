@@ -1,0 +1,71 @@
+From 3460e2896e77e9fae641dd03e02ee8dcd5604848 Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <andrew@stellman.com>
+Date: Tue, 20 Oct 2026 15:52:28 -0400
+Subject: [PATCH] fix: define crontab variables and errors as own properties in
+ CronFileParser
+
+A crontab line or variable named __proto__ was assigned with a plain
+bracket assignment on a {} literal, which hits the Object.prototype
+__proto__ setter: a line "__proto__" that fails to parse replaces the
+prototype of the returned errors object with the error, and a variable
+"__proto__=..." is dropped. Define both as own properties instead.
+Adds a regression test.
+---
+ src/CronFileParser.ts        | 15 +++++++++++++--
+ tests/CronFileParser.test.ts | 10 ++++++++++
+ 2 files changed, 23 insertions(+), 2 deletions(-)
+
+diff --git a/src/CronFileParser.ts b/src/CronFileParser.ts
+index c815fc0..463c77e 100644
+--- a/src/CronFileParser.ts
++++ b/src/CronFileParser.ts
+@@ -58,7 +58,13 @@ export class CronFileParser {
+       const variableMatch = entry.match(/^(.*)=(.*)$/);
+       if (variableMatch) {
+         const [, key, value] = variableMatch;
+-        result.variables[key] = value.replace(/["']/g, ''); // Remove quotes
++        // Define an own property so that a key such as `__proto__` cannot replace the prototype
++        Object.defineProperty(result.variables, key, {
++          value: value.replace(/["']/g, ''), // Remove quotes
++          enumerable: true,
++          writable: true,
++          configurable: true,
++        });
+         continue;
+       }
+ 
+@@ -66,7 +72,12 @@ export class CronFileParser {
+         const parsedEntry = CronFileParser.#parseEntry(entry);
+         result.expressions.push(parsedEntry.interval);
+       } catch (err: unknown) {
+-        result.errors[entry] = err;
++        Object.defineProperty(result.errors, entry, {
++          value: err,
++          enumerable: true,
++          writable: true,
++          configurable: true,
++        });
+       }
+     }
+ 
+diff --git a/tests/CronFileParser.test.ts b/tests/CronFileParser.test.ts
+index 828a06c..8e8c97f 100644
+--- a/tests/CronFileParser.test.ts
++++ b/tests/CronFileParser.test.ts
+@@ -114,6 +114,16 @@ describe('CronFileParser', () => {
+       }
+     });
+ 
++    test('keeps a line named __proto__ as an own property instead of replacing the prototype', () => {
++      (fs.readFileSync as jest.Mock).mockReturnValueOnce(['__proto__', '__proto__=polluted', 'ok=1'].join('\n'));
++      const result = CronFileParser.parseFileSync('./temp-proto.txt');
++
++      expect(Object.getPrototypeOf(result.errors)).toBe(Object.prototype);
++      expect(Object.getPrototypeOf(result.variables)).toBe(Object.prototype);
++      expect(Object.keys(result.errors)).toEqual(['__proto__']);
++      expect(Object.keys(result.variables)).toEqual(['__proto__', 'ok']);
++    });
++
+     test('throws error for non-existing file', () => {
+       expect(() => CronFileParser.parseFileSync('./nonexistent.txt')).toThrow('File not found');
+       expect(fs.readFileSync).toHaveBeenCalledWith('./nonexistent.txt', 'utf8');

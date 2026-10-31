@@ -19,7 +19,7 @@ It catches bugs that a thorough adversarial code-review prompt misses. The gson 
 - contracts and a coverage matrix
 - the code-review, spec-audit, and TDD verification protocols themselves
 
-*And this isn't theoretical! Maintainers have [merged or released fixes for 24 bugs](#merged-bugs-leaderboard) that the Quality Playbook found in Javalin, the Linux kernel, Google's gson, aiohttp, calibre, OpenTelemetry and five other projects.*
+*And this isn't theoretical! Maintainers have [merged or released fixes for 25 bugs](#merged-bugs-leaderboard) that the Quality Playbook found in Javalin, the Linux kernel, Google's gson, aiohttp, calibre, OpenTelemetry and five other projects.*
 
 ## Quick start
 
@@ -41,7 +41,7 @@ The agent finds the installed skill on its own and runs the six phases (explore,
 
 ## Merged bugs leaderboard
 
-As of 31 October 2026, maintainers have merged or released fixes for these 24 bugs, and 20 more fixes and reports are [submitted and waiting](#submitted-upstream). Two of them were private security reports, published by the maintainer as advisories once the fix was released. The full record, including the bugs that were held back, dropped or never filed, is in [`evidence/README.md`](evidence/README.md).
+As of 31 October 2026, maintainers have merged or released fixes for these 25 bugs, and 20 more fixes and reports are [submitted and waiting](#submitted-upstream). Three of them were private security reports, published by the maintainer as advisories once the fix was released. The full record, including the bugs that were held back, dropped or never filed, is in [`evidence/README.md`](evidence/README.md).
 
 | Project | The bug | Fix | Merged | Evidence |
 |---|---|---|---|---|
@@ -58,6 +58,7 @@ As of 31 October 2026, maintainers have merged or released fixes for these 24 bu
 | bradymholt `cRonstrue` | A list with a plain first value and a step printed "At 09:00 AMonly on Friday and , every 2 days of the week" | [#423](https://github.com/bradymholt/cRonstrue/pull/423) | 2026-10-20 | [Evidence folder](evidence/cronstrue-list-step-separator/) |
 | sporkmonger `addressable` | `display_uri` showed hosts containing bidi and invisible characters decoded from Punycode, so a host could be made to look like a different one (security advisory, low) | [GHSA-539f](https://github.com/sporkmonger/addressable/security/advisories/GHSA-539f-xcgw-2gjg), fixed in 2.9.1 | 2026-10-30 | [Evidence folder](evidence/addressable-display-uri-bidi/) |
 | sporkmonger `addressable` | `Template#match` still backtracked exponentially for `{/var*}`, `{.var*}` and `{;var*}` after the 2.9.0 ReDoS fix (security advisory, moderate; two other reporters found overlapping cases) | [GHSA-j82w](https://github.com/sporkmonger/addressable/security/advisories/GHSA-j82w-28jv-3pmj), fixed in 2.9.1 | 2026-10-30 | [Evidence folder](evidence/addressable-template-explode-redos/) |
+| harrisiirak `cron-parser` | A crontab line or variable named `__proto__` replaced the prototype of `CronFileParser`'s `errors` and `variables` result objects instead of being stored as an entry (security advisory, low) | [GHSA-vh7f](https://github.com/harrisiirak/cron-parser/security/advisories/GHSA-vh7f-3c46-hfp3), fixed in 5.10.3 by [#461](https://github.com/harrisiirak/cron-parser/pull/461) | 2026-10-31 | [Evidence folder](evidence/cron-parser-proto-crontab-key/) |
 | `javalin` | A percent-encoded or double-slash path served a static file without running the path-scoped before-handler that guards it | [#2665](https://github.com/javalin/javalin/pull/2665), released in 7.2.4 | 2026-10-22 | [Evidence folder](evidence/javalin-static-encoded-path-before-handler/) |
 | `javalin` | `BasicAuthPlugin` let every request through when no username and password were configured | [#2666](https://github.com/javalin/javalin/pull/2666), released in 7.2.4 | 2026-10-22 | [Evidence folder](evidence/javalin-basicauth-unset-credentials/) |
 | `javalin` | A HEAD request answered by a GET route was not checked against the GET route's roles | [#2668](https://github.com/javalin/javalin/pull/2668), released in 7.2.4 | 2026-10-22 | [Evidence folder](evidence/javalin-head-bypasses-get-roles/) |

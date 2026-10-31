@@ -2,7 +2,6 @@
 
 # Private security reports, until the maintainers publish them
 adonis-authority-forwarded-host/
-cron-parser-proto-crontab-key/
 
 # Submission script and terminal log for the 20 Oct reports: they also carry the still-private adonis report
 addressable-display-uri-bidi/submit.sh

@@ -1,0 +1,12 @@
+crontab content: "__proto__\n__proto__=polluted\n0 0 * * * ok\nconstructor\nFOO=bar"
+errors keys: [ '__proto__', 'constructor' ]
+errors proto is Object.prototype: true
+errors proto: [Object: null prototype] {}
+errors.message (inherited through replaced proto): undefined
+JSON.stringify(errors): {"__proto__":{},"constructor":{}}
+variables keys: [ '__proto__', 'FOO' ]
+variables proto is Object.prototype: true
+variables: { ['__proto__']: 'polluted', FOO: 'bar' }
+expressions count: 1
+global Object.prototype polluted? ({}).message: undefined ({}).polluted: undefined
+async parseFile: errors proto is Object.prototype: true | errors keys: [ '__proto__', 'constructor' ] | variables keys: [ '__proto__', 'FOO' ]
