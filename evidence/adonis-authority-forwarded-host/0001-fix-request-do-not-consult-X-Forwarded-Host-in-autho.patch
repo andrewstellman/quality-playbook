@@ -1,0 +1,68 @@
+From af84c7756e118815da8684f142dc8d93d4f16da6 Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <andrew@stellman.com>
+Date: Tue, 20 Oct 2026 14:52:27 -0400
+Subject: [PATCH] fix(request): do not consult X-Forwarded-Host in authority()
+
+authority() is documented as not consulting X-Forwarded-Host, but it
+fell back to host(), which does when the peer is a trusted proxy.
+getPreviousUrl() uses authority() as the same-origin reference for
+redirect().back(), so a forwarded host accepted from a trusted proxy
+could make an attacker-controlled Referer pass that check. Fall back to
+the raw Host header instead, as the JSDoc says. Adds a regression test.
+---
+ src/request.ts        |  2 +-
+ tests/request.spec.ts | 28 ++++++++++++++++++++++++++++
+ 2 files changed, 29 insertions(+), 1 deletion(-)
+
+diff --git a/src/request.ts b/src/request.ts
+index d4470f7..e7fe842 100644
+--- a/src/request.ts
++++ b/src/request.ts
+@@ -589,7 +589,7 @@ export class HttpRequest extends Macroable {
+    * @returns {string | null} The authority value or null if neither header is present
+    */
+   authority(): string | null {
+-    return this.header(':authority') || this.host() || null
++    return this.header(':authority') || this.header('host') || null
+   }
+ 
+   /**
+diff --git a/tests/request.spec.ts b/tests/request.spec.ts
+index 887a26d..4e8a3e4 100644
+--- a/tests/request.spec.ts
++++ b/tests/request.spec.ts
+@@ -626,6 +626,34 @@ test.group('Request', () => {
+     assert.equal(body.ip, '10.10.10.10')
+   })
+ 
++  test('do not consult X-Forwarded-Host in authority', async ({ assert }) => {
++    const { url } = await httpServer.create((req, res) => {
++      const request = new HttpRequestFactory()
++        .merge({
++          req,
++          res,
++          encryption,
++          config: {
++            trustProxy: proxyAddr.compile('loopback'),
++          },
++        })
++        .create()
++      res.writeHead(200, { 'content-type': 'application/json' })
++      res.end(
++        JSON.stringify({
++          host: request.host(),
++          authority: request.authority(),
++          hostHeader: request.header('host'),
++        })
++      )
++    })
++
++    const { body } = await supertest(url).get('/').set('x-forwarded-host', 'evil.example.test')
++
++    assert.equal(body.host, 'evil.example.test')
++    assert.equal(body.authority, body.hostHeader)
++  })
++
+   test('use the first forwarded host from a trusted proxy', async ({ assert }) => {
+     const { url } = await httpServer.create((req, res) => {
+       const request = new HttpRequestFactory()

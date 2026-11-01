@@ -1,11 +1,6 @@
 # Kept out of the public repository. README.md, "What is not published here", says why.
 
 # Private security reports, until the maintainers publish them
-adonis-authority-forwarded-host/
-
-# Submission script and terminal log for the 20 Oct reports: they also carry the still-private adonis report
-addressable-display-uri-bidi/submit.sh
-addressable-display-uri-bidi/submission-terminal.txt
 
 # Private correspondence and drafts of it
 *.eml

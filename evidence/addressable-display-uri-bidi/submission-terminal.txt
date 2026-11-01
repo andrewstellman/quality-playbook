@@ -1,0 +1,87 @@
+Last login: Tue Oct 20 14:25:21 on ttys000
+andrewstellman@Mac ~ % cd ~/Documents/QPB/harness_runs/security-disclosure-2026-10-20/advisories
+bash submit.sh            # dry run: prints both payloads, sends nothing
+bash submit.sh --send     # asks y/N before each report, then posts it
+Submitting as: andrewstellman
+
+=== adonisjs/http-server
+summary: authority() consults X-Forwarded-Host, which lets a forwarded host defeat the same-origin check in redirect().back()
+severity: medium cwe: ['CWE-601', 'CWE-348']
+package: [{'package': {'ecosystem': 'npm', 'name': '@adonisjs/http-server'}, 'vulnerable_version_range': '>= 9.0.0, <= 9.3.1'}]
+description length: 4635 chars
+
+`Request.authority()` (src/request.ts:591) is documented as not consulting `X-Forwarded-Host` and as unaffected by `trustProxy`, because it exists to give a trustworthy value for validating redirect targets against the current origin. The implementation returns `this.header(':authority') || this.host() || null`, and `host()` does consult `X-Forwarded-Host` when the peer is a trusted proxy.
+
+`getPreviousUrl()` (src/helpers.ts:114) uses `authority()` as the same-origin reference when `redirect().back()` validates the `Referer` header. So when a trusted proxy forwards a client-supplied `X-Forwarded-Host`, a request with `X-Forwarded-Host: evil.example.test` and `Referer: https://evil.example.test/...` passes the check, and `back()` redirects to the attacker's host. That is the redirect the helper exists to prevent.
+
+Preconditions: the request's peer must be trusted by `trustProxy`. The default is `proxyAddr.compile('loopback')`, so the common shape is a reverse proxy on the same host that passes `X-Forwarded-Host` through from the client rather than overwriting it from the validated `Host`. An app that does not trust its proxy, or a proxy that sets the header itself, is not exposed.
+
+
+...
+(dry run, not sent)
+
+=== sporkmonger/addressable
+summary: display_uri decodes punycode labels containing bidi and other display-changing control characters (pure IDNA backend)
+severity: low cwe: ['CWE-451', 'CWE-176']
+package: [{'package': {'ecosystem': 'rubygems', 'name': 'addressable'}, 'vulnerable_version_range': '<= 2.9.0'}]
+description length: 2416 chars
+
+`Addressable::IDNA.to_unicode` in the pure Ruby backend (lib/addressable/idna/pure.rb:92-99) punycode-decodes an ACE (`xn--`) label and returns the result without the nameprep prohibited-output check (RFC 3454 tables C.8 and C.9; UTS 46 disallows these as well). `Addressable::URI#display_uri` therefore shows hosts containing U+202E RIGHT-TO-LEFT OVERRIDE, the other bidi controls (U+202A to U+202E, U+200E, U+200F) and format characters.
+
+`to_ascii` is correct, so parsing and routing are not affected; the problem is the human-readable form. Any application that renders `display_uri` (link previews, chat and email clients, admin UIs) can be made to display a hostname whose characters are visually reordered, so a hostile domain can be made to read like a trusted one.
+
+Reproduction (unmodified main, pure backend, 2026-10-20)
+
+    Addressable::URI.parse("http://xn--abcmoc-dm0c.com/").display_uri.host
+    => "abc‮moc.com"   # code points: U+0061 U+0062 U+0063 U+202E U+006D U+006F U+0063 U+002E U+0063 U+006F U+006D
+
+`xn--abcmoc-dm0c` is the ACE form `to_ascii` itself produces for `"abc‮moc"`, so the label is registrable and round-trips.
+
+Suggested fix
+
+In the pure backend's `to_unicode`, a
+...
+(dry run, not sent)
+Submitting as: andrewstellman
+
+=== adonisjs/http-server
+summary: authority() consults X-Forwarded-Host, which lets a forwarded host defeat the same-origin check in redirect().back()
+severity: medium cwe: ['CWE-601', 'CWE-348']
+package: [{'package': {'ecosystem': 'npm', 'name': '@adonisjs/http-server'}, 'vulnerable_version_range': '>= 9.0.0, <= 9.3.1'}]
+description length: 4635 chars
+
+`Request.authority()` (src/request.ts:591) is documented as not consulting `X-Forwarded-Host` and as unaffected by `trustProxy`, because it exists to give a trustworthy value for validating redirect targets against the current origin. The implementation returns `this.header(':authority') || this.host() || null`, and `host()` does consult `X-Forwarded-Host` when the peer is a trusted proxy.
+
+`getPreviousUrl()` (src/helpers.ts:114) uses `authority()` as the same-origin reference when `redirect().back()` validates the `Referer` header. So when a trusted proxy forwards a client-supplied `X-Forwarded-Host`, a request with `X-Forwarded-Host: evil.example.test` and `Referer: https://evil.example.test/...` passes the check, and `back()` redirects to the attacker's host. That is the redirect the helper exists to prevent.
+
+Preconditions: the request's peer must be trusted by `trustProxy`. The default is `proxyAddr.compile('loopback')`, so the common shape is a reverse proxy on the same host that passes `X-Forwarded-Host` through from the client rather than overwriting it from the validated `Host`. An app that does not trust its proxy, or a proxy that sets the header itself, is not exposed.
+
+
+...
+Send this report to adonisjs/http-server? [y/N] y
+sent. advisory: https://github.com/adonisjs/http-server/security/advisories/GHSA-q4g5-g4rh-h46c
+
+=== sporkmonger/addressable
+summary: display_uri decodes punycode labels containing bidi and other display-changing control characters (pure IDNA backend)
+severity: low cwe: ['CWE-451', 'CWE-176']
+package: [{'package': {'ecosystem': 'rubygems', 'name': 'addressable'}, 'vulnerable_version_range': '<= 2.9.0'}]
+description length: 2416 chars
+
+`Addressable::IDNA.to_unicode` in the pure Ruby backend (lib/addressable/idna/pure.rb:92-99) punycode-decodes an ACE (`xn--`) label and returns the result without the nameprep prohibited-output check (RFC 3454 tables C.8 and C.9; UTS 46 disallows these as well). `Addressable::URI#display_uri` therefore shows hosts containing U+202E RIGHT-TO-LEFT OVERRIDE, the other bidi controls (U+202A to U+202E, U+200E, U+200F) and format characters.
+
+`to_ascii` is correct, so parsing and routing are not affected; the problem is the human-readable form. Any application that renders `display_uri` (link previews, chat and email clients, admin UIs) can be made to display a hostname whose characters are visually reordered, so a hostile domain can be made to read like a trusted one.
+
+Reproduction (unmodified main, pure backend, 2026-10-20)
+
+    Addressable::URI.parse("http://xn--abcmoc-dm0c.com/").display_uri.host
+    => "abc‮moc.com"   # code points: U+0061 U+0062 U+0063 U+202E U+006D U+006F U+0063 U+002E U+0063 U+006F U+006D
+
+`xn--abcmoc-dm0c` is the ACE form `to_ascii` itself produces for `"abc‮moc"`, so the label is registrable and round-trips.
+
+Suggested fix
+
+In the pure backend's `to_unicode`, a
+...
+Send this report to sporkmonger/addressable? [y/N] y
+sent. advisory: https://github.com/sporkmonger/addressable/security/advisories/GHSA-539f-xcgw-2gjg
+andrewstellman@Mac advisories % 

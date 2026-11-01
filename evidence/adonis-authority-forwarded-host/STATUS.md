@@ -1,0 +1,11 @@
+status: open
+title: adonisjs/http-server: authority() consulted X-Forwarded-Host, although its JSDoc says it does not (reported privately; maintainer ruled it not a vulnerability)
+link: https://github.com/adonisjs/http-server/pull/149
+updated: 2026-10-31
+note: Public PR #149 opened 2026-11-01 against 9.x, after the private report GHSA-q4g5 was closed by agreement on 2026-10-31. The maintainer ruled on 2026-10-21 that it is not exploitable (a victim's browser cannot send X-Forwarded-Host) and treated it as a documentation fix; the PR offers a JSDoc-only change instead if he prefers.
+
+## History
+
+- Record as of 2026-10-31: Private report GHSA-q4g5 sent 2026-10-20. Romain said not exploitable on 2026-10-21; Andrew agreed the same day. Andrew closed the advisory with a comment on 2026-10-31 and the fix is staged as a public PR (harness_runs/security-disclosure-2026-10-20/stage-adonis-1031). BUG-021 is no longer held. Andrew closed the advisory with a comment on 2026-10-31. The PR's commit message was reworded from the private report's patch to describe the JSDoc mismatch rather than an attack.
+
+- Record as of 2026-10-21: BUG-011 of the 2026-09-29 adonis campaign run. Private vulnerability report submitted by Andrew via the GitHub API (submit.sh, see submission-terminal.txt) on 2026-10-20 at about 19:30 UTC, severity medium, CWE-601/CWE-348, range >= 9.0.0 <= 9.3.1, with the one-line fix and a regression test embedded (669/669 tests, typecheck, eslint, prettier clean). Reproduced the same day on main 0801ec2 (REPRO.md). Awaiting maintainer response. 2026-10-21 14:46Z: Romain Lanz replied on the advisory: the JSDoc is out of date, but not exploitable, because a victim's browser cannot send X-Forwarded-Host (navigations can't set it; a cross-origin fetch triggers a preflight), so only the attacker's own requests carry it; he will treat it as a documentation fix unless shown a real-world reproduction (received-2026-10-21-romain.eml). Andrew posted the reply on 2026-10-21 at 16:36 -0400 (text in harness_runs/security-disclosure-2026-10-20/adonis-1021/REPLY.md): agrees to close as not a vulnerability and offers the code fix or a JSDoc change as a public PR. No answer as of 2026-10-31. This also releases the hold on BUG-021 once the advisory is closed.
