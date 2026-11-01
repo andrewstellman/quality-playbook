@@ -19,7 +19,7 @@ It catches bugs that a thorough adversarial code-review prompt misses. The gson 
 - contracts and a coverage matrix
 - the code-review, spec-audit, and TDD verification protocols themselves
 
-*And this isn't theoretical! Maintainers have [merged or released fixes for 25 bugs](#merged-bugs-leaderboard) that the Quality Playbook found in Javalin, the Linux kernel, Google's gson, aiohttp, calibre, OpenTelemetry and five other projects.*
+*And this isn't theoretical! Maintainers have [merged or released fixes for 26 bugs](#merged-bugs-leaderboard) that the Quality Playbook found in Javalin, the Linux kernel, Google's gson, aiohttp, calibre, OpenTelemetry and five other projects.*
 
 ## Quick start
 
@@ -41,7 +41,7 @@ The agent finds the installed skill on its own and runs the six phases (explore,
 
 ## Merged bugs leaderboard
 
-As of 31 October 2026, maintainers have merged or released fixes for these 25 bugs, and 20 more fixes and reports are [submitted and waiting](#submitted-upstream). Three of them were private security reports, published by the maintainer as advisories once the fix was released. The full record, including the bugs that were held back, dropped or never filed, is in [`evidence/README.md`](evidence/README.md).
+As of 31 October 2026, maintainers have merged or released fixes for these 26 bugs, and 19 more fixes and reports are [submitted and waiting](#submitted-upstream). Three of them were private security reports, published by the maintainer as advisories once the fix was released. The full record, including the bugs that were held back, dropped or never filed, is in [`evidence/README.md`](evidence/README.md).
 
 | Project | The bug | Fix | Merged | Evidence |
 |---|---|---|---|---|
@@ -56,6 +56,7 @@ As of 31 October 2026, maintainers have merged or released fixes for these 25 bu
 | python-poetry `tomlkit` | Arithmetic on a float written with an explicit sign wrote a negative-zero result as `+-0.0`, which tomlkit itself then rejected | [#629](https://github.com/python-poetry/tomlkit/pull/629) | 2026-10-12 | [Evidence folder](evidence/tomlkit-float-negative-zero-sign/) |
 | harrisiirak `cron-parser` | String dates in the RFC 850 and asctime HTTP formats threw "unhandled timestamp", although cron-parser's README lists HTTP dates as supported | [#455](https://github.com/harrisiirak/cron-parser/pull/455) | 2026-10-11 | [Evidence folder](evidence/cron-parser-http-date-formats/) |
 | bradymholt `cRonstrue` | A list with a plain first value and a step printed "At 09:00 AMonly on Friday and , every 2 days of the week" | [#423](https://github.com/bradymholt/cRonstrue/pull/423) | 2026-10-20 | [Evidence folder](evidence/cronstrue-list-step-separator/) |
+| sporkmonger `addressable` | `route_from` returned an empty string when only the base URI had a query | [#623](https://github.com/sporkmonger/addressable/pull/623) | 2026-10-31 | [Evidence folder](evidence/addressable-route-from-base-query/) |
 | sporkmonger `addressable` | `display_uri` showed hosts containing bidi and invisible characters decoded from Punycode, so a host could be made to look like a different one (security advisory, low) | [GHSA-539f](https://github.com/sporkmonger/addressable/security/advisories/GHSA-539f-xcgw-2gjg), fixed in 2.9.1 | 2026-10-30 | [Evidence folder](evidence/addressable-display-uri-bidi/) |
 | sporkmonger `addressable` | `Template#match` still backtracked exponentially for `{/var*}`, `{.var*}` and `{;var*}` after the 2.9.0 ReDoS fix (security advisory, moderate; two other reporters found overlapping cases) | [GHSA-j82w](https://github.com/sporkmonger/addressable/security/advisories/GHSA-j82w-28jv-3pmj), fixed in 2.9.1 | 2026-10-30 | [Evidence folder](evidence/addressable-template-explode-redos/) |
 | harrisiirak `cron-parser` | A crontab line or variable named `__proto__` replaced the prototype of `CronFileParser`'s `errors` and `variables` result objects instead of being stored as an entry (security advisory, low) | [GHSA-vh7f](https://github.com/harrisiirak/cron-parser/security/advisories/GHSA-vh7f-3c46-hfp3), fixed in 5.10.3 by [#461](https://github.com/harrisiirak/cron-parser/pull/461) | 2026-10-31 | [Evidence folder](evidence/cron-parser-proto-crontab-key/) |
@@ -331,7 +332,6 @@ These fixes and reports are still waiting on the maintainers. All of them were c
 |---|---|---|---|
 | wanasit `chrono` | With a reference timezone that differs from the system's, "this month", "last night" and dates without a year used the system timezone's calendar | [#670](https://github.com/wanasit/chrono/pull/670) | [Evidence folder](evidence/chrono-ref-timezone-calendar/) |
 | RubyMoney `money` | Dividing a subclass of `Money` by a plain `Money` returned a `Money` instead of a `Float` | [#1237](https://github.com/RubyMoney/money/pull/1237) (approved by a maintainer, with a suggested extra test) | [Evidence folder](evidence/money-subclass-money-ratio/) |
-| sporkmonger `addressable` | `route_from` returned an empty string when only the base URI had a query | [#623](https://github.com/sporkmonger/addressable/pull/623) | [Evidence folder](evidence/addressable-route-from-base-query/) |
 | `javalin` | `enableBasicAuth` did not protect WebSocket upgrades | [#2667](https://github.com/javalin/javalin/pull/2667) (held by the maintainer for Javalin 8, where it changes documented behaviour) | [Evidence folder](evidence/javalin-basicauth-websocket-upgrade/) |
 | `marshmallow` | `URL(relative=True)` rejected a relative URL with "://" in its path, query or fragment | [#3067](https://github.com/marshmallow-code/marshmallow/pull/3067) | [Evidence folder](evidence/marshmallow-url-relative-scheme/) |
 | `marshmallow` | A `pre_load(pass_collection=True)` hook that changes the data's length made a per-item `@validates_schema` raise `ValueError` under `many=True` | [#3086](https://github.com/marshmallow-code/marshmallow/pull/3086) | [Evidence folder](evidence/marshmallow-tidelift-validation-bypasses/) |
