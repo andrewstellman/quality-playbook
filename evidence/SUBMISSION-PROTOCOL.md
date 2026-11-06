@@ -32,6 +32,19 @@ Write the same explanation into `evidence/<slug>/REVIEW.md`. Add these sections 
 
 The chat explanation and REVIEW.md must agree. Re-run the knock-on check at presentation time; don't rely only on older logs.
 
+### Keep the outgoing text short
+
+Everything that goes upstream (PR descriptions, issues, replies, and kernel patch emails including the changelog and the notes below `---`) carries only what a maintainer needs to understand the problem, see the fix, and reproduce it, plus the disclosure line. Length budgets:
+
+- PR or issue: one short paragraph (what's wrong and how to reproduce it), one sentence on the fix, one on the test, the disclosure line.
+- Kernel changelog: the problem, why it's wrong, the fix, and one line on how it was tested. About 10 to 15 lines of body.
+- Notes below `---` on a v2 or later: two or three lines.
+- Replies: a few sentences.
+
+Any review of the text must also try to cut it: flag every sentence that isn't needed for understanding, the fix or reproduction, and give the shorter version. A review that only corrects facts can make the text longer.
+
+Paste the complete final text in the chat for Andrew to read before giving him any command that sends it. Asking him to check a single sentence doesn't count.
+
 Then stop. Don't propose a schedule, don't queue the next bug in the same message, and don't group several bugs into one presentation.
 
 ## Submission (Andrew)
