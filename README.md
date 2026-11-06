@@ -348,7 +348,7 @@ These fixes and reports are still waiting on the maintainers. All of them except
 | NVIDIA `bionemo-recipes` | The THD context-parallel split dropped the remainder tokens | [#1765](https://github.com/NVIDIA-BioNeMo/bionemo-recipes/pull/1765) | [Evidence folder](evidence/bionemo-thd-cp-divisibility/) |
 | NVIDIA `bionemo-recipes` | AMPLIFY `_pad_weights` returned fp32 for bf16 input | [#1764](https://github.com/NVIDIA-BioNeMo/bionemo-recipes/pull/1764) | [Evidence folder](evidence/bionemo-amplify-pad-weights-dtype/) |
 | Linux kernel `nvmet-rdma` | A wrapping offset check let `nvmet_rdma_map_sgl_inline()` write out of bounds (found independently; an earlier report by Bryam Vargas is credited) | applied to nvme-7.4 by Keith Busch, 21 October 2026, not yet in mainline | [Evidence folder](evidence/nvmet-rdma-inline-sgl-oob/) |
-| Linux kernel `nvmet` | ANA group ID 128 was clamped to 0 by `array_index_nospec()` | [v2](https://lore.kernel.org/r/20261106134313.34829-1-astellman@stellman-greene.com) sent to linux-nvme, 6 November 2026 (v1 10 September) | [Evidence folder](evidence/nvmet-anagrpid/) |
+| Linux kernel `nvmet` | ANA group ID 128 was clamped to 0 by `array_index_nospec()` | [v2](https://lore.kernel.org/r/20261106134313.34829-1-astellman@stellman-greene.com) applied to nvme-7.4 by Keith Busch, 6 November 2026, not yet in mainline | [Evidence folder](evidence/nvmet-anagrpid/) |
 | Linux kernel `nvmet` | The CRTO property was computed from CSTS instead of CAP | patch sent to linux-nvme, 10 September 2026 | [Evidence folder](evidence/nvmet-crto/) |
 
 ## Recent releases
