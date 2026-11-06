@@ -13,7 +13,7 @@ Message-ID `<20260910154849.66095-1-astellman@stellman-greene.com>`:
 https://lore.kernel.org/linux-nvme/20260910154849.66095-1-astellman@stellman-greene.com/
 
 To: Christoph Hellwig, Sagi Grimberg, Chaitanya Kulkarni; Cc: linux-nvme, linux-kernel.
-Status: awaiting review.
+Status: v2 sent 2026-11-06, rebased on next-20261105 ([v2-0001-nvmet-accept-ANA-group-ID-NVMET_MAX_ANAGRPS-in-co.patch](./v2-0001-nvmet-accept-ANA-group-ID-NVMET_MAX_ANAGRPS-in-co.patch)), Message-ID `<20261106134313.34829-1-astellman@stellman-greene.com>`. It answers Sagi's question on v1 about testing and credits Yuehong Wu, who posted the same fix on 2026-11-06.
 
 The evidence was produced in two passes: a manual run (this file's Red/Green sections)
 and an independent autopilot run by Claude Code from [RUNBOOK.md](./RUNBOOK.md), reported

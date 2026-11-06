@@ -69,7 +69,7 @@ The Gson (google/gson#3006) and Linux zram (`2f529e73`) fixes predate this folde
 
 | folder | bug | link | note | updated |
 |---|---|---|---|---|
-| [nvmet-anagrpid](./nvmet-anagrpid/) | nvmet: ANA group ID 128 clamped to 0 by array_index_nospec() |  | Sent to linux-nvme 2026-09-10; awaiting review (see README). Not in mainline on 2026-10-27 (history of the touched files in torvalds/linux on GitHub). | 2026-10-27 |
+| [nvmet-anagrpid](./nvmet-anagrpid/) | nvmet: ANA group ID 128 clamped to 0 by array_index_nospec() | [link](https://lore.kernel.org/r/20261106134313.34829-1-astellman@stellman-greene.com) | v2 sent to linux-nvme 2026-11-06 (Message-ID <20261106134313.34829-1-astellman@stellman-greene.com>), rebased on next-20261105, answering Sagi's v1 question on testing. Yuehong Wu had posted the same fix on 2026-11-06, credited v1 and said he had no objection to the original being taken; v2 credits him and invites his Tested-by. | 2026-11-06 |
 | [nvmet-crto](./nvmet-crto/) | nvmet: Property Get of CRTO computed from CSTS instead of CAP |  | Sent to linux-nvme 2026-09-10; awaiting review (see README). MESSAGE-v3.txt is an unsent revision. Not in mainline on 2026-10-27 (history of the touched files in torvalds/linux on GitHub). | 2026-10-27 |
 
 ### Applied to a maintainer's tree, not yet in mainline (1)
