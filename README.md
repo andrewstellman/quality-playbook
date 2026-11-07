@@ -19,7 +19,7 @@ It catches bugs that a thorough adversarial code-review prompt misses. The gson 
 - contracts and a coverage matrix
 - the code-review, spec-audit, and TDD verification protocols themselves
 
-*And this isn't theoretical! Maintainers have [merged or released fixes for 26 bugs](#merged-bugs-leaderboard) that the Quality Playbook found in Javalin, the Linux kernel, Google's gson, aiohttp, calibre, OpenTelemetry and five other projects.*
+*And this isn't theoretical! Maintainers have [merged or released fixes for 27 bugs](#merged-bugs-leaderboard) that the Quality Playbook found in Javalin, the Linux kernel, Google's gson, aiohttp, calibre, OpenTelemetry and five other projects.*
 
 ## Quick start
 
@@ -41,11 +41,12 @@ The agent finds the installed skill on its own and runs the six phases (explore,
 
 ## Merged bugs leaderboard
 
-As of 31 October 2026, maintainers have merged or released fixes for these 26 bugs, and 20 more fixes and reports are [submitted and waiting](#submitted-upstream). Three of them were private security reports, published by the maintainer as advisories once the fix was released. The full record, including the bugs that were held back, dropped or never filed, is in [`evidence/README.md`](evidence/README.md).
+As of 6 November 2026, maintainers have merged or released fixes for these 27 bugs, and 19 more fixes and reports are [submitted and waiting](#submitted-upstream). Three of them were private security reports, published by the maintainer as advisories once the fix was released. The full record, including the bugs that were held back, dropped or never filed, is in [`evidence/README.md`](evidence/README.md).
 
 | Project | The bug | Fix | Merged | Evidence |
 |---|---|---|---|---|
 | Linux kernel, `virtio-pci` | `vp_interrupt()` returned `IRQ_NONE` for a config-change interrupt with no vring work, even though reading the ISR had already consumed it, so the kernel counted those interrupts as spurious | [`93fa0945`](https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=93fa09455fb1a9624b73d42ac1f83771f4818e80) | 2026-09-07 | [Evidence folder](evidence/virtio-pci-intx/), with the QEMU console logs |
+| Linux kernel, `nvmet-rdma` | A wrapping offset check let `nvmet_rdma_map_sgl_inline()` write out of bounds (found independently; an earlier report by Bryam Vargas is credited) | [`d1512773`](https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=d1512773a0d539669440bd9f6d050b8e12923b5f), queued for 7.3-stable | v7.4-rc1 | [Evidence folder](evidence/nvmet-rdma-inline-sgl-oob/) |
 | Linux kernel, `zram` | `recompress_store()` silently accepted an unrecognized `type=` value, leaving the pass with no slot filter so it recompressed every slot instead of the intended subset | [`2f529e73`](https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=2f529e73d72048743b6eaa241da6ac2bcb28099e) | 2026-04-18 | [Evidence folder](evidence/zram-recompress-unknown-type/) and the [patch thread](https://lore.kernel.org/20260407153027.42425-1-astellman@stellman-greene.com) |
 | Google `gson` | gson silently accepted duplicate keys when the first value was `null` | [#3006](https://github.com/google/gson/pull/3006) | 2026-04-05 | [Evidence folder](evidence/gson-map-duplicate-null-key/) |
 | aio-libs `aiohttp` | `StreamReader.readuntil()` missed a separator of two or more bytes when it was split across chunks, so it returned too much data or kept waiting | [#13870](https://github.com/aio-libs/aiohttp/pull/13870), backported to 3.15 and 3.14 | 2026-10-02 | [Evidence folder](evidence/aiohttp-readuntil-split-separator/) |
@@ -326,7 +327,7 @@ If `TOOLKIT.md` doesn't answer your question, file an issue at https://github.co
 
 ## Submitted upstream
 
-These fixes and reports are still waiting on the maintainers. All of them except the adonis `authority()` PR, opened on 1 November, were checked on GitHub on 27 October 2026, and none had been merged or closed. The three Linux patches were checked against the history of mainline (`torvalds/linux`), not their mailing-list threads. The five marshmallow pull requests from #3086 to #3090 share one evidence folder: three of them were first reported privately to marshmallow's security contact, who ruled them not security issues and asked for public pull requests. Reports that may be security issues and are still private are not listed until the maintainers publish them.
+These fixes and reports are still waiting on the maintainers. All of them except the adonis `authority()` PR, opened on 1 November, were checked on GitHub on 27 October 2026, and none had been merged or closed. The Linux patches were checked against the history of mainline (`torvalds/linux`), not their mailing-list threads. The five marshmallow pull requests from #3086 to #3090 share one evidence folder: three of them were first reported privately to marshmallow's security contact, who ruled them not security issues and asked for public pull requests. Reports that may be security issues and are still private are not listed until the maintainers publish them.
 
 | Project | The bug | Submitted | Evidence |
 |---|---|---|---|
@@ -347,7 +348,6 @@ These fixes and reports are still waiting on the maintainers. All of them except
 | colinhacks `zod` | An intersection threw when both sides produced `NaN` | [issue #6639](https://github.com/colinhacks/zod/issues/6639) | [Evidence folder](evidence/zod-intersection-nan/) |
 | NVIDIA `bionemo-recipes` | The THD context-parallel split dropped the remainder tokens | [#1765](https://github.com/NVIDIA-BioNeMo/bionemo-recipes/pull/1765) | [Evidence folder](evidence/bionemo-thd-cp-divisibility/) |
 | NVIDIA `bionemo-recipes` | AMPLIFY `_pad_weights` returned fp32 for bf16 input | [#1764](https://github.com/NVIDIA-BioNeMo/bionemo-recipes/pull/1764) | [Evidence folder](evidence/bionemo-amplify-pad-weights-dtype/) |
-| Linux kernel `nvmet-rdma` | A wrapping offset check let `nvmet_rdma_map_sgl_inline()` write out of bounds (found independently; an earlier report by Bryam Vargas is credited) | applied to nvme-7.4 by Keith Busch, 21 October 2026, not yet in mainline | [Evidence folder](evidence/nvmet-rdma-inline-sgl-oob/) |
 | Linux kernel `nvmet` | ANA group ID 128 was clamped to 0 by `array_index_nospec()` | [v2](https://lore.kernel.org/r/20261106134313.34829-1-astellman@stellman-greene.com) applied to nvme-7.4 by Keith Busch, 6 November 2026, not yet in mainline | [Evidence folder](evidence/nvmet-anagrpid/) |
 | Linux kernel `nvmet` | The CRTO property was computed from CSTS instead of CAP | patch sent to linux-nvme, 10 September 2026 | [Evidence folder](evidence/nvmet-crto/) |
 
