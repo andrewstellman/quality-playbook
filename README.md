@@ -19,7 +19,7 @@ It catches bugs that a thorough adversarial code-review prompt misses. The gson 
 - contracts and a coverage matrix
 - the code-review, spec-audit, and TDD verification protocols themselves
 
-*And this isn't theoretical! Maintainers have [merged or released fixes for 27 bugs](#merged-bugs-leaderboard) that the Quality Playbook found in Javalin, the Linux kernel, Google's gson, aiohttp, calibre, OpenTelemetry and five other projects.*
+*And this isn't theoretical! Maintainers have [merged or released fixes for 27 bugs](#merged-bugs-leaderboard) that the Quality Playbook found in Javalin, the Linux kernel, Google's gson, aiohttp, calibre, OpenTelemetry and five other projects. Two of them now have CVE IDs: one credited only to the Quality Playbook's report, and one shared with independent reporters.*
 
 ## Quick start
 
@@ -41,7 +41,7 @@ The agent finds the installed skill on its own and runs the six phases (explore,
 
 ## Merged bugs leaderboard
 
-As of 6 November 2026, maintainers have merged or released fixes for these 27 bugs, and 19 more fixes and reports are [submitted and waiting](#submitted-upstream). Three of them were private security reports, published by the maintainer as advisories once the fix was released. The full record, including the bugs that were held back, dropped or never filed, is in [`evidence/README.md`](evidence/README.md).
+As of 6 November 2026, maintainers have merged or released fixes for these 27 bugs, and 19 more fixes and reports are [submitted and waiting](#submitted-upstream). Three of them were private security reports, published by the maintainer as advisories once the fix was released, and GitHub has issued CVEs for the two addressable advisories: CVE-2026-126349 (GHSA-539f, credited only to my report) and CVE-2026-126350 (GHSA-j82w, credited to my report and two independent reporters). The full record, including the bugs that were held back, dropped or never filed, is in [`evidence/README.md`](evidence/README.md).
 
 | Project | The bug | Fix | Merged | Evidence |
 |---|---|---|---|---|
