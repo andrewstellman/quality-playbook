@@ -1,8 +1,8 @@
 status: merged
 title: addressable: Template#match still backtracked exponentially for {/var*}, {.var*} and {;var*} after the 2.9.0 ReDoS fix (security advisory, moderate)
 link: https://github.com/sporkmonger/addressable/security/advisories/GHSA-j82w-28jv-3pmj
-updated: 2026-10-31
-note: BUG-022 of the 2026-09-30 addressable run. Sent as a private report on 2026-10-22; published by the maintainer on 2026-10-30 as GHSA-j82w (Moderate), fixed in addressable 2.9.1. Credited reporters: andrewstellman, halogenandtoast (GHSA-9f42, which also covers multi-variable expressions) and ebenoist.
+updated: 2026-11-12
+note: GitHub issued CVE-2026-126350 on 2026-11-12. BUG-022 of the 2026-09-30 addressable run. Sent as a private report on 2026-10-22; published by the maintainer on 2026-10-30 as GHSA-j82w (Moderate), fixed in addressable 2.9.1. Credited reporters: andrewstellman, halogenandtoast (GHSA-9f42, which also covers multi-variable expressions) and ebenoist.
 
 ## History
 

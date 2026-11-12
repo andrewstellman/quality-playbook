@@ -1,8 +1,8 @@
 status: merged
 title: addressable: display_uri showed hosts with bidi and invisible characters decoded from Punycode (security advisory, low)
 link: https://github.com/sporkmonger/addressable/security/advisories/GHSA-539f-xcgw-2gjg
-updated: 2026-10-31
-note: Published by the maintainer on 2026-10-30 as GHSA-539f (Low, CVSS 3.1) and fixed in addressable 2.9.1, released the same day; Andrew is the credited reporter and the maintainer requested a CVE. BUG-013-COMMENT.md is the 22 Oct addendum (round-trip check); its first case overlaps GHSA-9crm, reported earlier by tonghuaroot. The maintainer says some mitigations wait for 2.10.0.
+updated: 2026-11-12
+note: GitHub issued CVE-2026-126349 on 2026-11-12. Published by the maintainer on 2026-10-30 as GHSA-539f (Low, CVSS 3.1) and fixed in addressable 2.9.1, released the same day; Andrew is the credited reporter and the maintainer requested a CVE. BUG-013-COMMENT.md is the 22 Oct addendum (round-trip check); its first case overlaps GHSA-9crm, reported earlier by tonghuaroot. The maintainer says some mitigations wait for 2.10.0.
 
 ## History
 
