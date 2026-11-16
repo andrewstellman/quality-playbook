@@ -1,0 +1,1 @@
+Thanks, good catch. Reversed ranges are now dropped the way fnmatch drops them, so `key[z-a].pem` matches nothing instead of raising, `[!z-a]` matches any character and `[z-ab]` still matches `b`. All three are in `translate_specs`. I also renamed the news fragment to the PR number.

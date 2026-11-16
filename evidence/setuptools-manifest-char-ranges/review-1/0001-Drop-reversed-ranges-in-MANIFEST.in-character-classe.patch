@@ -1,0 +1,75 @@
+From f411a33ee9c799946332bbae5b09d8140fb26d21 Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <astellman@stellman-greene.com>
+Date: Tue, 10 Nov 2026 07:47:01 -0500
+Subject: [PATCH 1/2] Drop reversed ranges in MANIFEST.in character classes
+
+Like fnmatch, a reversed range such as [z-a] now matches nothing
+instead of raising re.error.
+---
+ setuptools/command/egg_info.py    | 28 ++++++++++++++++++++++++++--
+ setuptools/tests/test_manifest.py |  3 +++
+ 2 files changed, 29 insertions(+), 2 deletions(-)
+
+diff --git a/setuptools/command/egg_info.py b/setuptools/command/egg_info.py
+index f27930550..be6ef3b71 100644
+--- a/setuptools/command/egg_info.py
++++ b/setuptools/command/egg_info.py
+@@ -58,6 +58,25 @@ class _NormalizedMatcher:
+         return self._pattern.search(unicode_utils.normalize(path))
+ 
+ 
++def _translate_char_class(inner):
++    """
++    Translate the inside of a glob [...] class to a regex class body,
++    keeping ranges such as a-z and dropping reversed ones like fnmatch.
++    """
++    body = ''
++    i = 0
++    while i < len(inner):
++        if i + 2 < len(inner) and inner[i + 1] == '-':
++            lo, hi = inner[i], inner[i + 2]
++            if lo <= hi:
++                body += f'{re.escape(lo)}-{re.escape(hi)}'
++            i += 3
++        else:
++            body += re.escape(inner[i])
++            i += 1
++    return body
++
++
+ def translate_pattern(glob):  # noqa: C901  # is too complex (14)  # FIXME
+     """
+     Translate a file path glob like '*.txt' in to a regular expression.
+@@ -129,8 +148,13 @@ def translate_pattern(glob):  # noqa: C901  # is too complex (14)  # FIXME
+                         char_class = '^'
+                         inner = inner[1:]
+ 
+-                    char_class += re.escape(inner).replace(r'\-', '-')
+-                    pat += f'[{char_class}]'
++                    body = _translate_char_class(inner)
++                    if body:
++                        pat += f'[{char_class}{body}]'
++                    else:
++                        # Only reversed ranges, as in [z-a]: like fnmatch, the
++                        # class matches nothing (or any character if negated)
++                        pat += valid_char if char_class else '(?!)'
+ 
+                     # Skip to the end ]
+                     i = inner_i
+diff --git a/setuptools/tests/test_manifest.py b/setuptools/tests/test_manifest.py
+index 1aae90362..69185ca27 100644
+--- a/setuptools/tests/test_manifest.py
++++ b/setuptools/tests/test_manifest.py
+@@ -130,6 +130,9 @@ translate_specs: list[tuple[str, list[str], list[str]]] = [
+         ['keyd.pem', 'key-.pem'],
+         ['keyb.pem'],
+     ),
++    ('key[z-a].pem', [], ['keya.pem', 'keyz.pem', 'key-.pem']),
++    ('key[z-ab].pem', ['keyb.pem'], ['keya.pem', 'keyz.pem']),
++    ('key[!z-a].pem', ['keya.pem', 'keyz.pem', 'key-.pem'], []),
+ ]
+ """
+ A spec of inputs for 'translate_pattern' and matches and mismatches
+-- 
+2.43.0
+

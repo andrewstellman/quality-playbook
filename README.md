@@ -41,7 +41,7 @@ The agent finds the installed skill on its own and runs the six phases (explore,
 
 ## Merged bugs leaderboard
 
-As of 6 November 2026, maintainers have merged or released fixes for these 27 bugs, and 17 more fixes and reports are [submitted and waiting](#submitted-upstream). Three of them were private security reports, published by the maintainer as advisories once the fix was released, and GitHub has issued CVEs for the two addressable advisories: CVE-2026-126349 (GHSA-539f, credited only to my report) and CVE-2026-126350 (GHSA-j82w, credited to my report and two independent reporters). The full record, including the bugs that were held back, dropped or never filed, is in [`evidence/README.md`](evidence/README.md).
+As of 6 November 2026, maintainers have merged or released fixes for these 27 bugs, and 19 more fixes and reports are [submitted and waiting](#submitted-upstream). Three of them were private security reports, published by the maintainer as advisories once the fix was released, and GitHub has issued CVEs for the two addressable advisories: CVE-2026-126349 (GHSA-539f, credited only to my report) and CVE-2026-126350 (GHSA-j82w, credited to my report and two independent reporters). The full record, including the bugs that were held back, dropped or never filed, is in [`evidence/README.md`](evidence/README.md).
 
 | Project | The bug | Fix | Merged | Evidence |
 |---|---|---|---|---|
@@ -327,7 +327,7 @@ If `TOOLKIT.md` doesn't answer your question, file an issue at https://github.co
 
 ## Submitted upstream
 
-These fixes and reports are still waiting on the maintainers. All of them were checked on GitHub on 27 October 2026, and none had been merged or closed. The Linux patches were checked against the history of mainline (`torvalds/linux`), not their mailing-list threads. The five marshmallow pull requests from #3086 to #3090 share one evidence folder: three of them were first reported privately to marshmallow's security contact, who ruled them not security issues and asked for public pull requests. Reports that may be security issues and are still private are not listed until the maintainers publish them.
+These fixes and reports are still waiting on the maintainers. All of them except the two setuptools PRs opened in November (#5374 and #5375) were checked on GitHub on 27 October 2026, and none had been merged or closed. The Linux patches were checked against the history of mainline (`torvalds/linux`), not their mailing-list threads. The five marshmallow pull requests from #3086 to #3090 share one evidence folder: three of them were first reported privately to marshmallow's security contact, who ruled them not security issues and asked for public pull requests. Reports that may be security issues and are still private are not listed until the maintainers publish them.
 
 | Project | The bug | Submitted | Evidence |
 |---|---|---|---|
@@ -341,6 +341,8 @@ These fixes and reports are still waiting on the maintainers. All of them were c
 | `marshmallow` | `Nested` dropped dotted `load_only` and `dump_only` for a nested schema instance | [#3089](https://github.com/marshmallow-code/marshmallow/pull/3089) | [Evidence folder](evidence/marshmallow-tidelift-validation-bypasses/) |
 | `marshmallow` | Under `unknown=INCLUDE`, an unknown key that matched a loaded field's key overwrote the loaded value | [#3090](https://github.com/marshmallow-code/marshmallow/pull/3090) | [Evidence folder](evidence/marshmallow-tidelift-validation-bypasses/) |
 | pypa `setuptools` | `readme` or `requires-python` set outside `dynamic` crashed instead of being warned about and ignored | [#5343](https://github.com/pypa/setuptools/pull/5343) (the maintainer has pushed review changes to it) | [Evidence folder](evidence/setuptools-missing-dynamic-crash/) |
+| pypa `setuptools` | `MANIFEST.in` exclude patterns ignored character ranges such as `[a-c]` | [#5374](https://github.com/pypa/setuptools/pull/5374) (an outside reviewer caught a reversed-range edge case, fixed in a follow-up commit) | [Evidence folder](evidence/setuptools-manifest-char-ranges/) |
+| pypa `setuptools` | `exclude_package_data` didn't exclude a file whose name is stored in NFD, as macOS does, when the pattern is NFC (first reported privately to setuptools' Tidelift contact, who said to make it public) | [#5375](https://github.com/pypa/setuptools/pull/5375) | [Evidence folder](evidence/setuptools-exclude-package-data-nfd/) |
 | spf13 `cobra` | Command suggestions measured edit distance in bytes, not characters | [#2514](https://github.com/spf13/cobra/pull/2514) | [Evidence folder](evidence/cobra-suggest-runes/) |
 | colinhacks `zod` | `registry.remove()` deleted an id that now belonged to another schema | [issue #6640](https://github.com/colinhacks/zod/issues/6640) (zod accepts pull requests only from collaborators) | [Evidence folder](evidence/zod-registry-remove-owner/) |
 | colinhacks `zod` | An intersection threw when both sides produced `NaN` | [issue #6639](https://github.com/colinhacks/zod/issues/6639) | [Evidence folder](evidence/zod-intersection-nan/) |

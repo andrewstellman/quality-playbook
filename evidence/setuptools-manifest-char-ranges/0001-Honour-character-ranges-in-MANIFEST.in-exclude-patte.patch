@@ -1,0 +1,58 @@
+From f08c8f5b2964c4d65faf99cd45bf8ab77b066be6 Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <astellman@stellman-greene.com>
+Date: Mon, 9 Nov 2026 16:53:25 -0500
+Subject: [PATCH] Honour character ranges in MANIFEST.in exclude patterns
+
+translate_pattern escaped the inside of a [...] class with re.escape, so
+"-" was literal and [a-c] matched only "a", "-" and "c".
+---
+ newsfragments/+char-class-ranges.bugfix.rst |  1 +
+ setuptools/command/egg_info.py              |  2 +-
+ setuptools/tests/test_manifest.py           | 10 ++++++++++
+ 3 files changed, 12 insertions(+), 1 deletion(-)
+ create mode 100644 newsfragments/+char-class-ranges.bugfix.rst
+
+diff --git a/newsfragments/+char-class-ranges.bugfix.rst b/newsfragments/+char-class-ranges.bugfix.rst
+new file mode 100644
+index 000000000..a8606244c
+--- /dev/null
++++ b/newsfragments/+char-class-ranges.bugfix.rst
+@@ -0,0 +1 @@
++Character ranges such as ``[a-z]`` in ``MANIFEST.in`` exclude, global-exclude, recursive-exclude and graft patterns now match a range instead of the literal characters.
+diff --git a/setuptools/command/egg_info.py b/setuptools/command/egg_info.py
+index de368e9c0..f27930550 100644
+--- a/setuptools/command/egg_info.py
++++ b/setuptools/command/egg_info.py
+@@ -129,7 +129,7 @@ def translate_pattern(glob):  # noqa: C901  # is too complex (14)  # FIXME
+                         char_class = '^'
+                         inner = inner[1:]
+ 
+-                    char_class += re.escape(inner)
++                    char_class += re.escape(inner).replace(r'\-', '-')
+                     pat += f'[{char_class}]'
+ 
+                     # Skip to the end ]
+diff --git a/setuptools/tests/test_manifest.py b/setuptools/tests/test_manifest.py
+index 349316169..1aae90362 100644
+--- a/setuptools/tests/test_manifest.py
++++ b/setuptools/tests/test_manifest.py
+@@ -120,6 +120,16 @@ translate_specs: list[tuple[str, list[str], list[str]]] = [
+         ['fooybar'],
+         ['foo]bar', 'fooobar', 'fooebar'],
+     ),
++    (
++        'key[a-c].pem',
++        ['keya.pem', 'keyb.pem', 'keyc.pem'],
++        ['key-.pem', 'keyd.pem'],
++    ),
++    (
++        'key[!a-c].pem',
++        ['keyd.pem', 'key-.pem'],
++        ['keyb.pem'],
++    ),
+ ]
+ """
+ A spec of inputs for 'translate_pattern' and matches and mismatches
+-- 
+2.43.0
+

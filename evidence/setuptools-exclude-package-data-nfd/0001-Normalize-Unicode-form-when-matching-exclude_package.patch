@@ -1,0 +1,103 @@
+From ba7a4c4967c9d2a4ebcdba3f558319bd530df3b9 Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <astellman@stellman-greene.com>
+Date: Fri, 13 Nov 2026 11:30:43 -0500
+Subject: [PATCH] Normalize Unicode form when matching exclude_package_data
+
+A pattern written in NFC didn't exclude a data file whose name is stored
+in NFD, as on macOS. MANIFEST.in matching already normalizes both sides.
+---
+ .../+exclude-package-data-nfd.bugfix.rst      |  1 +
+ setuptools/command/build_py.py                | 10 +++++--
+ setuptools/tests/test_build_py.py             | 30 +++++++++++++++++++
+ 3 files changed, 39 insertions(+), 2 deletions(-)
+ create mode 100644 newsfragments/+exclude-package-data-nfd.bugfix.rst
+
+diff --git a/newsfragments/+exclude-package-data-nfd.bugfix.rst b/newsfragments/+exclude-package-data-nfd.bugfix.rst
+new file mode 100644
+index 000000000..05bcdd2ef
+--- /dev/null
++++ b/newsfragments/+exclude-package-data-nfd.bugfix.rst
+@@ -0,0 +1 @@
++``exclude_package_data`` patterns now match file names stored in a different Unicode normalization form, as ``MANIFEST.in`` patterns already do.
+diff --git a/setuptools/command/build_py.py b/setuptools/command/build_py.py
+index 3c7c2d1bd..f6b4ab79e 100644
+--- a/setuptools/command/build_py.py
++++ b/setuptools/command/build_py.py
+@@ -14,6 +14,7 @@ from typing import Any
+ 
+ from more_itertools import unique_everseen
+ 
++from .. import unicode_utils
+ from .._path import StrPath, StrPathT
+ from ..dist import Distribution
+ from ..warnings import SetuptoolsDeprecationWarning
+@@ -289,11 +290,16 @@ class build_py(orig.build_py):
+             package,
+             src_dir,
+         )
+-        match_groups = (fnmatch.filter(files, pattern) for pattern in patterns)
++        # Compare in one Unicode form, as FileList does for MANIFEST.in
++        names = [unicode_utils.normalize(fn) for fn in files]
++        match_groups = (
++            fnmatch.filter(names, unicode_utils.normalize(pattern))
++            for pattern in patterns
++        )
+         # flatten the groups of matches into an iterable of matches
+         matches = itertools.chain.from_iterable(match_groups)
+         bad = set(matches)
+-        keepers = (fn for fn in files if fn not in bad)
++        keepers = (fn for fn, name in zip(files, names) if name not in bad)
+         # ditch dupes
+         return list(unique_everseen(keepers))
+ 
+diff --git a/setuptools/tests/test_build_py.py b/setuptools/tests/test_build_py.py
+index 62ed408f3..8caf24298 100644
+--- a/setuptools/tests/test_build_py.py
++++ b/setuptools/tests/test_build_py.py
+@@ -1,6 +1,7 @@
+ import os
+ import shutil
+ import stat
++import unicodedata
+ import warnings
+ from pathlib import Path
+ from typing import ClassVar
+@@ -61,6 +62,35 @@ def test_recursive_in_package_data_glob(tmpdir_cwd):
+     )
+ 
+ 
++def test_exclude_package_data_unicode_normalization(tmpdir_cwd):
++    """
++    An NFC pattern excludes a data file whose name is stored in NFD.
++    """
++    nfc = unicodedata.normalize('NFC', 'caf\u00e9.key')
++    nfd = unicodedata.normalize('NFD', nfc)
++    os.mkdir('pkg')
++    Path('pkg/__init__.py').touch()
++    Path('pkg', nfd).write_text('secret', encoding='utf-8')
++    Path('pkg/keep.txt').write_text('data', encoding='utf-8')
++    dist = Distribution(
++        dict(
++            script_name='setup.py',
++            script_args=['build_py'],
++            packages=['pkg'],
++            package_data={'pkg': ['*']},
++            exclude_package_data={'pkg': [nfc]},
++        )
++    )
++    dist.parse_command_line()
++    dist.run_commands()
++
++    built = {
++        unicodedata.normalize('NFC', p.name) for p in Path('build/lib/pkg').iterdir()
++    }
++    assert 'keep.txt' in built
++    assert nfc not in built
++
++
+ def test_read_only(tmpdir_cwd):
+     """
+     Ensure read-only flag is not preserved in copy
+-- 
+2.43.0
+
