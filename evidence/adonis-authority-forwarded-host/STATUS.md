@@ -1,10 +1,12 @@
-status: open
+status: ruled-out
 title: adonisjs/http-server: authority() consulted X-Forwarded-Host, although its JSDoc says it does not (reported privately; maintainer ruled it not a vulnerability)
 link: https://github.com/adonisjs/http-server/pull/149
-updated: 2026-10-31
-note: Public PR #149 opened 2026-11-01 against 9.x, after the private report GHSA-q4g5 was closed by agreement on 2026-10-31. The maintainer ruled on 2026-10-21 that it is not exploitable (a victim's browser cannot send X-Forwarded-Host) and treated it as a documentation fix; the PR offers a JSDoc-only change instead if he prefers.
+updated: 2026-11-16
+note: Closed by the maintainer, Harminder Virk (thetutlage), on 2026-11-16 without merging: "We'll keep the current behaviour, and the docs will be updated to match." authority() keeps consulting X-Forwarded-Host; the JSDoc is to change instead.
 
 ## History
+
+- Record as of 2026-10-31: Public PR #149 opened 2026-11-01 against 9.x, after the private report GHSA-q4g5 was closed by agreement on 2026-10-31. The maintainer ruled on 2026-10-21 that it is not exploitable (a victim's browser cannot send X-Forwarded-Host) and treated it as a documentation fix; the PR offers a JSDoc-only change instead if he prefers.
 
 - Record as of 2026-10-31: Private report GHSA-q4g5 sent 2026-10-20. Romain said not exploitable on 2026-10-21; Andrew agreed the same day. Andrew closed the advisory with a comment on 2026-10-31 and the fix is staged as a public PR (harness_runs/security-disclosure-2026-10-20/stage-adonis-1031). BUG-021 is no longer held. Andrew closed the advisory with a comment on 2026-10-31. The PR's commit message was reworded from the private report's patch to describe the JSDoc mismatch rather than an attack.
 

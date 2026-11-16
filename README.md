@@ -41,7 +41,7 @@ The agent finds the installed skill on its own and runs the six phases (explore,
 
 ## Merged bugs leaderboard
 
-As of 6 November 2026, maintainers have merged or released fixes for these 27 bugs, and 19 more fixes and reports are [submitted and waiting](#submitted-upstream). Three of them were private security reports, published by the maintainer as advisories once the fix was released, and GitHub has issued CVEs for the two addressable advisories: CVE-2026-126349 (GHSA-539f, credited only to my report) and CVE-2026-126350 (GHSA-j82w, credited to my report and two independent reporters). The full record, including the bugs that were held back, dropped or never filed, is in [`evidence/README.md`](evidence/README.md).
+As of 6 November 2026, maintainers have merged or released fixes for these 27 bugs, and 17 more fixes and reports are [submitted and waiting](#submitted-upstream). Three of them were private security reports, published by the maintainer as advisories once the fix was released, and GitHub has issued CVEs for the two addressable advisories: CVE-2026-126349 (GHSA-539f, credited only to my report) and CVE-2026-126350 (GHSA-j82w, credited to my report and two independent reporters). The full record, including the bugs that were held back, dropped or never filed, is in [`evidence/README.md`](evidence/README.md).
 
 | Project | The bug | Fix | Merged | Evidence |
 |---|---|---|---|---|
@@ -327,11 +327,10 @@ If `TOOLKIT.md` doesn't answer your question, file an issue at https://github.co
 
 ## Submitted upstream
 
-These fixes and reports are still waiting on the maintainers. All of them except the adonis `authority()` PR, opened on 1 November, were checked on GitHub on 27 October 2026, and none had been merged or closed. The Linux patches were checked against the history of mainline (`torvalds/linux`), not their mailing-list threads. The five marshmallow pull requests from #3086 to #3090 share one evidence folder: three of them were first reported privately to marshmallow's security contact, who ruled them not security issues and asked for public pull requests. Reports that may be security issues and are still private are not listed until the maintainers publish them.
+These fixes and reports are still waiting on the maintainers. All of them were checked on GitHub on 27 October 2026, and none had been merged or closed. The Linux patches were checked against the history of mainline (`torvalds/linux`), not their mailing-list threads. The five marshmallow pull requests from #3086 to #3090 share one evidence folder: three of them were first reported privately to marshmallow's security contact, who ruled them not security issues and asked for public pull requests. Reports that may be security issues and are still private are not listed until the maintainers publish them.
 
 | Project | The bug | Submitted | Evidence |
 |---|---|---|---|
-| adonisjs `http-server` | `authority()` consulted `X-Forwarded-Host`, although its documentation says it does not (first reported privately; the maintainer ruled it not a vulnerability) | [#149](https://github.com/adonisjs/http-server/pull/149) | [Evidence folder](evidence/adonis-authority-forwarded-host/) |
 | wanasit `chrono` | With a reference timezone that differs from the system's, "this month", "last night" and dates without a year used the system timezone's calendar | [#670](https://github.com/wanasit/chrono/pull/670) | [Evidence folder](evidence/chrono-ref-timezone-calendar/) |
 | RubyMoney `money` | Dividing a subclass of `Money` by a plain `Money` returned a `Money` instead of a `Float` | [#1237](https://github.com/RubyMoney/money/pull/1237) (approved by a maintainer, with a suggested extra test) | [Evidence folder](evidence/money-subclass-money-ratio/) |
 | `javalin` | `enableBasicAuth` did not protect WebSocket upgrades | [#2667](https://github.com/javalin/javalin/pull/2667) (held by the maintainer for Javalin 8, where it changes documented behaviour) | [Evidence folder](evidence/javalin-basicauth-websocket-upgrade/) |
@@ -343,7 +342,6 @@ These fixes and reports are still waiting on the maintainers. All of them except
 | `marshmallow` | Under `unknown=INCLUDE`, an unknown key that matched a loaded field's key overwrote the loaded value | [#3090](https://github.com/marshmallow-code/marshmallow/pull/3090) | [Evidence folder](evidence/marshmallow-tidelift-validation-bypasses/) |
 | pypa `setuptools` | `readme` or `requires-python` set outside `dynamic` crashed instead of being warned about and ignored | [#5343](https://github.com/pypa/setuptools/pull/5343) (the maintainer has pushed review changes to it) | [Evidence folder](evidence/setuptools-missing-dynamic-crash/) |
 | spf13 `cobra` | Command suggestions measured edit distance in bytes, not characters | [#2514](https://github.com/spf13/cobra/pull/2514) | [Evidence folder](evidence/cobra-suggest-runes/) |
-| adonisjs `http-server` | A cookie with `maxAge: 0` was sent without `Max-Age` | [#145](https://github.com/adonisjs/http-server/pull/145) (the maintainer asked for a non-breaking alternative, and I offered a docs change instead) | [Evidence folder](evidence/adonis-cookie-maxage-zero/) |
 | colinhacks `zod` | `registry.remove()` deleted an id that now belonged to another schema | [issue #6640](https://github.com/colinhacks/zod/issues/6640) (zod accepts pull requests only from collaborators) | [Evidence folder](evidence/zod-registry-remove-owner/) |
 | colinhacks `zod` | An intersection threw when both sides produced `NaN` | [issue #6639](https://github.com/colinhacks/zod/issues/6639) | [Evidence folder](evidence/zod-intersection-nan/) |
 | NVIDIA `bionemo-recipes` | The THD context-parallel split dropped the remainder tokens | [#1765](https://github.com/NVIDIA-BioNeMo/bionemo-recipes/pull/1765) | [Evidence folder](evidence/bionemo-thd-cp-divisibility/) |
