@@ -1,0 +1,3 @@
+IDNA2003 ToASCII (RFC 3490) runs nameprep, which removes the characters in table B.1 of RFC 3454 (a soft hyphen, a zero width joiner and similar), and the `idn-ruby` backend does this, but the pure-Ruby backend only applies NFKC. With `IDNA_MODE=pure`, `Addressable::IDNA.to_ascii("a\u200Db.com")` gives `"xn--ab-m1t.com"` instead of `"ab.com"`, and `to_ascii("m\u00FCn\u00ADchen.de")` gives `"xn--mnchen-cja44d.de"` instead of `"xn--mnchen-3ya.de"`. This change removes those characters before NFKC in the pure-Ruby `to_ascii`. The new examples go in the shared "converting from unicode to ASCII" specs, so they run against both backends.
+
+Found with the Quality Playbook, an AI code-review tool I maintain. The fix and test were written with AI assistance and reviewed by me.

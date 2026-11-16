@@ -1,0 +1,1 @@
+RecursionError from `parse()` on a valid document whose dotted key is within the nesting limit

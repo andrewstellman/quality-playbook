@@ -1,0 +1,88 @@
+From ebc394f5d6c4aff2307e5623416c07c09f2e6730 Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <astellman@stellman-greene.com>
+Date: Wed, 21 Oct 2026 08:45:05 -0400
+Subject: [PATCH] fix(v4): require an exhaustive record key whose value schema
+ accepts undefined
+
+An absent key whose value schema has no optin now gets the same nonoptional
+issue z.object() reports, in the sync, async and compiled paths.
+---
+ .../zod/src/v4/classic/tests/record.test.ts    | 18 ++++++++++++++++++
+ packages/zod/src/v4/core/compile.ts            |  6 +++++-
+ packages/zod/src/v4/core/schemas.ts            |  5 +++++
+ 3 files changed, 28 insertions(+), 1 deletion(-)
+
+diff --git a/packages/zod/src/v4/classic/tests/record.test.ts b/packages/zod/src/v4/classic/tests/record.test.ts
+index b59872f..7c9030d 100644
+--- a/packages/zod/src/v4/classic/tests/record.test.ts
++++ b/packages/zod/src/v4/classic/tests/record.test.ts
+@@ -107,6 +107,24 @@ test("optional-in value type", () => {
+   expectTypeOf<z.input<typeof preprocessed>>().toEqualTypeOf<Record<"Tuna" | "Salmon", unknown>>();
+ });
+ 
++test("a value that accepts undefined does not make an exhaustive key optional", async () => {
++  const nonoptional = [
++    {
++      code: "invalid_type",
++      expected: "nonoptional",
++      path: ["b"],
++      message: "Invalid input: expected nonoptional, received undefined",
++    },
++  ];
++  for (const value of [z.any(), z.unknown(), z.undefined(), z.union([z.string(), z.undefined()])]) {
++    const schema = z.record(z.enum(["a", "b"]), value);
++    expect(schema.safeParse({ a: undefined }).error?.issues).toEqual(nonoptional);
++    expect(schema.safeParse({ a: undefined, b: undefined }).success).toBe(true);
++    expect((await schema.safeParseAsync({ a: undefined })).error?.issues).toEqual(nonoptional);
++  }
++  expect(z.record(z.literal("a"), z.any()).safeParse({}).success).toBe(false);
++});
++
+ test("typescript enum exhaustiveness", () => {
+   enum BigFish {
+     Tuna = 0,
+diff --git a/packages/zod/src/v4/core/compile.ts b/packages/zod/src/v4/core/compile.ts
+index 361b4e0..978ca04 100644
+--- a/packages/zod/src/v4/core/compile.ts
++++ b/packages/zod/src/v4/core/compile.ts
+@@ -2014,9 +2014,13 @@ function generateRecordCheck(doc: Doc, ctx: CompileContext, schema: SomeType, ac
+ 
+       const keyConst = addConstant(ctx, key);
+       const outKey = generateCheck(doc, ctx, def.keyType, keyConst);
++      const propKey = literalPropertyKey(ctx, inputKey);
++      if (requiresPresenceCheck(def.valueType)) {
++        doc.write(`if (!(${propKey} in ${accessor})) return INVALID;`);
++      }
+       // Read the property once. Passing the raw expression let compileChild validate one read while the output write performed a second, so a getter could hand back a value nothing had checked.
+       const valueVar = newVar(ctx);
+-      doc.write(`const ${valueVar} = ${accessor}[${literalPropertyKey(ctx, inputKey)}];`);
++      doc.write(`const ${valueVar} = ${accessor}[${propKey}];`);
+       const valOutput = compileChild(doc, ctx, def.valueType, valueVar);
+       if (outKey === keyConst) {
+         doc.write(`${outputVar}[${outKey}] = ${valOutput};`);
+diff --git a/packages/zod/src/v4/core/schemas.ts b/packages/zod/src/v4/core/schemas.ts
+index e7e38df..776ff86 100644
+--- a/packages/zod/src/v4/core/schemas.ts
++++ b/packages/zod/src/v4/core/schemas.ts
+@@ -3324,6 +3324,8 @@ export const $ZodRecord: core.$constructor<$ZodRecord> = /*@__PURE__*/ core.$con
+               result.then((result) => {
+                 if (result.issues.length) {
+                   util.pushPrefixed(payload.issues, key, result.issues);
++                } else if (def.valueType._zod.optin === undefined && !(key in input)) {
++                  payload.issues.push({ code: "invalid_type", expected: "nonoptional", input: undefined, path: [key] });
+                 }
+                 payload.value[outKey] = result.value;
+               })
+@@ -3331,6 +3333,9 @@ export const $ZodRecord: core.$constructor<$ZodRecord> = /*@__PURE__*/ core.$con
+           } else {
+             if (result.issues.length) {
+               util.pushPrefixed(payload.issues, key, result.issues);
++            } else if (def.valueType._zod.optin === undefined && !(key in input)) {
++              // an absent key passes only if the value has `optin`
++              payload.issues.push({ code: "invalid_type", expected: "nonoptional", input: undefined, path: [key] });
+             }
+             payload.value[outKey] = result.value;
+           }
+-- 
+2.43.0
+

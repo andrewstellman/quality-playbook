@@ -1,0 +1,95 @@
+From b4a7e80ab1d40e44d730628a6b18ddd9175f07a3 Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <astellman@stellman-greene.com>
+Date: Wed, 21 Oct 2026 08:53:55 -0400
+Subject: [PATCH] fix(v4): copy a constant catch value and a Date default on
+ every parse
+
+constantCatch now returns shallowClone(value), and shallowClone copies a Date,
+so mutating a fallback result no longer changes later parses.
+---
+ packages/zod/src/v4/classic/tests/catch.test.ts    | 14 ++++++++++++++
+ packages/zod/src/v4/classic/tests/default.test.ts  |  6 ++++++
+ packages/zod/src/v4/classic/tests/prefault.test.ts |  6 ++++++
+ packages/zod/src/v4/core/util.ts                   |  3 ++-
+ 4 files changed, 28 insertions(+), 1 deletion(-)
+
+diff --git a/packages/zod/src/v4/classic/tests/catch.test.ts b/packages/zod/src/v4/classic/tests/catch.test.ts
+index dd53c44..e148794 100644
+--- a/packages/zod/src/v4/classic/tests/catch.test.ts
++++ b/packages/zod/src/v4/classic/tests/catch.test.ts
+@@ -602,3 +602,17 @@ test("catch resolves the issues array on the async branch too", () => {
+ 
+   return expect(inner.catch("FB2").safeParseAsync("abc")).resolves.toMatchObject({ success: true, data: "FB" });
+ });
++
++test("a constant catch value is copied on each parse", () => {
++  const arr = z.array(z.string()).catch([]);
++  arr.parse(1).push("leak");
++  expect(arr.parse(1)).toEqual([]);
++
++  const map = z.map(z.string(), z.number()).catch(new Map());
++  map.parse(1).set("leak", 1);
++  expect(map.parse(1).size).toBe(0);
++
++  const date = z.date().catch(new Date(0));
++  date.parse(1).setTime(1);
++  expect(date.parse(1).getTime()).toBe(0);
++});
+diff --git a/packages/zod/src/v4/classic/tests/default.test.ts b/packages/zod/src/v4/classic/tests/default.test.ts
+index 2ae1a24..008ce88 100644
+--- a/packages/zod/src/v4/classic/tests/default.test.ts
++++ b/packages/zod/src/v4/classic/tests/default.test.ts
+@@ -376,6 +376,12 @@ test("mutations on defaulted Set do not affect subsequent parses", () => {
+   expect(result2.has("item1")).toBe(false);
+ });
+ 
++test("mutations on a defaulted Date do not affect subsequent parses", () => {
++  const schema = z.date().default(new Date(0));
++  schema.parse(undefined).setTime(1);
++  expect(schema.parse(undefined).getTime()).toBe(0);
++});
++
+ test("direction-aware defaults", () => {
+   const schema = z.string().default("hello");
+ 
+diff --git a/packages/zod/src/v4/classic/tests/prefault.test.ts b/packages/zod/src/v4/classic/tests/prefault.test.ts
+index 0e80ad3..af1bf08 100644
+--- a/packages/zod/src/v4/classic/tests/prefault.test.ts
++++ b/packages/zod/src/v4/classic/tests/prefault.test.ts
+@@ -118,6 +118,12 @@ test("object schema with prefault should return shallow clone", () => {
+   expect(result1).toEqual(result2);
+ });
+ 
++test("mutations on a prefaulted Date do not affect subsequent parses", () => {
++  const schema = z.date().prefault(new Date(0));
++  schema.parse(undefined).setTime(1);
++  expect(schema.parse(undefined).getTime()).toBe(0);
++});
++
+ test("direction-aware prefault", () => {
+   const schema = z.string().prefault("hello");
+ 
+diff --git a/packages/zod/src/v4/core/util.ts b/packages/zod/src/v4/core/util.ts
+index 9ecf00b..de6ca9c 100644
+--- a/packages/zod/src/v4/core/util.ts
++++ b/packages/zod/src/v4/core/util.ts
+@@ -573,6 +573,7 @@ export function shallowClone(o: any): any {
+   if (Array.isArray(o)) return [...o];
+   if (o instanceof Map) return new Map(o);
+   if (o instanceof Set) return new Set(o);
++  if (o instanceof Date) return new Date(o.getTime());
+   return o;
+ }
+ 
+@@ -1323,7 +1324,7 @@ export const CONSTANT_CATCH = "~constantCatch";
+ 
+ /** Wraps a constant catch value in a thunk tagged with {@link CONSTANT_CATCH}. */
+ export function constantCatch<T>(value: T): () => T {
+-  const fn = () => value;
++  const fn = () => shallowClone(value);
+   (fn as { [CONSTANT_CATCH]?: boolean })[CONSTANT_CATCH] = true;
+   return fn;
+ }
+-- 
+2.43.0
+

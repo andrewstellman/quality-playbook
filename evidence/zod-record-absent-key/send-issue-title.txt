@@ -1,0 +1,1 @@
+Exhaustive z.record() accepts a missing key when the value schema accepts undefined

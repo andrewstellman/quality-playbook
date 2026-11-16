@@ -1,0 +1,3 @@
+`normalized_host` decodes `%3A`, `%5B` and `%5D`, so `Addressable::URI.parse("http://example.com%3A8080/").normalize.to_s` gives `"http://example.com:8080/"`, which parses with the host `example.com` and the port 8080, and `Addressable::URI.parse("http://a%3Ab.example/").normalize` raises `InvalidURIError`. A fullwidth colon (`http://example.com\uFF1A8080/`) gets the same result through NFKC. This change re-encodes `:`, `[` and `]` in a host that isn't a bracketed IP literal, after IDNA and normalization. The new specs in `uri_spec.rb` cover the encoded colon, the brackets and the fullwidth colon.
+
+Found with the Quality Playbook, an AI code-review tool I maintain. The fix and test were written with AI assistance and reviewed by me.

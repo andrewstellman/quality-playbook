@@ -41,7 +41,7 @@ The agent finds the installed skill on its own and runs the six phases (explore,
 
 ## Merged bugs leaderboard
 
-As of 6 November 2026, maintainers have merged or released fixes for these 27 bugs, and 19 more fixes and reports are [submitted and waiting](#submitted-upstream). Three of them were private security reports, published by the maintainer as advisories once the fix was released, and GitHub has issued CVEs for the two addressable advisories: CVE-2026-126349 (GHSA-539f, credited only to my report) and CVE-2026-126350 (GHSA-j82w, credited to my report and two independent reporters). The full record, including the bugs that were held back, dropped or never filed, is in [`evidence/README.md`](evidence/README.md).
+As of 6 November 2026, maintainers have merged or released fixes for these 27 bugs, and 25 more fixes and reports are [submitted and waiting](#submitted-upstream). Three of them were private security reports, published by the maintainer as advisories once the fix was released, and GitHub has issued CVEs for the two addressable advisories: CVE-2026-126349 (GHSA-539f, credited only to my report) and CVE-2026-126350 (GHSA-j82w, credited to my report and two independent reporters). The full record, including the bugs that were held back, dropped or never filed, is in [`evidence/README.md`](evidence/README.md).
 
 | Project | The bug | Fix | Merged | Evidence |
 |---|---|---|---|---|
@@ -327,7 +327,7 @@ If `TOOLKIT.md` doesn't answer your question, file an issue at https://github.co
 
 ## Submitted upstream
 
-These fixes and reports are still waiting on the maintainers. All of them except the two setuptools PRs opened in November (#5374 and #5375) were checked on GitHub on 27 October 2026, and none had been merged or closed. The Linux patches were checked against the history of mainline (`torvalds/linux`), not their mailing-list threads. The five marshmallow pull requests from #3086 to #3090 share one evidence folder: three of them were first reported privately to marshmallow's security contact, who ruled them not security issues and asked for public pull requests. Reports that may be security issues and are still private are not listed until the maintainers publish them.
+These fixes and reports are still waiting on the maintainers. All of them except those opened in November (setuptools #5374 and #5375, zod #6767, #6769 and #6770, tomlkit #714, addressable #702 and #703) were checked on GitHub on 27 October 2026, and none had been merged or closed. The Linux patches were checked against the history of mainline (`torvalds/linux`), not their mailing-list threads. The five marshmallow pull requests from #3086 to #3090 share one evidence folder: three of them were first reported privately to marshmallow's security contact, who ruled them not security issues and asked for public pull requests. Reports that may be security issues and are still private are not listed until the maintainers publish them.
 
 | Project | The bug | Submitted | Evidence |
 |---|---|---|---|
@@ -346,6 +346,12 @@ These fixes and reports are still waiting on the maintainers. All of them except
 | spf13 `cobra` | Command suggestions measured edit distance in bytes, not characters | [#2514](https://github.com/spf13/cobra/pull/2514) | [Evidence folder](evidence/cobra-suggest-runes/) |
 | colinhacks `zod` | `registry.remove()` deleted an id that now belonged to another schema | [issue #6640](https://github.com/colinhacks/zod/issues/6640) (zod accepts pull requests only from collaborators) | [Evidence folder](evidence/zod-registry-remove-owner/) |
 | colinhacks `zod` | An intersection threw when both sides produced `NaN` | [issue #6639](https://github.com/colinhacks/zod/issues/6639) | [Evidence folder](evidence/zod-intersection-nan/) |
+| colinhacks `zod` | Compiled parsing accepted a missing key whose optional was inside `z.intersection()` or `z.success()` | [issue #6767](https://github.com/colinhacks/zod/issues/6767) (fix on a branch of my fork) | [Evidence folder](evidence/zod-compile-optional-absent-key/) |
+| colinhacks `zod` | An exhaustive `z.record()` accepted a missing key when the value schema accepted `undefined` | [issue #6769](https://github.com/colinhacks/zod/issues/6769) (fix on a branch of my fork) | [Evidence folder](evidence/zod-record-absent-key/) |
+| colinhacks `zod` | A constant `.catch()` value and a `Date` default were shared across parses | [issue #6770](https://github.com/colinhacks/zod/issues/6770) (fix on a branch of my fork) | [Evidence folder](evidence/zod-clone-static-fallbacks/) |
+| python-poetry `tomlkit` | `parse()` raised `RecursionError` on a valid document whose dotted key was within the nesting limit | [issue #714](https://github.com/python-poetry/tomlkit/issues/714) | [Evidence folder](evidence/tomlkit-dotted-key-recursion/) |
+| sporkmonger `addressable` | `normalize` decoded `%3A`, `%5B` and `%5D` in a host name, so an encoded colon became a port | [#702](https://github.com/sporkmonger/addressable/pull/702) | [Evidence folder](evidence/addressable-normalized-host-delimiters/) |
+| sporkmonger `addressable` | The pure-Ruby `to_ascii` skipped the characters nameprep removes, such as a zero width joiner | [#703](https://github.com/sporkmonger/addressable/pull/703) | [Evidence folder](evidence/addressable-pure-idna-nameprep/) |
 | NVIDIA `bionemo-recipes` | The THD context-parallel split dropped the remainder tokens | [#1765](https://github.com/NVIDIA-BioNeMo/bionemo-recipes/pull/1765) | [Evidence folder](evidence/bionemo-thd-cp-divisibility/) |
 | NVIDIA `bionemo-recipes` | AMPLIFY `_pad_weights` returned fp32 for bf16 input | [#1764](https://github.com/NVIDIA-BioNeMo/bionemo-recipes/pull/1764) | [Evidence folder](evidence/bionemo-amplify-pad-weights-dtype/) |
 | Linux kernel `nvmet` | ANA group ID 128 was clamped to 0 by `array_index_nospec()` | [v2](https://lore.kernel.org/r/20261106134313.34829-1-astellman@stellman-greene.com) applied to nvme-7.4 by Keith Busch, 6 November 2026, not yet in mainline | [Evidence folder](evidence/nvmet-anagrpid/) |

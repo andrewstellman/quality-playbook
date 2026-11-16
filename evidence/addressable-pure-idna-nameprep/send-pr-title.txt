@@ -1,0 +1,1 @@
+Remove characters nameprep maps to nothing in pure-Ruby to_ascii

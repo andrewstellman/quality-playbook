@@ -1,0 +1,81 @@
+From 9d79d3b02d0cfc976dd763b8e3ff7792d09089c3 Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <astellman@stellman-greene.com>
+Date: Fri, 13 Nov 2026 11:33:02 -0500
+Subject: [PATCH] Remove characters nameprep maps to nothing in pure-Ruby
+ to_ascii
+
+RFC 3491 nameprep removes the characters in table B.1 of RFC 3454,
+such as a soft hyphen, and the idn-ruby backend does, but the pure-Ruby
+backend encoded them.
+---
+ CHANGELOG.md                  |  4 ++++
+ lib/addressable/idna/pure.rb  |  9 ++++++++-
+ spec/addressable/idna_spec.rb | 10 ++++++++++
+ 3 files changed, 22 insertions(+), 1 deletion(-)
+
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index 3eb78a3..4b2a39b 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -54,6 +54,10 @@
+ - Return copies from `#variables`, `#variable_defaults` and `MatchData#values` ([#619])
+ - Split an exploded value of the default, `+` and `#` operators into its members in `#match` and `#extract`: `{a*,b}` on `x,y,z` gives `{"a" => ["x", "y"], "b" => "z"}`, not `{"a" => ["x,y,"], "b" => "z"}` ([#700])
+ 
++### `Addressable::IDNA`
++
++- Remove the characters nameprep maps to nothing, such as a zero width joiner, in the pure-Ruby `.to_ascii`, as `idn-ruby` does ([#NNN])
++
+ [#133]: https://github.com/sporkmonger/addressable/pull/133
+ [#512]: https://github.com/sporkmonger/addressable/pull/512
+ [#550]: https://github.com/sporkmonger/addressable/pull/550
+diff --git a/lib/addressable/idna/pure.rb b/lib/addressable/idna/pure.rb
+index 20cb886..0079034 100644
+--- a/lib/addressable/idna/pure.rb
++++ b/lib/addressable/idna/pure.rb
+@@ -95,6 +95,11 @@ module Addressable
+     # warns about a duplicated range in a character class.
+     DISPLAY_CHANGING = /[\p{Cc}\p{Cf}[\p{Default_Ignorable_Code_Point}&&\P{Cf}]]/
+ 
++    # Characters that nameprep maps to nothing (Section 3 of RFC 3491, since
++    # obsoleted by RFC 5891), such as SOFT HYPHEN and ZERO WIDTH JOINER.
++    MAPPED_TO_NOTHING =
++      /[\u00AD\u034F\u1806\u180B-\u180D\u200B-\u200D\u2060\uFE00-\uFE0F\uFEFF]/
++
+     # :startdoc:
+ 
+     # Converts from a Unicode internationalized domain name to an ASCII
+@@ -102,7 +107,9 @@ module Addressable
+     # RFC 5890 and RFC 5891).
+     def self.to_ascii(input)
+       input = input.to_s unless input.is_a?(String)
+-      input = input.dup.force_encoding(Encoding::UTF_8).unicode_normalize(:nfkc)
++      input = input.dup.force_encoding(Encoding::UTF_8)
++      input = input.gsub(MAPPED_TO_NOTHING, '')
++      input = input.unicode_normalize(:nfkc)
+       if input.respond_to?(:force_encoding)
+         input.force_encoding(Encoding::ASCII_8BIT)
+       end
+diff --git a/spec/addressable/idna_spec.rb b/spec/addressable/idna_spec.rb
+index 7085934..8f9d463 100644
+--- a/spec/addressable/idna_spec.rb
++++ b/spec/addressable/idna_spec.rb
+@@ -153,6 +153,16 @@ shared_examples_for "converting from unicode to ASCII" do
+     )).to eq("example..host")
+   end
+ 
++  it "should drop a soft hyphen (mapped to nothing by nameprep)" do
++    expect(Addressable::IDNA.to_ascii(
++      "m\u00FCn\u00ADchen.de"
++    )).to eq("xn--mnchen-3ya.de")
++  end
++
++  it "should drop a zero width joiner (mapped to nothing by nameprep)" do
++    expect(Addressable::IDNA.to_ascii("a\u200Db.com")).to eq("ab.com")
++  end
++
+   {
+     "bücher.example." => "xn--bcher-kva.example.",
+     "bücher.example.." => "xn--bcher-kva.example..",
+-- 
+2.43.0
+

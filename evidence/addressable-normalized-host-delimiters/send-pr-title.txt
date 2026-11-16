@@ -1,0 +1,1 @@
+Keep ':', '[' and ']' encoded when normalizing a registered name

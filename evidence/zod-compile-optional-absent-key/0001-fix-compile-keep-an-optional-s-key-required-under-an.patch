@@ -1,0 +1,50 @@
+From be85f8b6e98fd068f162d982b317120929edad16 Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <astellman@stellman-greene.com>
+Date: Wed, 21 Oct 2026 08:30:54 -0400
+Subject: [PATCH] fix(compile): keep an optional's key required under an
+ intersection or z.success()
+
+A non-exact optional accepts undefined whatever its inner schema is, so
+fastPathAcceptsAbsence now says so and the object emits its presence guard.
+---
+ packages/zod/src/v4/core/compile.ts                      | 3 +++
+ .../zod/src/v4/core/tests/compile-differential.test.ts   | 9 +++++++++
+ 2 files changed, 12 insertions(+)
+
+diff --git a/packages/zod/src/v4/core/compile.ts b/packages/zod/src/v4/core/compile.ts
+index 74dcd27..bf8b998 100644
+--- a/packages/zod/src/v4/core/compile.ts
++++ b/packages/zod/src/v4/core/compile.ts
+@@ -1451,6 +1451,9 @@ function fastPathAcceptsAbsence(schema: SomeType): boolean {
+     case "enum":
+       return !!(schema._zod as unknown as { values?: Set<unknown> }).values?.has(undefined);
+     case "optional":
++      // a non-exact optional takes `undefined` whatever its inner type
++      if (!isExactOptional(schema)) return true;
++      return def.innerType ? fastPathAcceptsAbsence(def.innerType) : true;
+     case "nullable":
+     case "readonly":
+     case "success":
+diff --git a/packages/zod/src/v4/core/tests/compile-differential.test.ts b/packages/zod/src/v4/core/tests/compile-differential.test.ts
+index 2f63a81..902a792 100644
+--- a/packages/zod/src/v4/core/tests/compile-differential.test.ts
++++ b/packages/zod/src/v4/core/tests/compile-differential.test.ts
+@@ -751,6 +751,15 @@ test("a coercing object key cannot materialize an absent key", () => {
+   differential(z.object({ a: z.string(), k: z.coerce.string() }), [{ a: "x" }, { a: "x", k: 5 }]);
+ });
+ 
++test("an optional under an intersection or z.success() keeps its key required", () => {
++  // neither wrapper declares `optin`
++  const inter = z.object({ a: z.intersection(z.string().optional(), z.string().optional()) });
++  const success = z.object({ a: z.success(z.string().optional()) });
++  differential(inter, [{}, { a: undefined }, { a: "x" }, { a: 1 }]);
++  differential(success, [{}, { a: undefined }, { a: "x" }, { a: 1 }]);
++  expect(z.validate(compile(success), {})).toBe(false);
++});
++
+ test("a thenable predicate throws rather than rejecting", () => {
+   // `isAsyncFunction` is syntactic, so a plain function returning a promise reaches the codegen. The interpreter throws $ZodAsyncError for it — returning INVALID instead is a bail-out, and a union reads a bail-out as a rejected branch and answers with a later one. Routed through differential() precisely so assertUnionSound sees it; the previous bespoke helper skipped that and is why this shipped.
+   differential(
+-- 
+2.43.0
+
