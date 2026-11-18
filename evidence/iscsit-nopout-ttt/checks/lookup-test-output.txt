@@ -1,0 +1,14 @@
+# gcc -std=gnu11 -Wall -Wextra -Werror -o t lookup-test.c && ./t
+== patched lookup (iscsit_find_nopin_from_ttt)
+PASS [Reject ttt0, NOP-In ttt0], reply names ttt0                   -> NOP-In
+PASS [READ ttt0], NOP-Out names ttt0                                -> NULL (connection closed)
+PASS [Reject ttt0], NOP-Out names ttt0                              -> NULL (connection closed)
+PASS [READ 5, Text 7, NOP-In 6], NOP-Out names 5                    -> NULL (connection closed)
+PASS [READ 5, Text 7, NOP-In 6], NOP-Out names 7                    -> NULL (connection closed)
+PASS [READ 5, Text 7, NOP-In 6], reply names 6                      -> NOP-In
+PASS [READ 5, Text 7, NOP-In 6], unknown ttt 9                      -> NULL (connection closed)
+patched failures: 0
+== for comparison: existing lookup + opcode check
+FAIL [Reject ttt0, NOP-In ttt0], reply names ttt0                   -> NULL (connection closed)
+PASS [READ 5, NOP-In 6], NOP-Out names 5                            -> NULL (connection closed)
+opcode-check-only failures: 1

@@ -1,0 +1,30 @@
+# scripts/checkpatch.pl (7.4-rc3), run inside the tree
+## default
+ERROR: Missing Signed-off-by: line(s)
+
+total: 1 errors, 0 warnings, 42 lines checked
+
+NOTE: For some of the reported defects, checkpatch may be able to
+      mechanically convert to the typical style using --fix or --fix-inplace.
+
+/home/claude/k/outgoing/0001-scsi-target-iscsi-Match-NOP-Out-replies-only-against.patch has style problems, please review.
+
+NOTE: If any of the errors are false positives, please report
+      them to the maintainer, see CHECKPATCH in MAINTAINERS.
+
+## --strict
+CHECK: extern prototypes should be avoided in .h files
+#114: FILE: drivers/target/iscsi/iscsi_target_util.h:29:
++extern struct iscsit_cmd *iscsit_find_nopin_from_ttt(struct iscsit_conn *conn,
+
+ERROR: Missing Signed-off-by: line(s)
+
+total: 1 errors, 0 warnings, 1 checks, 42 lines checked
+
+NOTE: For some of the reported defects, checkpatch may be able to
+      mechanically convert to the typical style using --fix or --fix-inplace.
+
+/home/claude/k/outgoing/0001-scsi-target-iscsi-Match-NOP-Out-replies-only-against.patch has style problems, please review.
+
+NOTE: If any of the errors are false positives, please report
+      them to the maintainer, see CHECKPATCH in MAINTAINERS.

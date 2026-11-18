@@ -1,0 +1,9 @@
+7.4/scsi-fixes @ 9f9e0b1e5399 scsi: ch: Remove the minor from ch_index_idr after device_destroy() (2026-11-17)
+  git am: applied cleanly
+  iscsi/isert commits since v7.4-rc3: 3
+    48d3b732e5ad scsi: target: iscsi: Check for existing sessions only after authentication
+    cae8db99f395 scsi: target: iscsi: Fix hanging WRITE_PENDING commands
+    94196cd3413f scsi: Revert "scsi: target: iscsi: Fix hang for aborted WRITE_PENDING commands"
+7.5/scsi-staging @ 08fec21faae4 scsi: ufs: qcom: dt-bindings: Classify sm8150-ufshc as standalone ICE (2026-11-17)
+  git am: applied cleanly
+  iscsi/isert commits since v7.4-rc3: 0

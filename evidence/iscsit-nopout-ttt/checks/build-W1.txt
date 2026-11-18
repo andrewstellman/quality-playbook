@@ -1,0 +1,34 @@
+# make O=out W=1 drivers/target/iscsi/  (x86_64 defconfig + CONFIGFS_FS=y TARGET_CORE=m ISCSI_TARGET=m TCM_IBLOCK=m, gcc 13.3.0)
+# tree: 81547cab0bbb scsi: target: iscsi: Match NOP-Out replies only against NOP-Ins
+make[1]: Entering directory '/home/claude/k/out'
+  SYNC    include/config/auto.conf.cmd
+  DESCEND objtool
+  CC      /home/claude/k/out/tools/objtool/arch/x86/decode.o
+  CC      scripts/mod/devicetable-offsets.s
+  CC      kernel/bounds.s
+  CC      arch/x86/kernel/asm-offsets.s
+  LD      /home/claude/k/out/tools/objtool/arch/x86/objtool-in.o
+  LD      /home/claude/k/out/tools/objtool/objtool-in.o
+  LINK    /home/claude/k/out/tools/objtool/objtool
+  CC      kernel/sched/rq-offsets.s
+  CC [M]  drivers/target/iscsi/iscsi_target_parameters.o
+  CC [M]  drivers/target/iscsi/iscsi_target_seq_pdu_list.o
+  CC [M]  drivers/target/iscsi/iscsi_target_auth.o
+  CC [M]  drivers/target/iscsi/iscsi_target_datain_values.o
+  CC [M]  drivers/target/iscsi/iscsi_target_device.o
+  CC [M]  drivers/target/iscsi/iscsi_target_erl0.o
+  CC [M]  drivers/target/iscsi/iscsi_target_erl1.o
+  CC [M]  drivers/target/iscsi/iscsi_target_erl2.o
+  CC [M]  drivers/target/iscsi/iscsi_target_login.o
+  CC [M]  drivers/target/iscsi/iscsi_target_nego.o
+  CC [M]  drivers/target/iscsi/iscsi_target_nodeattrib.o
+  CC [M]  drivers/target/iscsi/iscsi_target_tmr.o
+  CC [M]  drivers/target/iscsi/iscsi_target_tpg.o
+  CC [M]  drivers/target/iscsi/iscsi_target_util.o
+  CC [M]  drivers/target/iscsi/iscsi_target.o
+  CC [M]  drivers/target/iscsi/iscsi_target_configfs.o
+  CC [M]  drivers/target/iscsi/iscsi_target_stat.o
+  CC [M]  drivers/target/iscsi/iscsi_target_transport.o
+  LD [M]  drivers/target/iscsi/iscsi_target_mod.o
+make[1]: Leaving directory '/home/claude/k/out'
+# warnings/errors: 0

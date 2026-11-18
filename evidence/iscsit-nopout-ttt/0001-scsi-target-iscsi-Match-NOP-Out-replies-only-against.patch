@@ -1,0 +1,123 @@
+From 81547cab0bbbe1aa6a55bbf329045bfb1636dfeb Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <astellman@stellman-greene.com>
+Date: Wed, 18 Nov 2026 10:05:28 -0500
+Subject: [PATCH] scsi: target: iscsi: Match NOP-Out replies only against
+ NOP-Ins
+
+iscsit_process_nop_out() treats a NOP-Out with the reserved ITT and a
+Target Transfer Tag as the reply to an unsolicited NOP-In. It looks the
+TTT up with iscsit_find_cmd_from_ttt(), which returns the first command
+on conn_cmd_list with that tag whatever its opcode, then sets that
+command to ISTATE_REMOVE and queues it for the TX thread to free.
+
+NOP-Ins aren't the only commands with a TTT. READs take theirs from the
+same per-session counter, as do Text commands with a pending
+continuation, and Rejects allocated by iscsit_add_reject() keep the 0
+that iscsit_allocate_cmd() leaves in targ_xfer_tag.
+
+Commit 9547308bda29 ("target/iscsi: Fix double free of a TUR followed by a
+solicited NOPOUT") fixed this for non-READ SCSI commands by giving them
+a TTT of 0xffffffff, but the lookup can still match these. The counter
+starts at 0 for each session, so the TTT of a session's first READ is
+known in advance.
+
+If a NOP-Out names the TTT of a READ that the backend is still
+processing, the TX thread frees it with transport_generic_free_cmd(),
+which doesn't wait for the backend and sets se_cmd->se_lun to NULL.
+From reading the code, target_complete_ok_work() then dereferences the
+NULL se_lun when the READ completes. I haven't reproduced this on a
+running kernel.
+
+Add iscsit_find_nopin_from_ttt(), which matches only NOP-In commands,
+and use it for NOP-Out replies. Matching on the opcode after the
+existing lookup isn't enough, because a Reject with TTT 0 can be ahead
+of a NOP-In that also got TTT 0 on a fresh session. A NOP-Out that names
+another command's TTT now closes the connection, as one naming an
+unknown TTT already does. iscsit_find_cmd_from_ttt() is unchanged for
+its other caller, Data ACK SNACK handling.
+
+The issue was found by Claude Opus 5.5 running Quality Playbook, an
+LLM-driven code review tool:
+https://github.com/andrewstellman/quality-playbook
+The fix and this changelog were drafted with Claude and reviewed by me.
+
+Fixes: e48354ce078c ("iscsi-target: Add iSCSI fabric support for target v4.1")
+Cc: stable@vger.kernel.org
+---
+Not yet run on a kernel. So far it builds with W=1 and no new warnings
+(x86_64, ISCSI_TARGET=m), applies cleanly to 7.4/scsi-fixes and
+7.5/scsi-staging, and the new lookup, compiled from this patch into a
+userspace test, returns the NOP-In ahead of a Reject with the same TTT
+and doesn't match READ or Text commands.
+
+A second NOP-Out answering the same NOP-In is still accepted and queues
+it for removal twice. That needs a separate change and isn't addressed
+here.
+
+ drivers/target/iscsi/iscsi_target.c      |  2 +-
+ drivers/target/iscsi/iscsi_target_util.c | 20 ++++++++++++++++++++
+ drivers/target/iscsi/iscsi_target_util.h |  2 ++
+ 3 files changed, 23 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/target/iscsi/iscsi_target.c b/drivers/target/iscsi/iscsi_target.c
+index 124ff269b8e7..e2312799daaf 100644
+--- a/drivers/target/iscsi/iscsi_target.c
++++ b/drivers/target/iscsi/iscsi_target.c
+@@ -1821,7 +1821,7 @@ int iscsit_process_nop_out(struct iscsit_conn *conn, struct iscsit_cmd *cmd,
+ 	 * This was a response to a unsolicited NOPIN ping.
+ 	 */
+ 	if (hdr->ttt != cpu_to_be32(0xFFFFFFFF)) {
+-		cmd_p = iscsit_find_cmd_from_ttt(conn, be32_to_cpu(hdr->ttt));
++		cmd_p = iscsit_find_nopin_from_ttt(conn, be32_to_cpu(hdr->ttt));
+ 		if (!cmd_p)
+ 			return -EINVAL;
+ 
+diff --git a/drivers/target/iscsi/iscsi_target_util.c b/drivers/target/iscsi/iscsi_target_util.c
+index c1888c42afdd..d4612ff1457e 100644
+--- a/drivers/target/iscsi/iscsi_target_util.c
++++ b/drivers/target/iscsi/iscsi_target_util.c
+@@ -401,6 +401,26 @@ struct iscsit_cmd *iscsit_find_cmd_from_ttt(
+ 	return NULL;
+ }
+ 
++struct iscsit_cmd *iscsit_find_nopin_from_ttt(struct iscsit_conn *conn,
++					      u32 targ_xfer_tag)
++{
++	struct iscsit_cmd *cmd;
++
++	spin_lock_bh(&conn->cmd_lock);
++	list_for_each_entry(cmd, &conn->conn_cmd_list, i_conn_node) {
++		if (cmd->iscsi_opcode == ISCSI_OP_NOOP_IN &&
++		    cmd->targ_xfer_tag == targ_xfer_tag) {
++			spin_unlock_bh(&conn->cmd_lock);
++			return cmd;
++		}
++	}
++	spin_unlock_bh(&conn->cmd_lock);
++
++	pr_err("Unable to locate NOPIN TTT: 0x%08x on CID: %u\n",
++	       targ_xfer_tag, conn->cid);
++	return NULL;
++}
++
+ int iscsit_find_cmd_for_recovery(
+ 	struct iscsit_session *sess,
+ 	struct iscsit_cmd **cmd_ptr,
+diff --git a/drivers/target/iscsi/iscsi_target_util.h b/drivers/target/iscsi/iscsi_target_util.h
+index 7ae48a8a5cbf..a16b3cef72ad 100644
+--- a/drivers/target/iscsi/iscsi_target_util.h
++++ b/drivers/target/iscsi/iscsi_target_util.h
+@@ -26,6 +26,8 @@ extern int iscsit_sequence_cmd(struct iscsit_conn *conn, struct iscsit_cmd *cmd,
+ extern struct iscsit_cmd *iscsit_find_cmd_from_itt_or_dump(struct iscsit_conn *,
+ 			itt_t, u32);
+ extern struct iscsit_cmd *iscsit_find_cmd_from_ttt(struct iscsit_conn *, u32);
++extern struct iscsit_cmd *iscsit_find_nopin_from_ttt(struct iscsit_conn *conn,
++						     u32 targ_xfer_tag);
+ extern int iscsit_find_cmd_for_recovery(struct iscsit_session *, struct iscsit_cmd **,
+ 			struct iscsi_conn_recovery **, itt_t);
+ extern void iscsit_add_cmd_to_immediate_queue(struct iscsit_cmd *, struct iscsit_conn *, u8);
+
+base-commit: aebb7274476403040d582c61478df8f4a7bf9cd3
+-- 
+2.43.0
+
