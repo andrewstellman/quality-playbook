@@ -130,3 +130,4 @@ metrics/*integration_regression*/
 
 # Row-16 evidence: the 053 integration/regression run (carry-forward P11)
 !metrics/v1.5.10_integration_regression/
+.aider*
