@@ -1,6 +1,6 @@
-# Evidence: bugs Quality Playbook found that have been reported, and what happened to each one
+# Evidence: bugs Quality Playbook has found, and what happened to each one
 
-> *Repo maintainers are drowning in AI slop, so I'm careful to report only bugs that I've reviewed and confirmed as real. Quality Playbook has found many more bugs than this in many open source repos, but I'm being careful about what I submit because I refuse to contribute to the AI slop problem.*
+> *Repo maintainers are drowning in AI slop, so I'm careful to report only bugs that I've reviewed and confirmed as real. Quality Playbook has found many more **potential** bugs than this in many open source repos, but I'm being careful about what I submit because I refuse to contribute to the AI slop problem.*
 >
 > *Andrew*
 
