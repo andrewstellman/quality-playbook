@@ -1,4 +1,8 @@
-# Evidence: the bugs the Quality Playbook found, and what happened to each one
+# Evidence: bugs Quality Playbook found that have been reported, and what happened to each one
+
+> *Repo maintainers are drowning in AI slop, so I'm careful to report only bugs that I've reviewed and confirmed as real. Quality Playbook has found many more bugs than this in many open source repos, but I'm being careful about what I submit because I refuse to contribute to the AI slop problem.*
+>
+> *Andrew*
 
 This folder is the public record of the bugs found by the Quality Playbook (QPB) that went beyond the playbook's own report: reproduced against the current upstream code, fixed, reviewed, and then submitted, held, dropped or never filed. One subfolder per bug. Each holds the reproduction logs, the patch as tested (and as sent, where they differ), the review that preceded submission, and the upstream status. Logs are not edited; when one is not clean, the folder says so and says why.
 
