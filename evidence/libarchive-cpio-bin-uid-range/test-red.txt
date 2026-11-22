@@ -1,0 +1,4 @@
+== without fix (archive_write_set_format_cpio_binary.c from origin/master 8deebeb4, new test kept)
+  Tests failed:             1
+  Assertions checked:      52
+  Assertions failed:       12

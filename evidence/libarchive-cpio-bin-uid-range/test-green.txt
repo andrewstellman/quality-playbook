@@ -1,0 +1,3 @@
+== with fix, branch bug003-uid-pr on origin/master 8deebeb4
+  Skips reported:           0
+1 tests passed, no failures

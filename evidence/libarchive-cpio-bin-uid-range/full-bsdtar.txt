@@ -1,0 +1,98 @@
+Will switch to user nobody (uid 65534 gid 65534)
+
+If tests fail or crash, details will be in:
+   /tmp/bsdtar_test.2026-11-21T21.00.16-000
+
+Reference files will be read from: /home/claude/la/src/tar/test
+Running tests on: "/home/claude/la/bt/bin/bsdtar"
+Exercising: bsdtar 3.9.0 - libarchive 3.9.0dev zlib/1.3.1.zlib-ng liblzma/5.4.5 bz2lib/1.0.8 libzstd/1.5.5 expat/expat_2.6.1 openssl/3.0.13 libb2/bundled 
+
+  0: test_0                                                          ok
+  1: test_basic                                                      ok
+  2: test_copy                                                       ok
+  3: test_copy_data_warning                                          ok
+  4: test_crlf_mtree                                                 ok
+  5: test_empty_mtree                                                ok
+  6: test_extract_tar_Z                                              ok
+  7: test_extract_tar_bz2                                            ok
+  8: test_extract_tar_grz                                            skipped
+  9: test_extract_tar_gz                                             ok
+ 10: test_extract_tar_lrz                                            skipped
+ 11: test_extract_tar_lz                                             ok
+ 12: test_extract_tar_lz4                                            skipped
+ 13: test_extract_tar_lzma                                           ok
+ 14: test_extract_tar_lzo                                            skipped
+ 15: test_extract_tar_xz                                             ok
+ 16: test_extract_tar_zstd                                           ok
+ 17: test_edit_pathname_hardlink                                     ok
+ 18: test_format_newc                                                ok
+ 19: test_help                                                       ok
+ 20: test_leading_slash                                              ok
+ 21: test_list_item                                                  ok
+ 22: test_missing_file                                               ok
+ 23: test_option_C_upper                                             ok
+ 24: test_option_C_mtree                                             ok
+ 25: test_option_H_upper                                             ok
+ 26: test_option_L_upper                                             ok
+ 27: test_option_O_upper                                             ok
+ 28: test_extract_tar_absolute_paths                                 ok
+ 29: test_option_T_upper                                             ok
+ 30: test_option_U_upper                                             ok
+ 31: test_option_X_upper                                             ok
+ 32: test_option_a                                                   ok
+ 33: test_option_acls                                                skipped
+ 34: test_option_b                                                   ok
+ 35: test_option_b64encode                                           ok
+ 36: test_option_exclude                                             ok
+ 37: test_option_exclude_vcs                                         ok
+ 38: test_option_fflags                                              ok
+ 39: test_option_gid_gname                                           ok
+ 40: test_option_group                                               ok
+ 41: test_option_grzip                                               skipped
+ 42: test_option_ignore_zeros_mode_t                                 ok
+ 43: test_option_ignore_zeros_mode_x                                 ok
+ 44: test_option_ignore_zeros_mode_c                                 ok
+ 45: test_option_ignore_zeros_mode_r                                 ok
+ 46: test_option_ignore_zeros_mode_u                                 ok
+ 47: test_option_j                                                   ok
+ 48: test_option_k                                                   ok
+ 49: test_option_keep_newer_files                                    ok
+ 50: test_option_lrzip                                               skipped
+ 51: test_option_lz4                                                 skipped
+ 52: test_option_lzma                                                ok
+ 53: test_option_lzop                                                skipped
+ 54: test_option_mode                                                ok
+ 55: test_option_mtime                                               ok
+ 56: test_option_n                                                   ok
+ 57: test_option_newer_than                                          ok
+ 58: test_option_nodump                                              ok
+ 59: test_option_older_than                                          ok
+ 60: test_option_owner                                               ok
+ 61: test_option_passphrase                                          ok
+ 62: test_option_q                                                   ok
+ 63: test_option_r                                                   ok
+ 64: test_option_s                                                   ok
+ 65: test_option_safe_writes                                         ok
+ 66: test_option_stdout_size_exceeds_declared                        ok
+ 67: test_option_uid_uname                                           ok
+ 68: test_option_uuencode                                            ok
+ 69: test_option_xattrs                                              ok
+ 70: test_option_xz                                                  ok
+ 71: test_option_z                                                   ok
+ 72: test_option_zstd                                                ok
+ 73: test_patterns                                                   ok
+ 74: test_print_longpath                                             ok
+ 75: test_stdio                                                      ok
+ 76: test_strip_components                                           ok
+ 77: test_symlink_dir                                                ok
+ 78: test_version                                                    ok
+ 79: test_windows                                                    skipped
+
+Totals:
+  Tests run:               80
+  Tests failed:             0
+  Assertions checked:   96853
+  Assertions failed:        0
+  Skips reported:          10
+80 tests passed, no failures
+exit 0

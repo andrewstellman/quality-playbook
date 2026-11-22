@@ -1,0 +1,7 @@
+== patched bsdtar/bsdcpio, branch bug003-uid-pr (origin/master 8deebeb4 + 2 commits)
+bsdtar: prog: Numeric user or group ID out of range for binary cpio format
+bsdtar exit 0
+listing exit 0
+bsdcpio: prog: Numeric user or group ID out of range for binary cpio format: Numerical result out of range
+1 block
+bsdcpio exit 1

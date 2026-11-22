@@ -1,0 +1,68 @@
+Will switch to user nobody (uid 65534 gid 65534)
+
+If tests fail or crash, details will be in:
+   /tmp/bsdcpio_test.2026-11-21T21.00.23-000
+
+Reference files will be read from: /home/claude/la/src/cpio/test
+Running tests on: "/home/claude/la/bt/bin/bsdcpio"
+Exercising: bsdcpio 3.9.0 - libarchive 3.9.0dev zlib/1.3.1.zlib-ng liblzma/5.4.5 bz2lib/1.0.8 libzstd/1.5.5 expat/expat_2.6.1 openssl/3.0.13 libb2/bundled 
+
+  0: test_0                                                          ok
+  1: test_basic                                                      ok
+  2: test_cmdline                                                    ok
+  3: test_extract_cpio_Z                                             ok
+  4: test_extract_cpio_absolute_paths                                ok
+  5: test_extract_cpio_bz2                                           ok
+  6: test_extract_cpio_grz                                           skipped
+  7: test_extract_cpio_gz                                            ok
+  8: test_extract_cpio_lrz                                           skipped
+  9: test_extract_cpio_lz                                            ok
+ 10: test_extract_cpio_lz4                                           skipped
+ 11: test_extract_cpio_lzma                                          ok
+ 12: test_extract_cpio_lzo                                           skipped
+ 13: test_extract_cpio_xz                                            ok
+ 14: test_extract_cpio_zstd                                          ok
+ 15: test_format_newc                                                ok
+ 16: test_gcpio_compat                                               ok
+ 17: test_missing_file                                               ok
+ 18: test_option_0                                                   ok
+ 19: test_option_B_upper                                             ok
+ 20: test_option_C_upper                                             ok
+ 21: test_option_J_upper                                             ok
+ 22: test_option_L_upper                                             ok
+ 23: test_option_Z_upper                                             ok
+ 24: test_option_a                                                   ok
+ 25: test_option_b64encode                                           ok
+ 26: test_option_c                                                   ok
+ 27: test_option_d                                                   ok
+ 28: test_option_f                                                   ok
+ 29: test_option_grzip                                               skipped
+ 30: test_option_help                                                ok
+ 31: test_option_l                                                   ok
+ 32: test_option_lrzip                                               skipped
+ 33: test_option_lz4                                                 skipped
+ 34: test_option_lzma                                                ok
+ 35: test_option_lzop                                                skipped
+ 36: test_option_m                                                   ok
+ 37: test_option_o_rejected_entry                                    ok
+ 38: test_option_passphrase                                          ok
+ 39: test_option_t                                                   ok
+ 40: test_option_u                                                   ok
+ 41: test_option_uuencode                                            ok
+ 42: test_option_version                                             ok
+ 43: test_option_xz                                                  ok
+ 44: test_option_y                                                   ok
+ 45: test_option_z                                                   ok
+ 46: test_option_zstd                                                ok
+ 47: test_owner_parse                                                ok
+ 48: test_passthrough_dotdot                                         ok
+ 49: test_passthrough_reverse                                        ok
+
+Totals:
+  Tests run:               50
+  Tests failed:             0
+  Assertions checked:   16458
+  Assertions failed:        0
+  Skips reported:           8
+50 tests passed, no failures
+exit 0

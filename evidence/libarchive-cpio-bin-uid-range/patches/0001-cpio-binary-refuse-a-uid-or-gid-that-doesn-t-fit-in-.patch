@@ -1,0 +1,41 @@
+From 000edfa8a492b08176119b3c8486cc25f98832c2 Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <astellman@stellman-greene.com>
+Date: Fri, 20 Nov 2026 21:32:37 -0500
+Subject: [PATCH 1/2] cpio binary: refuse a uid or gid that doesn't fit in 16
+ bits
+
+The bin and pwb writers cast the uid and gid to uint16_t, so a
+file owned by uid 65536 was stored as owned by root with no error
+or warning. Return ARCHIVE_FAILED instead, as the ustar writer
+does for a uid that is too large.
+
+The issue was found by Claude Opus 5.5 running Quality Playbook, an
+LLM-driven code review tool:
+https://github.com/andrewstellman/quality-playbook
+The fix and this changelog were drafted with Claude Opus 5.5 and
+reviewed by me.
+---
+ libarchive/archive_write_set_format_cpio_binary.c | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/libarchive/archive_write_set_format_cpio_binary.c b/libarchive/archive_write_set_format_cpio_binary.c
+index 1866598a..6e2fcaf9 100644
+--- a/libarchive/archive_write_set_format_cpio_binary.c
++++ b/libarchive/archive_write_set_format_cpio_binary.c
+@@ -445,6 +445,13 @@ write_header(struct archive_write *a, struct archive_entry *entry)
+ 	}
+ 	h.h_mode = la_swap16(h.h_mode);
+ 
++	if (archive_entry_uid(entry) < 0 || archive_entry_uid(entry) > 0xffff ||
++	    archive_entry_gid(entry) < 0 || archive_entry_gid(entry) > 0xffff) {
++		archive_set_error(&a->archive, ERANGE,
++		    "Numeric user or group ID out of range for binary cpio format");
++		ret_final = ARCHIVE_FAILED;
++		goto exit_write_header;
++	}
+ 	h.h_uid = la_swap16((uint16_t)archive_entry_uid(entry));
+ 	h.h_gid = la_swap16((uint16_t)archive_entry_gid(entry));
+ 	h.h_nlink = la_swap16((uint16_t)archive_entry_nlink(entry));
+-- 
+2.43.0
+

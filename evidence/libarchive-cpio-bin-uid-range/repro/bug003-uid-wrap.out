@@ -1,0 +1,7 @@
+source:
+-rwsr-xr-x 65536 65536 t/prog
+bin: create rc=0, extract (-p, as root) rc=0: -rwsr-xr-x 0 0
+pwb: create rc=0, extract (-p, as root) rc=0: -rwsr-xr-x 0 0
+odc: create rc=0, extract (-p, as root) rc=0: -rwsr-xr-x 65536 65536
+newc: create rc=0, extract (-p, as root) rc=0: -rwsr-xr-x 65536 65536
+ustar: create rc=0, extract (-p, as root) rc=0: -rwsr-xr-x 65536 65536

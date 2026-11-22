@@ -1,0 +1,989 @@
+Will switch to user nobody (uid 65534 gid 65534)
+
+If tests fail or crash, details will be in:
+   /tmp/libarchive_test.2026-11-21T20.59.17-000
+
+Reference files will be read from: /home/claude/la/src/libarchive/test
+Exercising: libarchive 3.9.0dev zlib/1.3.1.zlib-ng liblzma/5.4.5 bz2lib/1.0.8 libzstd/1.5.5 expat/expat_2.6.1 openssl/3.0.13 libb2/bundled
+  0: test_archive_crc32                                              ok
+  1: test_7zip_filename_encoding_UTF16_win                           skipped
+  2: test_acl_from_text_overread                                     ok
+  3: test_acl_nfs4                                                   ok
+  4: test_acl_nfs4_null_id_overflow                                  ok
+  5: test_acl_nfs4_null_id_overflow_w                                ok
+  6: test_acl_nfs4_text_roundtrip                                    ok
+  7: test_acl_nfs4_text_types                                        ok
+  8: test_acl_nfs4_text_numeric_id                                   ok
+  9: test_acl_nfs4_text_invalid                                      ok
+ 10: test_acl_pax_posix1e                                            ok
+ 11: test_acl_pax_nfs4                                               ok
+ 12: test_acl_platform_nfs4                                          skipped
+ 13: test_acl_platform_posix1e_restore                               skipped
+ 14: test_acl_platform_posix1e_read                                  skipped
+ 15: test_acl_posix1e                                                ok
+ 16: test_acl_posix1e_text_roundtrip                                 ok
+ 17: test_acl_posix1e_text_solaris                                   ok
+ 18: test_acl_posix1e_text_ismode                                    ok
+ 19: test_acl_posix1e_text_numeric_id                                ok
+ 20: test_acl_posix1e_text_invalid                                   ok
+ 21: test_acl_from_text                                              ok
+ 22: test_acl_to_text                                                ok
+ 23: test_ar_mode                                                    ok
+ 24: test_archive_api_feature                                        ok
+ 25: test_archive_clear_error                                        ok
+ 26: test_archive_cmdline                                            ok
+ 27: test_archive_md5                                                ok
+ 28: test_archive_rmd160                                             ok
+ 29: test_archive_sha1                                               ok
+ 30: test_archive_sha256                                             ok
+ 31: test_archive_sha384                                             ok
+ 32: test_archive_sha512                                             ok
+ 33: test_archive_match_owner                                        ok
+ 34: test_archive_match_path                                         ok
+ 35: test_archive_match_time                                         ok
+ 36: test_archive_ntfs_to_unix                                       ok
+ 37: test_archive_unix_to_ntfs                                       ok
+ 38: test_archive_parse_date                                         ok
+ 39: test_archive_pathmatch                                          ok
+ 40: test_archive_pathmatch_oob_bracket                              ok
+ 41: test_archive_pathmatch_oob_strchr                               ok
+ 42: test_archive_pathmatch_oob_bracket_w                            ok
+ 43: test_archive_read_ahead_eof                                     ok
+ 44: test_archive_read_ahead_zero                                    ok
+ 45: test_archive_read_state_open                                    ok
+ 46: test_archive_read_consume_beyond_eof                            ok
+ 47: test_archive_read_seek_fails                                    ok
+ 48: test_archive_read_add_passphrase                                ok
+ 49: test_archive_read_add_passphrase_incorrect_sequance             ok
+ 50: test_archive_read_add_passphrase_single                         ok
+ 51: test_archive_read_add_passphrase_multiple                       ok
+ 52: test_archive_read_add_passphrase_set_callback1                  ok
+ 53: test_archive_read_add_passphrase_set_callback2                  ok
+ 54: test_archive_read_add_passphrase_set_callback3                  ok
+ 55: test_archive_read_add_passphrase_multiple_with_callback         ok
+ 56: test_archive_read_add_passphrase_multiple_with_callback2        ok
+ 57: test_archive_read_append_filter                                 ok
+ 58: test_archive_read_close_twice                                   ok
+ 59: test_archive_read_close_twice_open_fd                           ok
+ 60: test_archive_read_close_twice_open_filename                     ok
+ 61: test_archive_read_format_capabilities                           ok
+ 62: test_archive_read_multiple_data_objects                         ok
+ 63: test_archive_read_next_header_empty                             ok
+ 64: test_archive_read_next_header_raw                               ok
+ 65: test_archive_read_open_filenames_null                           ok
+ 66: test_archive_read_open_filenames_split_uaf                      ok
+ 67: test_archive_read_open2                                         ok
+ 68: test_archive_read_set_filter_option                             ok
+ 69: test_archive_read_set_format_option                             ok
+ 70: test_archive_read_set_option                                    ok
+ 71: test_archive_read_set_options                                   ok
+ 72: test_archive_read_support                                       ok
+ 73: test_archive_read_support_twice                                 ok
+ 74: test_archive_seek_data_unsupported                              ok
+ 75: test_archive_set_error                                          ok
+ 76: test_archive_string                                             ok
+ 77: test_archive_string_sort                                        ok
+ 78: test_archive_string_conversion                                  skipped
+ 79: test_archive_string_conversion_fail_c                           ok
+ 80: test_archive_string_conversion_fail_latin1                      skipped
+ 81: test_archive_string_conversion_utf16_utf8                       skipped
+ 82: test_archive_string_conversion_utf8_utf16                       skipped
+ 83: test_archive_string_update_utf8_win                             skipped
+ 84: test_archive_string_update_utf8_utf8                            skipped
+ 85: test_archive_string_update_utf8_koi8                            skipped
+ 86: test_archive_string_conversion_overread                         ok
+ 87: test_archive_write_add_filter_none                              ok
+ 88: test_archive_write_add_filter_gzip                              ok
+ 89: test_archive_write_add_filter_bzip2                             ok
+ 90: test_archive_write_add_filter_compress                          ok
+ 91: test_archive_write_add_filter_grzip                             skipped
+ 92: test_archive_write_add_filter_lrzip                             skipped
+ 93: test_archive_write_add_filter_lz4                               skipped
+ 94: test_archive_write_add_filter_lzip                              ok
+ 95: test_archive_write_add_filter_lzma                              ok
+ 96: test_archive_write_add_filter_lzop                              skipped
+ 97: test_archive_write_add_filter_b64encode                         skipped
+ 98: test_archive_write_add_filter_uuencode                          ok
+ 99: test_archive_write_add_filter_xz                                ok
+100: test_archive_write_add_filter_zstd                              ok
+101: test_archive_write_add_filter_by_name_b64encode                 ok
+102: test_archive_write_add_filter_by_name_bzip2                     ok
+103: test_archive_write_add_filter_by_name_compress                  ok
+104: test_archive_write_add_filter_by_name_grzip                     skipped
+105: test_archive_write_add_filter_by_name_gzip                      ok
+106: test_archive_write_add_filter_by_name_lrzip                     skipped
+107: test_archive_write_add_filter_by_name_lz4                       skipped
+108: test_archive_write_add_filter_by_name_lzip                      ok
+109: test_archive_write_add_filter_by_name_lzma                      ok
+110: test_archive_write_add_filter_by_name_lzop                      skipped
+111: test_archive_write_add_filter_by_name_uuencode                  ok
+112: test_archive_write_add_filter_by_name_xz                        ok
+113: test_archive_write_add_filter_by_name_zstd                      ok
+114: test_archive_write_close_callback                               ok
+115: test_archive_write_set_format_by_name_7zip                      ok
+116: test_archive_write_set_format_by_name_ar                        ok
+117: test_archive_write_set_format_by_name_arbsd                     ok
+118: test_archive_write_set_format_by_name_argnu                     ok
+119: test_archive_write_set_format_by_name_arsvr4                    ok
+120: test_archive_write_set_format_by_name_bsdtar                    ok
+121: test_archive_write_set_format_by_name_cd9660                    ok
+122: test_archive_write_set_format_by_name_cpio                      ok
+123: test_archive_write_set_format_by_name_gnutar                    ok
+124: test_archive_write_set_format_by_name_iso                       ok
+125: test_archive_write_set_format_by_name_iso9660                   ok
+126: test_archive_write_set_format_by_name_mtree                     ok
+127: test_archive_write_set_format_by_name_mtree_classic             ok
+128: test_archive_write_set_format_by_name_newc                      ok
+129: test_archive_write_set_format_by_name_odc                       ok
+130: test_archive_write_set_format_by_name_oldtar                    ok
+131: test_archive_write_set_format_by_name_pax                       ok
+132: test_archive_write_set_format_by_name_paxr                      ok
+133: test_archive_write_set_format_by_name_posix                     ok
+134: test_archive_write_set_format_by_name_rpax                      ok
+135: test_archive_write_set_format_by_name_shar                      ok
+136: test_archive_write_set_format_by_name_shardump                  ok
+137: test_archive_write_set_format_by_name_ustar                     ok
+138: test_archive_write_set_format_by_name_v7tar                     ok
+139: test_archive_write_set_format_by_name_v7                        ok
+140: test_archive_write_set_format_by_name_warc                      ok
+141: test_archive_write_set_format_by_name_xar                       skipped
+142: test_archive_write_set_format_by_name_zip                       ok
+143: test_archive_write_set_format_filter_by_ext_7zip                ok
+144: test_archive_write_set_format_filter_by_ext_zip                 ok
+145: test_archive_write_set_format_filter_by_ext_jar                 ok
+146: test_archive_write_set_format_filter_by_ext_a                   ok
+147: test_archive_write_set_format_filter_by_ext_ar                  ok
+148: test_archive_write_set_format_filter_by_ext_cpio                ok
+149: test_archive_write_set_format_filter_by_ext_iso                 ok
+150: test_archive_write_set_format_filter_by_ext_tar                 ok
+151: test_archive_write_set_format_filter_by_ext_tar_gz              ok
+152: test_archive_write_set_format_filter_by_ext_tar_bz2             ok
+153: test_archive_write_set_format_filter_by_ext_tar_xz              ok
+154: test_archive_write_set_format_filter_by_ext_tar_zst             ok
+155: test_archive_write_set_format_filter_by_no_ext_def_zip          ok
+156: test_archive_write_set_format_filter_by_ext_tar_bz2_def_zip     ok
+157: test_archive_write_set_filter_option                            ok
+158: test_archive_write_set_format_option                            ok
+159: test_archive_write_set_option                                   ok
+160: test_archive_write_set_options                                  ok
+161: test_archive_write_set_passphrase                               ok
+162: test_archive_write_set_passphrase_callback                      ok
+163: test_bad_fd                                                     ok
+164: test_compat_bzip2                                               ok
+165: test_compat_cpio                                                ok
+166: test_compat_gtar                                                ok
+167: test_compat_gtar_large                                          ok
+168: test_compat_gzip                                                ok
+169: test_compat_lz4                                                 skipped
+170: test_compat_lzip                                                ok
+171: test_compat_lzma                                                ok
+172: test_compat_lzop                                                skipped
+173: test_compat_mac                                                 ok
+174: test_compat_perl_archive_tar                                    ok
+175: test_compat_plexus_archiver_tar                                 ok
+176: test_compat_solaris_pax_sparse                                  ok
+177: test_compat_solaris_tar_acl                                     ok
+178: test_compat_star_acl_posix1e                                    ok
+179: test_compat_star_acl_nfs4                                       ok
+180: test_compat_tar_directory                                       ok
+181: test_compat_tar_hardlink                                        ok
+182: test_compat_uudecode                                            ok
+183: test_compat_uudecode_large                                      ok
+184: test_compat_xz                                                  ok
+185: test_compat_zip_1                                               ok
+186: test_compat_zip_2                                               ok
+187: test_compat_zip_3                                               ok
+188: test_compat_zip_4                                               ok
+189: test_compat_zip_5                                               ok
+190: test_compat_zip_6                                               ok
+191: test_compat_zip_7                                               ok
+192: test_compat_zip_8                                               ok
+193: test_compat_zstd                                                ok
+194: test_create_child_environment                                   ok
+195: test_empty_write                                                ok
+196: test_entry                                                      skipped
+197: test_entry_mac_metadata_self_copy                               ok
+198: test_entry_strmode                                              ok
+199: test_extattr_freebsd                                            skipped
+200: test_filter_count                                               ok
+201: test_fuzz_ar                                                    ok
+202: test_fuzz_cab                                                   ok
+203: test_fuzz_cpio                                                  ok
+204: test_fuzz_iso9660                                               ok
+205: test_fuzz_lzh                                                   ok
+206: test_fuzz_mtree                                                 ok
+207: test_fuzz_rar                                                   ok
+208: test_fuzz_tar                                                   ok
+209: test_fuzz_zip                                                   ok
+210: test_gnutar_filename_encoding_UTF8_CP866                        skipped
+211: test_gnutar_filename_encoding_KOI8R_UTF8                        skipped
+212: test_gnutar_filename_encoding_KOI8R_CP866                       skipped
+213: test_gnutar_filename_encoding_CP1251_UTF8                       skipped
+214: test_gnutar_filename_encoding_ru_RU_CP1251                      skipped
+215: test_gnutar_filename_encoding_Russian_Russia                    skipped
+216: test_gnutar_filename_encoding_EUCJP_UTF8                        skipped
+217: test_gnutar_filename_encoding_EUCJP_CP932                       skipped
+218: test_gnutar_filename_encoding_CP932_UTF8                        skipped
+219: test_gnutar_filename_encoding_long_gname_utf16                  ok
+220: test_gnutar_filename_encoding_UTF16_win                         skipped
+221: test_gnutar_filename_encoding_fail_UTF16_win                    skipped
+222: test_gnutar_filename_encoding_UTF32_substitute                  skipped
+223: test_link_resolver                                              ok
+224: test_link_resolver_unicode_win                                  skipped
+225: test_open_failure                                               ok
+226: test_open_fd                                                    ok
+227: test_open_file                                                  ok
+228: test_open_file_pipe_zip                                         ok
+229: test_open_file_socket_zip                                       ok
+230: test_open_file_memory_zip                                       ok
+231: test_open_file_large_zip                                        ok
+232: test_open_file_buffered_tar                                     ok
+233: test_open_file_failed_seek                                      ok
+234: test_open_file_read_error                                       ok
+235: test_open_file_reuse                                            ok
+236: test_open_filename                                              ok
+237: test_open_filename_wcs_oob                                      ok
+238: test_open_filename_stdin_zip                                    ok
+239: test_open_filename_proc_einval                                  ok
+240: test_pax_filename_encoding_KOI8R                                skipped
+241: test_pax_filename_encoding_CP1251                               skipped
+242: test_pax_filename_encoding_EUCJP                                skipped
+243: test_pax_filename_encoding_CP932                                skipped
+244: test_pax_filename_encoding_KOI8R_BINARY                         skipped
+245: test_pax_filename_encoding_KOI8R_CP1251                         skipped
+246: test_pax_filename_encoding_UTF16_win                            skipped
+247: test_pax_filename_encoding                                      skipped
+248: test_pax_xattr_header                                           ok
+249: test_read_data_block_offset_at_eof                              ok
+250: test_read_data_into_fd_no_offset_reported                       ok
+251: test_read_data_into_fd_size_exceeds_declared_stored             ok
+252: test_read_data_into_fd_size_exceeds_declared_deflate            ok
+253: test_read_data_large                                            ok
+254: test_read_data_into_fd_sparse                                   ok
+255: test_read_data_into_fd_append                                   ok
+256: test_read_disk                                                  ok
+257: test_read_disk_directory_traversals                             ok
+258: test_read_disk_entry_from_file                                  ok
+259: test_read_extract                                               ok
+260: test_read_file_nonexistent                                      ok
+261: test_read_files_compressed                                      ok
+262: test_read_filter_compress_truncated                             ok
+263: test_read_filter_compress_empty2                                ok
+264: test_read_filter_compress_invalid                               ok
+265: test_read_filter_compress_multi_volume                          ok
+266: test_read_filter_grzip                                          skipped
+267: test_read_filter_gzip_recursive                                 ok
+268: test_read_filter_lrzip                                          skipped
+269: test_read_filter_lz4_raw_skip                                   ok
+270: test_read_filter_lzop                                           skipped
+271: test_read_filter_lzop_multiple_parts                            skipped
+272: test_read_filter_program                                        ok
+273: test_read_filter_program_early_close                            ok
+274: test_read_filter_program_signature                              ok
+275: test_read_filter_uudecode                                       ok
+276: test_read_filter_uudecode_base64                                ok
+277: test_read_filter_uudecode_newlines                              ok
+278: test_read_filter_uudecode_raw                                   ok
+279: test_read_filter_uudecode_base64_raw                            ok
+280: test_read_filter_uudecode_short_name                            ok
+281: test_read_filter_uudecode_mode_digits                           ok
+282: test_read_filter_uudecode_invalid_mode                          ok
+283: test_read_filter_zstd_raw_loop                                  ok
+284: test_read_format_7zip_archive_properties                        ok
+285: test_read_format_7zip                                           ok
+286: test_read_format_7zip_bzip2                                     ok
+287: test_read_format_7zip_from_fd                                   ok
+288: test_read_format_7zip_copy                                      ok
+289: test_read_format_7zip_deflate                                   ok
+290: test_read_format_7zip_zstd                                      ok
+291: test_read_format_7zip_zstd_solid                                ok
+292: test_read_format_7zip_zstd_bcj                                  ok
+293: test_read_format_7zip_zstd_nobcj                                ok
+294: test_read_format_7zip_empty                                     ok
+295: test_read_format_7zip_lzma1                                     ok
+296: test_read_format_7zip_lzma2                                     ok
+297: test_read_format_7zip_zstd_arm                                  ok
+298: test_read_format_7zip_lzma2_arm                                 ok
+299: test_read_format_7zip_lzma1_arm                                 ok
+300: test_read_format_7zip_deflate_armthumb                          ok
+301: test_read_format_7zip_lzma1_armthumb                            ok
+302: test_read_format_7zip_deflate_ia64                              ok
+303: test_read_format_7zip_lzma1_ia64                                ok
+304: test_read_format_7zip_deflate_delta                             ok
+305: test_read_format_7zip_ppmd                                      ok
+306: test_read_format_7zip_ppmd_small_block                          ok
+307: test_read_format_7zip_ppmd_bcj                                  ok
+308: test_read_format_7zip_ppmd_arm64                                ok
+309: test_read_format_7zip_lzma2_arm64                               ok
+310: test_read_format_7zip_lzma1_arm64                               ok
+311: test_read_format_7zip_deflate_arm64                             ok
+312: test_read_format_7zip_deflate_arm64_unaligned_chunk             ok
+313: test_read_format_7zip_deflate_arm_arm64                         ok
+314: test_read_format_7zip_win_attrib                                ok
+315: test_read_format_7zip_sfx_pe                                    ok
+316: test_read_format_7zip_sfx_modified_pe                           ok
+317: test_read_format_7zip_sfx_elf                                   ok
+318: test_read_format_7zip_sfx_boundary_pe                           ok
+319: test_read_format_7zip_sfx_boundary_elf                          ok
+320: test_read_format_7zip_sfx_elf64trunc                            ok
+321: test_read_format_7zip_extract_second                            ok
+322: test_read_format_7zip_lzma2_riscv                               skipped
+323: test_read_format_7zip_lzma1_riscv                               ok
+324: test_read_format_7zip_deflate_riscv                             ok
+325: test_read_format_7zip_lzma2_sparc                               ok
+326: test_read_format_7zip_lzma1_sparc                               ok
+327: test_read_format_7zip_zstd_sparc                                ok
+328: test_read_format_7zip_deflate_powerpc                           ok
+329: test_read_format_7zip_lzma2_powerpc                             ok
+330: test_read_format_7zip_null_client_next                          ok
+331: test_read_format_7zip_lzma1_powerpc                             ok
+332: test_read_format_7zip_chained_lzma2                             ok
+333: test_read_format_7zip_encryption_data                           ok
+334: test_read_format_7zip_encryption_header                         ok
+335: test_read_format_7zip_encryption_partially                      ok
+336: test_read_format_7zip_entries_oom                               ok
+337: test_read_format_7zip_folders_oom                               ok
+338: test_read_format_7zip_issue2765                                 ok
+339: test_read_format_7zip_malformed                                 ok
+340: test_read_format_7zip_packinfo_digests                          ok
+341: test_read_format_ar                                             ok
+342: test_read_format_cab                                            ok
+343: test_read_format_cab_filename                                   skipped
+344: test_read_format_cab_lzx_16bit                                  ok
+345: test_read_format_cab_lzx_e8                                     ok
+346: test_read_format_cab_lzx_invalid_history                        ok
+347: test_read_format_cab_lzx_oob                                    ok
+348: test_read_format_cab_mszip_oob                                  ok
+349: test_read_format_cab_multi                                      ok
+350: test_read_format_cab_skip_across_folders                        ok
+351: test_read_format_cab_skip_malformed                             ok
+352: test_read_format_cpio_afio                                      ok
+353: test_read_format_cpio_afio_broken                               ok
+354: test_read_format_cpio_afio_header                               ok
+355: test_read_format_cpio_bin                                       ok
+356: test_read_format_cpio_bin_Z                                     ok
+357: test_read_format_cpio_bin_be                                    ok
+358: test_read_format_cpio_bin_bz2                                   ok
+359: test_read_format_cpio_bin_gz                                    ok
+360: test_read_format_cpio_bin_le                                    ok
+361: test_read_format_cpio_bin_lzip                                  ok
+362: test_read_format_cpio_bin_lzma                                  ok
+363: test_read_format_cpio_bin_xz                                    ok
+364: test_read_format_cpio_filename_eucJP_UTF8                       skipped
+365: test_read_format_cpio_newc_large_pathname                       ok
+366: test_read_format_cpio_filename_UTF8_eucJP                       skipped
+367: test_read_format_cpio_filename_UTF8_UTF8_jp                     skipped
+368: test_read_format_cpio_filename_CP866_KOI8R                      skipped
+369: test_read_format_cpio_filename_CP866_UTF8                       skipped
+370: test_read_format_cpio_filename_KOI8R_CP866                      skipped
+371: test_read_format_cpio_filename_KOI8R_UTF8                       skipped
+372: test_read_format_cpio_filename_UTF8_KOI8R                       skipped
+373: test_read_format_cpio_filename_UTF8_CP866                       skipped
+374: test_read_format_cpio_filename_UTF8_UTF8_ru                     skipped
+375: test_read_format_cpio_filename_eucJP_CP932                      skipped
+376: test_read_format_cpio_filename_UTF8_CP932                       skipped
+377: test_read_format_cpio_filename_CP866_CP1251                     skipped
+378: test_read_format_cpio_filename_CP866_CP1251_win                 skipped
+379: test_read_format_cpio_filename_KOI8R_CP1251                     skipped
+380: test_read_format_cpio_filename_UTF8_CP1251                      skipped
+381: test_read_format_cpio_newc_resync                               ok
+382: test_read_format_cpio_odc                                       ok
+383: test_read_format_cpio_svr4_bzip2_rpm                            ok
+384: test_read_format_cpio_svr4_gzip                                 ok
+385: test_read_format_cpio_svr4_gzip_rpm                             ok
+386: test_read_format_cpio_svr4c_Z                                   ok
+387: test_read_format_cpio_symlink_trailer                           ok
+388: test_read_format_empty                                          ok
+389: test_read_format_gtar_filename_eucJP_UTF8                       skipped
+390: test_read_format_gtar_filename_CP866_KOI8R                      skipped
+391: test_read_format_gtar_filename_CP866_UTF8                       skipped
+392: test_read_format_gtar_filename_KOI8R_CP866                      skipped
+393: test_read_format_gtar_filename_KOI8R_UTF8                       skipped
+394: test_read_format_gtar_filename_eucJP_CP932                      skipped
+395: test_read_format_gtar_filename_CP866_CP1251                     skipped
+396: test_read_format_gtar_filename_CP866_CP1251_win                 skipped
+397: test_read_format_gtar_filename_KOI8R_CP1251                     skipped
+398: test_read_format_gtar_gz                                        ok
+399: test_read_format_gtar_lzma                                      ok
+400: test_read_format_gtar_redundant_L                               ok
+401: test_read_format_gtar_sparse                                    ok
+402: test_read_format_gtar_sparse_exceeds_length                     ok
+403: test_read_format_gtar_sparse_length                             ok
+404: test_read_format_gtar_sparse_skip_entry                         ok
+405: test_read_format_huge_rpm                                       ok
+406: test_read_format_iso_Z                                          ok
+407: test_read_format_iso_joliet_utf16be_cycle                       ok
+408: test_read_format_iso_joliet_utf16be_overflow                    ok
+409: test_read_format_iso_multi_extent                               ok
+410: test_read_format_iso_xorriso                                    ok
+411: test_read_format_isojoliet_compress                             ok
+412: test_read_format_isojoliet_long                                 ok
+413: test_read_format_isojoliet_rr                                   ok
+414: test_read_format_isojoliet_versioned                            ok
+415: test_read_format_isorr_compress                                 ok
+416: test_read_format_isorr_ce                                       ok
+417: test_read_format_isorr_ce_loop                                  ok
+418: test_read_format_isorr_new_compress                             ok
+419: test_read_format_isorr_rr_moved                                 ok
+420: test_read_format_isozisofs_compress                             ok
+421: test_read_format_iso_rockridge_ce_overflow                      ok
+422: test_read_format_iso_rockridge_cl_re_cycle                      ok
+423: test_read_format_iso_rockridge_cl_re_control                    ok
+424: test_read_format_iso_rockridge_sl_leak                          ok
+425: test_read_format_iso_rockridge_zf_overflow                      ok
+426: test_read_format_iso_zisofs_overflow                            ok
+427: test_read_format_lha                                            ok
+428: test_read_format_lha_amiga_script                               ok
+429: test_read_format_lha_bugfix_0                                   ok
+430: test_read_format_lha_filename                                   skipped
+431: test_read_format_lha_filename_UTF16                             skipped
+432: test_read_format_lha_oversize_header                            ok
+433: test_read_format_lha_symlink_missing_target                     ok
+434: test_read_format_mtree                                          ok
+435: test_read_format_mtree_filenames_only                           ok
+436: test_read_format_mtree_nochange                                 ok
+437: test_read_format_mtree_nomagic_v1_form                          ok
+438: test_read_format_mtree_nomagic_v2_form                          ok
+439: test_read_format_mtree_nomagic_v2_netbsd_form                   ok
+440: test_read_format_mtree_nonexistent_contents_file                ok
+441: test_read_format_mtree_noprint                                  ok
+442: test_read_format_mtree_tab                                      ok
+443: test_read_format_mtree_nano                                     ok
+444: test_read_format_mtree_global_set_no_value                      ok
+445: test_read_format_mtree_no_final_newline                         ok
+446: test_read_format_mtree_read_error                               ok
+447: test_read_format_mtree_crash747                                 ok
+448: test_read_format_mtree_size                                     ok
+449: test_read_format_pax_bz2                                        ok
+450: test_read_format_rar_set_format                                 ok
+451: test_read_format_rar_basic                                      ok
+452: test_read_format_rar_subblock                                   ok
+453: test_read_format_rar_noeof                                      ok
+454: test_read_format_rar_unicode_UTF8                               skipped
+455: test_read_format_rar_unicode_CP932                              skipped
+456: test_read_format_rar_compress_normal                            ok
+457: test_read_format_rar_multi_lzss_blocks                          ok
+458: test_read_format_rar3_lowdist_reset                             ok
+459: test_read_format_rar_compress_best                              ok
+460: test_read_format_rar_ppmd_lzss_conversion                       ok
+461: test_read_format_rar_binary                                     ok
+462: test_read_format_rar_windows                                    ok
+463: test_read_format_rar_multivolume                                ok
+464: test_read_format_rar_multivolume_w                              skipped
+465: test_read_format_rar_multivolume_skip                           ok
+466: test_read_format_rar_sfx                                        ok
+467: test_read_format_rar_multivolume_stored_file                    ok
+468: test_read_format_rar_multivolume_stored_file_skip               ok
+469: test_read_format_rar_multivolume_seek_data                      ok
+470: test_read_format_rar_multivolume_seek_multiple_files            ok
+471: test_read_format_rar_multivolume_uncompressed_files             ok
+472: test_read_format_rar_endarc_huge                                ok
+473: test_read_format_rar_ppmd_use_after_free                        ok
+474: test_read_format_rar_ppmd_use_after_free2                       ok
+475: test_read_format_rar_seek_data_cursor0                          ok
+476: test_read_format_rar_newsub_huge                                skipped
+477: test_read_format_rar_newsub_rr_over_1m                          ok
+478: test_read_format_rar_newsub_huge64                              ok
+479: test_read_format_rar_symlink_huge                               skipped
+480: test_read_format_rar_symlink_huge64                             ok
+481: test_read_format_rar_unbound_staticdata                         ok
+482: test_read_format_rar4_encrypted                                 ok
+483: test_read_format_rar4_encrypted_filenames                       ok
+484: test_read_format_rar4_solid_encrypted                           skipped
+485: test_read_format_rar4_solid_encrypted_filenames                 ok
+486: test_read_format_rar5_encrypted                                 ok
+487: test_read_format_rar5_encrypted_filenames                       ok
+488: test_read_format_rar5_solid_encrypted                           ok
+489: test_read_format_rar5_solid_encrypted_filenames                 ok
+490: test_read_format_rar_encryption_data                            ok
+491: test_read_format_rar_encryption_header                          ok
+492: test_read_format_rar_encryption_partially                       ok
+493: test_read_format_rar_invalid1                                   ok
+494: test_read_format_rar_filter                                     ok
+495: test_read_format_rar_filter_incomplete_block                    ok
+496: test_read_format_rar_overflow                                   ok
+497: test_read_format_rar5_set_format                                ok
+498: test_read_format_rar5_stored                                    ok
+499: test_read_format_rar5_zip_in_rar                                ok
+500: test_read_format_rar5_compressed                                ok
+501: test_read_format_rar5_multiple_files                            ok
+502: test_read_format_rar5_multiple_files_solid                      ok
+503: test_read_format_rar5_multiarchive_first_volume_only            ok
+504: test_read_format_rar5_multiarchive_skip_all                     ok
+505: test_read_format_rar5_multiarchive_skip_all_but_first           ok
+506: test_read_format_rar5_multiarchive_skip_all_but_second          ok
+507: test_read_format_rar5_blake2                                    ok
+508: test_read_format_rar5_arm_filter                                ok
+509: test_read_format_rar5_stored_skip_all                           ok
+510: test_read_format_rar5_stored_skip_in_part                       ok
+511: test_read_format_rar5_stored_skip_all_but_first                 ok
+512: test_read_format_rar5_stored_skip_all_in_part                   ok
+513: test_read_format_rar5_multiarchive_solid_extr_all               ok
+514: test_read_format_rar5_multiarchive_solid_skip_all               ok
+515: test_read_format_rar5_multiarchive_solid_skip_all_but_first     ok
+516: test_read_format_rar5_multiarchive_solid_skip_all_but_scnd      ok
+517: test_read_format_rar5_multiarchive_solid_skip_all_but_third     ok
+518: test_read_format_rar5_multiarchive_solid_skip_all_but_last      ok
+519: test_read_format_rar5_solid_skip_all                            ok
+520: test_read_format_rar5_solid_skip_all_but_first                  ok
+521: test_read_format_rar5_solid_skip_all_but_second                 ok
+522: test_read_format_rar5_solid_skip_all_but_last                   ok
+523: test_read_format_rar5_extract_win32                             ok
+524: test_read_format_rar5_unicode                                   skipped
+525: test_read_format_rar5_block_by_block                            ok
+526: test_read_format_rar5_owner                                     ok
+527: test_read_format_rar5_owner_name_toolong                        ok
+528: test_read_format_rar5_group_name_toolong                        ok
+529: test_read_format_rar5_extra_data_size_toolong                   ok
+530: test_read_format_rar5_symlink                                   ok
+531: test_read_format_rar5_hardlink                                  ok
+532: test_read_format_rar5_extra_field_version                       ok
+533: test_read_format_rar5_readtables_overflow                       ok
+534: test_read_format_rar5_leftshift1                                ok
+535: test_read_format_rar5_leftshift2                                ok
+536: test_read_format_rar5_truncated_huff                            ok
+537: test_read_format_rar5_invalid_dict_reference                    ok
+538: test_read_format_rar5_distance_overflow                         ok
+539: test_read_format_rar5_nonempty_dir_stream                       ok
+540: test_read_format_rar5_nonempty_dir_data                         ok
+541: test_read_format_rar5_fileattr                                  ok
+542: test_read_format_rar5_different_window_size                     ok
+543: test_read_format_rar5_window_buf_and_size_desync                ok
+544: test_read_format_rar5_arm_filter_on_window_boundary             ok
+545: test_read_format_rar5_different_solid_window_size               ok
+546: test_read_format_rar5_different_winsize_on_merge                ok
+547: test_read_format_rar5_block_size_is_too_small                   ok
+548: test_read_format_rar5_sfx                                       ok
+549: test_read_format_rar5_decode_number_out_of_bounds_read          ok
+550: test_read_format_rar5_bad_window_size_in_multiarchive_file      ok
+551: test_read_format_rar5_read_data_block_uninitialized_offset      ok
+552: test_read_format_rar5_data_ready_pointer_leak                   ok
+553: test_read_format_rar5_only_crypt_exfld                          ok
+554: test_read_format_rar5_only_unsupported_exfld                    ok
+555: test_read_format_rar5_invalidhash_and_validhtime_exfld          ok
+556: test_read_format_rar5_main_block_extra_bytes                    ok
+557: test_read_format_rar5_skip_block_extra_bytes                    ok
+558: test_read_format_rar5_bytes_remaining_underflow                 ok
+559: test_read_format_rar5_unpacked_size_exceeds_declared            ok
+560: test_read_format_rar5_seek_data_unsupported                     ok
+561: test_read_format_rar5_redir_varint_2byte                        ok
+562: test_read_format_rar5_bad_filter                                ok
+563: test_read_format_rar5_bad_tables                                ok
+564: test_read_format_rar5_block_hdr_fail_loop                       ok
+565: test_read_format_rar5_extra_field_underflow                     ok
+566: test_read_format_rar5_header_size_wraparound                    ok
+567: test_read_format_rar5_loop_bug                                  ok
+568: test_read_format_rar5_redir_overflow                            ok
+569: test_read_format_rar5_truncated_htime                           ok
+570: test_read_format_rar5_varint_near_eof                           ok
+571: test_read_format_raw                                            ok
+572: test_read_format_tar                                            ok
+573: test_read_format_tar_acl_oob_read                               ok
+574: test_read_format_tar_V_negative_size                            ok
+575: test_read_format_tar_concatenated                               ok
+576: test_read_format_tar_empty_filename                             ok
+577: test_read_format_tar_empty_with_gnulabel                        ok
+578: test_read_format_tar_empty_pax                                  ok
+579: test_read_format_tar_filename                                   skipped
+580: test_read_format_tar_gnu_sparse_map                             ok
+581: test_read_format_tar_invalid_pax_size                           ok
+582: test_read_format_tar_mac_metadata                               ok
+583: test_read_format_tar_pax_g_large                                ok
+584: test_read_format_tar_pax_global_header                          ok
+585: test_read_format_tar_pax_global_header_ignorable                ok
+586: test_read_format_tar_pax_large_attr                             ok
+587: test_read_format_tar_pax_negative_time                          ok
+588: test_read_format_tar_pax_sun_holesdata                          ok
+589: test_read_format_tar_pax_timestamps                             ok
+590: test_read_format_tar_timestamp_overflow                         ok
+591: test_read_format_tbz                                            ok
+592: test_read_format_tgz                                            ok
+593: test_read_format_tlz                                            ok
+594: test_read_format_txz                                            ok
+595: test_read_format_tz                                             ok
+596: test_read_format_ustar_filename                                 skipped
+597: test_read_format_warc                                           ok
+598: test_read_format_warc_incomplete                                ok
+599: test_read_format_warc_skip_after_extract                        ok
+600: test_read_format_warc_truncated_body                            ok
+601: test_read_format_warc_uri_nul                                   ok
+602: test_read_format_warc_future_date                               ok
+603: test_read_format_xar                                            ok
+604: test_read_format_xar_xattr_fstype_cleanup                       ok
+605: test_read_format_xar_duplicate_filename_node                    ok
+606: test_read_format_xar_large_mode                                 ok
+607: test_read_format_xar_base64_oob                                 ok
+608: test_read_format_xar_atou64_overread                            ok
+609: test_read_format_xar_empty_xattr                                ok
+610: test_read_format_xar_toc_premature_stream_end                   ok
+611: test_read_format_xar_parse_time_overread                        ok
+612: test_read_format_xar_invalid_seek_offset                        ok
+613: test_read_format_xar_doublelink                                 ok
+614: test_read_format_zip                                            ok
+615: test_read_format_zip_ppmd_one_file                              ok
+616: test_read_format_zip_ppmd_one_file_blockread                    ok
+617: test_read_format_zip_ppmd_multi                                 ok
+618: test_read_format_zip_ppmd_multi_blockread                       ok
+619: test_read_format_zip_lzma_one_file                              ok
+620: test_read_format_zip_lzma_one_file_blockread                    ok
+621: test_read_format_zip_lzma_multi                                 ok
+622: test_read_format_zip_lzma_multi_blockread                       ok
+623: test_read_format_zip_bzip2_one_file                             ok
+624: test_read_format_zip_bzip2_one_file_blockread                   ok
+625: test_read_format_zip_bzip2_multi                                ok
+626: test_read_format_zip_bzip2_multi_blockread                      ok
+627: test_read_format_zip_zstd_one_file                              ok
+628: test_read_format_zip_zstd_one_file_blockread                    ok
+629: test_read_format_zip_zstd_multi                                 ok
+630: test_read_format_zip_zstd_multi_blockread                       ok
+631: test_read_format_zip_xz_multi                                   ok
+632: test_read_format_zip_xz_multi_blockread                         ok
+633: test_read_format_zip_ppmd8_crash_1                              ok
+634: test_read_format_zip_bz2_hang_on_invalid                        ok
+635: test_read_format_zip_ppmd8_crash_2                              ok
+636: test_read_format_zip_lzma_alone_leak                            ok
+637: test_read_format_zip_lzma_stream_end                            ok
+638: test_read_format_zip_lzma_stream_end_blockread                  ok
+639: test_read_format_zip_7z_lzma                                    ok
+640: test_read_format_zip_7z_deflate                                 ok
+641: test_read_format_zip_utf8_paths                                 skipped
+642: test_read_format_zip_ambiguous_timestamp_pkware_unix            ok
+643: test_read_format_zip_ambiguous_timestamp_ut                     ok
+644: test_read_format_zip_ambiguous_timestamp_ux                     ok
+645: test_read_format_zip_comment_stored                             ok
+646: test_read_format_zip_dos_mtime_precedence_ntfs                  ok
+647: test_read_format_zip_dos_mtime_precedence_pkware_unix           ok
+648: test_read_format_zip_dos_mtime_precedence_ut                    ok
+649: test_read_format_zip_dos_mtime_precedence_ux                    ok
+650: test_read_format_zip_empty                                      ok
+651: test_read_format_zip_encryption_data                            ok
+652: test_read_format_zip_encryption_header                          ok
+653: test_read_format_zip_encryption_partially                       ok
+654: test_read_format_zip_extra_padding                              ok
+655: test_read_format_zip_filename_CP932_eucJP                       skipped
+656: test_read_format_zip_filename_CP932_UTF8                        skipped
+657: test_read_format_zip_filename_UTF8_eucJP                        skipped
+658: test_read_format_zip_filename_UTF8_UTF8                         skipped
+659: test_read_format_zip_filename_CP866_KOI8R                       skipped
+660: test_read_format_zip_filename_CP866_UTF8                        skipped
+661: test_read_format_zip_filename_KOI8R_CP866                       skipped
+662: test_read_format_zip_filename_KOI8R_UTF8                        skipped
+663: test_read_format_zip_filename_UTF8_KOI8R                        skipped
+664: test_read_format_zip_filename_UTF8_CP866                        skipped
+665: test_read_format_zip_filename_UTF8_UTF8_ru                      skipped
+666: test_read_format_zip_filename_CP932_CP932                       skipped
+667: test_read_format_zip_filename_UTF8_CP932                        skipped
+668: test_read_format_zip_filename_CP866_CP1251                      skipped
+669: test_read_format_zip_filename_CP866_CP1251_win                  skipped
+670: test_read_format_zip_filename_KOI8R_CP1251                      skipped
+671: test_read_format_zip_filename_UTF8_CP1251                       skipped
+672: test_read_format_zip_filename_KOI8R_UTF8_2                      skipped
+673: test_read_format_zip_high_compression                           ok
+674: test_read_format_zip_high_compression2                          ok
+675: test_read_format_zip_jar                                        ok
+676: test_read_format_zip_lzma_alone_large_size                      ok
+677: test_read_format_zip_mac_metadata                               ok
+678: test_read_format_zip_malformed                                  ok
+679: test_read_format_zip_msdos                                      ok
+680: test_read_format_zip_negative_timestamp_pkware_unix             ok
+681: test_read_format_zip_negative_timestamp_ut                      ok
+682: test_read_format_zip_negative_timestamp_ux                      ok
+683: test_read_format_zip_nested                                     ok
+684: test_read_format_zip_nofiletype                                 ok
+685: test_read_format_zip_ntfs_precedence_pkware_unix                ok
+686: test_read_format_zip_ntfs_precedence_ut                         ok
+687: test_read_format_zip_ntfs_precedence_ux                         ok
+688: test_read_format_zip_ntfs_timestamp                             ok
+689: test_read_format_zip_padded1                                    ok
+690: test_read_format_zip_padded2                                    ok
+691: test_read_format_zip_padded3                                    ok
+692: test_read_format_zip_sfx                                        ok
+693: test_read_format_zip_size_exceeds_declared_stored               ok
+694: test_read_format_zip_size_exceeds_declared_deflate              ok
+695: test_read_format_zip_streamable_skip                            ok
+696: test_read_format_zip_symlink_unsupported_compression            ok
+697: test_read_format_zip_traditional_encryption_data                ok
+698: test_read_format_zip_uncompressed_size_off_by_4gib              ok
+699: test_read_format_zip_unset_times                                ok
+700: test_read_format_zip_unset_times_central_directory_only         ok
+701: test_read_format_zip_winzip_aes128                              ok
+702: test_read_format_zip_winzip_aes256                              ok
+703: test_read_format_zip_winzip_aes256_stored                       ok
+704: test_read_format_zip_winzip_aes256_large                        ok
+705: test_read_format_zip_winzip_aes256_large_bzip2                  ok
+706: test_read_format_zip_winzip_aes256_large_lzma                   ok
+707: test_read_format_zip_winzip_aes256_large_ppmd                   ok
+708: test_read_format_zip_winzip_aes256_large_xz                     ok
+709: test_read_format_zip_winzip_aes256_large_zstd                   ok
+710: test_read_format_zip_zip64a                                     ok
+711: test_read_format_zip_zip64b                                     ok
+712: test_read_format_zip_deflate_encrypted                          ok
+713: test_read_format_zip_zipx_bzip2_encrypted                       ok
+714: test_read_format_zip_zipx_lzma_encrypted                        ok
+715: test_read_format_zip_zipx_xz_encrypted                          ok
+716: test_read_format_zip_zipx_zstd_encrypted                        ok
+717: test_read_format_zip_deflate_encrypted_streaming                ok
+718: test_read_format_zip_zipx_bzip2_encrypted_streaming             ok
+719: test_read_format_zip_zipx_lzma_encrypted_streaming              ok
+720: test_read_format_zip_zipx_xz_encrypted_streaming                ok
+721: test_read_format_zip_zipx_zstd_encrypted_streaming              ok
+722: test_read_format_zip_ppmd8_aes256_streaming                     ok
+723: test_read_format_zip_zipx_lzma_oom                              ok
+724: test_read_format_zip_with_invalid_traditional_eocd              ok
+725: test_read_large                                                 ok
+726: test_read_pax_empty_val_no_nl                                   ok
+727: test_read_pax_xattr_rht_security_selinux                        ok
+728: test_read_pax_xattr_schily                                      ok
+729: test_read_pax_truncated                                         ok
+730: test_read_position                                              ok
+731: test_read_set_format                                            ok
+732: test_read_set_wrong_format                                      ok
+733: test_read_append_filter                                         ok
+734: test_read_append_wrong_filter                                   ok
+735: test_read_append_lzop_filter                                    ok
+736: test_read_append_grzip_filter                                   ok
+737: test_read_append_compress_filter                                ok
+738: test_read_append_bzip2_filter                                   ok
+739: test_read_append_lrzip_filter                                   skipped
+740: test_read_append_lz4_filter                                     skipped
+741: test_read_append_lzip_filter                                    ok
+742: test_read_append_lzma_filter                                    ok
+743: test_read_append_zstd_filter                                    ok
+744: test_read_append_rpm_filter                                     ok
+745: test_read_append_uu_filter                                      ok
+746: test_read_append_none_filter                                    ok
+747: test_read_append_filter_program                                 ok
+748: test_read_append_filter_wrong_program                           ok
+749: test_read_too_many_filters                                      ok
+750: test_read_truncated                                             ok
+751: test_read_truncated_filter_bzip2                                ok
+752: test_read_truncated_filter_compress                             ok
+753: test_read_truncated_filter_gzip                                 ok
+754: test_read_truncated_filter_lzip                                 ok
+755: test_read_truncated_filter_lzma                                 ok
+756: test_read_truncated_filter_lzop                                 skipped
+757: test_read_truncated_filter_xz                                   ok
+758: test_read_truncated_filter_gzip_trailer                         ok
+759: test_short_writes                                               ok
+760: test_sparse_basic                                               ok
+761: test_fully_sparse_files                                         ok
+762: test_sparse_iterator                                            ok
+763: test_sparse_clear                                               ok
+764: test_tar_filenames                                              ok
+765: test_tar_large                                                  ok
+766: test_ustar_filename_encoding_UTF8_CP866                         skipped
+767: test_ustar_filename_encoding_KOI8R_UTF8                         skipped
+768: test_ustar_filename_encoding_KOI8R_CP866                        skipped
+769: test_ustar_filename_encoding_CP1251_UTF8                        skipped
+770: test_ustar_filename_encoding_ru_RU_CP1251                       skipped
+771: test_ustar_filename_encoding_Russian_Russia                     skipped
+772: test_ustar_filename_encoding_EUCJP_UTF8                         skipped
+773: test_ustar_filename_encoding_EUCJP_CP932                        skipped
+774: test_ustar_filename_encoding_CP932_UTF8                         skipped
+775: test_ustar_filename_encoding_UTF16_win                          skipped
+776: test_ustar_filename_encoding_fail_UTF16_win                     skipped
+777: test_ustar_filenames                                            ok
+778: test_v7tar_filename_encoding_fail_UTF16_win                     skipped
+779: test_warn_missing_hardlink_target                               ok
+780: test_write_disk                                                 ok
+781: test_write_disk_appledouble                                     skipped
+782: test_write_disk_appledouble_zip                                 skipped
+783: test_write_disk_failures                                        ok
+784: test_write_disk_fixup                                           ok
+785: test_write_disk_hardlink                                        ok
+786: test_write_disk_hfs_compression                                 skipped
+787: test_write_disk_lookup                                          ok
+788: test_write_disk_mac_metadata                                    skipped
+789: test_write_disk_no_hfs_compression                              skipped
+790: test_write_disk_perms                                           skipped
+791: test_write_disk_secure                                          ok
+792: test_write_disk_secure_symlinks_only                            ok
+793: test_write_disk_secure_noabsolutepaths                          ok
+794: test_write_disk_secure_physicaldrive                            skipped
+795: test_write_disk_secure744                                       ok
+796: test_write_disk_secure745                                       ok
+797: test_write_disk_secure746a                                      ok
+798: test_write_disk_secure746b                                      ok
+799: test_write_disk_sparse                                          ok
+800: test_write_disk_symlink                                         ok
+801: test_write_disk_times                                           skipped
+802: test_write_filter_b64encode                                     ok
+803: test_write_filter_b64encode_write_error                         ok
+804: test_write_filter_bzip2                                         ok
+805: test_write_filter_compress                                      ok
+806: test_write_filter_compress_empty                                ok
+807: test_write_filter_compress_failed_write                         ok
+808: test_write_filter_gzip                                          ok
+809: test_write_filter_gzip_timestamp                                ok
+810: test_write_filter_lrzip                                         skipped
+811: test_write_filter_lz4                                           skipped
+812: test_write_filter_lz4_disable_stream_checksum                   skipped
+813: test_write_filter_lz4_enable_block_checksum                     skipped
+814: test_write_filter_lz4_block_size_4                              skipped
+815: test_write_filter_lz4_block_size_5                              skipped
+816: test_write_filter_lz4_block_size_6                              skipped
+817: test_write_filter_lz4_block_dependence                          skipped
+818: test_write_filter_lz4_empty_archive                             skipped
+819: test_write_filter_lzip                                          ok
+820: test_write_filter_lzma                                          ok
+821: test_write_filter_lzop                                          skipped
+822: test_write_filter_program                                       ok
+823: test_write_filter_uuencode                                      ok
+824: test_write_filter_uuencode_write_error                          ok
+825: test_write_filter_xz                                            ok
+826: test_write_filter_zstd                                          ok
+827: test_write_format_7zip                                          ok
+828: test_write_format_7zip_basic_bzip2                              ok
+829: test_write_format_7zip_basic_copy                               ok
+830: test_write_format_7zip_basic_deflate                            ok
+831: test_write_format_7zip_basic_lzma1                              ok
+832: test_write_format_7zip_basic_lzma2                              ok
+833: test_write_format_7zip_basic_ppmd                               ok
+834: test_write_format_7zip_basic_zstd                               ok
+835: test_write_format_7zip_unregister                               ok
+836: test_write_format_7zip_empty_archive                            ok
+837: test_write_format_7zip_empty_files                              ok
+838: test_write_format_7zip_large_bzip2                              ok
+839: test_write_format_7zip_large_copy                               ok
+840: test_write_format_7zip_large_deflate                            ok
+841: test_write_format_7zip_large_lzma1                              ok
+842: test_write_format_7zip_large_lzma2                              ok
+843: test_write_format_7zip_large_ppmd                               ok
+844: test_write_format_7zip_large_zstd                               ok
+845: test_write_format_ar                                            ok
+846: test_write_format_cpio                                          ok
+847: test_write_format_cpio_bin_uid                                  ok
+848: test_write_format_cpio_empty                                    ok
+849: test_write_format_cpio_newc                                     ok
+850: test_write_format_cpio_newc_large_inode                         ok
+851: test_write_format_cpio_odc                                      ok
+852: test_write_format_gnutar                                        ok
+853: test_write_format_gnutar_switch                                 ok
+854: test_write_format_gnutar_filenames                              ok
+855: test_write_format_gnutar_linknames                              ok
+856: test_write_format_gnutar_huge                                   ok
+857: test_write_format_iso9660                                       ok
+858: test_write_format_iso9660_boot                                  ok
+859: test_write_format_iso9660_boot_load_size                        ok
+860: test_write_format_iso9660_empty                                 ok
+861: test_write_format_iso9660_filename                              ok
+862: test_write_format_iso9660_joliet_id                             ok
+863: test_write_format_iso9660_rockridge                             ok
+864: test_write_format_iso9660_rockridge_overflow                    ok
+865: test_write_format_iso9660_rr_moved_notdir                       ok
+866: test_write_format_iso9660_rr_moved_dir                          ok
+867: test_write_format_iso9660_zisofs                                ok
+868: test_write_format_iso9660_zisofs_overflow                       ok
+869: test_write_format_iso9660_null_deref                            ok
+870: test_write_format_iso9660_underflow                             ok
+871: test_write_format_iso9660_joliet_overflow                       ok
+872: test_write_format_iso9660_duplicate_identifier_truncation       ok
+873: test_write_format_iso9660_boot_image_size_overflow              ok
+874: test_write_format_iso9660_symlink                               ok
+875: test_write_format_mtree                                         ok
+876: test_write_format_mtree_no_leading_dotslash                     ok
+877: test_write_format_mtree_nlink                                   ok
+878: test_write_format_mtree_absolute                                ok
+879: test_write_format_mtree_absolute_path                           ok
+880: test_write_format_mtree_classic                                 ok
+881: test_write_format_mtree_classic_indent                          ok
+882: test_write_format_mtree_dotdot                                  ok
+883: test_write_format_mtree_fflags                                  skipped
+884: test_write_format_mtree_no_separator                            ok
+885: test_write_format_mtree_digests_no_digests_set_no_data          ok
+886: test_write_format_mtree_digests_no_digests_set_empty_data       ok
+887: test_write_format_mtree_digests_no_digests_set_non_empty_data   ok
+888: test_write_format_mtree_digests_md5_digest_set_no_data          ok
+889: test_write_format_mtree_digests_md5_digest_set_empty_data       ok
+890: test_write_format_mtree_digests_md5_digest_set_non_empty_data   ok
+891: test_write_format_mtree_digests_rmd160_digest_set_no_data       ok
+892: test_write_format_mtree_digests_rmd160_digest_set_empty_data    ok
+893: test_write_format_mtree_digests_rmd160_digest_set_non_empty_dataok
+894: test_write_format_mtree_digests_sha1_digest_set_no_data         ok
+895: test_write_format_mtree_digests_sha1_digest_set_empty_data      ok
+896: test_write_format_mtree_digests_sha1_digest_set_non_empty_data  ok
+897: test_write_format_mtree_digests_sha256_digest_set_no_data       ok
+898: test_write_format_mtree_digests_sha256_digest_set_empty_data    ok
+899: test_write_format_mtree_digests_sha256_digest_set_non_empty_dataok
+900: test_write_format_mtree_digests_sha384_digest_set_no_data       ok
+901: test_write_format_mtree_digests_sha384_digest_set_empty_data    ok
+902: test_write_format_mtree_digests_sha384_digest_set_non_empty_dataok
+903: test_write_format_mtree_digests_sha512_digest_set_no_data       ok
+904: test_write_format_mtree_digests_sha512_digest_set_empty_data    ok
+905: test_write_format_mtree_digests_sha512_digest_set_non_empty_dataok
+906: test_write_format_mtree_quoted_filename                         ok
+907: test_write_format_mtree_null_deref                              ok
+908: test_write_format_mtree_no_set_symlink                          ok
+909: test_write_format_mtree_reg_dot_root                            ok
+910: test_write_format_option_missing_value                          skipped
+911: test_write_format_pax                                           ok
+912: test_write_format_pax_align                                     ok
+913: test_write_format_pax_mac_meta                                  ok
+914: test_write_format_raw                                           ok
+915: test_write_format_raw_b64                                       ok
+916: test_write_format_shar_empty                                    ok
+917: test_write_format_shar_invalid_pathname                         ok
+918: test_write_format_tar                                           ok
+919: test_write_format_tar_empty_dirname                             ok
+920: test_write_format_tar_empty                                     ok
+921: test_write_format_tar_sparse                                    ok
+922: test_write_format_tar_ustar                                     ok
+923: test_write_format_tar_v7tar                                     ok
+924: test_write_format_warc                                          ok
+925: test_write_format_warc_size                                     ok
+926: test_write_format_warc_incomplete                               ok
+927: test_write_format_warc_warcinfo_output_error                    ok
+928: test_write_format_warc_resource_output_error                    ok
+929: test_write_format_warc_empty                                    ok
+930: test_write_format_xar                                           skipped
+931: test_write_format_xar_entry_trunc                               skipped
+932: test_write_format_xar_unregister                                skipped
+933: test_write_format_xar_empty                                     skipped
+934: test_write_format_xar_fflags                                    skipped
+935: test_write_format_xar_strcpy_overlap                            ok
+936: test_write_format_xar_underflow                                 ok
+937: test_write_format_zip                                           ok
+938: test_write_format_zip64                                         ok
+939: test_write_format_zip_traditional_pkware_encryption             ok
+940: test_write_format_zip_winzip_aes128_encryption                  ok
+941: test_write_format_zip_winzip_aes256_encryption                  ok
+942: test_write_format_zip64_stream                                  ok
+943: test_write_format_zip_compression_store                         ok
+944: test_write_format_zip_compression_bzip2                         ok
+945: test_write_format_zip_compression_lzma_xz                       ok
+946: test_write_format_zip_compression_zstd                          ok
+947: test_write_format_zip_empty                                     ok
+948: test_write_format_zip_empty_pathname                            ok
+949: test_write_format_zip_empty_zip64                               ok
+950: test_write_format_zip_size_unset                                ok
+951: test_write_format_zip_file                                      ok
+952: test_write_format_zip_file_zip64                                ok
+953: test_write_format_zip_large                                     ok
+954: test_write_format_zip_long_pathname                             ok
+955: test_write_format_zip_stream                                    ok
+956: test_write_format_zip_windows_path                              ok
+957: test_write_format_zip_zip64_oversize                            ok
+958: test_write_open_memory                                          ok
+959: test_write_read_format_zip                                      ok
+960: test_write_read_format_zip_improved_streaming                   ok
+961: test_write_read_format_zip64                                    ok
+962: test_write_read_format_zip64_improved_streaming                 ok
+963: test_xattr_clear                                                ok
+964: test_xattr_platform                                             ok
+965: test_zip_filename_encoding_UTF8                                 skipped
+966: test_zip_filename_encoding_KOI8R                                skipped
+967: test_zip_filename_encoding_ru_RU_CP1251                         skipped
+968: test_zip_filename_encoding_Russian_Russia                       skipped
+969: test_zip_filename_encoding_EUCJP                                skipped
+970: test_zip_filename_encoding_CP932                                skipped
+971: test_zip_filename_encoding_UTF16_win                            skipped
+972: test_zip_filename_encoding_fail_UTF16_win                       skipped
+
+Totals:
+  Tests run:              973
+  Tests failed:             0
+  Assertions checked:32536084
+  Assertions failed:        0
+  Skips reported:         180
+973 tests passed, no failures
+exit 0

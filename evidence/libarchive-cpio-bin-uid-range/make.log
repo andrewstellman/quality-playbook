@@ -1,0 +1,259 @@
+-- Could NOT find LIBB2 (missing: LIBB2_LIBRARY LIBB2_INCLUDE_DIR) 
+-- Could NOT find LZ4 (missing: LZ4_LIBRARY LZ4_INCLUDE_DIR) 
+-- Could NOT find LibXml2 (missing: LIBXML2_LIBRARY LIBXML2_INCLUDE_DIR) (Required is at least version "2.7.3")
+-- Extended attributes support: Linux
+-- ACL support: none
+-- Configuring done (0.5s)
+-- Generating done (0.3s)
+-- Build files have been written to: /home/claude/la/bt
+[  0%] Generating /home/claude/la/bt/unzip/test/list.h
+[  0%] Generating /home/claude/la/bt/cat/test/list.h
+[  0%] Building C object libarchive/CMakeFiles/archive.dir/archive_cmdline.c.o
+[  0%] Building C object libarchive/CMakeFiles/archive.dir/archive_check_magic.c.o
+[  0%] Building C object libarchive/CMakeFiles/archive.dir/archive_acl.c.o
+[  0%] Building C object unzip/test/CMakeFiles/bsdunzip_test.dir/__/__/libarchive_fe/lafe_err.c.o
+[  0%] Building C object cat/test/CMakeFiles/bsdcat_test.dir/__/__/test_utils/test_utils.c.o
+[  6%] Built target bsdcpio_test
+[  6%] Building C object cat/test/CMakeFiles/bsdcat_test.dir/__/__/test_utils/test_main.c.o
+[ 15%] Built target bsdtar_test
+[ 15%] Building C object libarchive/CMakeFiles/archive.dir/archive_crc32.c.o
+[ 15%] Building C object unzip/test/CMakeFiles/bsdunzip_test.dir/__/__/test_utils/test_utils.c.o
+[ 15%] Building C object libarchive/CMakeFiles/archive.dir/archive_cryptor.c.o
+[ 15%] Building C object libarchive/CMakeFiles/archive_static.dir/archive_write_set_format_cpio_binary.c.o
+[ 15%] Building C object libarchive/CMakeFiles/archive.dir/archive_digest.c.o
+[ 15%] Building C object unzip/test/CMakeFiles/bsdunzip_test.dir/__/__/test_utils/test_main.c.o
+[ 15%] Building C object cat/test/CMakeFiles/bsdcat_test.dir/test_0.c.o
+[ 15%] Building C object libarchive/CMakeFiles/archive.dir/archive_entry.c.o
+/home/claude/la/src/test_utils/test_main.c: In function 'test_run':
+/home/claude/la/src/test_utils/test_main.c:3741:23: warning: ignoring return value of 'setegid' declared with attribute 'warn_unused_result' [-Wunused-result]
+ 3741 |                 (void)setegid(tuid);
+      |                       ^~~~~~~~~~~~~
+/home/claude/la/src/test_utils/test_main.c:3742:23: warning: ignoring return value of 'seteuid' declared with attribute 'warn_unused_result' [-Wunused-result]
+ 3742 |                 (void)seteuid(tuid);
+      |                       ^~~~~~~~~~~~~
+/home/claude/la/src/test_utils/test_main.c:3754:23: warning: ignoring return value of 'seteuid' declared with attribute 'warn_unused_result' [-Wunused-result]
+ 3754 |                 (void)seteuid(ouid);
+      |                       ^~~~~~~~~~~~~
+/home/claude/la/src/test_utils/test_main.c:3755:23: warning: ignoring return value of 'setegid' declared with attribute 'warn_unused_result' [-Wunused-result]
+ 3755 |                 (void)setegid(ogid);
+      |                       ^~~~~~~~~~~~~
+/home/claude/la/src/test_utils/test_main.c: In function 'test_run':
+/home/claude/la/src/test_utils/test_main.c:3741:23: warning: ignoring return value of 'setegid' declared with attribute 'warn_unused_result' [-Wunused-result]
+ 3741 |                 (void)setegid(tuid);
+      |                       ^~~~~~~~~~~~~
+[ 15%] Building C object cat/test/CMakeFiles/bsdcat_test.dir/test_empty_gz.c.o
+/home/claude/la/src/test_utils/test_main.c:3742:23: warning: ignoring return value of 'seteuid' declared with attribute 'warn_unused_result' [-Wunused-result]
+ 3742 |                 (void)seteuid(tuid);
+      |                       ^~~~~~~~~~~~~
+/home/claude/la/src/test_utils/test_main.c:3754:23: warning: ignoring return value of 'seteuid' declared with attribute 'warn_unused_result' [-Wunused-result]
+ 3754 |                 (void)seteuid(ouid);
+      |                       ^~~~~~~~~~~~~
+/home/claude/la/src/test_utils/test_main.c:3755:23: warning: ignoring return value of 'setegid' declared with attribute 'warn_unused_result' [-Wunused-result]
+ 3755 |                 (void)setegid(ogid);
+      |                       ^~~~~~~~~~~~~
+[ 15%] Building C object libarchive/CMakeFiles/archive.dir/archive_entry_copy_stat.c.o
+[ 16%] Building C object libarchive/CMakeFiles/archive.dir/archive_entry_link_resolver.c.o
+[ 16%] Linking C static library libarchive.a
+[ 16%] Building C object unzip/test/CMakeFiles/bsdunzip_test.dir/test_0.c.o
+[ 16%] Building C object cat/test/CMakeFiles/bsdcat_test.dir/test_empty_lz4.c.o
+[ 17%] Building C object unzip/test/CMakeFiles/bsdunzip_test.dir/test_basic.c.o
+[ 17%] Building C object cat/test/CMakeFiles/bsdcat_test.dir/test_empty_xz.c.o
+[ 17%] Building C object libarchive/CMakeFiles/archive.dir/archive_entry_sparse.c.o
+[ 17%] Building C object unzip/test/CMakeFiles/bsdunzip_test.dir/test_doubledash.c.o
+[ 31%] Built target archive_static
+[ 31%] Building C object libarchive/CMakeFiles/archive.dir/archive_entry_stat.c.o
+[ 32%] Building C object cat/test/CMakeFiles/bsdcat_test.dir/test_empty_zstd.c.o
+[ 32%] Building C object unzip/test/CMakeFiles/bsdunzip_test.dir/test_glob.c.o
+[ 32%] Building C object unzip/test/CMakeFiles/bsdunzip_test.dir/test_not_exist.c.o
+[ 32%] Building C object libarchive/CMakeFiles/archive.dir/archive_entry_strmode.c.o
+[ 32%] Building C object cat/test/CMakeFiles/bsdcat_test.dir/test_error.c.o
+[ 32%] Building C object unzip/test/CMakeFiles/bsdunzip_test.dir/test_singlefile.c.o
+[ 32%] Building C object unzip/test/CMakeFiles/bsdunzip_test.dir/test_stdin.c.o
+[ 32%] Building C object cat/test/CMakeFiles/bsdcat_test.dir/test_error_mixed.c.o
+[ 32%] Building C object unzip/test/CMakeFiles/bsdunzip_test.dir/test_symlink.c.o
+[ 32%] Building C object libarchive/CMakeFiles/archive.dir/archive_entry_xattr.c.o
+[ 32%] Building C object unzip/test/CMakeFiles/bsdunzip_test.dir/test_symlink_dotdot.c.o
+[ 32%] Building C object cat/test/CMakeFiles/bsdcat_test.dir/test_expand_Z.c.o
+[ 32%] Generating /home/claude/la/bt/libarchive/test/list.h
+[ 32%] Building C object unzip/test/CMakeFiles/bsdunzip_test.dir/test_C.c.o
+[ 32%] Building C object libarchive/CMakeFiles/archive.dir/archive_hmac.c.o
+[ 32%] Building C object cat/CMakeFiles/bsdcat.dir/bsdcat.c.o
+[ 32%] Building C object cat/CMakeFiles/bsdcat.dir/cmdline.c.o
+[ 32%] Building C object libarchive/CMakeFiles/archive.dir/archive_match.c.o
+[ 32%] Linking C executable ../bin/bsdtar
+[ 33%] Building C object unzip/test/CMakeFiles/bsdunzip_test.dir/test_p.c.o
+[ 33%] Building C object libarchive/CMakeFiles/archive.dir/archive_options.c.o
+[ 33%] Building C object cat/CMakeFiles/bsdcat.dir/__/libarchive_fe/lafe_err.c.o
+[ 33%] Building C object unzip/test/CMakeFiles/bsdunzip_test.dir/test_prompt.c.o
+[ 35%] Built target bsdtar
+[ 36%] Linking C executable ../bin/bsdcat
+[ 36%] Building C object cat/test/CMakeFiles/bsdcat_test.dir/test_expand_bz2.c.o
+[ 36%] Building C object libarchive/CMakeFiles/archive.dir/archive_pack_dev.c.o
+[ 36%] Linking C executable ../bin/bsdcpio
+[ 36%] Built target bsdcat
+[ 36%] Building C object cat/test/CMakeFiles/bsdcat_test.dir/test_expand_gz.c.o
+[ 36%] Building C object unzip/CMakeFiles/bsdunzip.dir/bsdunzip.c.o
+[ 37%] Built target bsdcpio
+[ 37%] Building C object unzip/CMakeFiles/bsdunzip.dir/cmdline.c.o
+[ 38%] Building C object libarchive/CMakeFiles/archive.dir/archive_parse_date.c.o
+[ 38%] Building C object libarchive/CMakeFiles/archive.dir/archive_pathmatch.c.o
+[ 38%] Building C object unzip/CMakeFiles/bsdunzip.dir/__/libarchive_fe/lafe_err.c.o
+[ 38%] Building C object libarchive/test/CMakeFiles/libarchive_test.dir/__/__/test_utils/test_main.c.o
+[ 38%] Building C object unzip/CMakeFiles/bsdunzip.dir/__/libarchive_fe/lafe_explicit_bzero.c.o
+[ 39%] Building C object unzip/CMakeFiles/bsdunzip.dir/__/libarchive_fe/lafe_fnmatch.c.o
+/home/claude/la/src/test_utils/test_main.c: In function 'test_run':
+/home/claude/la/src/test_utils/test_main.c:3741:23: warning: ignoring return value of 'setegid' declared with attribute 'warn_unused_result' [-Wunused-result]
+ 3741 |                 (void)setegid(tuid);
+      |                       ^~~~~~~~~~~~~
+/home/claude/la/src/test_utils/test_main.c:3742:23: warning: ignoring return value of 'seteuid' declared with attribute 'warn_unused_result' [-Wunused-result]
+ 3742 |                 (void)seteuid(tuid);
+      |                       ^~~~~~~~~~~~~
+/home/claude/la/src/test_utils/test_main.c:3754:23: warning: ignoring return value of 'seteuid' declared with attribute 'warn_unused_result' [-Wunused-result]
+ 3754 |                 (void)seteuid(ouid);
+      |                       ^~~~~~~~~~~~~
+/home/claude/la/src/test_utils/test_main.c:3755:23: warning: ignoring return value of 'setegid' declared with attribute 'warn_unused_result' [-Wunused-result]
+ 3755 |                 (void)setegid(ogid);
+      |                       ^~~~~~~~~~~~~
+[ 39%] Building C object libarchive/CMakeFiles/archive.dir/archive_ppmd8.c.o
+[ 39%] Building C object unzip/test/CMakeFiles/bsdunzip_test.dir/test_d.c.o
+[ 39%] Building C object cat/test/CMakeFiles/bsdcat_test.dir/test_expand_lz4.c.o
+[ 39%] Building C object unzip/test/CMakeFiles/bsdunzip_test.dir/test_f.c.o
+[ 39%] Building C object cat/test/CMakeFiles/bsdcat_test.dir/test_expand_mixed.c.o
+[ 39%] Building C object unzip/test/CMakeFiles/bsdunzip_test.dir/test_j.c.o
+[ 39%] Building C object unzip/test/CMakeFiles/bsdunzip_test.dir/test_L.c.o
+[ 39%] Building C object cat/test/CMakeFiles/bsdcat_test.dir/test_expand_plain.c.o
+[ 39%] Building C object libarchive/CMakeFiles/archive.dir/archive_ppmd7.c.o
+[ 39%] Building C object unzip/CMakeFiles/bsdunzip.dir/__/libarchive_fe/lafe_getline.c.o
+[ 39%] Building C object unzip/CMakeFiles/bsdunzip.dir/__/libarchive_fe/passphrase.c.o
+[ 39%] Building C object libarchive/test/CMakeFiles/libarchive_test.dir/test_write_format_cpio_bin_uid.c.o
+[ 40%] Building C object cat/test/CMakeFiles/bsdcat_test.dir/test_expand_xz.c.o
+[ 40%] Building C object unzip/test/CMakeFiles/bsdunzip_test.dir/test_n.c.o
+[ 40%] Building C object cat/test/CMakeFiles/bsdcat_test.dir/test_expand_zstd.c.o
+[ 40%] Linking C executable ../bin/bsdunzip
+[ 40%] Building C object unzip/test/CMakeFiles/bsdunzip_test.dir/test_o.c.o
+[ 40%] Building C object cat/test/CMakeFiles/bsdcat_test.dir/test_help.c.o
+[ 40%] Building C object libarchive/CMakeFiles/archive.dir/archive_random.c.o
+[ 40%] Building C object cat/test/CMakeFiles/bsdcat_test.dir/test_stdin.c.o
+[ 40%] Building C object cat/test/CMakeFiles/bsdcat_test.dir/test_version.c.o
+[ 40%] Building C object unzip/test/CMakeFiles/bsdunzip_test.dir/test_q.c.o
+[ 41%] Building C object unzip/test/CMakeFiles/bsdunzip_test.dir/test_t.c.o
+[ 41%] Built target bsdunzip
+[ 41%] Building C object unzip/test/CMakeFiles/bsdunzip_test.dir/test_t_bad.c.o
+[ 41%] Building C object libarchive/CMakeFiles/archive.dir/archive_rb.c.o
+[ 41%] Linking C executable ../../bin/bsdcat_test
+[ 41%] Building C object unzip/test/CMakeFiles/bsdunzip_test.dir/test_u.c.o
+[ 41%] Building C object unzip/test/CMakeFiles/bsdunzip_test.dir/test_version.c.o
+[ 41%] Built target bsdcat_test
+[ 41%] Building C object unzip/test/CMakeFiles/bsdunzip_test.dir/test_windows_paths.c.o
+[ 41%] Building C object unzip/test/CMakeFiles/bsdunzip_test.dir/test_x.c.o
+[ 41%] Building C object unzip/test/CMakeFiles/bsdunzip_test.dir/test_Z1.c.o
+[ 41%] Building C object unzip/test/CMakeFiles/bsdunzip_test.dir/test_P_encryption.c.o
+[ 41%] Building C object unzip/test/CMakeFiles/bsdunzip_test.dir/test_I.c.o
+[ 41%] Building C object libarchive/CMakeFiles/archive.dir/archive_read.c.o
+[ 41%] Building C object libarchive/CMakeFiles/archive.dir/archive_read_add_passphrase.c.o
+[ 41%] Building C object libarchive/CMakeFiles/archive.dir/archive_read_append_filter.c.o
+[ 43%] Building C object libarchive/CMakeFiles/archive.dir/archive_read_data_into_fd.c.o
+[ 43%] Linking C executable ../../bin/bsdunzip_test
+[ 43%] Building C object libarchive/CMakeFiles/archive.dir/archive_read_disk_entry_from_file.c.o
+[ 43%] Building C object libarchive/CMakeFiles/archive.dir/archive_read_disk_posix.c.o
+[ 43%] Built target bsdunzip_test
+[ 43%] Building C object libarchive/CMakeFiles/archive.dir/archive_read_disk_set_standard_lookup.c.o
+[ 43%] Building C object libarchive/CMakeFiles/archive.dir/archive_read_extract.c.o
+[ 43%] Building C object libarchive/CMakeFiles/archive.dir/archive_read_extract2.c.o
+[ 43%] Building C object libarchive/CMakeFiles/archive.dir/archive_read_open_fd.c.o
+[ 43%] Building C object libarchive/CMakeFiles/archive.dir/archive_read_open_file.c.o
+[ 43%] Building C object libarchive/CMakeFiles/archive.dir/archive_read_open_filename.c.o
+[ 44%] Building C object libarchive/CMakeFiles/archive.dir/archive_read_open_memory.c.o
+[ 44%] Building C object libarchive/CMakeFiles/archive.dir/archive_read_set_format.c.o
+[ 44%] Building C object libarchive/CMakeFiles/archive.dir/archive_read_set_options.c.o
+[ 44%] Building C object libarchive/CMakeFiles/archive.dir/archive_read_support_filter_all.c.o
+[ 44%] Building C object libarchive/CMakeFiles/archive.dir/archive_read_support_filter_by_code.c.o
+[ 44%] Building C object libarchive/CMakeFiles/archive.dir/archive_read_support_filter_gzip.c.o
+[ 44%] Building C object libarchive/CMakeFiles/archive.dir/archive_read_support_filter_bzip2.c.o
+[ 44%] Building C object libarchive/CMakeFiles/archive.dir/archive_read_support_filter_compress.c.o
+[ 45%] Building C object libarchive/CMakeFiles/archive.dir/archive_read_support_filter_grzip.c.o
+[ 46%] Linking C executable ../../bin/libarchive_test
+[ 46%] Building C object libarchive/CMakeFiles/archive.dir/archive_read_support_filter_lrzip.c.o
+[ 46%] Building C object libarchive/CMakeFiles/archive.dir/archive_read_support_filter_lz4.c.o
+[ 46%] Building C object libarchive/CMakeFiles/archive.dir/archive_read_support_filter_lzop.c.o
+[ 46%] Building C object libarchive/CMakeFiles/archive.dir/archive_read_support_filter_none.c.o
+[ 46%] Building C object libarchive/CMakeFiles/archive.dir/archive_read_support_filter_program.c.o
+[ 46%] Building C object libarchive/CMakeFiles/archive.dir/archive_read_support_filter_rpm.c.o
+[ 46%] Building C object libarchive/CMakeFiles/archive.dir/archive_read_support_filter_uu.c.o
+[ 46%] Building C object libarchive/CMakeFiles/archive.dir/archive_read_support_filter_xz.c.o
+[ 47%] Building C object libarchive/CMakeFiles/archive.dir/archive_read_support_filter_zstd.c.o
+[ 47%] Building C object libarchive/CMakeFiles/archive.dir/archive_read_support_format_7zip.c.o
+[ 47%] Building C object libarchive/CMakeFiles/archive.dir/archive_read_support_format_all.c.o
+[ 47%] Building C object libarchive/CMakeFiles/archive.dir/archive_read_support_format_ar.c.o
+[ 47%] Building C object libarchive/CMakeFiles/archive.dir/archive_read_support_format_by_code.c.o
+[ 47%] Building C object libarchive/CMakeFiles/archive.dir/archive_read_support_format_cab.c.o
+[ 47%] Building C object libarchive/CMakeFiles/archive.dir/archive_read_support_format_cpio.c.o
+[ 47%] Building C object libarchive/CMakeFiles/archive.dir/archive_read_support_format_empty.c.o
+[ 47%] Building C object libarchive/CMakeFiles/archive.dir/archive_read_support_format_iso9660.c.o
+[ 92%] Built target libarchive_test
+[ 93%] Building C object libarchive/CMakeFiles/archive.dir/archive_read_support_format_lha.c.o
+[ 93%] Building C object libarchive/CMakeFiles/archive.dir/archive_read_support_format_mtree.c.o
+[ 93%] Building C object libarchive/CMakeFiles/archive.dir/archive_read_support_format_rar.c.o
+[ 93%] Building C object libarchive/CMakeFiles/archive.dir/archive_read_support_format_rar5.c.o
+[ 93%] Building C object libarchive/CMakeFiles/archive.dir/archive_read_support_format_raw.c.o
+[ 93%] Building C object libarchive/CMakeFiles/archive.dir/archive_read_support_format_tar.c.o
+[ 93%] Building C object libarchive/CMakeFiles/archive.dir/archive_read_support_format_warc.c.o
+[ 93%] Building C object libarchive/CMakeFiles/archive.dir/archive_read_support_format_xar.c.o
+[ 93%] Building C object libarchive/CMakeFiles/archive.dir/archive_read_support_format_zip.c.o
+[ 94%] Building C object libarchive/CMakeFiles/archive.dir/archive_string.c.o
+[ 94%] Building C object libarchive/CMakeFiles/archive.dir/archive_string_sprintf.c.o
+[ 94%] Building C object libarchive/CMakeFiles/archive.dir/archive_time.c.o
+[ 94%] Building C object libarchive/CMakeFiles/archive.dir/archive_umask.c.o
+[ 94%] Building C object libarchive/CMakeFiles/archive.dir/archive_util.c.o
+[ 94%] Building C object libarchive/CMakeFiles/archive.dir/archive_version_details.c.o
+[ 94%] Building C object libarchive/CMakeFiles/archive.dir/archive_virtual.c.o
+[ 94%] Building C object libarchive/CMakeFiles/archive.dir/archive_write.c.o
+[ 94%] Building C object libarchive/CMakeFiles/archive.dir/archive_write_disk_posix.c.o
+[ 95%] Building C object libarchive/CMakeFiles/archive.dir/archive_write_disk_set_standard_lookup.c.o
+[ 95%] Building C object libarchive/CMakeFiles/archive.dir/archive_write_open_fd.c.o
+[ 95%] Building C object libarchive/CMakeFiles/archive.dir/archive_write_open_file.c.o
+[ 95%] Building C object libarchive/CMakeFiles/archive.dir/archive_write_open_filename.c.o
+[ 95%] Building C object libarchive/CMakeFiles/archive.dir/archive_write_open_memory.c.o
+[ 95%] Building C object libarchive/CMakeFiles/archive.dir/archive_write_add_filter.c.o
+[ 95%] Building C object libarchive/CMakeFiles/archive.dir/archive_write_add_filter_b64encode.c.o
+[ 95%] Building C object libarchive/CMakeFiles/archive.dir/archive_write_add_filter_by_name.c.o
+[ 96%] Building C object libarchive/CMakeFiles/archive.dir/archive_write_add_filter_bzip2.c.o
+[ 96%] Building C object libarchive/CMakeFiles/archive.dir/archive_write_add_filter_compress.c.o
+[ 96%] Building C object libarchive/CMakeFiles/archive.dir/archive_write_add_filter_grzip.c.o
+[ 96%] Building C object libarchive/CMakeFiles/archive.dir/archive_write_add_filter_gzip.c.o
+[ 96%] Building C object libarchive/CMakeFiles/archive.dir/archive_write_add_filter_lz4.c.o
+[ 96%] Building C object libarchive/CMakeFiles/archive.dir/archive_write_add_filter_lrzip.c.o
+[ 96%] Building C object libarchive/CMakeFiles/archive.dir/archive_write_add_filter_lzop.c.o
+[ 96%] Building C object libarchive/CMakeFiles/archive.dir/archive_write_add_filter_none.c.o
+[ 96%] Building C object libarchive/CMakeFiles/archive.dir/archive_write_add_filter_program.c.o
+[ 97%] Building C object libarchive/CMakeFiles/archive.dir/archive_write_add_filter_uuencode.c.o
+[ 97%] Building C object libarchive/CMakeFiles/archive.dir/archive_write_add_filter_xz.c.o
+[ 97%] Building C object libarchive/CMakeFiles/archive.dir/archive_write_set_format.c.o
+[ 97%] Building C object libarchive/CMakeFiles/archive.dir/archive_write_add_filter_zstd.c.o
+[ 97%] Building C object libarchive/CMakeFiles/archive.dir/archive_write_set_format_7zip.c.o
+[ 97%] Building C object libarchive/CMakeFiles/archive.dir/archive_write_set_format_by_name.c.o
+[ 97%] Building C object libarchive/CMakeFiles/archive.dir/archive_write_set_format_ar.c.o
+[ 97%] Building C object libarchive/CMakeFiles/archive.dir/archive_write_set_format_cpio.c.o
+[ 97%] Building C object libarchive/CMakeFiles/archive.dir/archive_write_set_format_cpio_binary.c.o
+[ 98%] Building C object libarchive/CMakeFiles/archive.dir/archive_write_set_format_cpio_newc.c.o
+[ 98%] Building C object libarchive/CMakeFiles/archive.dir/archive_write_set_format_cpio_odc.c.o
+[ 98%] Building C object libarchive/CMakeFiles/archive.dir/archive_write_set_format_filter_by_ext.c.o
+[ 98%] Building C object libarchive/CMakeFiles/archive.dir/archive_write_set_format_gnutar.c.o
+[ 98%] Building C object libarchive/CMakeFiles/archive.dir/archive_write_set_format_iso9660.c.o
+[ 98%] Building C object libarchive/CMakeFiles/archive.dir/archive_write_set_format_mtree.c.o
+[ 98%] Building C object libarchive/CMakeFiles/archive.dir/archive_write_set_format_pax.c.o
+[ 98%] Building C object libarchive/CMakeFiles/archive.dir/archive_write_set_format_raw.c.o
+[ 98%] Building C object libarchive/CMakeFiles/archive.dir/archive_write_set_format_shar.c.o
+[ 99%] Building C object libarchive/CMakeFiles/archive.dir/archive_write_set_format_ustar.c.o
+[ 99%] Building C object libarchive/CMakeFiles/archive.dir/archive_write_set_format_v7tar.c.o
+[ 99%] Building C object libarchive/CMakeFiles/archive.dir/archive_write_set_format_warc.c.o
+[ 99%] Building C object libarchive/CMakeFiles/archive.dir/archive_write_set_format_xar.c.o
+[ 99%] Building C object libarchive/CMakeFiles/archive.dir/archive_write_set_format_zip.c.o
+[ 99%] Building C object libarchive/CMakeFiles/archive.dir/archive_write_set_options.c.o
+[ 99%] Building C object libarchive/CMakeFiles/archive.dir/archive_write_set_passphrase.c.o
+[ 99%] Building C object libarchive/CMakeFiles/archive.dir/filter_fork_posix.c.o
+[ 99%] Building C object libarchive/CMakeFiles/archive.dir/xxhash.c.o
+[100%] Building C object libarchive/CMakeFiles/archive.dir/archive_blake2sp_ref.c.o
+[100%] Building C object libarchive/CMakeFiles/archive.dir/archive_blake2s_ref.c.o
+[100%] Linking C shared library libarchive.so
+[100%] Built target archive
