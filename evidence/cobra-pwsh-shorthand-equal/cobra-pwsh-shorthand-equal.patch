@@ -1,0 +1,32 @@
+diff --git a/powershell_completions.go b/powershell_completions.go
+index 746dcb9..d605517 100644
+--- a/powershell_completions.go
++++ b/powershell_completions.go
+@@ -96,7 +96,7 @@ filter __%[1]s_escapeStringWithSpecialChars {
+ 
+ 
+     # Check for flag with equal sign
+-    $IsEqualFlag = ($WordToComplete -Like "--*=*" )
++    $IsEqualFlag = ($WordToComplete -Like "-*=*" )
+     if ( $IsEqualFlag ) {
+         __%[1]s_debug "Completing equal sign flag"
+         # Remove the flag part
+diff --git a/powershell_completions_test.go b/powershell_completions_test.go
+index 603b50c..4544d62 100644
+--- a/powershell_completions_test.go
++++ b/powershell_completions_test.go
+@@ -31,3 +31,14 @@ func TestPwshCompletionNoActiveHelp(t *testing.T) {
+ 	activeHelpVar := activeHelpEnvVar(c.Name())
+ 	check(t, output, fmt.Sprintf("${env:%s}=0", activeHelpVar))
+ }
++
++func TestPwshCompletionEqualFlag(t *testing.T) {
++	c := &Command{Use: "c", Run: emptyRun}
++
++	buf := new(bytes.Buffer)
++	assertNoErr(t, c.GenPowerShellCompletion(buf))
++	output := buf.String()
++
++	// check that both -f=value and --flag=value are recognized
++	check(t, output, `$IsEqualFlag = ($WordToComplete -Like "-*=*" )`)
++}

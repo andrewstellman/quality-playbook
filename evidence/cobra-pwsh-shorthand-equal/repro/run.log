@@ -1,0 +1,4 @@
+$ pwsh -NoProfile -File .../study-sample/confirm/cobra-BUG-018/mac-run/run.ps1   (run by Andrew on his Mac, 22 Nov 2026 18:20 ET)
+pwsh 7.7.0; prog built from cobra adbc8813 (darwin-arm64)
+prog get -o=         -> 
+prog get --output=   -> --output=json, --output=yaml

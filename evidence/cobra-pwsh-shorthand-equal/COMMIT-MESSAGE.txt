@@ -1,0 +1,9 @@
+powershell: complete values for shorthand flags with an equal sign
+
+The generated PowerShell completion script only treats --flag=value as a
+flag with an equal sign, so "prog get -o=<TAB>" offers no completions
+while "prog get --output=<TAB>" does. Match -*=* as the bash script does.
+
+The issue was found by Claude Opus 5.5 running Quality Playbook, an LLM-driven code review tool:
+https://github.com/andrewstellman/quality-playbook
+The fix and this changelog were drafted with Claude Opus 5.5 and reviewed by me.

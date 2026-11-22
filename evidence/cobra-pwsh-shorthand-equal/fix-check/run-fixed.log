@@ -1,0 +1,6 @@
+$ pwsh -NoProfile -File .../cobra-pwsh-shorthand-equal/run-fixed.ps1   (Andrew's Mac, 22 Nov 2026 18:34 ET)
+pwsh 7.7.0; prog built from cobra main adbc8813 + fix (darwin-arm64)
+prog get -o=         -> -o=json, -o=yaml
+prog get --output=   -> --output=json, --output=yaml
+prog get -o          -> json, yaml
+prog get --output    -> json, yaml
