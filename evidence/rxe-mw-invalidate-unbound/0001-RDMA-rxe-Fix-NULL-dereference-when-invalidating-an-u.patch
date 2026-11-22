@@ -1,0 +1,68 @@
+From 0e65820b3476f40f9c70ebcf846e86a0e4a07cf8 Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <astellman@stellman-greene.com>
+Date: Thu, 19 Nov 2026 08:31:35 -0500
+Subject: [PATCH rdma-next] RDMA/rxe: Fix NULL dereference when invalidating an
+ unbound MW
+
+A type 2 memory window has no QP or MR attached while it is in
+RXE_MW_STATE_FREE, which is its state after it is allocated and again
+after it is invalidated. rxe_check_invalidate_mw() rejects
+RXE_MW_STATE_INVALID but not RXE_MW_STATE_FREE, so invalidating a FREE
+window reaches rxe_do_invalidate_mw(), which dereferences the NULL
+mw->qp and mw->mr.
+
+An IB_WR_LOCAL_INV for the rkey of a type 2 MW that was never bound
+panics the kernel. So does a second IB_WR_LOCAL_INV for the same rkey
+after a bind and an invalidate, and a received SEND with Invalidate
+naming a never-bound window's rkey.
+
+The first case, run by an unprivileged user under KASAN:
+
+  BUG: KASAN: null-ptr-deref in rxe_invalidate_mw+0x156/0x310
+  Write of size 4 at addr 00000000000003b4 by task kworker/u8:1/30
+  Workqueue: rxe_wq do_work
+  Call Trace:
+   rxe_invalidate_mw+0x156/0x310
+   rxe_requester+0x20d4/0x5640
+   rxe_sender+0xe/0x30
+   do_work+0x144/0x470
+  Kernel panic - not syncing: Fatal exception in interrupt
+
+Only invalidate a window in RXE_MW_STATE_VALID. rxe_invalidate_mw()
+now returns -EINVAL for a FREE window, as it does for a type 1 window.
+
+The issue was found by Claude Opus 5.5 running Quality Playbook, an
+LLM-driven code review tool:
+https://github.com/andrewstellman/quality-playbook
+The fix and this changelog were drafted with the same tool and reviewed
+by me.
+
+Fixes: 3902b429ca14 ("RDMA/rxe: Implement invalidate MW operations")
+Signed-off-by: Andrew Stellman <astellman@stellman-greene.com>
+---
+
+Tested in QEMU with KASAN on v7.4-rc3, and on v7.4-rc3 with the RDMA
+code from rdma for-next (7404c82cbf12). The reproducers are short
+libibverbs programs; I can send them off-list.
+
+ drivers/infiniband/sw/rxe/rxe_mw.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/infiniband/sw/rxe/rxe_mw.c b/drivers/infiniband/sw/rxe/rxe_mw.c
+index a2e3a6ce0946..82a20a96a351 100644
+--- a/drivers/infiniband/sw/rxe/rxe_mw.c
++++ b/drivers/infiniband/sw/rxe/rxe_mw.c
+@@ -228,7 +228,7 @@ int rxe_bind_mw(struct rxe_qp *qp, struct rxe_send_wqe *wqe)
+ 
+ static int rxe_check_invalidate_mw(struct rxe_qp *qp, struct rxe_mw *mw)
+ {
+-	if (unlikely(mw->state == RXE_MW_STATE_INVALID))
++	if (unlikely(mw->state != RXE_MW_STATE_VALID))
+ 		return -EINVAL;
+ 
+ 	/* o10-37.2.26 */
+
+base-commit: 7404c82cbf1246e0e84e2ec21834d23c26f9a8ed
+-- 
+2.43.0
+
