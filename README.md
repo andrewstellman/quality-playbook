@@ -19,7 +19,7 @@ It catches bugs that a thorough adversarial code-review prompt misses. The gson 
 - contracts and a coverage matrix
 - the code-review, spec-audit, and TDD verification protocols themselves
 
-*And this isn't theoretical! Maintainers have [merged or released fixes for 29 bugs](#merged-bugs-leaderboard) that the Quality Playbook found in Javalin, the Linux kernel, Google's gson, aiohttp, calibre, OpenTelemetry, libarchive and five other projects. Two of them now have CVE IDs: one credited only to the Quality Playbook's report, and one shared with independent reporters.*
+*And this isn't theoretical! Maintainers have [merged or released fixes for 30 bugs](#merged-bugs-leaderboard) that the Quality Playbook found in Javalin, the Linux kernel, Google's gson, aiohttp, calibre, OpenTelemetry, libarchive and five other projects. Two of them now have CVE IDs: one credited only to the Quality Playbook's report, and one shared with independent reporters.*
 
 ## Quick start
 
@@ -41,7 +41,7 @@ The agent finds the installed skill on its own and runs the six phases (explore,
 
 ## Merged bugs leaderboard
 
-As of 22 November 2026, maintainers have merged or released fixes for these 29 bugs, and 24 more fixes and reports are [submitted and waiting](#submitted-upstream). Three of them were private security reports, published by the maintainer as advisories once the fix was released, and GitHub has issued CVEs for the two addressable advisories: CVE-2026-126349 (GHSA-539f, credited only to my report) and CVE-2026-126350 (GHSA-j82w, credited to my report and two independent reporters). The full record, including the bugs that were held back, dropped or never filed, is in [`evidence/README.md`](evidence/README.md).
+As of 22 November 2026, maintainers have merged or released fixes for these 30 bugs, and 23 more fixes and reports are [submitted and waiting](#submitted-upstream). Three of them were private security reports, published by the maintainer as advisories once the fix was released, and GitHub has issued CVEs for the two addressable advisories: CVE-2026-126349 (GHSA-539f, credited only to my report) and CVE-2026-126350 (GHSA-j82w, credited to my report and two independent reporters). The full record, including the bugs that were held back, dropped or never filed, is in [`evidence/README.md`](evidence/README.md).
 
 | Project | The bug | Fix | Merged | Evidence |
 |---|---|---|---|---|
@@ -56,6 +56,7 @@ As of 22 November 2026, maintainers have merged or released fixes for these 29 b
 | OpenTelemetry Java instrumentation | `UrlParser` recorded `server.address` as "[" for a bracketed IPv6 address | [#20320](https://github.com/open-telemetry/opentelemetry-java-instrumentation/pull/20320) | 2026-10-16 | [Evidence folder](evidence/otel-java-urlparser-ipv6/) |
 | adonisjs `http-server` | The `uuid` route matcher accepted letters that are not hex digits | [#144](https://github.com/adonisjs/http-server/pull/144) | 2026-10-14 | [Evidence folder](evidence/adonis-uuid-matcher/) |
 | python-poetry `tomlkit` | Arithmetic on a float written with an explicit sign wrote a negative-zero result as `+-0.0`, which tomlkit itself then rejected | [#629](https://github.com/python-poetry/tomlkit/pull/629) | 2026-10-12 | [Evidence folder](evidence/tomlkit-float-negative-zero-sign/) |
+| python-poetry `tomlkit` | `parse()` raised `RecursionError` on a valid document whose dotted key was within the nesting limit (reported as an issue; another contributor wrote the fix) | [#716](https://github.com/python-poetry/tomlkit/pull/716), fixing [issue #714](https://github.com/python-poetry/tomlkit/issues/714) | 2026-11-22 | [Evidence folder](evidence/tomlkit-dotted-key-recursion/) |
 | harrisiirak `cron-parser` | String dates in the RFC 850 and asctime HTTP formats threw "unhandled timestamp", although cron-parser's README lists HTTP dates as supported | [#455](https://github.com/harrisiirak/cron-parser/pull/455) | 2026-10-11 | [Evidence folder](evidence/cron-parser-http-date-formats/) |
 | bradymholt `cRonstrue` | A list with a plain first value and a step printed "At 09:00 AMonly on Friday and , every 2 days of the week" | [#423](https://github.com/bradymholt/cRonstrue/pull/423) | 2026-10-20 | [Evidence folder](evidence/cronstrue-list-step-separator/) |
 | sporkmonger `addressable` | `route_from` returned an empty string when only the base URI had a query | [#623](https://github.com/sporkmonger/addressable/pull/623) | 2026-10-31 | [Evidence folder](evidence/addressable-route-from-base-query/) |
@@ -329,7 +330,7 @@ If `TOOLKIT.md` doesn't answer your question, file an issue at https://github.co
 
 ## Submitted upstream
 
-These fixes and reports are still waiting on the maintainers. All of them except those opened in November (setuptools #5374 and #5375, zod #6767, #6769 and #6770, tomlkit #714, addressable #702) were checked on GitHub on 27 October 2026, and none had been merged or closed. The Linux patches were checked against the history of mainline (`torvalds/linux`), not their mailing-list threads. The five marshmallow pull requests from #3086 to #3090 share one evidence folder: three of them were first reported privately to marshmallow's security contact, who ruled them not security issues and asked for public pull requests. Reports that may be security issues and are still private are not listed until the maintainers publish them.
+These fixes and reports are still waiting on the maintainers. All of them except those opened in November (setuptools #5374 and #5375, zod #6767, #6769 and #6770, addressable #702) were checked on GitHub on 27 October 2026, and none had been merged or closed. The Linux patches were checked against the history of mainline (`torvalds/linux`), not their mailing-list threads. The five marshmallow pull requests from #3086 to #3090 share one evidence folder: three of them were first reported privately to marshmallow's security contact, who ruled them not security issues and asked for public pull requests. Reports that may be security issues and are still private are not listed until the maintainers publish them.
 
 | Project | The bug | Submitted | Evidence |
 |---|---|---|---|
@@ -351,7 +352,6 @@ These fixes and reports are still waiting on the maintainers. All of them except
 | colinhacks `zod` | Compiled parsing accepted a missing key whose optional was inside `z.intersection()` or `z.success()` | [issue #6767](https://github.com/colinhacks/zod/issues/6767) (fix on a branch of my fork) | [Evidence folder](evidence/zod-compile-optional-absent-key/) |
 | colinhacks `zod` | An exhaustive `z.record()` accepted a missing key when the value schema accepted `undefined` | [issue #6769](https://github.com/colinhacks/zod/issues/6769) (fix on a branch of my fork) | [Evidence folder](evidence/zod-record-absent-key/) |
 | colinhacks `zod` | A constant `.catch()` value and a `Date` default were shared across parses | [issue #6770](https://github.com/colinhacks/zod/issues/6770) (fix on a branch of my fork) | [Evidence folder](evidence/zod-clone-static-fallbacks/) |
-| python-poetry `tomlkit` | `parse()` raised `RecursionError` on a valid document whose dotted key was within the nesting limit | [issue #714](https://github.com/python-poetry/tomlkit/issues/714) | [Evidence folder](evidence/tomlkit-dotted-key-recursion/) |
 | sporkmonger `addressable` | `normalize` decoded `%3A`, `%5B` and `%5D` in a host name, so an encoded colon became a port | [#702](https://github.com/sporkmonger/addressable/pull/702) | [Evidence folder](evidence/addressable-normalized-host-delimiters/) |
 | NVIDIA `bionemo-recipes` | The THD context-parallel split dropped the remainder tokens | [#1765](https://github.com/NVIDIA-BioNeMo/bionemo-recipes/pull/1765) | [Evidence folder](evidence/bionemo-thd-cp-divisibility/) |
 | NVIDIA `bionemo-recipes` | AMPLIFY `_pad_weights` returned fp32 for bf16 input | [#1764](https://github.com/NVIDIA-BioNeMo/bionemo-recipes/pull/1764) | [Evidence folder](evidence/bionemo-amplify-pad-weights-dtype/) |
