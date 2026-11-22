@@ -43,6 +43,17 @@ Everything that goes upstream (PR descriptions, issues, replies, and kernel patc
 
 Any review of the text must also try to cut it: flag every sentence that isn't needed for understanding, the fix or reproduction, and give the shorter version. A review that only corrects facts can make the text longer.
 
+### Every claim must be exactly true (added 2026-11-20)
+
+This is a strong rule, on the same level as keeping the text short. Every statement about behaviour in outgoing text (PR or MR description, commit message, changelog, reply) must describe something that was actually run and observed, under the conditions it was run in, and nothing broader:
+
+- Don't generalize from one case ("cannot read", "never", "always", "all") unless every case was tested or the code makes it certain. Say what was run instead ("tiffcp ... exited 0, and TIFFReadEncodedStrip on the result fails with ...").
+- An error message is not evidence of what the code does next. Check whether the caller acts on it.
+- If a claim isn't needed to understand the problem, the fix or the reproduction, cut it rather than qualify it. Fewer claims means fewer chances to be wrong.
+- The review panel checks each behaviour claim against a run, not only against reading the code, and flags any claim that goes beyond what the evidence shows.
+
+Why: libtiff !1035 (2026-11-20) said tiffcp "wrote a file libtiff then cannot read". The panel checked that the reader prints an error, but nobody tried reading the file. On master the error is ignored, and lossless strips with a multiple of 3 rows read back correctly, so the sentence was false for some files and had to be corrected on the MR.
+
 Paste the complete final text in the chat for Andrew to read before giving him any command that sends it. Asking him to check a single sentence doesn't count.
 
 Then stop. Don't propose a schedule, don't queue the next bug in the same message, and don't group several bugs into one presentation.
