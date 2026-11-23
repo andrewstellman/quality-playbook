@@ -1,8 +1,8 @@
 status: merged
 title: addressable: display_uri showed hosts with bidi and invisible characters decoded from Punycode (security advisory, low)
 link: https://github.com/sporkmonger/addressable/security/advisories/GHSA-539f-xcgw-2gjg
-updated: 2026-11-12
-note: GitHub issued CVE-2026-126349 on 2026-11-12. Published by the maintainer on 2026-10-30 as GHSA-539f (Low, CVSS 3.1) and fixed in addressable 2.9.1, released the same day; Andrew is the credited reporter and the maintainer requested a CVE. BUG-013-COMMENT.md is the 22 Oct addendum (round-trip check); its first case overlaps GHSA-9crm, reported earlier by tonghuaroot. The maintainer says some mitigations wait for 2.10.0.
+updated: 2026-11-22
+note: GitHub issued CVE-2026-126349 on 2026-11-12. Published by the maintainer on 2026-10-30 as GHSA-539f (Low, CVSS 3.1) and fixed in addressable 2.9.1, released the same day; Andrew is the credited reporter and the maintainer requested a CVE. BUG-013-COMMENT.md is the 22 Oct addendum (round-trip check); its first case overlaps GHSA-9crm, reported earlier by tonghuaroot. The maintainer says some mitigations wait for 2.10.0. On 2026-11-22 (03:18 UTC on 23 Nov) the maintainer published GHSA-x378-rg7m-2c49 (Low, CVSS 3.1, CWE-451/1007, no CVE yet): display_uri decoded an A-label containing U+3002 IDEOGRAPHIC FULL STOP, showing a label boundary that isn't in the real host; fixed in addressable 2.10.0 (released 2026-11-23 03:15 UTC), Andrew the only credited finder. It is the full-stop-lookalike case from BUG-013-COMMENT.md (the 22 Oct addendum), extended by the maintainer to U+3002.
 
 ## History
 
