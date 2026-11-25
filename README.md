@@ -19,7 +19,7 @@ It catches bugs that a thorough adversarial code-review prompt misses. The gson 
 - contracts and a coverage matrix
 - the code-review, spec-audit, and TDD verification protocols themselves
 
-*And this isn't theoretical! Maintainers have [merged or released fixes for 40 bugs](#merged-bugs-leaderboard) that the Quality Playbook found in Javalin, the Linux kernel, Google's gson, aiohttp, calibre, OpenTelemetry, libarchive and five other projects. Two of them now have CVE IDs: one credited only to the Quality Playbook's report, and one shared with independent reporters.*
+*And this isn't theoretical! Maintainers have [merged or released fixes for 41 bugs](#merged-bugs-leaderboard) that the Quality Playbook found in Javalin, the Linux kernel, Google's gson, aiohttp, calibre, OpenTelemetry, libarchive and five other projects. Two of them now have CVE IDs: one credited only to the Quality Playbook's report, and one shared with independent reporters.*
 
 ## Quick start
 
@@ -41,7 +41,7 @@ The agent finds the installed skill on its own and runs the six phases (explore,
 
 ## Merged bugs leaderboard
 
-As of 23 November 2026, maintainers have merged or released fixes for these 40 bugs, and 27 more fixes and reports are [submitted and waiting](#submitted-upstream). Four of them were private security reports, published by the maintainer as advisories once the fix was released, and GitHub has issued CVEs for two of the addressable advisories: CVE-2026-126349 (GHSA-539f, credited only to my report) and CVE-2026-126350 (GHSA-j82w, credited to my report and two independent reporters). The full record, including the bugs that were held back, dropped or never filed, is in [`evidence/README.md`](evidence/README.md).
+As of 24 November 2026, maintainers have merged or released fixes for these 41 bugs, and 26 more fixes and reports are [submitted and waiting](#submitted-upstream). Four of them were private security reports, published by the maintainer as advisories once the fix was released, and GitHub has issued CVEs for two of the addressable advisories: CVE-2026-126349 (GHSA-539f, credited only to my report) and CVE-2026-126350 (GHSA-j82w, credited to my report and two independent reporters). The full record, including the bugs that were held back, dropped or never filed, is in [`evidence/README.md`](evidence/README.md).
 
 | Project | The bug | Fix | Merged | Evidence |
 |---|---|---|---|---|
@@ -85,6 +85,7 @@ As of 23 November 2026, maintainers have merged or released fixes for these 40 b
 | `javalin` | A shared `ValidationError` was mutated per failure, so concurrent requests could see each other's input | [#2712](https://github.com/javalin/javalin/pull/2712) | 2026-11-23 | evidence to follow |
 | `javalin` | `spaRoot` paths were matched by string prefix, so `/administrator` was served past a `before("/admin/*")` guard | [#2713](https://github.com/javalin/javalin/pull/2713) | 2026-11-23 | evidence to follow |
 | `javalin` | `GlobalHeadersPlugin` headers were missing when an earlier before handler threw or redirected | [#2714](https://github.com/javalin/javalin/pull/2714) | 2026-11-23 | evidence to follow |
+| `javalin` | The Jetty-free static handler left file descriptors open for every classpath file request | [#2711](https://github.com/javalin/javalin/pull/2711) | 2026-11-24 | evidence to follow |
 
 *Open-source maintainers are drowning in AI-generated pull requests right now, and I have no intention of adding to that pile. The playbook's agents reproduced each of these bugs and drafted the patches, but before anything went upstream I read the code, checked that each regression test failed without the fix and passed with it, and checked the output against the finding. For the virtio bug that meant booting a patched kernel under QEMU. Every one of these fixes says in its pull request or commit message that AI was involved, except the zram patch, which went in before I started requiring that.*
 
@@ -360,7 +361,6 @@ These fixes and reports are still waiting on the maintainers. All of them except
 | spf13 `cobra` | PowerShell completion offered nothing for a shorthand flag written with an equal sign (`-o=`) | [#2581](https://github.com/spf13/cobra/pull/2581) | [Evidence folder](evidence/cobra-pwsh-shorthand-equal/) |
 | `javalin` | `isLocalhost()` trusted the Host header, so a remote client sending `Host: localhost` skipped the SSL redirect | [#2704](https://github.com/javalin/javalin/pull/2704) | evidence to follow |
 | `javalin` | `X-HTTP-Method-Override` was honored on GET, so a GET could run a DELETE handler | [#2707](https://github.com/javalin/javalin/pull/2707) (moved to Javalin 8 by the maintainer) | evidence to follow |
-| `javalin` | The Jetty-free static handler left file descriptors open for every classpath file request | [#2711](https://github.com/javalin/javalin/pull/2711) (the maintainer pushed a Windows fix to its test) | evidence to follow |
 | colinhacks `zod` | `registry.remove()` deleted an id that now belonged to another schema | [issue #6640](https://github.com/colinhacks/zod/issues/6640) (zod accepts pull requests only from collaborators) | [Evidence folder](evidence/zod-registry-remove-owner/) |
 | colinhacks `zod` | An intersection threw when both sides produced `NaN` | [issue #6639](https://github.com/colinhacks/zod/issues/6639) | [Evidence folder](evidence/zod-intersection-nan/) |
 | colinhacks `zod` | Compiled parsing accepted a missing key whose optional was inside `z.intersection()` or `z.success()` | [issue #6767](https://github.com/colinhacks/zod/issues/6767) (fix on a branch of my fork) | [Evidence folder](evidence/zod-compile-optional-absent-key/) |
