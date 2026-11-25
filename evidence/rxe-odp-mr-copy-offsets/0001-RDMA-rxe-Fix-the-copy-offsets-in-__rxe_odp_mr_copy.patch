@@ -1,0 +1,83 @@
+From b10690606c807ae90563a4dba465bdced07747d0 Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <astellman@stellman-greene.com>
+Date: Sat, 21 Nov 2026 18:52:44 -0500
+Subject: [PATCH rdma-rc] RDMA/rxe: Fix the copy offsets in __rxe_odp_mr_copy()
+
+__rxe_odp_mr_copy() maps each page it copies and copies to or from the
+start of that page. It uses the offset of iova in the first page only
+to size the first copy, not to find where in the page to copy, and it
+does not advance addr after each page, so each page is copied between
+the start of that page and the start of addr.
+
+Tested as root on rxe loopback (path MTU 1024), three runs, with an
+ODP MR registered 100 bytes into a page:
+
+- In a 4096-byte RDMA READ or SEND from the start of the MR, the first
+  16 bytes of each of the first three 1024-byte packets were the same
+  as the first 16 bytes of the page, not the data at their offset in
+  the MR.
+- A 32-byte RDMA WRITE to the start of the MR changed 32 of the 100
+  bytes between the start of the page and the MR, which are outside
+  the MR, and none of the 32 bytes at the start of the MR got the
+  written value.
+- In a 1024-byte RDMA READ that starts 512 bytes before a page
+  boundary, the first 512 bytes matched the start of the next page.
+  In each run, over 50 rounds of a 1024-byte RDMA WRITE between two
+  other MRs followed by such a READ, some of the last 512 bytes of the
+  READs were neither zero nor the expected data.
+
+Each of these also occurred in three runs as an unprivileged user (uid
+65534, no effective capabilities) on an rxe device that root had
+created. With this patch (one run, as root), the READ, SEND and WRITE
+tests above returned or wrote the expected bytes, and the 50 rounds
+returned no such bytes.
+
+Use the offset of iova in the first page, and advance addr after each
+page, as rxe_mr_copy_xarray() does.
+
+The issue was found by Claude Opus 5.5 and Claude Fable running
+Quality Playbook, an LLM-driven code review tool:
+https://github.com/andrewstellman/quality-playbook
+The fix and this changelog were drafted with Claude Opus 5.5 and
+reviewed by me.
+
+Fixes: 2fae67ab63db ("RDMA/rxe: Add support for Send/Recv/Write/Read with ODP")
+Cc: stable@vger.kernel.org
+Signed-off-by: Andrew Stellman <astellman@stellman-greene.com>
+---
+
+Tested in QEMU on v7.4-rc3. rxe_odp.c is the same at rdma for-rc
+commit e7732ec135b5. The reproducer is a libibverbs program written
+with Claude Opus 5.5; I can send it off-list.
+
+ drivers/infiniband/sw/rxe/rxe_odp.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/infiniband/sw/rxe/rxe_odp.c b/drivers/infiniband/sw/rxe/rxe_odp.c
+index 9d27244f89b..73ed4c45fea 100644
+--- a/drivers/infiniband/sw/rxe/rxe_odp.c
++++ b/drivers/infiniband/sw/rxe/rxe_odp.c
+@@ -211,8 +211,8 @@ static int __rxe_odp_mr_copy(struct rxe_mr *mr, u64 iova, void *addr,
+ 		page = hmm_pfn_to_page(umem_odp->map.pfn_list[idx]);
+ 		user_va = kmap_local_page(page);
+ 
+-		src = (dir == RXE_TO_MR_OBJ) ? addr : user_va;
+-		dest = (dir == RXE_TO_MR_OBJ) ? user_va : addr;
++		src = (dir == RXE_TO_MR_OBJ) ? addr : user_va + offset;
++		dest = (dir == RXE_TO_MR_OBJ) ? user_va + offset : addr;
+ 
+ 		bytes = BIT(umem_odp->page_shift) - offset;
+ 		if (bytes > length)
+@@ -222,6 +222,7 @@ static int __rxe_odp_mr_copy(struct rxe_mr *mr, u64 iova, void *addr,
+ 		kunmap_local(user_va);
+ 
+ 		length  -= bytes;
++		addr += bytes;
+ 		idx++;
+ 		offset = 0;
+ 	}
+
+base-commit: e7732ec135b501e87ab060d992b3b5f2ec4396c9
+-- 
+2.43.0
+
