@@ -1,0 +1,57 @@
+From 9441ae78b553d03f7d57e345595ee69996a8be44 Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <astellman@stellman-greene.com>
+Date: Thu, 19 Nov 2026 11:01:56 -0500
+Subject: [PATCH net] tipc: zero the pad bytes between bundled messages
+
+tipc_msg_bundle() places each message in a bundle at a 4-byte aligned
+offset. It extends the bundle with skb_put() to cover both the padding
+and the message, but copies only the message, so the 0 to 3 pad bytes
+before it keep whatever was in the skb's tailroom, and they are sent to
+the peer node.
+
+Zero the pad bytes. Commit 81c600c26302 ("tipc: Dont send random pad
+bytes in RESET/ACTIVATE messages") fixed the same kind of leak in link
+protocol messages.
+
+Reproduced on v7.4-rc3 with two QEMU guests as TIPC nodes, booted with
+slub_debug=P, which fills free slab objects with 0x6b. One guest sends
+60,000 SOCK_RDM messages with 41, 45 and 37 bytes of data to the other.
+That fills the link window, so some are bundled, and a packet socket on
+the sender captures the outgoing frames. Without this patch every
+captured pad byte was 0x6b; with it they are all zero and every message
+is still delivered. No other kernel changes, debug code or error
+injection were needed, and there is no TIPC selftest to run.
+
+The issue was found by Claude Opus 5.5 running Quality Playbook, an
+LLM-driven code review tool:
+https://github.com/andrewstellman/quality-playbook
+The fix and this changelog were drafted with the same tool and reviewed
+by me.
+
+Fixes: b97bf3fd8f6a ("[TIPC] Initial merge")
+Signed-off-by: Andrew Stellman <astellman@stellman-greene.com>
+---
+A reproducer is available on request.
+
+ net/tipc/msg.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/net/tipc/msg.c b/net/tipc/msg.c
+index 39dfd33c8eec..b0d52609b03d 100644
+--- a/net/tipc/msg.c
++++ b/net/tipc/msg.c
+@@ -509,7 +509,8 @@ static bool tipc_msg_bundle(struct sk_buff *bskb, struct tipc_msg *msg,
+ 	if (unlikely(max < (offset + msz)))
+ 		return false;
+ 
+-	skb_put(bskb, pad + msz);
++	skb_put_zero(bskb, pad);
++	skb_put(bskb, msz);
+ 	skb_copy_to_linear_data_offset(bskb, offset, msg, msz);
+ 	msg_set_size(bmsg, offset + msz);
+ 	msg_set_msgcnt(bmsg, msg_msgcnt(bmsg) + 1);
+
+base-commit: 1e575bda30acc0bf01f799cee798d4a1c100d538
+-- 
+2.43.0
+

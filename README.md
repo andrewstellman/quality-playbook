@@ -41,7 +41,7 @@ The agent finds the installed skill on its own and runs the six phases (explore,
 
 ## Merged bugs leaderboard
 
-As of 25 November 2026, maintainers have merged or released fixes for these 41 bugs, and 28 more fixes and reports are [submitted and waiting](#submitted-upstream). Four of them were private security reports, published by the maintainer as advisories once the fix was released, and GitHub has issued CVEs for two of the addressable advisories: CVE-2026-126349 (GHSA-539f, credited only to my report) and CVE-2026-126350 (GHSA-j82w, credited to my report and two independent reporters). The full record, including the bugs that were held back, dropped or never filed, is in [`evidence/README.md`](evidence/README.md).
+As of 25 November 2026, maintainers have merged or released fixes for these 41 bugs, and 29 more fixes and reports are [submitted and waiting](#submitted-upstream). Four of them were private security reports, published by the maintainer as advisories once the fix was released, and GitHub has issued CVEs for two of the addressable advisories: CVE-2026-126349 (GHSA-539f, credited only to my report) and CVE-2026-126350 (GHSA-j82w, credited to my report and two independent reporters). The full record, including the bugs that were held back, dropped or never filed, is in [`evidence/README.md`](evidence/README.md).
 
 | Project | The bug | Fix | Merged | Evidence |
 |---|---|---|---|---|
@@ -372,6 +372,7 @@ These fixes and reports are still waiting on the maintainers. All of them except
 | Linux kernel `rxe` | Invalidating a type 2 memory window that wasn't bound dereferenced a NULL QP and MR pointer | [Patch](https://lore.kernel.org/linux-rdma/20261119151327.95446-1-astellman@stellman-greene.com/) applied to the rdma tree (rdma-next) by Leon Romanovsky, 22 November 2026, not yet in mainline | [Evidence folder](evidence/rxe-mw-invalidate-unbound/) |
 | Linux kernel `rxe` | `__rxe_odp_mr_copy()` copied each page of an ODP memory region from the start of the page instead of the right offset | [Patch](https://lore.kernel.org/linux-rdma/20261122003712.91551-1-astellman@stellman-greene.com/) applied to the rdma tree (rdma-rc) by Leon Romanovsky, 25 November 2026, not yet in mainline | [Evidence folder](evidence/rxe-odp-mr-copy-offsets/) |
 | Linux kernel `siw` | A user send queue could post kernel-only opcodes, and `SIW_OP_REG_MR` then used a value from user space as a kernel pointer | [v2](https://lore.kernel.org/linux-rdma/20261120140605.62810-1-astellman@stellman-greene.com/) applied to the rdma tree (rdma-rc) by Leon Romanovsky, 25 November 2026, not yet in mainline | [Evidence folder](evidence/siw-user-sq-kernel-opcodes/) |
+| Linux kernel `tipc` | `tipc_msg_bundle()` sent the pad bytes between bundled messages to the peer node without zeroing them | [Patch](https://lore.kernel.org/netdev/20261119184127.24931-1-astellman@stellman-greene.com/) applied to net-next by Paolo Abeni, 25 November 2026, not yet in mainline | [Evidence folder](evidence/tipc-bundle-pad-bytes/) |
 | Linux kernel `nvmet` | The CRTO property was computed from CSTS instead of CAP | patch sent to linux-nvme, 10 September 2026 | [Evidence folder](evidence/nvmet-crto/) |
 
 ## Recent releases
