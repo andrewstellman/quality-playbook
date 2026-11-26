@@ -1,0 +1,75 @@
+From 73ecf5262a145747b196e9846fd2126560a7daab Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <astellman@stellman-greene.com>
+Date: Sun, 22 Nov 2026 13:03:54 -0500
+Subject: [PATCH rdma-rc] RDMA/siw: Don't send stale data for a queued zero
+ length Read Request
+
+siw_init_rresp() queues an inbound RDMA Read Request in the inbound read
+queue (IRQ) when the TX work request is busy. For a zero length Read
+Request the IRQ entry has num_sge 0, and siw_activate_tx() then leaves
+wqe->sqe.sge[0] as the previous work request left it.
+siw_qp_sq_proc_tx() sets num_sge to 1 for every Read Response, so the
+Read Response is built from the previous work request's sge[0]. RFC
+5040, section 5.2.1, requires a zero length Read Response.
+
+A plain TCP peer that speaks MPA rev 1 sent two Read Requests in one
+write(): 64 bytes from an MR with remote read access, then a zero
+length Read Request. The second Read Response carried the same 64
+bytes of the MR:
+
+  Read Response, sink STag 0x11110000: 64 bytes "SIW016-REMOTE-RD..."
+  Read Response, sink STag 0x22220000: 64 bytes "SIW016-REMOTE-RD..."
+
+When the zero length Read Request was sent 500 ms after the first one,
+its Read Response had no payload.
+
+Copy sge[0] from the IRQ entry whatever its length, as the immediate
+path in siw_init_rresp() does. With this change the second Read
+Response has no payload in both cases.
+
+The issue was found by Claude Opus 5.5 running Quality Playbook, an
+LLM-driven code review tool:
+https://github.com/andrewstellman/quality-playbook
+The fix and this changelog were drafted with Claude Opus 5.5 and
+reviewed by me.
+
+Fixes: f29dd55b0236 ("rdma/siw: queue pair methods")
+Signed-off-by: Andrew Stellman <astellman@stellman-greene.com>
+---
+Tested in QEMU on v7.4-rc3 with KASAN, with a plain TCP peer that speaks
+MPA rev 1. A reproducer is available on request.
+
+ drivers/infiniband/sw/siw/siw_qp.c | 17 +++++++++--------
+ 1 file changed, 9 insertions(+), 8 deletions(-)
+
+diff --git a/drivers/infiniband/sw/siw/siw_qp.c b/drivers/infiniband/sw/siw/siw_qp.c
+index bb780e3904a..f3eb1c85f3e 100644
+--- a/drivers/infiniband/sw/siw/siw_qp.c
++++ b/drivers/infiniband/sw/siw/siw_qp.c
+@@ -972,14 +972,15 @@ int siw_activate_tx(struct siw_qp *qp)
+ 	/* start READ RESPONSE */
+ 	wqe->sqe.opcode = SIW_OP_READ_RESPONSE;
+ 	wqe->sqe.flags = 0;
+-	if (irqe->num_sge) {
+-		wqe->sqe.num_sge = 1;
+-		wqe->sqe.sge[0].length = irqe->sge[0].length;
+-		wqe->sqe.sge[0].laddr = irqe->sge[0].laddr;
+-		wqe->sqe.sge[0].lkey = irqe->sge[0].lkey;
+-	} else {
+-		wqe->sqe.num_sge = 0;
+-	}
++	/*
++	 * Copy sge[0] also for a zero length Read Request. The TX path
++	 * sends sge[0] of every Read Response, and the previous work
++	 * request's sge[0] must not be sent in its place.
++	 */
++	wqe->sqe.num_sge = irqe->num_sge;
++	wqe->sqe.sge[0].length = irqe->sge[0].length;
++	wqe->sqe.sge[0].laddr = irqe->sge[0].laddr;
++	wqe->sqe.sge[0].lkey = irqe->sge[0].lkey;
+ 
+ 	/* Retain original RREQ's message sequence number for
+ 	 * potential error reporting cases.
+-- 
+2.43.0
+

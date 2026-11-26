@@ -1,0 +1,64 @@
+From c6d935e5f1ce857460cba08cc98ac496da2fe1f7 Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <astellman@stellman-greene.com>
+Date: Sun, 22 Nov 2026 13:51:28 -0500
+Subject: [PATCH rdma-rc] RDMA/siw: Honor the sg_offset in siw_map_mr_sg()
+
+siw_map_mr_sg() builds the first PBL entry from sg_dma_address() and
+sg_dma_len() of the first scatterlist entry and ignores *sg_off.
+ib_sg_to_pages() includes *sg_off in mr->iova, which siw stores as
+mem->va, so siw_pbl_get_buffer() resolves an address in the MR to a
+location *sg_off bytes before it. rdma_rw_ctx_init() passes its
+sg_offset to ib_map_mr_sg(), and isert can pass a nonzero offset.
+
+A test module registered a one page buffer on siw with ib_map_mr_sg()
+and sg_offset 0x200, which gave mr->iova at page offset 0x200 and
+mr->length 3584. A user space client then wrote 16 bytes with an RDMA
+WRITE at mr->iova. The bytes landed at page offset 0x000 of the buffer
+instead of 0x200. With sg_offset 0 they landed at page offset 0x000,
+as expected.
+
+Start the first PBL entry *sg_off bytes into the first scatterlist
+entry, and reject an offset past the end of that entry, as
+ib_sg_to_pages() does. With this change the bytes land at page offset
+0x200.
+
+The issue was found by Claude Opus 5.5 running Quality Playbook, an
+LLM-driven code review tool:
+https://github.com/andrewstellman/quality-playbook
+The fix and this changelog were drafted with Claude Opus 5.5 and
+reviewed by me.
+
+Fixes: 303ae1cdfdf7 ("rdma/siw: application interface")
+Signed-off-by: Andrew Stellman <astellman@stellman-greene.com>
+---
+Tested in QEMU on v7.4-rc3 with KASAN, with an in-kernel test module
+and a librdmacm client over siw. A reproducer is available on request.
+
+ drivers/infiniband/sw/siw/siw_verbs.c | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/infiniband/sw/siw/siw_verbs.c b/drivers/infiniband/sw/siw/siw_verbs.c
+index 80ef4cb95fc..c5f67c8e7ce 100644
+--- a/drivers/infiniband/sw/siw/siw_verbs.c
++++ b/drivers/infiniband/sw/siw/siw_verbs.c
+@@ -1505,8 +1505,15 @@ int siw_map_mr_sg(struct ib_mr *base_mr, struct scatterlist *sl, int num_sle,
+ 			return -EINVAL;
+ 		}
+ 		if (i == 0) {
+-			pble->addr = sg_dma_address(slp);
+-			pble->size = sg_dma_len(slp);
++			unsigned int off = sg_off ? *sg_off : 0;
++
++			/* The MR starts *sg_off bytes into the first entry */
++			if (off > sg_dma_len(slp)) {
++				siw_dbg_mem(mem, "sg_off %u beyond first SGE\n", off);
++				return -EINVAL;
++			}
++			pble->addr = sg_dma_address(slp) + off;
++			pble->size = sg_dma_len(slp) - off;
+ 			pble->pbl_off = 0;
+ 			pbl_size = pble->size;
+ 			pbl->num_buf = 1;
+-- 
+2.43.0
+

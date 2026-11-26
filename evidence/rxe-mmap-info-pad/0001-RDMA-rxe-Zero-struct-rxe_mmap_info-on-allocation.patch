@@ -1,0 +1,47 @@
+From 2579a9daa58ed3bdbf9da8c5f69094bddceaa955 Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <astellman@stellman-greene.com>
+Date: Mon, 23 Nov 2026 01:44:38 -0500
+Subject: [PATCH rdma-rc] RDMA/rxe: Zero struct rxe_mmap_info on allocation
+
+rxe_create_mmap_info() allocates the structure with kmalloc_obj() and
+does not set info.pad. do_mmap_info() copies ip->info to userspace with
+copy_to_user(), so the 4 pad bytes of struct mminfo come from
+uninitialized kernel heap memory.
+
+On x86_64 v7.4-rc3 under QEMU with init_on_alloc=0, an unprivileged
+user (CapEff 0) issued 300 CQ_CREATE ioctls on rxe0 and read the driver
+response. After the guest had run ls -lR on /proc and /sys and read
+/proc/*/status and /proc/*/stat, 101 of the 300 pads were nonzero. In a
+separate boot with slub_debug=P, all 300 pads were 0x6b6b6b6b. With
+this patch, all 300 pads were zero in both configurations.
+
+Allocate the structure with kzalloc_obj() so the pad is zero.
+
+The issue was found by Claude Opus 5.5 running Quality Playbook, an LLM-driven code review tool:
+https://github.com/andrewstellman/quality-playbook
+The fix and this changelog were drafted with Claude Sonnet 5.5 and reviewed by me.
+
+Fixes: 8700e3e7c485 ("Soft RoCE driver")
+Signed-off-by: Andrew Stellman <astellman@stellman-greene.com>
+---
+A reproducer is available on request.
+
+ drivers/infiniband/sw/rxe/rxe_mmap.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/infiniband/sw/rxe/rxe_mmap.c b/drivers/infiniband/sw/rxe/rxe_mmap.c
+index a4ead89cc..ac851f245 100644
+--- a/drivers/infiniband/sw/rxe/rxe_mmap.c
++++ b/drivers/infiniband/sw/rxe/rxe_mmap.c
+@@ -102,7 +102,7 @@ struct rxe_mmap_info *rxe_create_mmap_info(struct rxe_dev *rxe, u32 size,
+ 	if (!udata)
+ 		return ERR_PTR(-EINVAL);
+ 
+-	ip = kmalloc_obj(*ip);
++	ip = kzalloc_obj(*ip);
+ 	if (!ip)
+ 		return ERR_PTR(-ENOMEM);
+ 
+-- 
+2.43.0
+
